@@ -5,7 +5,7 @@ class Sandbox : public hazel::Application
 public:
     Sandbox()
     {
-
+        HZ_INFO("hello!");
     }
 
     ~Sandbox()

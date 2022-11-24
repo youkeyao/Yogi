@@ -5,6 +5,7 @@ set( GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE )
 set( GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE )
 
 add_subdirectory( vendor/glfw )
+add_subdirectory( vendor/spdlog )
 
 # source code
 file(GLOB 
@@ -20,6 +21,7 @@ add_library( engine
 target_link_libraries( engine
     PUBLIC
         glfw
+        spdlog
 )
 target_include_directories( engine
     PUBLIC
@@ -27,4 +29,5 @@ target_include_directories( engine
         src/hazel
     PRIVATE
         vendor/glfw/include
+        vendor/spdlog/include
 )
