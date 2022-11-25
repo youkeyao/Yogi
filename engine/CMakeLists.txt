@@ -23,6 +23,10 @@ target_link_libraries( engine
         glfw
         spdlog
 )
+target_precompile_headers( engine
+    PUBLIC
+        src/engine_pch.h
+)
 target_include_directories( engine
     PUBLIC
         src
