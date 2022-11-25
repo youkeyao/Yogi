@@ -10,7 +10,7 @@ add_subdirectory( vendor/spdlog )
 # source code
 file(GLOB 
     SOURCES CONFIGURE_DEPENDS
-        src/hazel/*.cpp
+        src/core/*.cpp
 )
 
 # library creation
@@ -26,7 +26,6 @@ target_link_libraries( engine
 target_include_directories( engine
     PUBLIC
         src
-        src/hazel
     PRIVATE
         vendor/glfw/include
         vendor/spdlog/include

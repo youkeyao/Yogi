@@ -11,4 +11,5 @@ namespace hazel {
     };
 
     extern Application* create_application();
+
 }

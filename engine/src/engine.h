@@ -1,8 +1,10 @@
 #pragma once
 
-#include <hazel/application.h>
-#include <hazel/core.h>
-#include <hazel/log.h>
+#include <core/core.h>
+#include <core/log.h>
+#include <core/application.h>
+
+#include <events/application_event.h>
 
 // entry point
-#include <hazel/entrypoint.h>
+#include <core/entrypoint.h>
