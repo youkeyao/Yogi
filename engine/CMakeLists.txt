@@ -11,6 +11,7 @@ add_subdirectory( vendor/spdlog )
 file(GLOB 
     SOURCES CONFIGURE_DEPENDS
         src/core/*.cpp
+        src/platform/window/*.cpp
 )
 
 # library creation

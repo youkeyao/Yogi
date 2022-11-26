@@ -5,9 +5,7 @@ class Sandbox : public hazel::Application
 public:
     Sandbox()
     {
-        HZ_INFO("hello!");
-        hazel::WindowResizeEvent e(1280, 720);
-        HZ_TRACE(e);
+        
     }
 
     ~Sandbox()
