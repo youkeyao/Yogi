@@ -1,5 +1,7 @@
 #pragma once
 
+#define GLFW_INCLUDE_NONE
+
 #include <iostream>
 #include <memory>
 #include <string>

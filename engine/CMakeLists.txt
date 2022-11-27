@@ -5,6 +5,7 @@ set( GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE )
 set( GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE )
 
 add_subdirectory( vendor/glfw )
+add_subdirectory( vendor/glad )
 add_subdirectory( vendor/spdlog )
 
 # source code
@@ -22,6 +23,7 @@ add_library( engine
 target_link_libraries( engine
     PUBLIC
         glfw
+        glad
         spdlog
 )
 target_precompile_headers( engine
@@ -33,5 +35,6 @@ target_include_directories( engine
         src
     PRIVATE
         vendor/glfw/include
+        vendor/glad/include
         vendor/spdlog/include
 )

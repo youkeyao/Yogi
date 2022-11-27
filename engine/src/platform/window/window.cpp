@@ -10,20 +10,20 @@ namespace hazel {
 
     Window* Window::create(const WindowProps& props)
     {
-        return new LinuxWindow(props);
+        return new GLFWWindow(props);
     }
 
-    LinuxWindow::LinuxWindow(const WindowProps& props)
+    GLFWWindow::GLFWWindow(const WindowProps& props)
     {
         init(props);
     }
 
-    LinuxWindow::~LinuxWindow()
+    GLFWWindow::~GLFWWindow()
     {
         shutdown();
     }
 
-    void LinuxWindow::init(const WindowProps& props)
+    void GLFWWindow::init(const WindowProps& props)
     {
         m_data.title = props.title;
         m_data.width = props.width;
@@ -40,6 +40,8 @@ namespace hazel {
 
         m_window = glfwCreateWindow(m_data.width, m_data.height, m_data.title.c_str(), nullptr, nullptr);
         glfwMakeContextCurrent(m_window);
+        int status = gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
+        HZ_CORE_ASSERT(status, "Could not initialize GLad!");
         glfwSetWindowUserPointer(m_window, &m_data);
         set_vsync(true);
 
@@ -114,18 +116,18 @@ namespace hazel {
         });
     }
 
-    void LinuxWindow::shutdown()
+    void GLFWWindow::shutdown()
     {
         glfwDestroyWindow(m_window);
     }
 
-    void LinuxWindow::on_update()
+    void GLFWWindow::on_update()
     {
         glfwPollEvents();
         glfwSwapBuffers(m_window);
     }
 
-    void LinuxWindow::set_vsync(bool enabled)
+    void GLFWWindow::set_vsync(bool enabled)
     {
         if (enabled) {
             glfwSwapInterval(1);
@@ -136,6 +138,6 @@ namespace hazel {
         m_data.vsync = enabled;
     }
 
-    bool LinuxWindow::is_vsync() const { return m_data.vsync; }
+    bool GLFWWindow::is_vsync() const { return m_data.vsync; }
 
 }

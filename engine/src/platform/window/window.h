@@ -1,6 +1,7 @@
 #pragma once
 
 #include <GLFW/glfw3.h>
+#include <glad/glad.h>
 #include "core/window.h"
 #include "events/application_event.h"
 #include "events/key_event.h"
@@ -8,11 +9,11 @@
 
 namespace hazel {
 
-    class LinuxWindow : public Window
+    class GLFWWindow : public Window
     {
     public:
-        LinuxWindow(const WindowProps& props);
-        virtual ~LinuxWindow();
+        GLFWWindow(const WindowProps& props);
+        virtual ~GLFWWindow();
 
         void on_update() override;
 
