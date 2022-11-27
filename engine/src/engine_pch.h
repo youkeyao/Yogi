@@ -5,6 +5,8 @@
 #include <string>
 #include <sstream>
 #include <functional>
+#include <vector>
+#include <algorithm>
 
 #include "core/log.h"
 

@@ -39,7 +39,6 @@ namespace hazel {
         virtual int get_category_flags() const = 0;
         virtual std::string to_string() const { return get_name(); }
         inline bool is_in_category(EventCategory category) { return get_category_flags() & category; }
-    protected:
         bool m_handled = false;
     };
 
