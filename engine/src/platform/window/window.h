@@ -27,7 +27,7 @@ namespace hazel {
         void set_vsync(bool enabled) override;
         bool is_vsync() const override;
 
-        void* native_window() const override { return m_window; }
+        void* get_native_window() const override { return m_window; }
 
     private:
         virtual void init(const WindowProps& props);

@@ -21,7 +21,7 @@ namespace hazel {
 
         ImGui::StyleColorsDark();
 
-        ImGui_ImplGlfw_InitForOpenGL(static_cast<GLFWwindow*>(Application::get().get_window().native_window()), true);
+        ImGui_ImplGlfw_InitForOpenGL(static_cast<GLFWwindow*>(Application::get().get_window().get_native_window()), true);
         ImGui_ImplOpenGL3_Init("#version 130");
     }
 

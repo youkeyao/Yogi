@@ -33,7 +33,7 @@ namespace hazel {
         virtual void set_vsync(bool enabled) = 0;
         virtual bool is_vsync() const = 0;
 
-        virtual void* native_window() const = 0;
+        virtual void* get_native_window() const = 0;
 
         static Window* create(const WindowProps& props = WindowProps());
     };

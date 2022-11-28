@@ -9,13 +9,14 @@ add_subdirectory( vendor/glad )
 add_subdirectory( vendor/spdlog )
 
 # source code
-file(GLOB 
+file(GLOB_RECURSE
     SOURCES CONFIGURE_DEPENDS
-        src/core/*.cpp
-        src/imgui/*.cpp
-        src/platform/window/*.cpp
+        src/*.cpp
         vendor/imgui/backends/imgui_impl_opengl3.cpp
         vendor/imgui/backends/imgui_impl_glfw.cpp
+)
+file(GLOB
+    IMGUI_SOURSES
         vendor/imgui/*.cpp
 )
 
@@ -24,11 +25,16 @@ add_library( engine
     STATIC
         ${SOURCES}
 )
+add_library( imgui
+    STATIC
+        ${IMGUI_SOURSES}
+)
 target_link_libraries( engine
     PUBLIC
         glfw
         glad
         spdlog
+        imgui
 )
 target_precompile_headers( engine
     PUBLIC
