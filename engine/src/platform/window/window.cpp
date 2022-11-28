@@ -10,20 +10,20 @@ namespace hazel {
 
     Window* Window::create(const WindowProps& props)
     {
-        return new GLFWWindow(props);
+        return new WindowGLFW(props);
     }
 
-    GLFWWindow::GLFWWindow(const WindowProps& props)
+    WindowGLFW::WindowGLFW(const WindowProps& props)
     {
         init(props);
     }
 
-    GLFWWindow::~GLFWWindow()
+    WindowGLFW::~WindowGLFW()
     {
         shutdown();
     }
 
-    void GLFWWindow::init(const WindowProps& props)
+    void WindowGLFW::init(const WindowProps& props)
     {
         m_data.title = props.title;
         m_data.width = props.width;
@@ -116,28 +116,29 @@ namespace hazel {
         });
     }
 
-    void GLFWWindow::shutdown()
+    void WindowGLFW::shutdown()
     {
         glfwDestroyWindow(m_window);
     }
 
-    void GLFWWindow::on_update()
+    void WindowGLFW::on_update()
     {
         glfwPollEvents();
         glfwSwapBuffers(m_window);
     }
 
-    void GLFWWindow::set_vsync(bool enabled)
+    void WindowGLFW::set_vsync(bool enabled)
     {
         if (enabled) {
             glfwSwapInterval(1);
-        } else {
+        }
+        else {
             glfwSwapInterval(0);
         }
 
         m_data.vsync = enabled;
     }
 
-    bool GLFWWindow::is_vsync() const { return m_data.vsync; }
+    bool WindowGLFW::is_vsync() const { return m_data.vsync; }
 
 }

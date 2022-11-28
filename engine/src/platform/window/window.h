@@ -9,11 +9,11 @@
 
 namespace hazel {
 
-    class GLFWWindow : public Window
+    class WindowGLFW : public Window
     {
     public:
-        GLFWWindow(const WindowProps& props);
-        virtual ~GLFWWindow();
+        WindowGLFW(const WindowProps& props);
+        virtual ~WindowGLFW();
 
         void on_update() override;
 
@@ -26,6 +26,8 @@ namespace hazel {
         };
         void set_vsync(bool enabled) override;
         bool is_vsync() const override;
+
+        void* native_window() const override { return m_window; }
 
     private:
         virtual void init(const WindowProps& props);

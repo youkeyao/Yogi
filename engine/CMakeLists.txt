@@ -12,7 +12,11 @@ add_subdirectory( vendor/spdlog )
 file(GLOB 
     SOURCES CONFIGURE_DEPENDS
         src/core/*.cpp
+        src/imgui/*.cpp
         src/platform/window/*.cpp
+        vendor/imgui/backends/imgui_impl_opengl3.cpp
+        vendor/imgui/backends/imgui_impl_glfw.cpp
+        vendor/imgui/*.cpp
 )
 
 # library creation
@@ -33,6 +37,7 @@ target_precompile_headers( engine
 target_include_directories( engine
     PUBLIC
         src
+        vendor/imgui
     PRIVATE
         vendor/glfw/include
         vendor/glad/include
