@@ -52,8 +52,6 @@ namespace hazel {
             for (Layer* layer : m_layerstack) {
                 layer->on_update();
             }
-            auto[x, y] = Input::get_mouse_position();
-            HZ_CORE_TRACE("{0} {1}", x, y);
             m_window->on_update();
         }
     }
