@@ -34,15 +34,21 @@ target_link_libraries( engine
         glfw
         glad
         spdlog
+    PRIVATE
         imgui
 )
 target_precompile_headers( engine
     PUBLIC
         src/engine_pch.h
 )
+target_include_directories( imgui
+    PRIVATE
+        vendor/imgui
+)
 target_include_directories( engine
     PUBLIC
         src
+        vendor/glm
         vendor/imgui
     PRIVATE
         vendor/glfw/include
