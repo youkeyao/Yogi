@@ -2,8 +2,8 @@
 
 #include "core/window.h"
 #include "core/layerstack.h"
-#include "core/input.h"
 #include "events/application_event.h"
+#include "imgui/imgui_layer.h"
 
 namespace hazel {
 
@@ -22,6 +22,7 @@ namespace hazel {
         bool on_window_close(WindowCloseEvent& e);
         bool on_window_resize(WindowResizeEvent& e);
         std::unique_ptr<Window> m_window;
+        ImGuiLayer* m_imgui_layer;
         bool m_running = true;
         LayerStack m_layerstack;
         static Application* ms_instance;

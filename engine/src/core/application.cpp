@@ -1,4 +1,6 @@
 #include "core/application.h"
+#include "core/input.h"
+#include <glad/glad.h>
 
 namespace hazel {
 
@@ -13,6 +15,9 @@ namespace hazel {
 
         m_window = std::unique_ptr<Window>(Window::create());
         m_window->set_event_callback(BIND_EVENT_FN(Application::on_event));
+
+        m_imgui_layer = new ImGuiLayer();
+        push_overlay(m_imgui_layer);
     }
 
     Application::~Application()
@@ -49,9 +54,17 @@ namespace hazel {
     void Application::run()
     {
         while (m_running) {
+            glClearColor(1, 0, 1, 1);
+            glClear(GL_COLOR_BUFFER_BIT);
             for (Layer* layer : m_layerstack) {
                 layer->on_update();
             }
+            m_imgui_layer->begin();
+            for (Layer* layer : m_layerstack) {
+                layer->on_imgui_render();
+            }
+            m_imgui_layer->end();
+
             m_window->on_update();
         }
     }

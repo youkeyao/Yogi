@@ -18,6 +18,11 @@ public:
     {
         // HZ_TRACE("{0}", e);
     }
+
+    void on_imgui_render()
+    {
+
+    }
 };
 
 class Sandbox : public hazel::Application
@@ -26,7 +31,6 @@ public:
     Sandbox()
     {
         push_layer(new ExampleLayer());
-        push_overlay(new hazel::ImGuiLayer());
     }
 
     ~Sandbox()

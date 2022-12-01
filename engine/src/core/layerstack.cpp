@@ -2,10 +2,7 @@
 
 namespace hazel {
 
-    LayerStack::LayerStack()
-    {
-        m_layer_insert = m_layers.begin();
-    }
+    LayerStack::LayerStack() {}
 
     LayerStack::~LayerStack()
     {
@@ -16,7 +13,8 @@ namespace hazel {
 
     void LayerStack::push_layer(Layer* layer)
     {
-        m_layers.emplace(m_layer_insert, layer);
+        m_layers.emplace(m_layers.begin() + m_layer_insert_index, layer);
+        m_layer_insert_index++;
     }
 
     void LayerStack::push_overlay(Layer* overlay)
@@ -25,16 +23,16 @@ namespace hazel {
     }
 
     void LayerStack::pop_layer(Layer* layer) {
-        auto it = std::find(m_layers.begin(), m_layer_insert, layer);
-        if (it != m_layer_insert) {
+        auto it = std::find(m_layers.begin(), m_layers.begin() + m_layer_insert_index, layer);
+        if (it != m_layers.begin() + m_layer_insert_index) {
             m_layers.erase(it);
-            m_layer_insert--;
+            m_layer_insert_index--;
         }
     }
 
     void LayerStack::pop_overlay(Layer* overlay)
     {
-        auto it = std::find(m_layer_insert, m_layers.end(), overlay);
+        auto it = std::find(m_layers.begin() + m_layer_insert_index, m_layers.end(), overlay);
         if (it != m_layers.end()) {
             m_layers.erase(it);
         }

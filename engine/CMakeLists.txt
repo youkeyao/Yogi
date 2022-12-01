@@ -12,8 +12,6 @@ add_subdirectory( vendor/spdlog )
 file(GLOB_RECURSE
     SOURCES CONFIGURE_DEPENDS
         src/*.cpp
-        vendor/imgui/backends/imgui_impl_opengl3.cpp
-        vendor/imgui/backends/imgui_impl_glfw.cpp
 )
 file(GLOB
     IMGUI_SOURSES
@@ -34,7 +32,6 @@ target_link_libraries( engine
         glfw
         glad
         spdlog
-    PRIVATE
         imgui
 )
 target_precompile_headers( engine

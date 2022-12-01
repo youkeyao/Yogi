@@ -1,59 +1,73 @@
 #include "imgui/imgui_layer.h"
 
+#include "core/application.h"
+#include <imgui.h>
+#include <backends/imgui_impl_opengl3.h>
+#include <backends/imgui_impl_glfw.h>
+#include <GLFW/glfw3.h>
+
 namespace hazel {
 
-    ImGuiLayer::ImGuiLayer() : Layer("ImGuiLayer")
-    {
-    }
+    ImGuiLayer::ImGuiLayer() : Layer("ImGuiLayer") {}
+    ImGuiLayer::~ImGuiLayer() {}
 
-    ImGuiLayer::~ImGuiLayer()
-    {
-    }
-
-    void ImGuiLayer::on_attach()
-    {
+    void ImGuiLayer::on_attach() {
+        IMGUI_CHECKVERSION();
         ImGui::CreateContext();
 
         ImGuiIO& io = ImGui::GetIO();
-        (void)io;
+        (void) io;
+
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-        io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+        io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+        io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
         ImGui::StyleColorsDark();
 
-        ImGui_ImplGlfw_InitForOpenGL(static_cast<GLFWwindow*>(Application::get().get_window().get_native_window()), true);
+        ImGuiStyle& style = ImGui::GetStyle();
+        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+            style.WindowRounding = 0.0f;
+            style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+        }
+
+        Application& app = Application::get();
+        GLFWwindow* window = static_cast<GLFWwindow*>(app.get_window().get_native_window());
+
+        ImGui_ImplGlfw_InitForOpenGL(window, true);
         ImGui_ImplOpenGL3_Init("#version 130");
     }
 
-    void ImGuiLayer::on_detach()
-    {
-
+    void ImGuiLayer::on_detach() {
+        ImGui_ImplOpenGL3_Shutdown();
+        ImGui_ImplGlfw_Shutdown();
+        ImGui::DestroyContext();
     }
 
-    void ImGuiLayer::on_update()
-    {
+    void ImGuiLayer::begin() {
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+    }
+
+    void ImGuiLayer::end() {
         ImGuiIO& io = ImGui::GetIO();
         Application& app = Application::get();
         io.DisplaySize = ImVec2(app.get_window().get_width(), app.get_window().get_height());
 
-        float time = (float)glfwGetTime();
-        io.DeltaTime = m_time > 0.0 ? (time - m_time) : (1.0f / 60.0f);
-        m_time = time;
-
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
-
-        static bool show = true;
-        ImGui::ShowDemoWindow(&show);
-
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+            GLFWwindow* backup_current_context = glfwGetCurrentContext();
+            ImGui::UpdatePlatformWindows();
+            ImGui::RenderPlatformWindowsDefault();
+            glfwMakeContextCurrent(backup_current_context);
+        }
     }
 
-    void ImGuiLayer::on_event(Event& e)
-    {
-
+    void ImGuiLayer::on_imgui_render() {
+        static bool show = true;
+        ImGui::ShowDemoWindow(&show);
     }
 
 }
