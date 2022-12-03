@@ -1,4 +1,5 @@
-#include "platform/window/window.h"
+#include "platform/window/window_glfw.h"
+#include "platform/opengl/opengl_context.h"
 
 namespace hazel {
 
@@ -39,9 +40,9 @@ namespace hazel {
         }
 
         m_window = glfwCreateWindow(m_data.width, m_data.height, m_data.title.c_str(), nullptr, nullptr);
-        glfwMakeContextCurrent(m_window);
-        int status = gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
-        HZ_CORE_ASSERT(status, "Could not initialize GLad!");
+        m_context = new OpenGLContext(m_window);
+        m_context->init();
+
         glfwSetWindowUserPointer(m_window, &m_data);
         set_vsync(true);
 
@@ -124,7 +125,7 @@ namespace hazel {
     void WindowGLFW::on_update()
     {
         glfwPollEvents();
-        glfwSwapBuffers(m_window);
+        m_context->swap_buffers();
     }
 
     void WindowGLFW::set_vsync(bool enabled)

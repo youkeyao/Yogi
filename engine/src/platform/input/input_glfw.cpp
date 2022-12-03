@@ -1,4 +1,4 @@
-#include "platform/input/input.h"
+#include "platform/input/input_glfw.h"
 
 namespace hazel {
 

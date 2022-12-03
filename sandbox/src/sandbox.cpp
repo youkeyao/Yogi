@@ -1,4 +1,5 @@
 #include <engine.h>
+#include <imgui.h>
 
 class ExampleLayer : public hazel::Layer
 {
@@ -21,7 +22,9 @@ public:
 
     void on_imgui_render()
     {
-
+        ImGui::Begin("Test");
+        ImGui::Text("hello world");
+        ImGui::End();
     }
 };
 

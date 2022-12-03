@@ -6,6 +6,7 @@
 #include "events/application_event.h"
 #include "events/key_event.h"
 #include "events/mouse_event.h"
+#include "renderer/graphics_context.h"
 
 namespace hazel {
 
@@ -34,6 +35,7 @@ namespace hazel {
         virtual void shutdown();
 
         GLFWwindow* m_window;
+        GraphicsContext* m_context;
 
         struct WindowData {
             std::string title;

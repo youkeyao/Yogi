@@ -26,6 +26,8 @@ namespace hazel {
         bool m_running = true;
         LayerStack m_layerstack;
         static Application* ms_instance;
+
+        unsigned int m_vertex_array, m_vertex_buffer, m_index_buffer;
     };
 
     extern Application* create_application();
