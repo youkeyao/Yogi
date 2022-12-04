@@ -4,6 +4,8 @@
 #include "core/layerstack.h"
 #include "events/application_event.h"
 #include "imgui/imgui_layer.h"
+#include "renderer/shader.h"
+#include "renderer/buffer.h"
 
 namespace hazel {
 
@@ -27,7 +29,10 @@ namespace hazel {
         LayerStack m_layerstack;
         static Application* ms_instance;
 
-        unsigned int m_vertex_array, m_vertex_buffer, m_index_buffer;
+        unsigned int m_vertex_array;
+        std::unique_ptr<Shader> m_shader;
+        std::unique_ptr<VertexBuffer> m_vertex_buffer;
+        std::unique_ptr<IndexBuffer> m_index_buffer;
     };
 
     extern Application* create_application();

@@ -22,23 +22,39 @@ namespace hazel {
         glGenVertexArrays(1, &m_vertex_array);
         glBindVertexArray(m_vertex_array);
 
-        glGenBuffers(1, &m_vertex_buffer);
-        glBindBuffer(GL_ARRAY_BUFFER, m_vertex_buffer);
         float vertices[] = {
             -0.5f, -0.5f, 0.0f,
              0.5f, -0.5f, 0.0f,
              0.0f,  0.5f, 0.0f,
         };
-        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+        m_vertex_buffer.reset(VertexBuffer::create(vertices, sizeof(vertices)));
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
         glEnableVertexAttribArray(0);
 
-        glGenBuffers(1, &m_index_buffer);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_index_buffer);
-        unsigned int indices[] = {
+        uint32_t indices[] = {
             0, 1, 2,
         };
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+        m_index_buffer.reset(IndexBuffer::create(indices, 3));
+
+        std::string vertexSrc = R"(
+            #version 330 core
+            layout(location = 0) in vec3 a_Position;
+            void main()
+            {
+                gl_Position = vec4(a_Position, 1.0);
+            }
+        )";
+
+        std::string fragmentSrc = R"(
+            #version 330 core
+            layout(location = 0) out vec4 color;
+            void main()
+            {
+                color = vec4(0.8, 0.2, 0.3, 1.0);
+            }
+        )";
+
+        m_shader.reset(new Shader(vertexSrc, fragmentSrc));
     }
 
     Application::~Application()
@@ -76,8 +92,9 @@ namespace hazel {
         while (m_running) {
             glClearColor(0.1f, 0.1f, 0.1f, 1);
             glClear(GL_COLOR_BUFFER_BIT);
+            m_shader->bind();
             glBindVertexArray(m_vertex_array);
-            glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
+            glDrawElements(GL_TRIANGLES, m_index_buffer->get_count(), GL_UNSIGNED_INT, 0);
 
             for (Layer* layer : m_layerstack) {
                 layer->on_update();
