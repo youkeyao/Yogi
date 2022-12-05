@@ -8,6 +8,28 @@ namespace hazel {
 
     Application* Application::ms_instance = nullptr;
 
+    static GLenum ShaderDataType_to_OpenGLBaseType(ShaderDataType type)
+    {
+        switch (type) {
+            case ShaderDataType::Float:
+            case ShaderDataType::Float2:
+            case ShaderDataType::Float3:
+            case ShaderDataType::Float4:
+            case ShaderDataType::Mat3:
+            case ShaderDataType::Mat4:
+                return GL_FLOAT;
+            case ShaderDataType::Int:
+            case ShaderDataType::Int2:
+            case ShaderDataType::Int3:
+            case ShaderDataType::Int4:
+                return GL_INT;
+            case ShaderDataType::Bool:
+                return GL_BOOL;
+        }
+        HZ_CORE_ASSERT(false, "unknown ShaderDataType!");
+        return 0;
+    }
+
     Application::Application()
     {
         HZ_CORE_ASSERT(!ms_instance, "Application already exists!");
@@ -23,13 +45,27 @@ namespace hazel {
         glBindVertexArray(m_vertex_array);
 
         float vertices[] = {
-            -0.5f, -0.5f, 0.0f,
-             0.5f, -0.5f, 0.0f,
-             0.0f,  0.5f, 0.0f,
+            -0.5f, -0.5f, 0.0f, 0.8f, 0.2f, 0.9f, 1.0f,
+             0.5f, -0.5f, 0.0f, 0.2f, 0.3f, 0.8f, 1.0f,
+             0.0f,  0.5f, 0.0f, 0.8f, 0.8f, 0.2f, 1.0f,
         };
         m_vertex_buffer.reset(VertexBuffer::create(vertices, sizeof(vertices)));
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
-        glEnableVertexAttribArray(0);
+        BufferLayout layout = {
+            { ShaderDataType::Float3, "a_Position" },
+            { ShaderDataType::Float4, "a_Color" },
+        };
+        m_vertex_buffer->set_layout(layout);
+        int index = 0;
+        for (const auto& element : m_vertex_buffer->get_layout() ) {
+            glEnableVertexAttribArray(index);
+            glVertexAttribPointer(index, element.get_component_count(),
+                ShaderDataType_to_OpenGLBaseType(element.type),
+                element.normalized ? GL_TRUE : GL_FALSE,
+                layout.get_stride(),
+                (const void*)(uint64_t)element.offset
+            );
+            index ++;
+        }
 
         uint32_t indices[] = {
             0, 1, 2,
@@ -39,8 +75,14 @@ namespace hazel {
         std::string vertexSrc = R"(
             #version 330 core
             layout(location = 0) in vec3 a_Position;
+            layout(location = 1) in vec4 a_Color;
+
+            out vec3 v_Position;
+            out vec4 v_Color;
             void main()
             {
+                v_Position = a_Position;
+                v_Color = a_Color;
                 gl_Position = vec4(a_Position, 1.0);
             }
         )";
@@ -48,9 +90,13 @@ namespace hazel {
         std::string fragmentSrc = R"(
             #version 330 core
             layout(location = 0) out vec4 color;
+            
+            in vec3 v_Position;
+            in vec4 v_Color;
             void main()
             {
                 color = vec4(0.8, 0.2, 0.3, 1.0);
+                color = v_Color;
             }
         )";
 

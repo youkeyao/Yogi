@@ -17,8 +17,12 @@ namespace hazel {
         void bind() const override;
         void unbind() const override;
 
+        virtual const BufferLayout& get_layout() const override { return m_layout; }
+        virtual void set_layout(const BufferLayout& layout) override { m_layout = layout; }
+
     private:
         uint32_t m_renderer_id;
+        BufferLayout m_layout;
     };
 
     //
