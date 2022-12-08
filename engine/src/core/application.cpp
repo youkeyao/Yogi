@@ -1,6 +1,7 @@
 #include "core/application.h"
 #include "core/input.h"
 #include "renderer/renderer.h"
+#include "renderer/orthographic_camera.h"
 
 namespace hazel {
 
@@ -8,7 +9,7 @@ namespace hazel {
 
     Application* Application::ms_instance = nullptr;
 
-    Application::Application()
+    Application::Application() : m_camera(-1.6f, 1.6f, -0.9f, 0.9f)
     {
         HZ_CORE_ASSERT(!ms_instance, "Application already exists!");
         ms_instance = this;
@@ -68,13 +69,15 @@ namespace hazel {
             layout(location = 0) in vec3 a_Position;
             layout(location = 1) in vec4 a_Color;
 
+            uniform mat4 u_view_projection;
+
             out vec3 v_Position;
             out vec4 v_Color;
             void main()
             {
                 v_Position = a_Position;
                 v_Color = a_Color;
-                gl_Position = vec4(a_Position, 1.0);
+                gl_Position = u_view_projection * vec4(a_Position, 1.0);
             }
         )";
 
@@ -97,11 +100,13 @@ namespace hazel {
             #version 330 core
             layout(location = 0) in vec3 a_Position;
 
+            uniform mat4 u_view_projection;
+
             out vec3 v_Position;
             void main()
             {
                 v_Position = a_Position;
-                gl_Position = vec4(a_Position, 1.0);
+                gl_Position = u_view_projection * vec4(a_Position, 1.0);
             }
         )";
 
@@ -155,12 +160,13 @@ namespace hazel {
             RendererCommand::set_clear_color({ 0.1f, 0.1f, 0.1f, 1.0f });
             RendererCommand::clear();
 
-            Renderer::begin_scene();
+            m_camera.set_position({ 0.5f, 0.5f, 0.0f });
+            m_camera.set_rotation(45.0f);
 
-            m_blue_shader->bind();
-            Renderer::submit(m_square_va);
-            m_shader->bind();
-            Renderer::submit(m_vertex_array);
+            Renderer::begin_scene(m_camera);
+
+            Renderer::submit(m_blue_shader, m_square_va);
+            Renderer::submit(m_shader, m_vertex_array);
 
             Renderer::end_scene();
 

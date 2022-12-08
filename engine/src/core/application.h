@@ -7,6 +7,7 @@
 #include "renderer/shader.h"
 #include "renderer/buffer.h"
 #include "renderer/vertex_array.h"
+#include "renderer/orthographic_camera.h"
 
 namespace hazel {
 
@@ -35,6 +36,8 @@ namespace hazel {
 
         std::shared_ptr<Shader> m_blue_shader;
         std::shared_ptr<VertexArray> m_square_va;
+
+        OrthographicCamera m_camera;
     };
 
     extern Application* create_application();
