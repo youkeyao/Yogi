@@ -6,5 +6,22 @@
 #include "core/mouse_button_codes.h"
 #include "core/layer.h"
 
-// entry point
+#include "events/event.h"
+#include "events/application_event.h"
+#include "events/key_event.h"
+#include "events/mouse_event.h"
+
+// ---renderer----------------------------------
+#include "renderer/renderer.h"
+#include "renderer/renderer_command.h"
+
+#include "renderer/buffer.h"
+#include "renderer/shader.h"
+#include "renderer/vertex_array.h"
+
+#include "renderer/orthographic_camera.h"
+// ---------------------------------------------
+
+// ---entry point-------------------------------
 #include "core/entrypoint.h"
+// ---------------------------------------------
