@@ -109,25 +109,25 @@ public:
         m_blue_shader.reset(new hazel::Shader(blueVertexSrc, blueFragmentSrc));
     }
 
-    void on_update() override
-    {
+    void on_update(hazel::TimeStep ts) override
+    {        
         if (hazel::Input::is_key_pressed(HZ_KEY_LEFT)) {
-            m_camera.set_position(m_camera.get_position() - glm::vec3(m_camera_move_speed, 0, 0));
+            m_camera.set_position(m_camera.get_position() - glm::vec3(m_camera_move_speed * ts, 0, 0));
         }
         if (hazel::Input::is_key_pressed(HZ_KEY_RIGHT)) {
-            m_camera.set_position(m_camera.get_position() + glm::vec3(m_camera_move_speed, 0, 0));
+            m_camera.set_position(m_camera.get_position() + glm::vec3(m_camera_move_speed * ts, 0, 0));
         }
         if (hazel::Input::is_key_pressed(HZ_KEY_UP)) {
-            m_camera.set_position(m_camera.get_position() + glm::vec3(0, m_camera_move_speed, 0));
+            m_camera.set_position(m_camera.get_position() + glm::vec3(0, m_camera_move_speed * ts, 0));
         }
         if (hazel::Input::is_key_pressed(HZ_KEY_DOWN)) {
-            m_camera.set_position(m_camera.get_position() - glm::vec3(0, m_camera_move_speed, 0));
+            m_camera.set_position(m_camera.get_position() - glm::vec3(0, m_camera_move_speed * ts, 0));
         }
         if (hazel::Input::is_key_pressed(HZ_KEY_A)) {
-            m_camera.set_rotation(m_camera.get_rotation() + m_camera_rotate_speed);
+            m_camera.set_rotation(m_camera.get_rotation() + m_camera_rotate_speed * ts);
         }
         if (hazel::Input::is_key_pressed(HZ_KEY_D)) {
-            m_camera.set_rotation(m_camera.get_rotation() - m_camera_rotate_speed);
+            m_camera.set_rotation(m_camera.get_rotation() - m_camera_rotate_speed * ts);
         }
 
         hazel::RendererCommand::set_clear_color({ 0.1f, 0.1f, 0.1f, 1.0f });
@@ -153,8 +153,8 @@ private:
     std::shared_ptr<hazel::VertexArray> m_square_va;
 
     hazel::OrthographicCamera m_camera;
-    float m_camera_move_speed = 0.1f;
-    float m_camera_rotate_speed = 2.0f;
+    float m_camera_move_speed = 5.0f;
+    float m_camera_rotate_speed = 180.0f;
 };
 
 class Sandbox : public hazel::Application

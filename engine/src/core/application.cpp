@@ -1,5 +1,7 @@
 #include "core/application.h"
 
+#include <GLFW/glfw3.h>
+
 namespace hazel {
 
     Application* Application::ms_instance = nullptr;
@@ -49,8 +51,12 @@ namespace hazel {
     void Application::run()
     {
         while (m_running) {
+            float time = (float)glfwGetTime();
+            TimeStep timestep = time - m_last_frame_time;
+            m_last_frame_time = time;
+
             for (Layer* layer : m_layerstack) {
-                layer->on_update();
+                layer->on_update(timestep);
             }
             m_imgui_layer->begin();
             for (Layer* layer : m_layerstack) {

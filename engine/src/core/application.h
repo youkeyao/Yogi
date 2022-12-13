@@ -2,6 +2,7 @@
 
 #include "core/window.h"
 #include "core/layerstack.h"
+#include "core/timestep.h"
 #include "events/application_event.h"
 #include "imgui/imgui_layer.h"
 
@@ -27,6 +28,7 @@ namespace hazel {
         ImGuiLayer* m_imgui_layer;
         bool m_running = true;
         LayerStack m_layerstack;
+        float m_last_frame_time = 0.0f;
 
         static Application* ms_instance;
     };
