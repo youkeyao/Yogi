@@ -1,10 +1,13 @@
 #include <engine.h>
 #include <glm/gtc/matrix_transform.hpp>
+#include "platform/opengl/opengl_shader.h"
+#include <imgui.h>
+#include <glm/gtc/type_ptr.hpp>
 
 class ExampleLayer : public hazel::Layer
 {
 public:
-    ExampleLayer() : Layer("example"), m_camera(-1.6f, 1.6f, -0.9f, 0.9f), m_square_pos(0.0f)
+    ExampleLayer() : Layer("example"), m_camera(-1.6f, 1.6f, -0.9f, 0.9f)
     {
         m_vertex_array.reset(hazel::VertexArray::create());
 
@@ -81,9 +84,9 @@ public:
             }
         )";
 
-        m_shader.reset(new hazel::Shader(vertexSrc, fragmentSrc));
+        m_shader.reset(hazel::Shader::create(vertexSrc, fragmentSrc));
 
-        std::string blueVertexSrc = R"(
+        std::string squareVertexSrc = R"(
             #version 330 core
             layout(location = 0) in vec3 a_Position;
 
@@ -98,18 +101,20 @@ public:
             }
         )";
 
-        std::string blueFragmentSrc = R"(
+        std::string squareFragmentSrc = R"(
             #version 330 core
             layout(location = 0) out vec4 color;
+
+            uniform vec3 u_color;
             
             in vec3 v_Position;
             void main()
             {
-                color = vec4(0.2, 0.3, 0.8, 1.0);
+                color = vec4(u_color, 1.0);
             }
         )";
 
-        m_blue_shader.reset(new hazel::Shader(blueVertexSrc, blueFragmentSrc));
+        m_square_shader.reset(hazel::Shader::create(squareVertexSrc, squareFragmentSrc));
     }
 
     void on_update(hazel::TimeStep ts) override
@@ -132,30 +137,35 @@ public:
         if (hazel::Input::is_key_pressed(HZ_KEY_D)) {
             m_camera.set_rotation(m_camera.get_rotation() - m_camera_rotate_speed * ts);
         }
-        if (hazel::Input::is_key_pressed(HZ_KEY_J)) {
-            m_square_pos.x -= m_square_move_speed * ts;
-        }
-        if (hazel::Input::is_key_pressed(HZ_KEY_L)) {
-            m_square_pos.x += m_square_move_speed * ts;
-        }
-        if (hazel::Input::is_key_pressed(HZ_KEY_I)) {
-            m_square_pos.y += m_square_move_speed * ts;
-        }
-        if (hazel::Input::is_key_pressed(HZ_KEY_K)) {
-            m_square_pos.y -= m_square_move_speed * ts;
-        }
 
         hazel::RendererCommand::set_clear_color({ 0.1f, 0.1f, 0.1f, 1.0f });
         hazel::RendererCommand::clear();
 
         hazel::Renderer::begin_scene(m_camera);
 
-        glm::mat4 transform = glm::translate(glm::mat4(1.0f), m_square_pos);
+        glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(0.06f));
 
-        hazel::Renderer::submit(m_blue_shader, m_square_va, transform);
+        std::dynamic_pointer_cast<hazel::OpenGLShader>(m_square_shader)->bind();
+        std::dynamic_pointer_cast<hazel::OpenGLShader>(m_square_shader)->set_float3("u_color", m_square_color);
+
+        for (int y = 0; y < 20; y ++) {
+            for (int x = 0; x < 20; x ++) {
+                glm::vec3 pos(x * 0.11f, y * 0.11f, 0.0f);
+                glm::mat4 transform = glm::translate(glm::mat4(1.0f), pos) * scale;
+                hazel::Renderer::submit(m_square_shader, m_square_va, transform);
+            }
+        }
+        
         hazel::Renderer::submit(m_shader, m_vertex_array);
 
         hazel::Renderer::end_scene();
+    }
+
+    void on_imgui_render()
+    {
+        ImGui::Begin("Settings");
+        ImGui::ColorEdit3("Square Color", glm::value_ptr(m_square_color));
+        ImGui::End();
     }
 
     void on_event(hazel::Event& event) override
@@ -166,15 +176,13 @@ private:
     std::shared_ptr<hazel::Shader> m_shader;
     std::shared_ptr<hazel::VertexArray> m_vertex_array;
 
-    std::shared_ptr<hazel::Shader> m_blue_shader;
+    std::shared_ptr<hazel::Shader> m_square_shader;
     std::shared_ptr<hazel::VertexArray> m_square_va;
+    glm::vec3 m_square_color = { 0.2f, 0.3f, 0.8f };
 
     hazel::OrthographicCamera m_camera;
     float m_camera_move_speed = 5.0f;
     float m_camera_rotate_speed = 180.0f;
-
-    glm::vec3 m_square_pos;
-    float m_square_move_speed = 1.0f;
 };
 
 class Sandbox : public hazel::Application

@@ -7,13 +7,17 @@ namespace hazel {
     class Shader
     {
     public:
-        Shader(const std::string& vertexSrc, const std::string& fragmentSrc);
-        ~Shader();
+        virtual ~Shader() = default;
 
-        void bind() const;
-        void unbind() const;
+        virtual void bind() const = 0;
+        virtual void unbind() const = 0;
 
-        void upload_uniform_mat4(const std::string& name, const glm::mat4& matrix);
+        virtual void set_int(const std::string& name, int) const = 0;
+        virtual void set_float3(const std::string& name, const glm::vec3&) const = 0;
+        virtual void set_float4(const std::string& name, const glm::vec4&) const = 0;
+        virtual void set_mat4(const std::string& name, const glm::mat4&) const = 0;
+
+        static Shader* create(const std::string& vertex_source, const std::string& fragment_source);
     private:
         uint32_t m_renderer_id;
     };

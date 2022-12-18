@@ -46,9 +46,9 @@ target_include_directories( engine
     PUBLIC
         src
         vendor/glm
+        vendor/imgui
     PRIVATE
         vendor/glfw/include
         vendor/glad/include
         vendor/spdlog/include
-        vendor/imgui
 )
