@@ -33,16 +33,17 @@ public:
         m_vertex_array->set_index_buffer(m_index_buffer);
 
         float square_vertices[] = {
-            -0.75f, -0.75f, 0.0f,
-             0.75f, -0.75f, 0.0f,
-             0.75f,  0.75f, 0.0f,
-            -0.75f,  0.75f, 0.0f,
+            -0.75f, -0.75f, 0.0f, 0.0f, 0.0f,
+             0.75f, -0.75f, 0.0f, 1.0f, 0.0f,
+             0.75f,  0.75f, 0.0f, 1.0f, 1.0f,
+            -0.75f,  0.75f, 0.0f, 0.0f, 1.0f,
         };
         m_square_va.reset(hazel::VertexArray::create());
         hazel::Ref<hazel::VertexBuffer> square_vb;
         square_vb.reset(hazel::VertexBuffer::create(square_vertices, sizeof(square_vertices)));
         square_vb->set_layout({
             { hazel::ShaderDataType::Float3, "a_Position" },
+            { hazel::ShaderDataType::Float2, "a_TexCoord" },
         });
         m_square_va->add_vertex_buffer(square_vb);
 
@@ -115,6 +116,43 @@ public:
         )";
 
         m_square_shader.reset(hazel::Shader::create(squareVertexSrc, squareFragmentSrc));
+
+        std::string textureVertexSrc = R"(
+            #version 330 core
+            layout(location = 0) in vec3 a_Position;
+            layout(location = 1) in vec2 a_TexCoord;
+
+            uniform mat4 u_view_projection;
+            uniform mat4 u_transform;
+
+            out vec2 v_TexCoord;
+            void main()
+            {
+                v_TexCoord = a_TexCoord;
+                gl_Position = u_view_projection * u_transform * vec4(a_Position, 1.0);
+            }
+        )";
+
+        std::string textureFragmentSrc = R"(
+            #version 330 core
+            layout(location = 0) out vec4 color;
+
+            uniform sampler2D u_texture;
+            
+            in vec2 v_TexCoord;
+            void main()
+            {
+                color = texture(u_texture, v_TexCoord);
+            }
+        )";
+
+        m_texture_shader.reset(hazel::Shader::create(textureVertexSrc, textureFragmentSrc));
+
+        m_texture = hazel::Texture2D::create("../sandbox/assets/textures/checkerboard.png");
+        m_logo_texture = hazel::Texture2D::create("../sandbox/assets/textures/cherno_logo.png");
+
+        std::dynamic_pointer_cast<hazel::OpenGLShader>(m_texture_shader)->bind();
+        std::dynamic_pointer_cast<hazel::OpenGLShader>(m_texture_shader)->set_int("u_texture", 0);
     }
 
     void on_update(hazel::TimeStep ts) override
@@ -155,8 +193,13 @@ public:
                 hazel::Renderer::submit(m_square_shader, m_square_va, transform);
             }
         }
+
+        m_texture->bind();
+        hazel::Renderer::submit(m_texture_shader, m_square_va);
+        m_logo_texture->bind();
+        hazel::Renderer::submit(m_texture_shader, m_square_va);
         
-        hazel::Renderer::submit(m_shader, m_vertex_array);
+        // hazel::Renderer::submit(m_shader, m_vertex_array);
 
         hazel::Renderer::end_scene();
     }
@@ -176,9 +219,11 @@ private:
     hazel::Ref<hazel::Shader> m_shader;
     hazel::Ref<hazel::VertexArray> m_vertex_array;
 
-    hazel::Ref<hazel::Shader> m_square_shader;
+    hazel::Ref<hazel::Shader> m_square_shader, m_texture_shader;
     hazel::Ref<hazel::VertexArray> m_square_va;
     glm::vec3 m_square_color = { 0.2f, 0.3f, 0.8f };
+
+    hazel::Ref<hazel::Texture2D> m_texture, m_logo_texture;
 
     hazel::OrthographicCamera m_camera;
     float m_camera_move_speed = 5.0f;

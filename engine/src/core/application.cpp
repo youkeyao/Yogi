@@ -1,5 +1,5 @@
 #include "core/application.h"
-
+#include "renderer/renderer.h"
 #include <GLFW/glfw3.h>
 
 namespace hazel {
@@ -13,6 +13,8 @@ namespace hazel {
 
         m_window = Scope<Window>(Window::create());
         m_window->set_event_callback(HZ_BIND_EVENT_FN(Application::on_event));
+
+        Renderer::init();
 
         m_imgui_layer = new ImGuiLayer();
         push_overlay(m_imgui_layer);

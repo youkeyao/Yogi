@@ -8,6 +8,11 @@ namespace hazel {
     class RendererCommand
     {
     public:
+        inline static void init()
+        {
+            ms_renderer_api->init();
+        }
+
         inline static void set_clear_color(const glm::vec4& color)
         {
             ms_renderer_api->set_clear_color(color);

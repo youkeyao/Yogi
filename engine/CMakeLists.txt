@@ -7,6 +7,7 @@ set( GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE )
 add_subdirectory( vendor/glfw )
 add_subdirectory( vendor/glad )
 add_subdirectory( vendor/spdlog )
+add_subdirectory( vendor/stb_image )
 
 # source code
 file(GLOB_RECURSE
@@ -33,6 +34,7 @@ target_link_libraries( engine
         glad
         spdlog
         imgui
+        stb_image
 )
 target_precompile_headers( engine
     PUBLIC
@@ -51,4 +53,5 @@ target_include_directories( engine
         vendor/glfw/include
         vendor/glad/include
         vendor/spdlog/include
+        vendor/stb_image
 )
