@@ -16,7 +16,7 @@ public:
              0.5f, -0.5f, 0.0f, 0.2f, 0.3f, 0.8f, 1.0f,
              0.0f,  0.5f, 0.0f, 0.8f, 0.8f, 0.2f, 1.0f,
         };
-        std::shared_ptr<hazel::VertexBuffer> m_vertex_buffer;
+        hazel::Ref<hazel::VertexBuffer> m_vertex_buffer;
         m_vertex_buffer.reset(hazel::VertexBuffer::create(vertices, sizeof(vertices)));
         hazel::BufferLayout layout = {
             { hazel::ShaderDataType::Float3, "a_Position" },
@@ -28,7 +28,7 @@ public:
         uint32_t indices[] = {
             0, 1, 2,
         };
-        std::shared_ptr<hazel::IndexBuffer> m_index_buffer;
+        hazel::Ref<hazel::IndexBuffer> m_index_buffer;
         m_index_buffer.reset(hazel::IndexBuffer::create(indices, 3));
         m_vertex_array->set_index_buffer(m_index_buffer);
 
@@ -39,7 +39,7 @@ public:
             -0.75f,  0.75f, 0.0f,
         };
         m_square_va.reset(hazel::VertexArray::create());
-        std::shared_ptr<hazel::VertexBuffer> square_vb;
+        hazel::Ref<hazel::VertexBuffer> square_vb;
         square_vb.reset(hazel::VertexBuffer::create(square_vertices, sizeof(square_vertices)));
         square_vb->set_layout({
             { hazel::ShaderDataType::Float3, "a_Position" },
@@ -49,7 +49,7 @@ public:
         uint32_t square_indices[] = {
             0, 1, 2, 2, 3, 0
         };
-        std::shared_ptr<hazel::IndexBuffer> square_ib;
+        hazel::Ref<hazel::IndexBuffer> square_ib;
         square_ib.reset(hazel::IndexBuffer::create(square_indices, 6));
         m_square_va->set_index_buffer(square_ib);
 
@@ -173,11 +173,11 @@ public:
     }
 
 private:
-    std::shared_ptr<hazel::Shader> m_shader;
-    std::shared_ptr<hazel::VertexArray> m_vertex_array;
+    hazel::Ref<hazel::Shader> m_shader;
+    hazel::Ref<hazel::VertexArray> m_vertex_array;
 
-    std::shared_ptr<hazel::Shader> m_square_shader;
-    std::shared_ptr<hazel::VertexArray> m_square_va;
+    hazel::Ref<hazel::Shader> m_square_shader;
+    hazel::Ref<hazel::VertexArray> m_square_va;
     glm::vec3 m_square_color = { 0.2f, 0.3f, 0.8f };
 
     hazel::OrthographicCamera m_camera;

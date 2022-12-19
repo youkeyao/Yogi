@@ -11,7 +11,7 @@ namespace hazel {
         HZ_CORE_ASSERT(!ms_instance, "Application already exists!");
         ms_instance = this;
 
-        m_window = std::unique_ptr<Window>(Window::create());
+        m_window = Scope<Window>(Window::create());
         m_window->set_event_callback(HZ_BIND_EVENT_FN(Application::on_event));
 
         m_imgui_layer = new ImGuiLayer();
