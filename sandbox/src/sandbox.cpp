@@ -85,7 +85,7 @@ public:
             }
         )";
 
-        m_shader.reset(hazel::Shader::create(vertexSrc, fragmentSrc));
+        m_shader = hazel::Shader::create("VertexPosColor", vertexSrc, fragmentSrc);
 
         std::string squareVertexSrc = R"(
             #version 330 core
@@ -115,15 +115,15 @@ public:
             }
         )";
 
-        m_square_shader.reset(hazel::Shader::create(squareVertexSrc, squareFragmentSrc));
+        m_square_shader = hazel::Shader::create("FlatColor", squareVertexSrc, squareFragmentSrc);
 
-        m_texture_shader.reset(hazel::Shader::create("../sandbox/assets/shaders/Texture.glsl"));
+        auto texture_shader = m_shader_library.load("../sandbox/assets/shaders/Texture.glsl");
 
         m_texture = hazel::Texture2D::create("../sandbox/assets/textures/checkerboard.png");
         m_logo_texture = hazel::Texture2D::create("../sandbox/assets/textures/cherno_logo.png");
 
-        std::dynamic_pointer_cast<hazel::OpenGLShader>(m_texture_shader)->bind();
-        std::dynamic_pointer_cast<hazel::OpenGLShader>(m_texture_shader)->set_int("u_texture", 0);
+        std::dynamic_pointer_cast<hazel::OpenGLShader>(texture_shader)->bind();
+        std::dynamic_pointer_cast<hazel::OpenGLShader>(texture_shader)->set_int("u_texture", 0);
     }
 
     void on_update(hazel::TimeStep ts) override
@@ -165,10 +165,12 @@ public:
             }
         }
 
+        auto texture_shader = m_shader_library.get("Texture");
+
         m_texture->bind();
-        hazel::Renderer::submit(m_texture_shader, m_square_va);
+        hazel::Renderer::submit(texture_shader, m_square_va);
         m_logo_texture->bind();
-        hazel::Renderer::submit(m_texture_shader, m_square_va);
+        hazel::Renderer::submit(texture_shader, m_square_va);
         
         // hazel::Renderer::submit(m_shader, m_vertex_array);
 
@@ -187,10 +189,11 @@ public:
     }
 
 private:
+    hazel::ShaderLibrary m_shader_library;
     hazel::Ref<hazel::Shader> m_shader;
     hazel::Ref<hazel::VertexArray> m_vertex_array;
 
-    hazel::Ref<hazel::Shader> m_square_shader, m_texture_shader;
+    hazel::Ref<hazel::Shader> m_square_shader;
     hazel::Ref<hazel::VertexArray> m_square_va;
     glm::vec3 m_square_color = { 0.2f, 0.3f, 0.8f };
 

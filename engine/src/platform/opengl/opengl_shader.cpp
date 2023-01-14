@@ -22,9 +22,17 @@ namespace hazel {
         std::string source = read_file(filepath);
         std::unordered_map<GLenum, std::string> shader_sources = preprocess(source);
         compile(shader_sources);
+
+        auto last_slash = filepath.find_last_of("/\\");
+        last_slash = last_slash == std::string::npos ? 0 : last_slash + 1;
+        auto last_dot = filepath.rfind('.');
+        last_dot = last_dot == std::string::npos ? filepath.size() : last_dot;
+
+        auto count = last_dot - last_slash;
+        m_name = filepath.substr(last_slash, count);
     }
 
-    OpenGLShader::OpenGLShader(const std::string& vertexSrc, const std::string& fragmentSrc)
+    OpenGLShader::OpenGLShader(const std::string& name, const std::string& vertexSrc, const std::string& fragmentSrc) : m_name(name)
     {
         std::unordered_map<GLenum, std::string> sources;
         sources[GL_VERTEX_SHADER] = vertexSrc;
@@ -81,12 +89,13 @@ namespace hazel {
         return shader_sources;
     }
 
-    void OpenGLShader::compile(const std::unordered_map<GLenum, std::string>& sources)
+    void OpenGLShader::compile(const std::unordered_map<GLenum, std::string>& shader_sources)
     {
         GLuint program = glCreateProgram();
-        std::vector<GLenum> shader_ids;
+        GLenum shader_ids[shader_sources.size()];
+        int shader_id_index = 0;
 
-        for (auto& kv : sources) {
+        for (auto& kv : shader_sources) {
             GLenum type = kv.first;
             const std::string& source = kv.second;
 
@@ -113,7 +122,7 @@ namespace hazel {
                 return;
             }
             glAttachShader(program, shader);
-            shader_ids.push_back(shader);
+            shader_ids[shader_id_index++] = shader;
         }
 
         glLinkProgram(program);
