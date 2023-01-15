@@ -7,7 +7,7 @@
 class ExampleLayer : public hazel::Layer
 {
 public:
-    ExampleLayer() : Layer("example"), m_camera(-1.6f, 1.6f, -0.9f, 0.9f)
+    ExampleLayer() : Layer("example"), m_camera_conroller(1280.0f / 720.0f, true)
     {
         m_vertex_array.reset(hazel::VertexArray::create());
 
@@ -127,30 +127,15 @@ public:
     }
 
     void on_update(hazel::TimeStep ts) override
-    {        
-        if (hazel::Input::is_key_pressed(HZ_KEY_LEFT)) {
-            m_camera.set_position(m_camera.get_position() - glm::vec3(m_camera_move_speed * ts, 0, 0));
-        }
-        if (hazel::Input::is_key_pressed(HZ_KEY_RIGHT)) {
-            m_camera.set_position(m_camera.get_position() + glm::vec3(m_camera_move_speed * ts, 0, 0));
-        }
-        if (hazel::Input::is_key_pressed(HZ_KEY_UP)) {
-            m_camera.set_position(m_camera.get_position() + glm::vec3(0, m_camera_move_speed * ts, 0));
-        }
-        if (hazel::Input::is_key_pressed(HZ_KEY_DOWN)) {
-            m_camera.set_position(m_camera.get_position() - glm::vec3(0, m_camera_move_speed * ts, 0));
-        }
-        if (hazel::Input::is_key_pressed(HZ_KEY_A)) {
-            m_camera.set_rotation(m_camera.get_rotation() + m_camera_rotate_speed * ts);
-        }
-        if (hazel::Input::is_key_pressed(HZ_KEY_D)) {
-            m_camera.set_rotation(m_camera.get_rotation() - m_camera_rotate_speed * ts);
-        }
+    {
+        // update
+        m_camera_conroller.on_update(ts);
 
+        // render
         hazel::RendererCommand::set_clear_color({ 0.1f, 0.1f, 0.1f, 1.0f });
         hazel::RendererCommand::clear();
 
-        hazel::Renderer::begin_scene(m_camera);
+        hazel::Renderer::begin_scene(m_camera_conroller.get_camera());
 
         glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(0.06f));
 
@@ -177,15 +162,16 @@ public:
         hazel::Renderer::end_scene();
     }
 
-    void on_imgui_render()
+    void on_imgui_render() override
     {
         ImGui::Begin("Settings");
         ImGui::ColorEdit3("Square Color", glm::value_ptr(m_square_color));
         ImGui::End();
     }
 
-    void on_event(hazel::Event& event) override
+    void on_event(hazel::Event& e) override
     {
+        m_camera_conroller.on_event(e);
     }
 
 private:
@@ -199,9 +185,7 @@ private:
 
     hazel::Ref<hazel::Texture2D> m_texture, m_logo_texture;
 
-    hazel::OrthographicCamera m_camera;
-    float m_camera_move_speed = 5.0f;
-    float m_camera_rotate_speed = 180.0f;
+    hazel::OrthographicCameraController m_camera_conroller;
 };
 
 class Sandbox : public hazel::Application
