@@ -27,6 +27,7 @@ namespace hazel {
         Scope<Window> m_window;
         ImGuiLayer* m_imgui_layer;
         bool m_running = true;
+        bool m_minimized = false;
         LayerStack m_layerstack;
         float m_last_frame_time = 0.0f;
 

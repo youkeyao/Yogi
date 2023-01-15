@@ -1,6 +1,6 @@
 #include "core/input.h"
 #include "core/key_codes.h"
-#include "core/orthographic_camera_controller.h"
+#include "renderer/orthographic_camera_controller.h"
 
 namespace hazel {
 
