@@ -24,7 +24,3 @@
 #include "renderer/orthographic_camera.h"
 #include "renderer/orthographic_camera_controller.h"
 // ---------------------------------------------
-
-// ---entry point-------------------------------
-#include "core/entrypoint.h"
-// ---------------------------------------------

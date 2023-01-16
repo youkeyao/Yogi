@@ -1,15 +1,19 @@
 #include <engine.h>
+#include "core/entrypoint.h"
+
 #include <glm/gtc/matrix_transform.hpp>
 #include "platform/opengl/opengl_shader.h"
 #include <imgui.h>
 #include <glm/gtc/type_ptr.hpp>
+
+#include "sandbox2d.h"
 
 class ExampleLayer : public hazel::Layer
 {
 public:
     ExampleLayer() : Layer("example"), m_camera_conroller(1280.0f / 720.0f, true)
     {
-        m_vertex_array.reset(hazel::VertexArray::create());
+        m_vertex_array = hazel::VertexArray::create();
 
         float vertices[] = {
             -0.5f, -0.5f, 0.0f, 0.8f, 0.2f, 0.9f, 1.0f,
@@ -17,7 +21,7 @@ public:
              0.0f,  0.5f, 0.0f, 0.8f, 0.8f, 0.2f, 1.0f,
         };
         hazel::Ref<hazel::VertexBuffer> m_vertex_buffer;
-        m_vertex_buffer.reset(hazel::VertexBuffer::create(vertices, sizeof(vertices)));
+        m_vertex_buffer = hazel::VertexBuffer::create(vertices, sizeof(vertices));
         hazel::BufferLayout layout = {
             { hazel::ShaderDataType::Float3, "a_Position" },
             { hazel::ShaderDataType::Float4, "a_Color" },
@@ -29,7 +33,7 @@ public:
             0, 1, 2,
         };
         hazel::Ref<hazel::IndexBuffer> m_index_buffer;
-        m_index_buffer.reset(hazel::IndexBuffer::create(indices, 3));
+        m_index_buffer = hazel::IndexBuffer::create(indices, 3);
         m_vertex_array->set_index_buffer(m_index_buffer);
 
         float square_vertices[] = {
@@ -38,9 +42,9 @@ public:
              0.75f,  0.75f, 0.0f, 1.0f, 1.0f,
             -0.75f,  0.75f, 0.0f, 0.0f, 1.0f,
         };
-        m_square_va.reset(hazel::VertexArray::create());
+        m_square_va = hazel::VertexArray::create();
         hazel::Ref<hazel::VertexBuffer> square_vb;
-        square_vb.reset(hazel::VertexBuffer::create(square_vertices, sizeof(square_vertices)));
+        square_vb = hazel::VertexBuffer::create(square_vertices, sizeof(square_vertices));
         square_vb->set_layout({
             { hazel::ShaderDataType::Float3, "a_Position" },
             { hazel::ShaderDataType::Float2, "a_TexCoord" },
@@ -51,7 +55,7 @@ public:
             0, 1, 2, 2, 3, 0
         };
         hazel::Ref<hazel::IndexBuffer> square_ib;
-        square_ib.reset(hazel::IndexBuffer::create(square_indices, 6));
+        square_ib = hazel::IndexBuffer::create(square_indices, 6);
         m_square_va->set_index_buffer(square_ib);
 
         std::string vertexSrc = R"(
@@ -193,7 +197,8 @@ class Sandbox : public hazel::Application
 public:
     Sandbox()
     {
-        push_layer(new ExampleLayer());
+        // push_layer(new ExampleLayer());
+        push_layer(new Sandbox2D());
     }
 
     ~Sandbox()
