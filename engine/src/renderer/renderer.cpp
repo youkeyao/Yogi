@@ -1,5 +1,6 @@
 #include "renderer/renderer.h"
 #include "renderer/renderer_command.h"
+#include "renderer/renderer_2d.h"
 #include "platform/opengl/opengl_shader.h"
 
 namespace hazel {
@@ -9,6 +10,7 @@ namespace hazel {
     void Renderer::init()
     {
         RendererCommand::init();
+        Renderer2D::init();
     }
 
     void Renderer::on_window_resize(uint32_t width, uint32_t height)

@@ -14,6 +14,7 @@
 
 // ---renderer----------------------------------
 #include "renderer/renderer.h"
+#include "renderer/renderer_2d.h"
 #include "renderer/renderer_command.h"
 
 #include "renderer/buffer.h"

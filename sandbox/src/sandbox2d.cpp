@@ -44,14 +44,16 @@ void Sandbox2D::on_update(hazel::TimeStep ts)
     hazel::RendererCommand::set_clear_color({ 0.1f, 0.1f, 0.1f, 1.0f });
     hazel::RendererCommand::clear();
 
-    hazel::Renderer::begin_scene(m_camera_controller.get_camera());
+    hazel::Renderer2D::begin_scene(m_camera_controller.get_camera());
     
     m_flat_color_shader->bind();
     m_flat_color_shader->set_float4("u_color", m_square_color);
 
     hazel::Renderer::submit(m_flat_color_shader, m_square_va, glm::scale(glm::mat4(1.0f), glm::vec3(1.5f)));
 
-    hazel::Renderer::end_scene();
+    hazel::Renderer2D::draw_quad({0.0f, 0.0f}, {1.0f, 1.0f}, {0.8f, 0.2f, 0.3f, 1.0f});
+
+    hazel::Renderer2D::end_scene();
 }
 
 void Sandbox2D::on_imgui_render()
