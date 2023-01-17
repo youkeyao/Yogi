@@ -19,10 +19,11 @@ namespace hazel {
 
         const std::string& get_name() const override {return m_name;}
 
-        void set_int(const std::string& name, int) const override;
-        void set_float3(const std::string& name, const glm::vec3&) const override;
-        void set_float4(const std::string& name, const glm::vec4&) const override;
-        void set_mat4(const std::string& name, const glm::mat4&) const override;
+        void set_int(const std::string& name, int value) const override;
+        void set_float(const std::string& name, float value) const override;
+        void set_float3(const std::string& name, const glm::vec3& value) const override;
+        void set_float4(const std::string& name, const glm::vec4& value) const override;
+        void set_mat4(const std::string& name, const glm::mat4& value) const override;
     private:
         std::string read_file(const std::string& filepath);
         std::unordered_map<GLenum, std::string> preprocess(const std::string& source);

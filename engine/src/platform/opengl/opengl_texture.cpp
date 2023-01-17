@@ -61,7 +61,7 @@ namespace hazel {
     void OpenGLTexture2D::set_data(void* data, size_t size) const
     {
         uint32_t bpp = m_data_format == GL_RGBA ? 4 : 3;
-        HZ_CORE_ASSERT(size == m_width * m_height * bpp, "data must be entire texture");
+        HZ_CORE_ASSERT(size == m_width * m_height * bpp, "data must be entire texture!");
 
         glTextureSubImage2D(m_renderer_id, 0, 0, 0, m_width, m_height, m_data_format, GL_UNSIGNED_BYTE, data);
     };

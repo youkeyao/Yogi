@@ -11,7 +11,7 @@ namespace hazel {
                 return nullptr;
 
             case RendererAPI::API::OpenGL:
-                return std::make_shared<OpenGLTexture2D>(width, height);
+                return CreateRef<OpenGLTexture2D>(width, height);
         }
 
         HZ_CORE_ASSERT(false, "unknown RendererAPI");
@@ -25,7 +25,7 @@ namespace hazel {
                 return nullptr;
 
             case RendererAPI::API::OpenGL:
-                return std::make_shared<OpenGLTexture2D>(path);
+                return CreateRef<OpenGLTexture2D>(path);
         }
 
         HZ_CORE_ASSERT(false, "unknown RendererAPI");

@@ -12,7 +12,7 @@ namespace hazel {
                 return nullptr;
 
             case RendererAPI::API::OpenGL:
-                return std::make_shared<OpenGLShader>(filepath);
+                return CreateRef<OpenGLShader>(filepath);
         }
 
         HZ_CORE_ASSERT(false, "unknown RendererAPI");
@@ -27,7 +27,7 @@ namespace hazel {
                 return nullptr;
 
             case RendererAPI::API::OpenGL:
-                return std::make_shared<OpenGLShader>(name, vertex_source, fragment_source);
+                return CreateRef<OpenGLShader>(name, vertex_source, fragment_source);
         }
 
         HZ_CORE_ASSERT(false, "unknown RendererAPI");

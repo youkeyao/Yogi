@@ -170,6 +170,12 @@ namespace hazel {
         glUniform1i(location, value);
     }
 
+    void OpenGLShader::set_float(const std::string& name, float value) const
+    {
+        const GLint location = glGetUniformLocation(m_renderer_id, name.c_str());
+        glUniform1f(location, value);
+    }
+
     void OpenGLShader::set_float3(const std::string& name, const glm::vec3& value) const
     {
         const GLint location = glGetUniformLocation(m_renderer_id, name.c_str());

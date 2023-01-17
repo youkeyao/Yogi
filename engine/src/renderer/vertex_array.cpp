@@ -12,7 +12,7 @@ namespace hazel {
                 return nullptr;
 
             case RendererAPI::API::OpenGL:
-                return std::make_shared<OpenGLVertexArray>();
+                return CreateRef<OpenGLVertexArray>();
         }
 
         HZ_CORE_ASSERT(false, "unknown RendererAPI");
