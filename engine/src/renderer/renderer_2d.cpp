@@ -18,6 +18,8 @@ namespace hazel {
 
     void Renderer2D::init()
     {
+        HZ_PROFILE_FUNCTION();
+        
         s_data = std::make_unique<Renderer2DStorage>();
         s_data->quad_vertex_array = VertexArray::create();
 
@@ -48,18 +50,30 @@ namespace hazel {
         s_data->texture_shader->set_int("u_texture", 0);
     }
 
-    void Renderer2D::shutdown() { s_data.reset(); }
+    void Renderer2D::shutdown()
+    {
+        HZ_PROFILE_FUNCTION();
+
+        s_data.reset();
+    }
 
     void Renderer2D::begin_scene(const OrthographicCamera& camera)
     {
+        HZ_PROFILE_FUNCTION();
+
         s_data->texture_shader->bind();
         s_data->texture_shader->set_mat4("u_view_projection", camera.get_view_projection_matrix());
     }
 
-    void Renderer2D::end_scene() {}
+    void Renderer2D::end_scene()
+    {
+        HZ_PROFILE_FUNCTION();
+    }
 
     void Renderer2D::draw_quad(const glm::vec3& position, const float rotation, const glm::vec2& size, const glm::vec4& color)
     {
+        HZ_PROFILE_FUNCTION();
+
         s_data->texture_shader->bind();
         s_data->texture_shader->set_float4("u_color", color);
         s_data->texture_shader->set_float("u_texture_scale", 1.0f);
@@ -74,6 +88,8 @@ namespace hazel {
 
     void Renderer2D::draw_quad(const glm::vec3& position, const float rotation, const glm::vec2& size, const Ref<Texture2D>& texture, const float texture_scale, const glm::vec4& color)
     {
+        HZ_PROFILE_FUNCTION();
+        
         s_data->texture_shader->bind();
         s_data->texture_shader->set_float4("u_color", color);
         s_data->texture_shader->set_float("u_texture_scale", texture_scale);

@@ -11,6 +11,8 @@ namespace hazel {
 
     void OrthographicCameraController::on_update(TimeStep ts)
     {
+        HZ_PROFILE_FUNCTION();
+
         if (Input::is_key_pressed(HZ_KEY_A)) {
             m_camera_position.x -= m_camera_translation_speed * ts;
         } else if (Input::is_key_pressed(HZ_KEY_D)) {
@@ -39,6 +41,8 @@ namespace hazel {
 
     void OrthographicCameraController::on_event(Event& e)
     {
+        HZ_PROFILE_FUNCTION();
+
         EventDispatcher dispatcher(e);
         dispatcher.dispatch<MouseScrolledEvent>(HZ_BIND_EVENT_FN(OrthographicCameraController::on_mouse_scrolled));
         dispatcher.dispatch<WindowResizeEvent>(HZ_BIND_EVENT_FN(OrthographicCameraController::on_window_resized));
@@ -46,6 +50,8 @@ namespace hazel {
 
     bool OrthographicCameraController::on_mouse_scrolled(MouseScrolledEvent& e)
     {
+        HZ_PROFILE_FUNCTION();
+
         m_zoom_level -= e.get_y_offset() * 0.25f;
         m_zoom_level = std::max(m_zoom_level, 0.25f);
         m_camera.set_projection(-m_aspect_ratio * m_zoom_level, m_aspect_ratio * m_zoom_level, -m_zoom_level, m_zoom_level);
@@ -55,6 +61,8 @@ namespace hazel {
 
     bool OrthographicCameraController::on_window_resized(WindowResizeEvent& e)
     {
+        HZ_PROFILE_FUNCTION();
+        
         m_aspect_ratio = (float)e.get_width() / (float)e.get_height();
         m_camera.set_projection(-m_aspect_ratio * m_zoom_level, m_aspect_ratio * m_zoom_level, -m_zoom_level, m_zoom_level);
 

@@ -11,7 +11,10 @@ namespace hazel {
     ImGuiLayer::ImGuiLayer() : Layer("ImGuiLayer") {}
     ImGuiLayer::~ImGuiLayer() {}
 
-    void ImGuiLayer::on_attach() {
+    void ImGuiLayer::on_attach()
+    {
+        HZ_PROFILE_FUNCTION();
+
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
 
@@ -37,19 +40,28 @@ namespace hazel {
         ImGui_ImplOpenGL3_Init("#version 130");
     }
 
-    void ImGuiLayer::on_detach() {
+    void ImGuiLayer::on_detach()
+    {
+        HZ_PROFILE_FUNCTION();
+
         ImGui_ImplOpenGL3_Shutdown();
         ImGui_ImplGlfw_Shutdown();
         ImGui::DestroyContext();
     }
 
-    void ImGuiLayer::begin() {
+    void ImGuiLayer::begin()
+    {
+        HZ_PROFILE_FUNCTION();
+
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
     }
 
-    void ImGuiLayer::end() {
+    void ImGuiLayer::end()
+    {
+        HZ_PROFILE_FUNCTION();
+        
         ImGuiIO& io = ImGui::GetIO();
         Application& app = Application::get();
         io.DisplaySize = ImVec2(app.get_window().get_width(), app.get_window().get_height());
@@ -63,11 +75,6 @@ namespace hazel {
             ImGui::RenderPlatformWindowsDefault();
             glfwMakeContextCurrent(backup_current_context);
         }
-    }
-
-    void ImGuiLayer::on_imgui_render() {
-        static bool show = true;
-        ImGui::ShowDemoWindow(&show);
     }
 
 }

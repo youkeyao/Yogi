@@ -27,18 +27,36 @@ namespace hazel {
 
     OpenGLVertexArray::OpenGLVertexArray()
     {
-        glGenVertexArrays(1, &m_renderer_id);
+        HZ_PROFILE_FUNCTION();
+        
+        glCreateVertexArrays(1, &m_renderer_id);
+    }
+
+    OpenGLVertexArray::~OpenGLVertexArray()
+    {
+        HZ_PROFILE_FUNCTION();
+
+        glDeleteVertexArrays(1, &m_renderer_id);
+    }
+
+    void OpenGLVertexArray::bind() const
+    {
+        HZ_PROFILE_FUNCTION();
+
         glBindVertexArray(m_renderer_id);
     }
 
-    OpenGLVertexArray::~OpenGLVertexArray() { glDeleteVertexArrays(1, &m_renderer_id); }
+    void OpenGLVertexArray::unbind() const
+    {
+        HZ_PROFILE_FUNCTION();
 
-    void OpenGLVertexArray::bind() const { glBindVertexArray(m_renderer_id); }
-
-    void OpenGLVertexArray::unbind() const { glBindVertexArray(0); }
+        glBindVertexArray(0);
+    }
 
     void OpenGLVertexArray::add_vertex_buffer(const Ref<VertexBuffer>& vertex_buffer) 
     {
+        HZ_PROFILE_FUNCTION();
+
         HZ_CORE_ASSERT(vertex_buffer->get_layout().get_elements().size(), "vertex buffer has no layout");
 
         glBindVertexArray(m_renderer_id);
@@ -60,6 +78,8 @@ namespace hazel {
 
     void OpenGLVertexArray::set_index_buffer(const Ref<IndexBuffer>& index_buffer)
     {
+        HZ_PROFILE_FUNCTION();
+
         glBindVertexArray(m_renderer_id);
         index_buffer->bind();
 

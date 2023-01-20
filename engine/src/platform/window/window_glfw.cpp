@@ -9,23 +9,29 @@ namespace hazel {
         HZ_CORE_ERROR("GLFW Error ({0}): {1}", error, description);
     }
 
-    Window* Window::create(const WindowProps& props)
+    Scope<Window> Window::create(const WindowProps& props)
     {
-        return new WindowGLFW(props);
+        return CreateScope<WindowGLFW>(props);
     }
 
     WindowGLFW::WindowGLFW(const WindowProps& props)
     {
+        HZ_PROFILE_FUNCTION();
+
         init(props);
     }
 
     WindowGLFW::~WindowGLFW()
     {
+        HZ_PROFILE_FUNCTION();
+
         shutdown();
     }
 
     void WindowGLFW::init(const WindowProps& props)
     {
+        HZ_PROFILE_FUNCTION();
+
         m_data.title = props.title;
         m_data.width = props.width;
         m_data.height = props.height;
@@ -33,13 +39,20 @@ namespace hazel {
         HZ_CORE_INFO("Creating Window {0} ({1} {2})", props.title, props.width, props.height);
 
         if (!s_glfw_initialized) {
+            HZ_PROFILE_SCOPE("glfwInit");
+
             int success = glfwInit();
             HZ_CORE_ASSERT(success, "Could not initialize GLFW!");
             glfwSetErrorCallback(glfw_error_callback);
             s_glfw_initialized = true;
         }
 
-        m_window = glfwCreateWindow(m_data.width, m_data.height, m_data.title.c_str(), nullptr, nullptr);
+        {
+            HZ_PROFILE_SCOPE("glfwCreateWindow");
+            
+            m_window = glfwCreateWindow(m_data.width, m_data.height, m_data.title.c_str(), nullptr, nullptr);
+        }
+
         m_context = new OpenGLContext(m_window);
         m_context->init();
 
@@ -119,17 +132,23 @@ namespace hazel {
 
     void WindowGLFW::shutdown()
     {
+        HZ_PROFILE_FUNCTION();
+
         glfwDestroyWindow(m_window);
     }
 
     void WindowGLFW::on_update()
     {
+        HZ_PROFILE_FUNCTION();
+
         glfwPollEvents();
         m_context->swap_buffers();
     }
 
     void WindowGLFW::set_vsync(bool enabled)
     {
+        HZ_PROFILE_FUNCTION();
+        
         if (enabled) {
             glfwSwapInterval(1);
         }

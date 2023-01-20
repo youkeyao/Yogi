@@ -19,6 +19,8 @@ namespace hazel {
 
     OpenGLShader::OpenGLShader(const std::string& filepath)
     {
+        HZ_PROFILE_FUNCTION();
+
         std::string source = read_file(filepath);
         std::unordered_map<GLenum, std::string> shader_sources = preprocess(source);
         compile(shader_sources);
@@ -34,6 +36,8 @@ namespace hazel {
 
     OpenGLShader::OpenGLShader(const std::string& name, const std::string& vertexSrc, const std::string& fragmentSrc) : m_name(name)
     {
+        HZ_PROFILE_FUNCTION();
+
         std::unordered_map<GLenum, std::string> sources;
         sources[GL_VERTEX_SHADER] = vertexSrc;
         sources[GL_FRAGMENT_SHADER] = fragmentSrc;
@@ -42,11 +46,15 @@ namespace hazel {
 
     OpenGLShader::~OpenGLShader()
     {
+        HZ_PROFILE_FUNCTION();
+
         glDeleteProgram(m_renderer_id);
     }
 
     std::string OpenGLShader::read_file(const std::string& filepath)
     {
+        HZ_PROFILE_FUNCTION();
+
         std::string result = std::string();
         std::ifstream in(filepath, std::ios::in | std::ios::binary);
 
@@ -66,6 +74,8 @@ namespace hazel {
 
     std::unordered_map<GLenum, std::string> OpenGLShader::preprocess(const std::string& source)
     {
+        HZ_PROFILE_FUNCTION();
+
         std::unordered_map<GLenum, std::string> shader_sources;
 
         const char* type_token = "#type";
@@ -91,6 +101,8 @@ namespace hazel {
 
     void OpenGLShader::compile(const std::unordered_map<GLenum, std::string>& shader_sources)
     {
+        HZ_PROFILE_FUNCTION();
+
         GLuint program = glCreateProgram();
         GLenum shader_ids[shader_sources.size()];
         int shader_id_index = 0;
@@ -156,38 +168,50 @@ namespace hazel {
 
     void OpenGLShader::bind() const
     {
+        HZ_PROFILE_FUNCTION();
+
         glUseProgram(m_renderer_id);
     }
 
     void OpenGLShader::unbind() const
     {
+        HZ_PROFILE_FUNCTION();
+
         glUseProgram(0);
     }
 
     void OpenGLShader::set_int(const std::string& name, int value) const
     {
+        HZ_PROFILE_FUNCTION();
+
         const GLint location = glGetUniformLocation(m_renderer_id, name.c_str());
         glUniform1i(location, value);
     }
-
     void OpenGLShader::set_float(const std::string& name, float value) const
     {
+        HZ_PROFILE_FUNCTION();
+
         const GLint location = glGetUniformLocation(m_renderer_id, name.c_str());
         glUniform1f(location, value);
     }
-
     void OpenGLShader::set_float3(const std::string& name, const glm::vec3& value) const
     {
+        HZ_PROFILE_FUNCTION();
+
         const GLint location = glGetUniformLocation(m_renderer_id, name.c_str());
         glUniform3f(location, value.x, value.y, value.z);
     }
     void OpenGLShader::set_float4(const std::string& name, const glm::vec4& value) const
     {
+        HZ_PROFILE_FUNCTION();
+
         const GLint location = glGetUniformLocation(m_renderer_id, name.c_str());
         glUniform4f(location, value.x, value.y, value.z, value.w);
     }
     void OpenGLShader::set_mat4(const std::string& name, const glm::mat4& value) const
     {
+        HZ_PROFILE_FUNCTION();
+
         const GLint location = glGetUniformLocation(m_renderer_id, name.c_str());
         glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(value));
     }

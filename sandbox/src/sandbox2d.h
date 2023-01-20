@@ -16,7 +16,6 @@ public:
 
 private:
     hazel::OrthographicCameraController m_camera_controller;
-    
     hazel::Ref<hazel::Texture2D> m_checkerboard_texture;
 
     glm::vec4 m_square_color = { 0.2f, 0.3f, 0.8f, 1.0f };

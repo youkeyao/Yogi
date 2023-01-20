@@ -3,8 +3,12 @@
 #define GLFW_INCLUDE_NONE
 
 #include <iostream>
+#include <iomanip>
+#include <chrono>
 #include <memory>
 #include <string>
+#include <thread>
+#include <mutex>
 #include <fstream>
 #include <sstream>
 #include <functional>
@@ -14,6 +18,7 @@
 #include <utility>
 
 #include "core/log.h"
+#include "debug/instrumentor.h"
 
 #define BIT(x) (1 << x)
 #define HZ_BIND_EVENT_FN(x) std::bind(&x, this, std::placeholders::_1)
