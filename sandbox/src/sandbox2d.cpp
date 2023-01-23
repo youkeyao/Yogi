@@ -32,7 +32,7 @@ void Sandbox2D::on_update(hazel::TimeStep ts)
     {
         HZ_PROFILE_SCOPE("Render draw");
         hazel::Renderer2D::begin_scene(m_camera_controller.get_camera());
-        hazel::Renderer2D::draw_quad({-1.0f, 0.0f}, {0.8f, 0.8f}, {0.8f, 0.2f, 0.3f, 1.0f});
+        hazel::Renderer2D::draw_quad({-1.0f, 0.0f}, glm::radians(45.0f), {0.8f, 0.8f}, {0.8f, 0.2f, 0.3f, 1.0f});
         hazel::Renderer2D::draw_quad({0.5f, -0.5f}, {0.5f, 0.75f}, {0.2f, 0.3f, 0.8f, 1.0f});
         hazel::Renderer2D::draw_quad({ 0.0f, 0.0f, -0.1f }, { 10.0f, 10.0f }, m_checkerboard_texture, 10.0f, m_square_color);
         hazel::Renderer2D::end_scene();

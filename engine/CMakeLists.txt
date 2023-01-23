@@ -4,45 +4,77 @@ set( GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE )
 set( GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE )
 set( GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE )
 
-add_subdirectory( vendor/glfw )
-add_subdirectory( vendor/glad )
-add_subdirectory( vendor/spdlog )
-add_subdirectory( vendor/stb_image )
+set ( HZ_WINDOW_API "GLFW" )
+set ( HZ_RENDERER_API "OpenGL" )
 
-# source code
-file(GLOB_RECURSE
-    SOURCES CONFIGURE_DEPENDS
-        src/*.cpp
-)
+# ---window--------------------------------------------
+if ( HZ_WINDOW_API STREQUAL "GLFW" )
+    add_definitions(-DHZ_WINDOW_API=1)
+    add_subdirectory( vendor/glfw )
+    file(GLOB_RECURSE
+        WINDOW_SOURCES CONFIGURE_DEPENDS
+            src/platform/window/glfw/*.cpp
+    )
+    set(window glfw)
+else()
+    message( FATAL_ERROR "Unknow window" )
+endif()
+#-------------------------------------------------------------
+
+# ---renderer--------------------------------------------
+if ( HZ_RENDERER_API STREQUAL "OpenGL" )
+    add_definitions(-DHZ_RENDERER_API=1)
+    add_subdirectory( vendor/glad )
+    file(GLOB_RECURSE
+        RENDERER_SOURCES CONFIGURE_DEPENDS
+            src/platform/renderer/opengl/*.cpp
+    )
+    set(renderer glad)
+else()
+    message( FATAL_ERROR "Unknow renderer" )
+endif()
+#-------------------------------------------------------------
+
+# ---imgui----------------------------------------------------
 file(GLOB
-    IMGUI_SOURSES
+    IMGUI_SOURSES CONFIGURE_DEPENDS
         vendor/imgui/*.cpp
-)
-
-# library creation
-add_library( engine
-    STATIC
-        ${SOURCES}
 )
 add_library( imgui
     STATIC
         ${IMGUI_SOURSES}
 )
+target_include_directories( imgui
+    PRIVATE
+        vendor/imgui
+)
+# -----------------------------------------------------------
+
+add_subdirectory( vendor/spdlog )
+add_subdirectory( vendor/stb_image )
+
+file(GLOB_RECURSE
+    SOURCES CONFIGURE_DEPENDS
+        src/base/*.cpp
+)
+
+add_library( engine
+    STATIC
+        ${SOURCES}
+        ${WINDOW_SOURCES}
+        ${RENDERER_SOURCES}
+)
 target_link_libraries( engine
     PUBLIC
-        glfw
-        glad
         spdlog
         imgui
         stb_image
+        ${window}
+        ${renderer}
 )
 target_precompile_headers( engine
     PUBLIC
         src/engine_pch.h
-)
-target_include_directories( imgui
-    PRIVATE
-        vendor/imgui
 )
 target_include_directories( engine
     PUBLIC

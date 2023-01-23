@@ -1,5 +1,3 @@
-#pragma once
-
 #define GLFW_INCLUDE_NONE
 
 #include <iostream>
@@ -17,11 +15,16 @@
 #include <algorithm>
 #include <utility>
 
-#include "core/log.h"
-#include "debug/instrumentor.h"
+#include "base/core/log.h"
+#include "base/debug/instrumentor.h"
 
 #define BIT(x) (1 << x)
 #define HZ_BIND_EVENT_FN(x) std::bind(&x, this, std::placeholders::_1)
+
+typedef __uint8_t uint8_t;
+typedef __uint16_t uint16_t;
+typedef __uint32_t uint32_t;
+typedef __uint64_t uint64_t;
 
 namespace hazel {
     template<typename T>
