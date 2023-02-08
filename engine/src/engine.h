@@ -2,8 +2,6 @@
 
 #include "base/core/application.h"
 #include "base/core/input.h"
-#include "base/core/key_codes.h"
-#include "base/core/mouse_button_codes.h"
 #include "base/core/layer.h"
 #include "base/core/timestep.h"
 
@@ -11,11 +9,13 @@
 #include "base/events/application_event.h"
 #include "base/events/key_event.h"
 #include "base/events/mouse_event.h"
+#include "base/events/key_codes.h"
+#include "base/events/mouse_button_codes.h"
 
 // ---renderer----------------------------------
 #include "base/renderer/renderer.h"
 #include "base/renderer/renderer_2d.h"
-#include "base/renderer/renderer_command.h"
+#include "base/renderer/render_command.h"
 
 #include "base/renderer/buffer.h"
 #include "base/renderer/shader.h"

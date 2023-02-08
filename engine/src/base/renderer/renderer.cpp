@@ -1,5 +1,5 @@
 #include "base/renderer/renderer.h"
-#include "base/renderer/renderer_command.h"
+#include "base/renderer/render_command.h"
 #include "base/renderer/renderer_2d.h"
 
 namespace hazel {
@@ -10,7 +10,7 @@ namespace hazel {
     {
         HZ_PROFILE_FUNCTION();
         
-        RendererCommand::init();
+        RenderCommand::init();
         Renderer2D::init();
     }
 
@@ -21,7 +21,7 @@ namespace hazel {
 
     void Renderer::on_window_resize(uint32_t width, uint32_t height)
     {
-        RendererCommand::set_viewport(0, 0, width, height);
+        RenderCommand::set_viewport(0, 0, width, height);
     }
 
     void Renderer::begin_scene(OrthographicCamera& camera)
@@ -41,7 +41,7 @@ namespace hazel {
         shader->set_mat4("u_transform", transform);
 
         vertex_array->bind();
-        RendererCommand::draw_indexed(vertex_array);
+        RenderCommand::draw_indexed(vertex_array);
     }
 
 }

@@ -3,9 +3,9 @@
 
 namespace hazel {
 
-    Ref<VertexBuffer> VertexBuffer::create(float* vertices, uint32_t size)
+    Ref<VertexBuffer> VertexBuffer::create(float* vertices, uint32_t size, bool is_static)
     {
-        return CreateRef<OpenGLVertexBuffer>(vertices, size);
+        return CreateRef<OpenGLVertexBuffer>(vertices, size, is_static);
     }
 
     Ref<IndexBuffer> IndexBuffer::create(uint32_t* indices, uint32_t size)
@@ -17,13 +17,13 @@ namespace hazel {
     // Vertex buffer
     //
 
-    OpenGLVertexBuffer::OpenGLVertexBuffer(float* vertices, uint32_t size)
+    OpenGLVertexBuffer::OpenGLVertexBuffer(float* vertices, uint32_t size, bool is_static)
     {
         HZ_PROFILE_FUNCTION();
 
         glCreateBuffers(1, &m_renderer_id);
         glBindBuffer(GL_ARRAY_BUFFER, m_renderer_id);
-        glBufferData(GL_ARRAY_BUFFER, size, vertices, GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, size, vertices, is_static ? GL_STATIC_DRAW : GL_DYNAMIC_DRAW);
     }
 
     OpenGLVertexBuffer::~OpenGLVertexBuffer()
@@ -45,6 +45,12 @@ namespace hazel {
         HZ_PROFILE_FUNCTION();
 
         glBindBuffer(GL_ARRAY_BUFFER, 0);
+    }
+
+    void OpenGLVertexBuffer::set_data(const void* data, uint32_t size)
+    {
+        glBindBuffer(GL_ARRAY_BUFFER, m_renderer_id);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, size, data);
     }
 
     //

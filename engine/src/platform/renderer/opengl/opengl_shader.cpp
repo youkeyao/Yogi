@@ -197,6 +197,13 @@ namespace hazel {
         const GLint location = glGetUniformLocation(m_renderer_id, name.c_str());
         glUniform1i(location, value);
     }
+    void OpenGLShader::set_int_array(const std::string& name, int* values, uint32_t count) const
+    {
+        HZ_PROFILE_FUNCTION();
+
+        const GLint location = glGetUniformLocation(m_renderer_id, name.c_str());
+        glUniform1iv(location, count, values);
+    }
     void OpenGLShader::set_float(const std::string& name, float value) const
     {
         HZ_PROFILE_FUNCTION();

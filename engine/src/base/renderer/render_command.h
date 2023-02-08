@@ -5,7 +5,7 @@
 
 namespace hazel {
 
-    class RendererCommand
+    class RenderCommand
     {
     public:
         static void init();
@@ -13,7 +13,7 @@ namespace hazel {
         static void set_clear_color(const glm::vec4& color);
         static void clear();
 
-        static void draw_indexed(const Ref<VertexArray>& vertex_array);
+        static void draw_indexed(const Ref<VertexArray>& vertex_array, uint32_t index_count = 0);
     };
 
 }

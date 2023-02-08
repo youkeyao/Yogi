@@ -17,7 +17,6 @@ namespace hazel {
         void set_data(void* data, size_t size) const override;
 
         void bind(uint32_t slot = 0) const override;
-
     private:
         std::string m_path;
         uint32_t m_width, m_height;

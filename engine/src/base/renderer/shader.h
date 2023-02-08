@@ -15,6 +15,7 @@ namespace hazel {
         virtual const std::string& get_name() const = 0;
 
         virtual void set_int(const std::string& name, int value) const = 0;
+        virtual void set_int_array(const std::string& name, int* values, uint32_t count) const = 0;
         virtual void set_float(const std::string& name, float value) const = 0;
         virtual void set_float3(const std::string& name, const glm::vec3& value) const = 0;
         virtual void set_float4(const std::string& name, const glm::vec4& value) const = 0;
