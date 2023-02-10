@@ -1,8 +1,7 @@
 #include "platform/renderer/opengl/opengl_shader.h"
-#include <glad/glad.h>
 #include <glm/gtc/type_ptr.hpp>
 
-namespace hazel {
+namespace Yogi {
 
     Ref<Shader> Shader::create(const std::string& filepath)
     {
@@ -23,13 +22,13 @@ namespace hazel {
             return GL_FRAGMENT_SHADER;
         }
 
-        HZ_CORE_ASSERT(false, "unknown shader type");
+        YG_CORE_ASSERT(false, "unknown shader type");
         return 0;
     }
 
     OpenGLShader::OpenGLShader(const std::string& filepath)
     {
-        HZ_PROFILE_FUNCTION();
+        YG_PROFILE_FUNCTION();
 
         std::string source = read_file(filepath);
         std::unordered_map<GLenum, std::string> shader_sources = preprocess(source);
@@ -46,7 +45,7 @@ namespace hazel {
 
     OpenGLShader::OpenGLShader(const std::string& name, const std::string& vertexSrc, const std::string& fragmentSrc) : m_name(name)
     {
-        HZ_PROFILE_FUNCTION();
+        YG_PROFILE_FUNCTION();
 
         std::unordered_map<GLenum, std::string> sources;
         sources[GL_VERTEX_SHADER] = vertexSrc;
@@ -56,20 +55,20 @@ namespace hazel {
 
     OpenGLShader::~OpenGLShader()
     {
-        HZ_PROFILE_FUNCTION();
+        YG_PROFILE_FUNCTION();
 
         glDeleteProgram(m_renderer_id);
     }
 
     std::string OpenGLShader::read_file(const std::string& filepath)
     {
-        HZ_PROFILE_FUNCTION();
+        YG_PROFILE_FUNCTION();
 
         std::string result = std::string();
         std::ifstream in(filepath, std::ios::in | std::ios::binary);
 
         if (!in) {
-            HZ_CORE_ERROR("could not open file '{0}'", filepath);
+            YG_CORE_ERROR("could not open file '{0}'", filepath);
             return result;
         }
 
@@ -84,7 +83,7 @@ namespace hazel {
 
     std::unordered_map<GLenum, std::string> OpenGLShader::preprocess(const std::string& source)
     {
-        HZ_PROFILE_FUNCTION();
+        YG_PROFILE_FUNCTION();
 
         std::unordered_map<GLenum, std::string> shader_sources;
 
@@ -94,10 +93,10 @@ namespace hazel {
 
         while (pos != std::string::npos) {
             size_t eol = source.find_first_of("\r\n", pos);
-            HZ_CORE_ASSERT(eol != std::string::npos, "syntax error");
+            YG_CORE_ASSERT(eol != std::string::npos, "syntax error");
             size_t begin = pos + type_token_length + 1;
             std::string type = source.substr(begin, eol - begin);
-            HZ_CORE_ASSERT(shader_type_from_string(type), "invalid shader type specification");
+            YG_CORE_ASSERT(shader_type_from_string(type), "invalid shader type specification");
 
             size_t next_line_pos = source.find_first_not_of("\r\n", eol);
             pos = source.find(type_token, next_line_pos);
@@ -111,7 +110,7 @@ namespace hazel {
 
     void OpenGLShader::compile(const std::unordered_map<GLenum, std::string>& shader_sources)
     {
-        HZ_PROFILE_FUNCTION();
+        YG_PROFILE_FUNCTION();
 
         GLuint program = glCreateProgram();
         GLenum shader_ids[shader_sources.size()];
@@ -139,8 +138,8 @@ namespace hazel {
                 
                 glDeleteShader(shader);
 
-                HZ_CORE_ERROR("{0}", infoLog.data());
-                HZ_CORE_ASSERT(false, "shader compilation failure!");
+                YG_CORE_ERROR("{0}", infoLog.data());
+                YG_CORE_ASSERT(false, "shader compilation failure!");
                 return;
             }
             glAttachShader(program, shader);
@@ -163,8 +162,8 @@ namespace hazel {
                 glDeleteShader(id);
             }
             
-            HZ_CORE_ERROR("{0}", infoLog.data());
-            HZ_CORE_ASSERT(false, "shader link failure!");
+            YG_CORE_ERROR("{0}", infoLog.data());
+            YG_CORE_ASSERT(false, "shader link failure!");
             return;
         }
 
@@ -178,56 +177,56 @@ namespace hazel {
 
     void OpenGLShader::bind() const
     {
-        HZ_PROFILE_FUNCTION();
+        YG_PROFILE_FUNCTION();
 
         glUseProgram(m_renderer_id);
     }
 
     void OpenGLShader::unbind() const
     {
-        HZ_PROFILE_FUNCTION();
+        YG_PROFILE_FUNCTION();
 
         glUseProgram(0);
     }
 
     void OpenGLShader::set_int(const std::string& name, int value) const
     {
-        HZ_PROFILE_FUNCTION();
+        YG_PROFILE_FUNCTION();
 
         const GLint location = glGetUniformLocation(m_renderer_id, name.c_str());
         glUniform1i(location, value);
     }
     void OpenGLShader::set_int_array(const std::string& name, int* values, uint32_t count) const
     {
-        HZ_PROFILE_FUNCTION();
+        YG_PROFILE_FUNCTION();
 
         const GLint location = glGetUniformLocation(m_renderer_id, name.c_str());
         glUniform1iv(location, count, values);
     }
     void OpenGLShader::set_float(const std::string& name, float value) const
     {
-        HZ_PROFILE_FUNCTION();
+        YG_PROFILE_FUNCTION();
 
         const GLint location = glGetUniformLocation(m_renderer_id, name.c_str());
         glUniform1f(location, value);
     }
     void OpenGLShader::set_float3(const std::string& name, const glm::vec3& value) const
     {
-        HZ_PROFILE_FUNCTION();
+        YG_PROFILE_FUNCTION();
 
         const GLint location = glGetUniformLocation(m_renderer_id, name.c_str());
         glUniform3f(location, value.x, value.y, value.z);
     }
     void OpenGLShader::set_float4(const std::string& name, const glm::vec4& value) const
     {
-        HZ_PROFILE_FUNCTION();
+        YG_PROFILE_FUNCTION();
 
         const GLint location = glGetUniformLocation(m_renderer_id, name.c_str());
         glUniform4f(location, value.x, value.y, value.z, value.w);
     }
     void OpenGLShader::set_mat4(const std::string& name, const glm::mat4& value) const
     {
-        HZ_PROFILE_FUNCTION();
+        YG_PROFILE_FUNCTION();
 
         const GLint location = glGetUniformLocation(m_renderer_id, name.c_str());
         glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(value));

@@ -6,14 +6,15 @@
 #include "base/events/application_event.h"
 #include "base/imgui/imgui_layer.h"
 
-namespace hazel {
+namespace Yogi {
 
     class Application
     {
     public:
-        Application();
+        Application(const std::string& name = "Yogi Engine");
         virtual ~Application();
         void run();
+        void close();
         void on_event(Event& e);
         void push_layer(Layer* layer);
         void push_overlay(Layer* layer);

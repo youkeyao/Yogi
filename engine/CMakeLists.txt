@@ -4,12 +4,12 @@ set( GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE )
 set( GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE )
 set( GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE )
 
-set ( HZ_WINDOW_API "GLFW" )
-set ( HZ_RENDERER_API "OpenGL" )
+set ( YG_WINDOW_API "GLFW" )
+set ( YG_RENDERER_API "OpenGL" )
 
 # ---window--------------------------------------------
-if ( HZ_WINDOW_API STREQUAL "GLFW" )
-    add_definitions(-DHZ_WINDOW_API=1)
+if ( YG_WINDOW_API STREQUAL "GLFW" )
+    add_definitions(-DYG_WINDOW_API=1)
     add_subdirectory( vendor/glfw )
     file(GLOB_RECURSE
         WINDOW_SOURCES CONFIGURE_DEPENDS
@@ -22,8 +22,8 @@ endif()
 #-------------------------------------------------------------
 
 # ---renderer--------------------------------------------
-if ( HZ_RENDERER_API STREQUAL "OpenGL" )
-    add_definitions(-DHZ_RENDERER_API=1)
+if ( YG_RENDERER_API STREQUAL "OpenGL" )
+    add_definitions(-DYG_RENDERER_API=1)
     add_subdirectory( vendor/glad )
     file(GLOB_RECURSE
         RENDERER_SOURCES CONFIGURE_DEPENDS

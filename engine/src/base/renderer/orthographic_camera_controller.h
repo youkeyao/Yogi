@@ -5,20 +5,20 @@
 #include "base/events/mouse_event.h"
 #include "base/renderer/orthographic_camera.h"
 
-namespace hazel {
+namespace Yogi {
 
     class OrthographicCameraController
     {
     public:
         OrthographicCameraController(float aspect_ratio, bool rotation = false);
 
-        void on_update(TimeStep ts);
+        void on_update(Timestep ts);
         void on_event(Event& e);
 
         OrthographicCamera& get_camera() { return m_camera; }
 
         float zoom_level() const { return m_zoom_level; }
-        void set_zoom_level(float level) { m_zoom_level = level; }
+        void set_zoom_level(float level);
 
     private:
         bool on_mouse_scrolled(MouseScrolledEvent& e);

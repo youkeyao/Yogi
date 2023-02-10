@@ -1,6 +1,6 @@
 #pragma once
 
-namespace hazel {
+namespace Yogi {
 
     enum class ShaderDataType : uint8_t {
         None = 0,
@@ -36,7 +36,7 @@ namespace hazel {
             case ShaderDataType::Bool:
                 return sizeof(bool);
         }
-        HZ_CORE_ASSERT(false, "unknown ShaderDataType!");
+        YG_CORE_ASSERT(false, "unknown ShaderDataType!");
         return 0;
     }
 
@@ -72,7 +72,7 @@ namespace hazel {
                 case ShaderDataType::Mat4:
                     return 4 * 4;
             }
-            HZ_CORE_ASSERT(false, "unknown ShaderDataType!");
+            YG_CORE_ASSERT(false, "unknown ShaderDataType!");
             return 0;
         }
     };

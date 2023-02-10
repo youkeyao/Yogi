@@ -1,7 +1,7 @@
 #include "platform/renderer/opengl/opengl_buffer.h"
 #include <glad/glad.h>
 
-namespace hazel {
+namespace Yogi {
 
     Ref<VertexBuffer> VertexBuffer::create(float* vertices, uint32_t size, bool is_static)
     {
@@ -19,7 +19,7 @@ namespace hazel {
 
     OpenGLVertexBuffer::OpenGLVertexBuffer(float* vertices, uint32_t size, bool is_static)
     {
-        HZ_PROFILE_FUNCTION();
+        YG_PROFILE_FUNCTION();
 
         glCreateBuffers(1, &m_renderer_id);
         glBindBuffer(GL_ARRAY_BUFFER, m_renderer_id);
@@ -28,21 +28,21 @@ namespace hazel {
 
     OpenGLVertexBuffer::~OpenGLVertexBuffer()
     {
-        HZ_PROFILE_FUNCTION();
+        YG_PROFILE_FUNCTION();
 
         glDeleteBuffers(1, &m_renderer_id);
     }
 
     void OpenGLVertexBuffer::bind() const
     {
-        HZ_PROFILE_FUNCTION();
+        YG_PROFILE_FUNCTION();
 
         glBindBuffer(GL_ARRAY_BUFFER, m_renderer_id);
     }
 
     void OpenGLVertexBuffer::unbind() const
     {
-        HZ_PROFILE_FUNCTION();
+        YG_PROFILE_FUNCTION();
 
         glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
@@ -59,7 +59,7 @@ namespace hazel {
 
     OpenGLIndexBuffer::OpenGLIndexBuffer(uint32_t* indices, uint32_t count) : m_count(count)
     {
-        HZ_PROFILE_FUNCTION();
+        YG_PROFILE_FUNCTION();
 
         glCreateBuffers(1, &m_renderer_id);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_renderer_id);
@@ -68,20 +68,20 @@ namespace hazel {
 
     OpenGLIndexBuffer::~OpenGLIndexBuffer()
     {
-        HZ_PROFILE_FUNCTION();
+        YG_PROFILE_FUNCTION();
         glDeleteBuffers(1, &m_renderer_id);
     }
 
     void OpenGLIndexBuffer::bind() const
     {
-        HZ_PROFILE_FUNCTION();
+        YG_PROFILE_FUNCTION();
         
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_renderer_id);
     }
 
     void OpenGLIndexBuffer::unbind() const
     {
-        HZ_PROFILE_FUNCTION();
+        YG_PROFILE_FUNCTION();
         
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     }

@@ -2,17 +2,17 @@
 
 #include "base/events/event.h"
 
-namespace hazel {
+namespace Yogi {
 
     struct WindowProps
     {
         std::string title;
-        unsigned int width;
-        unsigned int height;
+        uint32_t width;
+        uint32_t height;
 
-        WindowProps(const std::string& title = "Hazel Engine",
-                    unsigned int width = 1280,
-                    unsigned int height = 720)
+        WindowProps(const std::string& title = "Yogi Engine",
+                    uint32_t width = 1280,
+                    uint32_t height = 720)
             : title(title), width(width), height(height) {}
     };
     
@@ -25,8 +25,8 @@ namespace hazel {
 
         virtual void on_update() = 0;
 
-        virtual unsigned int get_width() const = 0;
-        virtual unsigned int get_height() const = 0;
+        virtual uint32_t get_width() const = 0;
+        virtual uint32_t get_height() const = 0;
 
         // Window attributes
         virtual void set_event_callback(const EventCallbackFn& callback) = 0;

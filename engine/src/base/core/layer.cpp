@@ -1,6 +1,6 @@
 #include "base/core/layer.h"
 
-namespace hazel {
+namespace Yogi {
 
     Layer::Layer(const std::string& name) : m_debug_name(name)
     {

@@ -2,7 +2,7 @@
 
 #include "base/renderer/buffer.h"
 
-namespace hazel {
+namespace Yogi {
 
     class VertexArray
     {

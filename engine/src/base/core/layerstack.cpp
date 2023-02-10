@@ -1,6 +1,6 @@
 #include "base/core/layerstack.h"
 
-namespace hazel {
+namespace Yogi {
 
     LayerStack::LayerStack() {}
 

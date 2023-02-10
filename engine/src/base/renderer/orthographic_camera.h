@@ -2,7 +2,7 @@
 
 #include <glm/glm.hpp>
 
-namespace hazel {
+namespace Yogi {
 
     class OrthographicCamera
     {

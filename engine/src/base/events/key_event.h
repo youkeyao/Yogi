@@ -2,7 +2,7 @@
 
 #include "base/events/event.h"
 
-namespace hazel {
+namespace Yogi {
 
     class KeyEvent : public Event
     {

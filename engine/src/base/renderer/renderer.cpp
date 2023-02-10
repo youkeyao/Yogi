@@ -2,13 +2,13 @@
 #include "base/renderer/render_command.h"
 #include "base/renderer/renderer_2d.h"
 
-namespace hazel {
+namespace Yogi {
 
     Renderer::SceneData* Renderer::m_scene_data = new Renderer::SceneData();
 
     void Renderer::init()
     {
-        HZ_PROFILE_FUNCTION();
+        YG_PROFILE_FUNCTION();
         
         RenderCommand::init();
         Renderer2D::init();

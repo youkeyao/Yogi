@@ -1,7 +1,7 @@
 #include "platform/renderer/opengl/opengl_vertex_array.h"
 #include <glad/glad.h>
 
-namespace hazel {
+namespace Yogi {
 
     Ref<VertexArray> VertexArray::create()
     {
@@ -26,43 +26,43 @@ namespace hazel {
             case ShaderDataType::Bool:
                 return GL_BOOL;
         }
-        HZ_CORE_ASSERT(false, "unknown ShaderDataType!");
+        YG_CORE_ASSERT(false, "unknown ShaderDataType!");
         return 0;
     }
 
     OpenGLVertexArray::OpenGLVertexArray()
     {
-        HZ_PROFILE_FUNCTION();
+        YG_PROFILE_FUNCTION();
         
         glCreateVertexArrays(1, &m_renderer_id);
     }
 
     OpenGLVertexArray::~OpenGLVertexArray()
     {
-        HZ_PROFILE_FUNCTION();
+        YG_PROFILE_FUNCTION();
 
         glDeleteVertexArrays(1, &m_renderer_id);
     }
 
     void OpenGLVertexArray::bind() const
     {
-        HZ_PROFILE_FUNCTION();
+        YG_PROFILE_FUNCTION();
 
         glBindVertexArray(m_renderer_id);
     }
 
     void OpenGLVertexArray::unbind() const
     {
-        HZ_PROFILE_FUNCTION();
+        YG_PROFILE_FUNCTION();
 
         glBindVertexArray(0);
     }
 
     void OpenGLVertexArray::add_vertex_buffer(const Ref<VertexBuffer>& vertex_buffer) 
     {
-        HZ_PROFILE_FUNCTION();
+        YG_PROFILE_FUNCTION();
 
-        HZ_CORE_ASSERT(vertex_buffer->get_layout().get_elements().size(), "vertex buffer has no layout");
+        YG_CORE_ASSERT(vertex_buffer->get_layout().get_elements().size(), "vertex buffer has no layout");
 
         glBindVertexArray(m_renderer_id);
         vertex_buffer->bind();
@@ -83,7 +83,7 @@ namespace hazel {
 
     void OpenGLVertexArray::set_index_buffer(const Ref<IndexBuffer>& index_buffer)
     {
-        HZ_PROFILE_FUNCTION();
+        YG_PROFILE_FUNCTION();
 
         glBindVertexArray(m_renderer_id);
         index_buffer->bind();

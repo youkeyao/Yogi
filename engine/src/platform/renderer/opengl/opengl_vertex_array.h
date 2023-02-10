@@ -2,7 +2,7 @@
 
 #include "base/renderer/vertex_array.h"
 
-namespace hazel {
+namespace Yogi {
 
     class OpenGLVertexArray : public VertexArray
     {

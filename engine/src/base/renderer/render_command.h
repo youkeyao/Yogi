@@ -3,7 +3,7 @@
 #include "base/renderer/vertex_array.h"
 #include <glm/glm.hpp>
 
-namespace hazel {
+namespace Yogi {
 
     class RenderCommand
     {

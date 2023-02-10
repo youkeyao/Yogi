@@ -2,7 +2,7 @@
 #include "base/core/application.h"
 #include "GLFW/glfw3.h"
 
-namespace hazel {
+namespace Yogi {
 
     bool Input::is_key_pressed(int keycode)
     {

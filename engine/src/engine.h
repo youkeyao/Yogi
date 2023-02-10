@@ -18,6 +18,7 @@
 #include "base/renderer/render_command.h"
 
 #include "base/renderer/buffer.h"
+#include "base/renderer/frame_buffer.h"
 #include "base/renderer/shader.h"
 #include "base/renderer/shader_library.h"
 #include "base/renderer/texture.h"

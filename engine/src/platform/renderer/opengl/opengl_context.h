@@ -3,7 +3,7 @@
 #include "base/renderer/graphics_context.h"
 #include <GLFW/glfw3.h>
 
-namespace hazel
+namespace Yogi
 {
 
     class OpenGLContext : public GraphicsContext

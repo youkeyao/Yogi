@@ -2,7 +2,7 @@
 
 #include "base/core/layer.h"
 
-namespace hazel {
+namespace Yogi {
 
     class ImGuiLayer : public Layer
     {

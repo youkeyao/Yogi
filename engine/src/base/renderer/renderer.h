@@ -4,7 +4,7 @@
 #include "base/renderer/orthographic_camera.h"
 #include "base/renderer/shader.h"
 
-namespace hazel
+namespace Yogi
 {
 
     class Renderer

@@ -2,15 +2,15 @@
 
 #include "base/events/event.h"
 
-namespace hazel {
+namespace Yogi {
 
     class WindowResizeEvent : public Event
     {
     public:
-        WindowResizeEvent(unsigned int width, unsigned int height) : m_width(width), m_height(height) {}
+        WindowResizeEvent(uint32_t width, uint32_t height) : m_width(width), m_height(height) {}
 
-        inline unsigned int get_width() const { return m_width; }
-        inline unsigned int get_height() const { return m_height; }
+        inline uint32_t get_width() const { return m_width; }
+        inline uint32_t get_height() const { return m_height; }
 
         std::string to_string() const override
         {
@@ -23,7 +23,7 @@ namespace hazel {
         EVENT_CLASS_CATEGORY(EventCategoryApplication)
 
     private:
-        unsigned int m_width = 0, m_height = 0;
+        uint32_t m_width = 0, m_height = 0;
     };
 
     class WindowCloseEvent : public Event

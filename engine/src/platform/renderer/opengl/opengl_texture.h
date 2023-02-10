@@ -2,14 +2,14 @@
 #include "base/renderer/texture.h"
 #include <glad/glad.h>
 
-namespace hazel {
+namespace Yogi {
 
     class OpenGLTexture2D : public Texture2D
     {
     public:
         OpenGLTexture2D(uint32_t width, uint32_t height);
         OpenGLTexture2D(const std::string& path);
-        virtual ~OpenGLTexture2D();
+        ~OpenGLTexture2D();
 
         uint32_t get_width() const override { return m_width; }
         uint32_t get_height() const override{ return m_height; }

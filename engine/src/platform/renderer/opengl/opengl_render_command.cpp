@@ -1,11 +1,11 @@
 #include "base/renderer/render_command.h"
 #include <glad/glad.h>
 
-namespace hazel {
+namespace Yogi {
 
     void RenderCommand::init()
     {
-        HZ_PROFILE_FUNCTION();
+        YG_PROFILE_FUNCTION();
         
         glEnable(GL_BLEND);
         glEnable(GL_DEPTH_TEST);

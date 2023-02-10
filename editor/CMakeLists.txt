@@ -1,8 +1,8 @@
-project (Sandbox)
+project (Editor)
 
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS src/*.cpp)
-add_executable(sandbox ${SOURCES})
-target_link_libraries( sandbox
+add_executable(editor ${SOURCES})
+target_link_libraries( editor
     PRIVATE
         engine
 )

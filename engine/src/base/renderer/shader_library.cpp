@@ -1,11 +1,11 @@
 #include "base/renderer/shader_library.h"
 #include "base/renderer/renderer.h"
 
-namespace hazel {
+namespace Yogi {
 
     void ShaderLibrary::add(Ref<Shader> shader) {
         auto& name = shader->get_name();
-        HZ_CORE_ASSERT(!exists(name), "shader already exists");
+        YG_CORE_ASSERT(!exists(name), "shader already exists");
         m_shaders[name] = std::move(shader);
     }
 
@@ -22,7 +22,7 @@ namespace hazel {
     }
 
     Ref<Shader> ShaderLibrary::get(const std::string& name) {
-        HZ_CORE_ASSERT(exists(name), "shader not found");
+        YG_CORE_ASSERT(exists(name), "shader not found");
         return m_shaders[name];
     }
 

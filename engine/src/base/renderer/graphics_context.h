@@ -1,6 +1,6 @@
 #pragma once
 
-namespace hazel {
+namespace Yogi {
 
     class GraphicsContext
     {

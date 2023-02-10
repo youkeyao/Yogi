@@ -2,17 +2,16 @@
 
 #include "base/renderer/shader.h"
 #include <glm/glm.hpp>
+#include <glad/glad.h>
 
-typedef unsigned int GLenum;
-
-namespace hazel {
+namespace Yogi {
 
     class OpenGLShader : public Shader
     {
     public:
         OpenGLShader(const std::string& filepath);
         OpenGLShader(const std::string& name, const std::string& vertexSrc, const std::string& fragmentSrc);
-        virtual ~OpenGLShader();
+        ~OpenGLShader();
 
         void bind() const override;
         void unbind() const override;

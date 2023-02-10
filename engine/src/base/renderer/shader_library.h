@@ -2,7 +2,7 @@
 
 #include "base/renderer/shader.h"
 
-namespace hazel {
+namespace Yogi {
 
     class ShaderLibrary
     {

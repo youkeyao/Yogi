@@ -1,13 +1,9 @@
 #include <engine.h>
 #include "base/core/entrypoint.h"
 
-#include <glm/gtc/matrix_transform.hpp>
-#include <imgui.h>
-#include <glm/gtc/type_ptr.hpp>
-
 #include "sandbox2d.h"
 
-class Sandbox : public hazel::Application
+class Sandbox : public Yogi::Application
 {
 public:
     Sandbox()
@@ -21,7 +17,7 @@ public:
     }
 };
 
-hazel::Application* hazel::create_application()
+Yogi::Application* Yogi::create_application()
 {
     return new Sandbox();
 }

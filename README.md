@@ -1,4 +1,4 @@
-# Hazel
+# Yogi
 A Game engine based on the Hazel Engine by TheCherno.
 
 ## Run
