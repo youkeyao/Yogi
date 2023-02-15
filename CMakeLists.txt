@@ -5,6 +5,9 @@ set( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_HOME_DIRECTORY}/bin )
 
 project( Yogi )
 
+set ( YG_WINDOW_API "GLFW" )
+set ( YG_RENDERER_API "OpenGL" )
+
 add_subdirectory( engine )
 add_subdirectory( sandbox )
 add_subdirectory( editor )

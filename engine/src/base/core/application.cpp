@@ -16,9 +16,6 @@ namespace Yogi {
         m_window->set_event_callback(YG_BIND_EVENT_FN(Application::on_event));
 
         Renderer::init();
-
-        m_imgui_layer = new ImGuiLayer();
-        push_overlay(m_imgui_layer);
     }
 
     Application::~Application()
@@ -84,15 +81,6 @@ namespace Yogi {
                         layer->on_update(timestep);
                     }
                 }
-                m_imgui_layer->begin();
-                {
-                    YG_PROFILE_SCOPE("LayerStack on_imgui_render");
-
-                    for (Layer* layer : m_layerstack) {
-                        layer->on_imgui_render();
-                    }
-                }
-                m_imgui_layer->end();
             }
 
             m_window->on_update();

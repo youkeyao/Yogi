@@ -1,5 +1,4 @@
 #include "sandbox2d.h"
-#include <imgui.h>
 #include <glm/gtc/type_ptr.hpp>
 
 Sandbox2D::Sandbox2D() : Layer("Sandbox 2D"), m_camera_controller(1280.0f / 720.0f) {}
@@ -70,23 +69,6 @@ void Sandbox2D::on_update(Yogi::Timestep ts)
 
     m_particle_system.on_update(ts);
     m_particle_system.on_render(m_camera_controller.get_camera());
-}
-
-void Sandbox2D::on_imgui_render()
-{
-    YG_PROFILE_FUNCTION();
-    
-    Yogi::Renderer2D::Statistics stats = Yogi::Renderer2D::get_stats();
-
-    ImGui::Begin("Settings");
-    ImGui::Text("Renderer2D Stats:");
-    ImGui::Text("Draw Calls: %d", stats.draw_calls);
-    ImGui::Text("Quads: %d", stats.quad_count);
-    ImGui::Text("Vertices: %d", stats.get_total_vertex_count());
-    ImGui::Text("Indices: %d", stats.get_total_index_count());
-    ImGui::ColorEdit4("Square color", glm::value_ptr(m_square_color));
-
-    ImGui::End();
 }
 
 void Sandbox2D::on_event(Yogi::Event& e)

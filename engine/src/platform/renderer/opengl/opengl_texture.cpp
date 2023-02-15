@@ -77,7 +77,7 @@ namespace Yogi {
         glDeleteTextures(1, &m_renderer_id);
     }
 
-    void OpenGLTexture2D::set_data(void* data, size_t size) const
+    void OpenGLTexture2D::set_data(void* data, size_t size)
     {
         YG_PROFILE_FUNCTION();
 

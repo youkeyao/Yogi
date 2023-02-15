@@ -15,7 +15,6 @@ namespace Yogi {
         virtual void on_detach() {}
         virtual void on_update(Timestep ts) {}
         virtual void on_event(Event& e) {}
-        virtual void on_imgui_render() {}
 
         inline const std::string& get_name() const { return m_debug_name; }
     protected:
