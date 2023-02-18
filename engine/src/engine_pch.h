@@ -1,6 +1,7 @@
 #define GLFW_INCLUDE_NONE
 // #define YG_PROFILE
 
+#include <stdint.h>
 #include <iostream>
 #include <iomanip>
 #include <chrono>
@@ -21,11 +22,6 @@
 
 #define BIT(x) (1 << x)
 #define YG_BIND_EVENT_FN(x) std::bind(&x, this, std::placeholders::_1)
-
-typedef unsigned char uint8_t;
-typedef unsigned short int uint16_t;
-typedef unsigned int uint32_t;
-typedef unsigned long long uint64_t;
 
 namespace Yogi {
     template<typename T>

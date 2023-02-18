@@ -5,7 +5,7 @@
 
 namespace Yogi {
 
-    static uint32_t s_max_viewport_size = 8192;
+    static uint32_t s_max_viewport_size = 4096;
 
     EditorLayer::EditorLayer() : Layer("Sandbox 2D"), m_camera_controller(1280.0f / 720.0f) {}
 
@@ -18,27 +18,16 @@ namespace Yogi {
         m_frame_texture = Texture2D::create(s_max_viewport_size, s_max_viewport_size);
         m_frame_buffer = FrameBuffer::create(s_max_viewport_size, s_max_viewport_size, { m_frame_texture });
 
-        IMGUI_CHECKVERSION();
-        ImGui::CreateContext();
+        Entity square = m_scene.create_entity();
+        TransformComponent transform;
+        square.add_component<TransformComponent>(transform);
+        SpriteRendererComponent sprite;
+        sprite.texture = m_checkerboard_texture;
+        sprite.color = { 0.8f, 0.2f, 0.3f, 1.0f };
+        square.add_component<SpriteRendererComponent>(sprite);
+        m_scene.register_system<RenderSystem>();
 
-        ImGuiIO& io = ImGui::GetIO();
-        (void) io;
-
-        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-        io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-        io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
-
-        ImGui::StyleColorsDark();
-
-        ImGuiStyle& style = ImGui::GetStyle();
-        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-            style.WindowRounding = 0.0f;
-            style.Colors[ImGuiCol_WindowBg].w = 1.0f;
-        }
-
-        Application& app = Application::get();
-        ImGui_Window_Init(app.get_window().get_native_window(), true);
-        ImGui_Renderer_Init("#version 330");
+        imgui_init();
     }
 
     void EditorLayer::on_detach()
@@ -63,30 +52,41 @@ namespace Yogi {
 
         Renderer2D::reset_stats();
         m_frame_buffer->bind();
-        RenderCommand::set_viewport(0, 0, m_viewport_size.x, m_viewport_size.y);
         RenderCommand::set_clear_color({ 0.1f, 0.1f, 0.1f, 1.0f });
         RenderCommand::clear();
 
-        {
-            YG_PROFILE_SCOPE("Render draw");
-            Renderer2D::begin_scene(m_camera_controller.get_camera());
-            Renderer2D::draw_quad({-1.0f, 0.0f}, glm::radians(45.0f), {0.8f, 0.8f}, {0.8f, 0.2f, 0.3f, 1.0f});
-            Renderer2D::draw_quad({0.5f, -0.5f}, {0.5f, 0.75f}, {0.2f, 0.3f, 0.8f, 1.0f});
-            Renderer2D::draw_quad({-0.5f, 0.5f}, {0.5f, 0.75f}, {0.2f, 0.8f, 0.3f, 1.0f});
-            Renderer2D::draw_quad({ 0.0f, 0.0f, -0.1f }, { 20.0f, 20.0f }, m_checkerboard_texture, {{0.0f, 0.0f}, {10.0f, 10.0f}}, m_square_color);
-            Renderer2D::draw_quad({ 0.0f, 0.0f, 0.1f }, glm::radians(45.0f), { 1.0f, 1.0f }, m_checkerboard_texture, {{0.0f, 0.0f}, {5.0f, 5.0f}});
-
-            for (float y = -5.0f; y < 5.0f; y += 0.5f) {
-                for (float x = -5.0f; x < 5.0f; x += 0.5f) {
-                    Renderer2D::draw_quad({x, y}, {0.45f, 0.45f}, {(x + 5.0f) / 10.0f, 0.4f, (y + 5.0f) / 10.0f, 0.7f});
-                }
-            }
-            Renderer2D::end_scene();
-        }
+        Renderer2D::begin_scene(m_camera_controller.get_camera());
+        m_scene.on_update(ts);
+        Renderer2D::end_scene();
 
         m_frame_buffer->unbind();
 
         imgui_end();
+    }
+
+    void EditorLayer::imgui_init()
+    {
+        IMGUI_CHECKVERSION();
+        ImGui::CreateContext();
+
+        ImGuiIO& io = ImGui::GetIO();
+        (void) io;
+
+        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+        io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+        io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+
+        ImGui::StyleColorsDark();
+
+        ImGuiStyle& style = ImGui::GetStyle();
+        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+            style.WindowRounding = 0.0f;
+            style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+        }
+
+        Application& app = Application::get();
+        ImGui_Window_Init(app.get_window().get_native_window(), true);
+        ImGui_Renderer_Init("#version 330");
     }
 
     void EditorLayer::imgui_begin()
@@ -166,6 +166,7 @@ namespace Yogi {
             m_viewport_size = new_viewport_size;
             WindowResizeEvent e((uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y);
             m_camera_controller.on_event(e);
+            RenderCommand::set_viewport(0, 0, m_viewport_size.x, m_viewport_size.y);
         }
         ImGui::Image(
             (void*)(uint64_t)m_frame_texture->get_renderer_id(),

@@ -61,6 +61,7 @@ target_include_directories( engine
     PUBLIC
         src
         vendor/glm
+        vendor/entt/src
     PRIVATE
         vendor/glfw/include
         vendor/glad/include
