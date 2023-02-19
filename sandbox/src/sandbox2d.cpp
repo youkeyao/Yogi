@@ -38,7 +38,7 @@ void Sandbox2D::on_update(Yogi::Timestep ts)
 
     {
         YG_PROFILE_SCOPE("Render draw");
-        Yogi::Renderer2D::begin_scene(m_camera_controller.get_camera());
+        // Yogi::Renderer2D::begin_scene(m_camera_controller.get_camera());
         Yogi::Renderer2D::draw_quad({-1.0f, 0.0f}, glm::radians(45.0f), {0.8f, 0.8f}, {0.8f, 0.2f, 0.3f, 1.0f});
         Yogi::Renderer2D::draw_quad({0.5f, -0.5f}, {0.5f, 0.75f}, {0.2f, 0.3f, 0.8f, 1.0f});
         Yogi::Renderer2D::draw_quad({-0.5f, 0.5f}, {0.5f, 0.75f}, {0.2f, 0.8f, 0.3f, 1.0f});
@@ -50,7 +50,7 @@ void Sandbox2D::on_update(Yogi::Timestep ts)
                 Yogi::Renderer2D::draw_quad({x, y}, {0.45f, 0.45f}, {(x + 5.0f) / 10.0f, 0.4f, (y + 5.0f) / 10.0f, 0.7f});
             }
         }
-        Yogi::Renderer2D::end_scene();
+        // Yogi::Renderer2D::end_scene();
     }
 
     if (Yogi::Input::is_mouse_button_pressed(YG_MOUSE_BUTTON_LEFT)) {

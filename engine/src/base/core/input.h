@@ -1,5 +1,8 @@
 #pragma once
 
+#include "base/events/key_codes.h"
+#include "base/events/mouse_button_codes.h"
+
 namespace Yogi {
 
     class Input

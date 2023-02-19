@@ -2,20 +2,15 @@
 
 #include "base/scene/entity.h"
 #include "base/core/timestep.h"
+#include "base/events/event.h"
 #include <entt/entity/registry.hpp>
 
 namespace Yogi {
 
-    typedef void(*SystemFunc)(const Ref<entt::registry>&);
-
-    template<typename... Args>struct types{using type=types;};
-    template<typename Sig> struct args;
-    template<typename R, typename...Args>
-    struct args<R(Args...)> : types<Args...>{};
-    template<typename Sig> using args_t=typename args<Sig>::type;
-
     class Scene
     {
+        typedef void(*SystemUpdateFunc)(Timestep, Scene*);
+        typedef void(*SystemEventFunc)(Event&, Scene*);
     public:
         Scene();
         ~Scene();
@@ -23,27 +18,57 @@ namespace Yogi {
         template<typename T>
         void register_system()
         {
-            register_system_on_update<T>(args_t<decltype(T::on_update)>{});
+            register_on_update<T>(0);
+            register_on_event<T>(0);
+        }
+
+        template<typename... Args, typename F = std::function<void(Args&&...)>>
+        void view_components(F func)
+        {
+            auto view = m_registry->view<Args...>();
+            for (auto entity : view) {
+                std::apply(func, view.get(entity));
+            }
+        }
+
+        template<typename... Args, typename F = std::function<void(Args&&...)>>
+        void group(F func)
+        {
+            auto group = m_registry->group<Args...>();
+            for (auto entity : group) {
+                std::apply(func, group.get(entity));
+            }
         }
 
         Entity create_entity();
 
         void on_update(Timestep ts);
+        void on_event(Event& e);
     private:
         Ref<entt::registry> m_registry;
-        std::vector<SystemFunc> m_system_funcs;
-
-        template <typename T, typename... Params>
-        void register_system_on_update(types<Params...>)
+        std::vector<SystemUpdateFunc> m_system_update_funcs;
+        std::vector<SystemEventFunc> m_system_event_funcs;
+        
+        template<typename T>
+        auto register_on_update(T*) -> decltype(T::on_update, void())
         {
-            m_system_funcs.push_back([](const Ref<entt::registry>& registry){
-                auto group = registry->group<Params...>();
-                for (auto entity : group) {
-                    auto args = group.get(entity);
-                    std::apply(T::on_update, std::move(args));
-                }
+            m_system_update_funcs.push_back([](Timestep ts, Scene* scene){
+                T::on_update(ts, scene);
             });
         }
+        template<typename T>
+        void register_on_update(...)
+        {}
+        template<typename T>
+        auto register_on_event(T*) -> decltype(T::on_event, void())
+        {
+            m_system_event_funcs.push_back([](Event& e, Scene* scene){
+                T::on_event(e, scene);
+            });
+        }
+        template<typename T>
+        void register_on_event(...)
+        {}
     };
 
 }

@@ -21,8 +21,19 @@ namespace Yogi {
 
     void Scene::on_update(Timestep ts)
     {
-        for (auto func : m_system_funcs) {
-            func(m_registry);
+        YG_PROFILE_FUNCTION();
+
+        for (auto func : m_system_update_funcs) {
+            func(ts, this);
+        }
+    }
+
+    void Scene::on_event(Event& e)
+    {
+        YG_PROFILE_FUNCTION();
+        
+        for (auto func : m_system_event_funcs) {
+            func(e, this);
         }
     }
 

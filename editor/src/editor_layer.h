@@ -20,8 +20,8 @@ namespace Yogi {
         void imgui_end();
 
     private:
-        OrthographicCameraController m_camera_controller;
-        Scene m_scene;
+        Ref<Scene> m_scene;
+        Ref<Entity> m_editor_camera;
 
         bool m_viewport_focused = false;
         glm::vec2 m_viewport_size;

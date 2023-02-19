@@ -1,5 +1,6 @@
 #include "editor_layer.h"
 #include "imgui_config.h"
+#include "editor_camera_controller_system.h"
 #include <imgui.h>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -7,7 +8,7 @@ namespace Yogi {
 
     static uint32_t s_max_viewport_size = 4096;
 
-    EditorLayer::EditorLayer() : Layer("Sandbox 2D"), m_camera_controller(1280.0f / 720.0f) {}
+    EditorLayer::EditorLayer() : Layer("Sandbox 2D") {}
 
     void EditorLayer::on_attach()
     {
@@ -18,14 +19,21 @@ namespace Yogi {
         m_frame_texture = Texture2D::create(s_max_viewport_size, s_max_viewport_size);
         m_frame_buffer = FrameBuffer::create(s_max_viewport_size, s_max_viewport_size, { m_frame_texture });
 
-        Entity square = m_scene.create_entity();
-        TransformComponent transform;
-        square.add_component<TransformComponent>(transform);
+        m_scene = CreateRef<Scene>();
+
+        Entity square = m_scene->create_entity();
+        square.add_component<TransformComponent>();
         SpriteRendererComponent sprite;
         sprite.texture = m_checkerboard_texture;
         sprite.color = { 0.8f, 0.2f, 0.3f, 1.0f };
         square.add_component<SpriteRendererComponent>(sprite);
-        m_scene.register_system<RenderSystem>();
+
+        m_editor_camera = CreateRef<Entity>(m_scene->create_entity());
+        m_editor_camera->add_component<TransformComponent>();
+        m_editor_camera->add_component<CameraComponent>();
+
+        m_scene->register_system<CameraSystem>();
+        m_scene->register_system<RenderSystem>();
 
         imgui_init();
     }
@@ -46,18 +54,13 @@ namespace Yogi {
         
         imgui_begin();
 
-        if (m_viewport_focused) {
-            m_camera_controller.on_update(ts);
-        }
-
         Renderer2D::reset_stats();
         m_frame_buffer->bind();
-        RenderCommand::set_clear_color({ 0.1f, 0.1f, 0.1f, 1.0f });
-        RenderCommand::clear();
 
-        Renderer2D::begin_scene(m_camera_controller.get_camera());
-        m_scene.on_update(ts);
-        Renderer2D::end_scene();
+        if (m_viewport_focused) {
+            EditorCameraControllerSystem::on_update(ts, m_editor_camera);
+        }
+        m_scene->on_update(ts);
 
         m_frame_buffer->unbind();
 
@@ -165,8 +168,9 @@ namespace Yogi {
         else if (new_viewport_size.x != m_viewport_size.x || new_viewport_size.y != m_viewport_size.y) {
             m_viewport_size = new_viewport_size;
             WindowResizeEvent e((uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y);
-            m_camera_controller.on_event(e);
-            RenderCommand::set_viewport(0, 0, m_viewport_size.x, m_viewport_size.y);
+            m_scene->on_event(e);
+            EditorCameraControllerSystem::on_event(e, m_editor_camera);
+            RenderCommand::set_viewport(0.0f, 0.0f, m_viewport_size.x, m_viewport_size.y);
         }
         ImGui::Image(
             (void*)(uint64_t)m_frame_texture->get_renderer_id(),
@@ -195,8 +199,10 @@ namespace Yogi {
 
     void EditorLayer::on_event(Event& e)
     {
-        if (m_viewport_focused && !e.is_in_category(EventCategoryApplication)) {
-            m_camera_controller.on_event(e);
+        if (e.get_event_type() != WindowResizeEvent::get_static_type()) {
+            if (m_viewport_focused)
+                EditorCameraControllerSystem::on_event(e, m_editor_camera);
+            m_scene->on_event(e);
         }
     }
 

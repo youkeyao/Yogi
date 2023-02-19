@@ -12,8 +12,7 @@ namespace Yogi {
         static void init();
         static void shutdown();
 
-        static void begin_scene(const OrthographicCamera& camera);
-        static void end_scene();
+        static void set_view_projection_matrix(glm::mat4 view_projection_matrix);
         static void flush();
 
         // Primitives

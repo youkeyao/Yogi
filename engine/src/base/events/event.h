@@ -44,16 +44,14 @@ namespace Yogi {
 
     class EventDispatcher
     {
-        template <typename T>
-        using EventFn = std::function<bool(T&)>;
     public:
         EventDispatcher(Event& event) : m_event(event) {}
 
-        template <typename T>
-        bool dispatch(EventFn<T> func)
+        template <typename T, typename... Args, typename F = std::function<bool(T&, Args...)>>
+        bool dispatch(F func, Args&&... args)
         {
             if (m_event.get_event_type() == T::get_static_type()) {
-                m_event.m_handled = func(*(T*) &m_event);
+                m_event.m_handled = func(*(T*) &m_event, std::forward<Args>(args)...);
                 return true;
             }
             return false;

@@ -91,21 +91,12 @@ namespace Yogi {
         delete[] s_data.quad_vertices_base;
     }
 
-    void Renderer2D::begin_scene(const OrthographicCamera& camera)
+    void Renderer2D::set_view_projection_matrix(glm::mat4 view_projection_matrix)
     {
         YG_PROFILE_FUNCTION();
 
         s_data.texture_shader->bind();
-        s_data.texture_shader->set_mat4("u_view_projection", camera.get_view_projection_matrix());
-
-        flush();
-    }
-
-    void Renderer2D::end_scene()
-    {
-        YG_PROFILE_FUNCTION();
-
-        flush();
+        s_data.texture_shader->set_mat4("u_view_projection", view_projection_matrix);
     }
 
     void Renderer2D::flush()

@@ -4,7 +4,7 @@
 
 namespace Yogi {
 
-    class RenderSystem
+    class CameraSystem
     {
     public:
         static void on_update(Timestep ts, Scene* scene);

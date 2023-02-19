@@ -66,6 +66,7 @@ namespace Yogi {
     {
         YG_PROFILE_FUNCTION();
 
+        m_last_frame_time = std::chrono::time_point_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()).time_since_epoch().count() * 0.000001f;
         while (m_running) {
             YG_PROFILE_SCOPE("RunLoop");
 
@@ -103,7 +104,6 @@ namespace Yogi {
         }
 
         m_minimized = false;
-        Renderer::on_window_resize(e.get_width(), e.get_height());
         return false;
     }
 
