@@ -17,9 +17,9 @@ namespace Yogi {
         uint32_t get_width() const override { return m_width; }
         uint32_t get_height() const override { return m_height; }
 
-        void add_color_attachment(uint32_t index, const Ref<Texture2D>& attachment) override;
+        void add_color_attachment(uint32_t index, Ref<Texture2D> attachment) override;
         void remove_color_attachment(uint32_t index) override;
-        const Ref<Texture2D>& get_color_attachment(uint32_t index) const override;
+        Ref<Texture2D> get_color_attachment(uint32_t index) const override;
     private:
         uint32_t m_renderer_id = 0;
         uint32_t m_width, m_height;

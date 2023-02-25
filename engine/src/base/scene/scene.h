@@ -31,16 +31,16 @@ namespace Yogi {
             }
         }
 
-        template<typename... Args, typename F = std::function<void(Args&&...)>>
-        void group(F func)
+        void each_entity(std::function<void(Ref<Entity>)> func)
         {
-            auto group = m_registry->group<Args...>();
-            for (auto entity : group) {
-                std::apply(func, group.get(entity));
-            }
+            m_registry->each([this, func](entt::entity entity_id){
+                Entity entity(entity_id, m_registry);
+                func(CreateRef<Entity>(entity));
+            });
         }
 
-        Entity create_entity();
+        Ref<Entity> create_entity();
+        void delete_entity(Ref<Entity> entity);
 
         void on_update(Timestep ts);
         void on_event(Event& e);

@@ -14,7 +14,7 @@
 
 #include "base/scene/scene.h"
 #include "base/scene/entity.h"
-#include "base/scene/components.h"
+#include "base/scene/component_manager.h"
 
 // ---renderer----------------------------------
 #include "base/renderer/renderer.h"

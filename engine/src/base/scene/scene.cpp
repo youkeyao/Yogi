@@ -12,11 +12,16 @@ namespace Yogi {
         
     }
 
-    Entity Scene::create_entity()
+    Ref<Entity> Scene::create_entity()
     {
         entt::entity handle = m_registry->create();
         Entity entity(handle, m_registry);
-        return entity;
+        return CreateRef<Entity>(entity);
+    }
+
+    void Scene::delete_entity(Ref<Entity> entity)
+    {
+        m_registry->destroy(entity->m_entity_handle);
     }
 
     void Scene::on_update(Timestep ts)

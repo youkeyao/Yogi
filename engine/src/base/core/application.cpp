@@ -1,5 +1,6 @@
 #include "base/core/application.h"
 #include "base/renderer/renderer.h"
+#include "base/scene/component_manager.h"
 
 namespace Yogi {
 

@@ -67,7 +67,7 @@ namespace Yogi {
         glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, m_width, m_height);
     }
 
-    void OpenGLFrameBuffer::add_color_attachment(uint32_t index, const Ref<Texture2D>& attachment)
+    void OpenGLFrameBuffer::add_color_attachment(uint32_t index, Ref<Texture2D> attachment)
     {
         YG_PROFILE_FUNCTION();
 
@@ -93,7 +93,7 @@ namespace Yogi {
         m_color_attachments[index] = nullptr;
     }
 
-    const Ref<Texture2D>& OpenGLFrameBuffer::get_color_attachment(uint32_t index) const
+    Ref<Texture2D> OpenGLFrameBuffer::get_color_attachment(uint32_t index) const
     {
         YG_PROFILE_FUNCTION();
 

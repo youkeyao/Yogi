@@ -18,7 +18,7 @@ namespace Yogi
         static void begin_scene(OrthographicCamera& camera);
         static void end_scene();
 
-        static void submit(const Ref<Shader>& shader, const Ref<VertexArray>& vertex_array, const glm::mat4& transform = glm::mat4(1.0f));
+        static void submit(Ref<Shader> shader, Ref<VertexArray> vertex_array, const glm::mat4& transform = glm::mat4(1.0f));
     private:
         struct SceneData
         {

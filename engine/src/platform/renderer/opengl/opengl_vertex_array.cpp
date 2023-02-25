@@ -58,7 +58,7 @@ namespace Yogi {
         glBindVertexArray(0);
     }
 
-    void OpenGLVertexArray::add_vertex_buffer(const Ref<VertexBuffer>& vertex_buffer) 
+    void OpenGLVertexArray::add_vertex_buffer(Ref<VertexBuffer> vertex_buffer) 
     {
         YG_PROFILE_FUNCTION();
 
@@ -81,7 +81,7 @@ namespace Yogi {
         m_vertex_buffers.push_back(vertex_buffer);
     }
 
-    void OpenGLVertexArray::set_index_buffer(const Ref<IndexBuffer>& index_buffer)
+    void OpenGLVertexArray::set_index_buffer(Ref<IndexBuffer> index_buffer)
     {
         YG_PROFILE_FUNCTION();
 

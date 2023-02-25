@@ -116,7 +116,7 @@ namespace Yogi {
         }
     }
 
-    void Renderer2D::draw_quad(const glm::mat4& transform, const Ref<Texture2D>& texture, const std::pair<glm::vec2, glm::vec2>& texcoords, const glm::vec4& tint_color)
+    void Renderer2D::draw_quad(const glm::mat4& transform, Ref<Texture2D> texture, const std::pair<glm::vec2, glm::vec2>& texcoords, const glm::vec4& tint_color)
     {
         YG_PROFILE_FUNCTION();
 

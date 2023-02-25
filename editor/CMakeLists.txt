@@ -1,6 +1,9 @@
 project (Editor)
 
-file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS src/*.cpp)
+file(GLOB_RECURSE
+    SOURCES CONFIGURE_DEPENDS
+        src/*.cpp
+)
 
 # ---window--------------------------------------------
 if ( YG_WINDOW_API STREQUAL "GLFW" )

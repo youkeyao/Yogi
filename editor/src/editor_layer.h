@@ -1,6 +1,7 @@
 #pragma once
 
 #include <engine.h>
+#include "panels/scene_hierarchy_panel.h"
 
 namespace Yogi {
 
@@ -32,6 +33,8 @@ namespace Yogi {
         Ref<FrameBuffer> m_frame_buffer;
 
         glm::vec4 m_square_color = { 0.2f, 0.3f, 0.8f, 1.0f };
+
+        Ref<SceneHierarchyPanel> m_hierarchy_panel;
     };
 
 }
