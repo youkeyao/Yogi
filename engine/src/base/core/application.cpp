@@ -17,6 +17,7 @@ namespace Yogi {
         m_window->set_event_callback(YG_BIND_EVENT_FN(Application::on_event));
 
         Renderer::init();
+        ComponentManager::init();
     }
 
     Application::~Application()

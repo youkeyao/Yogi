@@ -9,14 +9,18 @@ namespace Yogi {
     {
         YG_PROFILE_FUNCTION();
 
-        // RenderCommand::set_clear_color({ 0.1f, 0.1f, 0.1f, 1.0f });
-        // RenderCommand::clear();
+        RenderCommand::set_clear_color({ 0.1f, 0.1f, 0.1f, 1.0f });
+        RenderCommand::clear();
         
-        // scene->view_components<TransformComponent, SpriteRendererComponent>([ts](TransformComponent& transform, SpriteRendererComponent& sprite){
-        //     Renderer2D::draw_quad(transform.translation, transform.rotation.z, {transform.scale.x, transform.scale.y}, sprite.texture, sprite.color);
-        // });
+        scene->view_components({"TransformComponent", "SpriteRendererComponent"}, [ts](std::vector<void*> components){
+            glm::vec3& translation = ComponentManager::field<glm::vec3>(components[0], "TransformComponent", "translation");
+            glm::vec3& rotation = ComponentManager::field<glm::vec3>(components[0], "TransformComponent", "rotation");
+            glm::vec3& scale = ComponentManager::field<glm::vec3>(components[0], "TransformComponent", "scale");
+            glm::vec4& color = ComponentManager::field<glm::vec4>(components[1], "SpriteRendererComponent", "color");
+            Renderer2D::draw_quad(translation, rotation.z, {scale.x, scale.y}, color);
+        });
 
-        // Renderer2D::flush();
+        Renderer2D::flush();
     }
 
 }

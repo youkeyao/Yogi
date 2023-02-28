@@ -4,11 +4,13 @@
 #include "base/core/timestep.h"
 #include "base/events/event.h"
 #include <entt/entity/registry.hpp>
+#include <entt/entity/runtime_view.hpp>
 
 namespace Yogi {
 
     class Scene
     {
+        friend class Entity;
         typedef void(*SystemUpdateFunc)(Timestep, Scene*);
         typedef void(*SystemEventFunc)(Event&, Scene*);
     public:
@@ -22,19 +24,25 @@ namespace Yogi {
             register_on_event<T>(0);
         }
 
-        template<typename... Args, typename F = std::function<void(Args&&...)>>
-        void view_components(F func)
+        void view_components(std::vector<std::string> component_names, std::function<void(std::vector<void*>)> func)
         {
-            auto view = m_registry->view<Args...>();
+            entt::runtime_view view{};
+            for (auto component_name : component_names) {
+                view.iterate(*m_storages[component_name]);
+            }
             for (auto entity : view) {
-                std::apply(func, view.get(entity));
+                std::vector<void*> components;
+                for (auto component_name : component_names) {
+                    components.push_back(m_storages[component_name]->value(entity));
+                }
+                func(components);
             }
         }
 
         void each_entity(std::function<void(Ref<Entity>)> func)
         {
-            m_registry->each([this, func](entt::entity entity_id){
-                Entity entity(entity_id, m_registry);
+            m_registry.each([this, func](entt::entity entity_id){
+                Entity entity(entity_id, this);
                 func(CreateRef<Entity>(entity));
             });
         }
@@ -45,7 +53,8 @@ namespace Yogi {
         void on_update(Timestep ts);
         void on_event(Event& e);
     private:
-        Ref<entt::registry> m_registry;
+        entt::registry m_registry;
+        std::unordered_map<std::string, entt::registry::base_type*> m_storages;
         std::vector<SystemUpdateFunc> m_system_update_funcs;
         std::vector<SystemEventFunc> m_system_event_funcs;
         

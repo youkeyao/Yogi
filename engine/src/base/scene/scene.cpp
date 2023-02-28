@@ -4,7 +4,7 @@ namespace Yogi {
 
     Scene::Scene()
     {
-        m_registry = CreateRef<entt::registry>();
+        
     }
 
     Scene::~Scene()
@@ -14,14 +14,14 @@ namespace Yogi {
 
     Ref<Entity> Scene::create_entity()
     {
-        entt::entity handle = m_registry->create();
-        Entity entity(handle, m_registry);
+        entt::entity handle = m_registry.create();
+        Entity entity(handle, this);
         return CreateRef<Entity>(entity);
     }
 
     void Scene::delete_entity(Ref<Entity> entity)
     {
-        m_registry->destroy(entity->m_entity_handle);
+        m_registry.destroy(entity->m_entity_handle);
     }
 
     void Scene::on_update(Timestep ts)
