@@ -15,10 +15,14 @@ namespace Yogi {
     {
         YG_PROFILE_FUNCTION();
 
+        imgui_init();
+        ComponentManager::init();
+
         m_frame_texture = Texture2D::create(s_max_viewport_size, s_max_viewport_size);
         m_frame_buffer = FrameBuffer::create(s_max_viewport_size, s_max_viewport_size, { m_frame_texture });
 
         m_scene = CreateRef<Scene>();
+        m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
 
         Entity square = m_scene->create_entity();
         square.add_component<TagComponent>("square");
@@ -35,10 +39,6 @@ namespace Yogi {
 
         m_scene->register_system<CameraSystem>();
         m_scene->register_system<RenderSystem>();
-
-        imgui_init();
-        m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
-        ComponentManager::init();
     }
 
     void EditorLayer::on_detach()

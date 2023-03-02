@@ -1,5 +1,4 @@
 #include "reflect/component_manager.h"
-#include <engine.h>
 
 namespace Yogi {
 
@@ -73,6 +72,8 @@ namespace Yogi {
 
     //--------------------------------------------------------------------------
     std::unordered_map<std::string, ComponentType> ComponentManager::m_component_types{};
+    std::unordered_map<std::string, ComponentManager::AddComponentFunc> ComponentManager::m_add_component_funcs{};
+    std::unordered_map<std::string, ComponentManager::RemoveComponentFunc> ComponentManager::m_remove_component_funcs{};
 
     void ComponentManager::init()
     {
@@ -87,14 +88,39 @@ namespace Yogi {
     {
         ComponentType component_type;
         get_fields<Type>(component_type, field_names);
-        auto t = get_component_name<Type>();
-        m_component_types[get_component_name<Type>()] = component_type;
+        std::string component_name = get_component_name<Type>();
+        m_component_types[component_name] = component_type;
+        m_add_component_funcs[component_name] = [](Entity& entity){
+            entity.add_component<Type>();
+        };
+        m_remove_component_funcs[component_name] = [](Entity& entity){
+            entity.remove_component<Type>();
+        };
     }
 
-    ComponentType ComponentManager::get_component_type(std::string name)
+    ComponentType ComponentManager::get_component_type(std::string component_name)
     {
-        YG_CORE_ASSERT(m_component_types.find(name) != m_component_types.end(), "Unknown component type!");
-        return m_component_types[name];
+        YG_CORE_ASSERT(m_component_types.find(component_name) != m_component_types.end(), "Unknown component type!");
+        return m_component_types[component_name];
+    }
+
+    void ComponentManager::add_component(Entity& entity, std::string component_name)
+    {
+        YG_CORE_ASSERT(m_component_types.find(component_name) != m_component_types.end(), "Unknown component type!");
+        m_add_component_funcs[component_name](entity);
+    }
+
+    void ComponentManager::remove_component(Entity& entity, std::string component_name)
+    {
+        YG_CORE_ASSERT(m_component_types.find(component_name) != m_component_types.end(), "Unknown component type!");
+        m_remove_component_funcs[component_name](entity);
+    }
+
+    void ComponentManager::each_component_type(std::function<void(std::string)> func)
+    {
+        for (auto [component_name, component_type] : m_component_types) {
+            func(component_name);
+        }
     }
 
 }

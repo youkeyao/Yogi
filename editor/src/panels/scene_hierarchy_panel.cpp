@@ -81,6 +81,17 @@ namespace Yogi {
 
         ImGui::Begin("Components");
         if (m_selected_entity) {
+            if (ImGui::Button("Add Component"))
+                ImGui::OpenPopup("AddComponent");
+            if (ImGui::BeginPopup("AddComponent")) {
+                ComponentManager::each_component_type([this](std::string component_name){
+                    if (ImGui::MenuItem(component_name.c_str())) {
+                        ComponentManager::add_component(*m_selected_entity, component_name);
+                        ImGui::CloseCurrentPopup();
+                    }
+                });
+                ImGui::EndPopup();
+            }
             draw_components();
         }
 
@@ -101,8 +112,7 @@ namespace Yogi {
         if (ImGui::BeginPopupContextItem()) {
             if (ImGui::MenuItem("Delete Entity")) {
                 delete_entity_and_children(entity, relations);
-                if (*m_selected_entity == entity)
-                    m_selected_entity.reset();
+                if (*m_selected_entity == entity) m_selected_entity.reset();
             }
             ImGui::EndPopup();
         }
@@ -137,7 +147,14 @@ namespace Yogi {
             ComponentType type = ComponentManager::get_component_type(component_name);
             ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed |
                 ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_FramePadding;
-            if (ImGui::TreeNodeEx(component, flags, "%s", component_name.c_str())) {
+            bool is_opened = ImGui::TreeNodeEx(component, flags, "%s", component_name.c_str());
+            if (ImGui::BeginPopupContextItem()) {
+                if (ImGui::MenuItem("Delete Component")) {
+                    ComponentManager::remove_component(*m_selected_entity, component_name);
+                }
+                ImGui::EndPopup();
+            }
+            if (is_opened) {
                 for (auto [key, value] : type.m_fields) {
                     if (value.type_hash == typeid(bool).hash_code()) {
                         bool* is = (bool*)((uint8_t*)component + value.offset);

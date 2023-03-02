@@ -13,8 +13,18 @@ namespace Yogi {
         template<typename T, typename... Args>
         T& add_component(Args&&... args)
         {
+            if (m_registry->any_of<T>(m_entity_handle)) {
+                return get_component<T>();
+            }
             T& component = m_registry->emplace<T>(m_entity_handle, std::forward<Args>(args)...);
             return component;
+        }
+
+        template<typename T>
+        void remove_component()
+        {
+            YG_CORE_ASSERT(m_registry->any_of<T>(m_entity_handle), "Entity remove invalid component!");
+            m_registry->erase<T>(m_entity_handle);
         }
 
         template<typename T>
