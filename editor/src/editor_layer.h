@@ -1,6 +1,7 @@
 #pragma once
 
 #include <engine.h>
+#include "panels/scene_hierarchy_panel.h"
 
 namespace Yogi {
 
@@ -21,13 +22,13 @@ namespace Yogi {
 
     private:
         Ref<Scene> m_scene;
+        Ref<SceneHierarchyPanel> m_hierarchy_panel;
         Ref<Entity> m_editor_camera;
 
         bool m_viewport_focused = false;
         glm::vec2 m_viewport_size;
         glm::vec2 m_viewport_bounds[2];
 
-        Ref<Texture2D> m_checkerboard_texture;
         Ref<Texture2D> m_frame_texture;
         Ref<FrameBuffer> m_frame_buffer;
 

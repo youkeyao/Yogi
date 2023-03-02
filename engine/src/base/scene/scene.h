@@ -25,49 +25,38 @@ namespace Yogi {
         template<typename... Args, typename F = std::function<void(Args&&...)>>
         void view_components(F func)
         {
-            auto view = m_registry->view<Args...>();
+            auto view = m_registry.view<Args...>();
             for (auto entity : view) {
                 std::apply(func, view.get(entity));
             }
         }
 
-        template<typename... Args, typename F = std::function<void(Args&&...)>>
-        void group(F func)
-        {
-            auto group = m_registry->group<Args...>();
-            for (auto entity : group) {
-                std::apply(func, group.get(entity));
-            }
-        }
-
         Entity create_entity();
+        void delete_entity(Entity entity);
+        void each_entity(std::function<void(Entity)> func);
 
         void on_update(Timestep ts);
         void on_event(Event& e);
     private:
-        Ref<entt::registry> m_registry;
+        entt::registry m_registry;
         std::vector<SystemUpdateFunc> m_system_update_funcs;
         std::vector<SystemEventFunc> m_system_event_funcs;
         
         template<typename T>
-        auto register_on_update(T*) -> decltype(T::on_update, void())
+        constexpr auto register_on_update(T*) -> decltype(T::on_update, void())
         {
-            m_system_update_funcs.push_back([](Timestep ts, Scene* scene){
-                T::on_update(ts, scene);
-            });
+            m_system_update_funcs.push_back(T::on_update);
         }
         template<typename T>
-        void register_on_update(...)
+        constexpr void register_on_update(...)
         {}
         template<typename T>
-        auto register_on_event(T*) -> decltype(T::on_event, void())
+        constexpr auto register_on_event(T*) -> decltype(T::on_event, void())
         {
-            m_system_event_funcs.push_back([](Event& e, Scene* scene){
-                T::on_event(e, scene);
-            });
+            m_system_event_funcs.push_back(T::on_event);
         }
         template<typename T>
-        void register_on_event(...)
+        constexpr void register_on_event(...)
         {}
     };
 

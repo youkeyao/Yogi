@@ -17,6 +17,7 @@ namespace Yogi {
     void Renderer::shutdown()
     {
         Renderer2D::shutdown();
+        delete m_scene_data;
     }
 
     void Renderer::on_window_resize(uint32_t width, uint32_t height)

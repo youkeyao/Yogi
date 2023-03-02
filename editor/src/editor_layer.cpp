@@ -1,6 +1,7 @@
 #include "editor_layer.h"
 #include "imgui_config.h"
 #include "editor_camera_controller_system.h"
+#include "reflect/component_manager.h"
 #include <imgui.h>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -14,28 +15,30 @@ namespace Yogi {
     {
         YG_PROFILE_FUNCTION();
 
-        m_checkerboard_texture = Texture2D::create("../sandbox/assets/textures/checkerboard.png");
-
         m_frame_texture = Texture2D::create(s_max_viewport_size, s_max_viewport_size);
         m_frame_buffer = FrameBuffer::create(s_max_viewport_size, s_max_viewport_size, { m_frame_texture });
 
         m_scene = CreateRef<Scene>();
 
         Entity square = m_scene->create_entity();
+        square.add_component<TagComponent>("square");
         square.add_component<TransformComponent>();
         SpriteRendererComponent sprite;
-        sprite.texture = m_checkerboard_texture;
+        sprite.texture = Texture2D::create("../sandbox/assets/textures/checkerboard.png");
         sprite.color = { 0.8f, 0.2f, 0.3f, 1.0f };
         square.add_component<SpriteRendererComponent>(sprite);
 
         m_editor_camera = CreateRef<Entity>(m_scene->create_entity());
-        m_editor_camera->add_component<TransformComponent>();
+        m_editor_camera->add_component<TagComponent>("camera");
+        m_editor_camera->add_component<TransformComponent>(square);
         m_editor_camera->add_component<CameraComponent>();
 
         m_scene->register_system<CameraSystem>();
         m_scene->register_system<RenderSystem>();
 
         imgui_init();
+        m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
+        ComponentManager::init();
     }
 
     void EditorLayer::on_detach()
@@ -53,12 +56,13 @@ namespace Yogi {
         YG_PROFILE_FUNCTION();
         
         imgui_begin();
+        m_hierarchy_panel->on_imgui_render();
 
         Renderer2D::reset_stats();
         m_frame_buffer->bind();
 
         if (m_viewport_focused) {
-            EditorCameraControllerSystem::on_update(ts, m_editor_camera);
+            EditorCameraControllerSystem::on_update(ts, m_scene.get());
         }
         m_scene->on_update(ts);
 
@@ -142,7 +146,7 @@ namespace Yogi {
             ImGui::EndMenuBar();
         }
 
-        ImGui::Begin("Settings");
+        ImGui::Begin("Stats");
         ImGui::Text("Renderer2D Stats:");
         ImGui::Text("Draw Calls: %d", stats.draw_calls);
         ImGui::Text("Quads: %d", stats.quad_count);
@@ -169,7 +173,7 @@ namespace Yogi {
             m_viewport_size = new_viewport_size;
             WindowResizeEvent e((uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y);
             m_scene->on_event(e);
-            EditorCameraControllerSystem::on_event(e, m_editor_camera);
+            EditorCameraControllerSystem::on_event(e, m_scene.get());
             RenderCommand::set_viewport(0.0f, 0.0f, m_viewport_size.x, m_viewport_size.y);
         }
         ImGui::Image(
@@ -201,7 +205,7 @@ namespace Yogi {
     {
         if (e.get_event_type() != WindowResizeEvent::get_static_type()) {
             if (m_viewport_focused)
-                EditorCameraControllerSystem::on_event(e, m_editor_camera);
+                EditorCameraControllerSystem::on_event(e, m_scene.get());
             m_scene->on_event(e);
         }
     }

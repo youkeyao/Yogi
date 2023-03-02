@@ -1,6 +1,6 @@
 project (Editor)
 
-file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS src/*.cpp)
+file(GLOB_RECURSE YG_EDITOR_SOURCES CONFIGURE_DEPENDS src/*.cpp)
 
 # ---window--------------------------------------------
 if ( YG_WINDOW_API STREQUAL "GLFW" )
@@ -33,7 +33,7 @@ target_include_directories( imgui
 )
 # -----------------------------------------------------------
 
-add_executable(editor ${SOURCES})
+add_executable(editor ${YG_EDITOR_SOURCES})
 target_link_libraries( editor
     PRIVATE
         engine

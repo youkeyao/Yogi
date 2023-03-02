@@ -4,7 +4,6 @@ namespace Yogi {
 
     Scene::Scene()
     {
-        m_registry = CreateRef<entt::registry>();
     }
 
     Scene::~Scene()
@@ -14,9 +13,20 @@ namespace Yogi {
 
     Entity Scene::create_entity()
     {
-        entt::entity handle = m_registry->create();
-        Entity entity(handle, m_registry);
-        return entity;
+        entt::entity handle = m_registry.create();
+        return Entity{handle, &m_registry};
+    }
+
+    void Scene::delete_entity(Entity entity)
+    {
+        m_registry.destroy(entity.m_entity_handle);
+    }
+
+    void Scene::each_entity(std::function<void(Entity)> func)
+    {
+        m_registry.each([this, func](entt::entity entity_id){
+            func(Entity({entity_id, &m_registry}));
+        });
     }
 
     void Scene::on_update(Timestep ts)

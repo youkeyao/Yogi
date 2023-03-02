@@ -60,7 +60,7 @@ void ParticleSystem::on_render(Yogi::OrthographicCamera& camera)
 
         float size = glm::lerp(particle.size_end, particle.size_begin, life);
         
-        Yogi::Renderer2D::draw_quad({particle.position.x, particle.position.y, 0.0f}, particle.rotation, {size, size}, color);
+        // Yogi::Renderer2D::draw_quad({particle.position.x, particle.position.y, 0.0f}, particle.rotation, {size, size}, color);
     }
     // Yogi::Renderer2D::end_scene();
 }

@@ -13,6 +13,7 @@
 #include <sstream>
 #include <functional>
 #include <vector>
+#include <list>
 #include <array>
 #include <algorithm>
 #include <utility>

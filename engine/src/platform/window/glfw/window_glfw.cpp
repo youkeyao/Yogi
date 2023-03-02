@@ -139,6 +139,7 @@ namespace Yogi {
         YG_PROFILE_FUNCTION();
 
         glfwDestroyWindow(m_window);
+        delete m_context;
     }
 
     void WindowGLFW::on_update()

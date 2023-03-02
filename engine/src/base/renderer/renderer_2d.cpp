@@ -68,7 +68,7 @@ namespace Yogi {
         }
         Ref<IndexBuffer> quad_ib = IndexBuffer::create(quad_indices, Renderer2DData::max_indices);
         s_data.quad_vertex_array->set_index_buffer(quad_ib);
-        delete quad_indices;
+        delete[] quad_indices;
 
         int32_t samplers[Renderer2DData::max_texture_slots];
         for (uint32_t i = 0; i < Renderer2DData::max_texture_slots; i++) {

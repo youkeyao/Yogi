@@ -16,13 +16,13 @@
 #include "base/scene/entity.h"
 #include "base/scene/components.h"
 
+#include "base/systems/render_system.h"
+#include "base/systems/camera_system.h"
+
 // ---renderer----------------------------------
 #include "base/renderer/renderer.h"
 #include "base/renderer/renderer_2d.h"
 #include "base/renderer/render_command.h"
-
-#include "base/renderer/render_system.h"
-#include "base/renderer/camera_system.h"
 
 #include "base/renderer/buffer.h"
 #include "base/renderer/frame_buffer.h"
