@@ -61,19 +61,10 @@ namespace Yogi {
         }
     }
 
-    template <typename Type>
-    auto get_component_name()
-    {
-        std::string pretty_function{__PRETTY_FUNCTION__};
-        auto first = pretty_function.find_first_not_of(' ', pretty_function.find_first_of('=') + 1);
-        auto value = pretty_function.substr(first, pretty_function.find_last_of(']') - first);
-        return value;
-    }
-
     //--------------------------------------------------------------------------
-    std::unordered_map<std::string, ComponentType> ComponentManager::m_component_types{};
-    std::unordered_map<std::string, ComponentManager::AddComponentFunc> ComponentManager::m_add_component_funcs{};
-    std::unordered_map<std::string, ComponentManager::RemoveComponentFunc> ComponentManager::m_remove_component_funcs{};
+    std::unordered_map<std::string, ComponentType> ComponentManager::s_component_types{};
+    std::unordered_map<std::string, ComponentManager::AddComponentFunc> ComponentManager::s_add_component_funcs{};
+    std::unordered_map<std::string, ComponentManager::RemoveComponentFunc> ComponentManager::s_remove_component_funcs{};
 
     void ComponentManager::init()
     {
@@ -88,37 +79,37 @@ namespace Yogi {
     {
         ComponentType component_type;
         get_fields<Type>(component_type, field_names);
-        std::string component_name = get_component_name<Type>();
-        m_component_types[component_name] = component_type;
-        m_add_component_funcs[component_name] = [](Entity& entity){
-            entity.add_component<Type>();
+        std::string component_name = get_type_name<Type>();
+        s_component_types[component_name] = component_type;
+        s_add_component_funcs[component_name] = [](Entity& entity)->void*{
+            return (void*)&entity.add_component<Type>();
         };
-        m_remove_component_funcs[component_name] = [](Entity& entity){
+        s_remove_component_funcs[component_name] = [](Entity& entity){
             entity.remove_component<Type>();
         };
     }
 
     ComponentType ComponentManager::get_component_type(std::string component_name)
     {
-        YG_CORE_ASSERT(m_component_types.find(component_name) != m_component_types.end(), "Unknown component type!");
-        return m_component_types[component_name];
+        YG_CORE_ASSERT(s_component_types.find(component_name) != s_component_types.end(), "Unknown component type!");
+        return s_component_types[component_name];
     }
 
-    void ComponentManager::add_component(Entity& entity, std::string component_name)
+    void* ComponentManager::add_component(Entity& entity, std::string component_name)
     {
-        YG_CORE_ASSERT(m_component_types.find(component_name) != m_component_types.end(), "Unknown component type!");
-        m_add_component_funcs[component_name](entity);
+        YG_CORE_ASSERT(s_component_types.find(component_name) != s_component_types.end(), "Unknown component type!");
+        return s_add_component_funcs[component_name](entity);
     }
 
     void ComponentManager::remove_component(Entity& entity, std::string component_name)
     {
-        YG_CORE_ASSERT(m_component_types.find(component_name) != m_component_types.end(), "Unknown component type!");
-        m_remove_component_funcs[component_name](entity);
+        YG_CORE_ASSERT(s_component_types.find(component_name) != s_component_types.end(), "Unknown component type!");
+        s_remove_component_funcs[component_name](entity);
     }
 
     void ComponentManager::each_component_type(std::function<void(std::string)> func)
     {
-        for (auto [component_name, component_type] : m_component_types) {
+        for (auto [component_name, component_type] : s_component_types) {
             func(component_name);
         }
     }

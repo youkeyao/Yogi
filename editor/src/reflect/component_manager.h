@@ -17,21 +17,21 @@ namespace Yogi {
 
     class ComponentManager
     {
-        typedef void(*AddComponentFunc)(Entity&);
+        typedef void*(*AddComponentFunc)(Entity&);
         typedef void(*RemoveComponentFunc)(Entity&);
     public:
         static void init();
         static ComponentType get_component_type(std::string component_name);
-        static void add_component(Entity& entity, std::string component_name);
+        static void* add_component(Entity& entity, std::string component_name);
         static void remove_component(Entity& entity, std::string component_name);
         static void each_component_type(std::function<void(std::string)> func);
 
         template <typename Type>
         static void register_component(std::vector<std::string> field_names);
     private:
-        static std::unordered_map<std::string, ComponentType> m_component_types;
-        static std::unordered_map<std::string, AddComponentFunc> m_add_component_funcs;
-        static std::unordered_map<std::string, RemoveComponentFunc> m_remove_component_funcs;
+        static std::unordered_map<std::string, ComponentType> s_component_types;
+        static std::unordered_map<std::string, AddComponentFunc> s_add_component_funcs;
+        static std::unordered_map<std::string, RemoveComponentFunc> s_remove_component_funcs;
     };
 
 }

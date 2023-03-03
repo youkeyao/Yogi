@@ -99,17 +99,6 @@ namespace Yogi {
             ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
         }
         style.WindowMinSize.x = window_min_size_x;
-
-        if (ImGui::BeginMenuBar()) {
-            if (ImGui::BeginMenu("File")) {
-                if (ImGui::MenuItem("Exit"))
-                    Application::get().close();
-                
-                ImGui::EndMenu();
-            }
-
-            ImGui::EndMenuBar();
-        }
     }
 
     void ImguiLayer::imgui_end()

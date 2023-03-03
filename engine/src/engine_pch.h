@@ -40,4 +40,13 @@ namespace Yogi {
     {
         return std::make_shared<T>(std::forward<Args>(args)...);
     }
+
+    template <typename Type>
+    auto get_type_name()
+    {
+        std::string pretty_function{__PRETTY_FUNCTION__};
+        auto first = pretty_function.find_first_not_of(' ', pretty_function.find_first_of('=') + 1);
+        auto value = pretty_function.substr(first, pretty_function.find_last_of(']') - first);
+        return value;
+    }
 }

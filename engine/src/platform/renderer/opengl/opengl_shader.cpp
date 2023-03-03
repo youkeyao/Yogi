@@ -68,7 +68,7 @@ namespace Yogi {
         std::ifstream in(filepath, std::ios::in | std::ios::binary);
 
         if (!in) {
-            YG_CORE_ERROR("could not open file '{0}'", filepath);
+            YG_CORE_ERROR("Could not open file '{0}'!", filepath);
             return result;
         }
 

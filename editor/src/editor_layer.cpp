@@ -1,6 +1,8 @@
 #include "editor_layer.h"
 #include "editor_camera_controller_system.h"
 #include "reflect/component_manager.h"
+#include "reflect/system_manager.h"
+#include "reflect/scene_manager.h"
 #include <imgui.h>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -15,28 +17,13 @@ namespace Yogi {
         YG_PROFILE_FUNCTION();
 
         ComponentManager::init();
+        SystemManager::init();
 
         m_frame_texture = Texture2D::create(s_max_viewport_size, s_max_viewport_size);
         m_frame_buffer = FrameBuffer::create(s_max_viewport_size, s_max_viewport_size, { m_frame_texture });
 
-        m_scene = CreateRef<Scene>();
+        m_scene = SceneManager::load_scene("scene.yg");
         m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
-
-        Entity square = m_scene->create_entity();
-        square.add_component<TagComponent>("square");
-        square.add_component<TransformComponent>();
-        SpriteRendererComponent sprite;
-        sprite.texture = Texture2D::create("../sandbox/assets/textures/checkerboard.png");
-        sprite.color = { 0.8f, 0.2f, 0.3f, 1.0f };
-        square.add_component<SpriteRendererComponent>(sprite);
-
-        m_editor_camera = CreateRef<Entity>(m_scene->create_entity());
-        m_editor_camera->add_component<TagComponent>("camera");
-        m_editor_camera->add_component<TransformComponent>(square);
-        m_editor_camera->add_component<CameraComponent>();
-
-        m_scene->register_system<CameraSystem>();
-        m_scene->register_system<RenderSystem>();
     }
 
     void EditorLayer::on_detach()
@@ -65,6 +52,27 @@ namespace Yogi {
     void EditorLayer::imgui_update()
     {
         YG_PROFILE_FUNCTION();
+
+        if (ImGui::BeginMenuBar()) {
+            if (ImGui::BeginMenu("File")) {
+                if (ImGui::MenuItem("Exit")) {
+                    Application::get().close();
+                }
+                if (ImGui::MenuItem("open")) {
+                    m_scene = SceneManager::load_scene("scene.yg");
+                    m_scene->register_system<CameraSystem>();
+                    m_scene->register_system<RenderSystem>();
+                    m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
+                }
+                if (ImGui::MenuItem("save")) {
+                    SceneManager::save_scene(m_scene, "scene.yg");
+                }
+                
+                ImGui::EndMenu();
+            }
+
+            ImGui::EndMenuBar();
+        }
 
         Renderer2D::Statistics stats = Renderer2D::get_stats();
         ImGui::Begin("Stats");

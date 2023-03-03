@@ -43,4 +43,5 @@ target_include_directories( editor
     PRIVATE
         src
         vendor/imgui
+        vendor/rapidjson/include
 )

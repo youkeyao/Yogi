@@ -52,7 +52,7 @@ namespace Yogi {
                 else {
                     relations[entity].push_front(entity);
                 }
-            });            
+            });
             for (auto& [i, list] : relations) {
                 Entity front = list.front();
                 if (i == (uint32_t)front) {

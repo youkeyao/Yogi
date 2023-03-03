@@ -11,9 +11,9 @@ namespace Yogi {
         
     }
 
-    Entity Scene::create_entity()
+    Entity Scene::create_entity(uint32_t hint)
     {
-        entt::entity handle = m_registry.create();
+        entt::entity handle = m_registry.create((entt::entity)hint);
         return Entity{handle, &m_registry};
     }
 

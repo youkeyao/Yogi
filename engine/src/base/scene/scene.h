@@ -22,6 +22,9 @@ namespace Yogi {
             register_on_event<T>(0);
         }
 
+        void register_update_func(SystemUpdateFunc func) { m_system_update_funcs.push_back(func); }
+        void register_on_event_func(SystemEventFunc func) { m_system_event_funcs.push_back(func); }
+
         template<typename... Args, typename F = std::function<void(Args&&...)>>
         void view_components(F func)
         {
@@ -31,7 +34,8 @@ namespace Yogi {
             }
         }
 
-        Entity create_entity();
+        Entity create_entity(uint32_t hint = 0);
+        Entity get_entity(uint32_t handle) { return Entity{(entt::entity)handle, &m_registry}; }
         void delete_entity(Entity entity);
         void each_entity(std::function<void(Entity)> func);
 
