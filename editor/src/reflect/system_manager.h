@@ -6,7 +6,7 @@ namespace Yogi {
 
     class SystemManager
     {
-        typedef void*(*AddSystemFunc)(Ref<Scene>);
+        typedef void(*AddSystemFunc)(Ref<Scene>);
     public:
         static void init();
         static void add_system(Ref<Scene> scene, std::string system_name);

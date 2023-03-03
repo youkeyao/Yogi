@@ -1,9 +1,9 @@
 #include "reflect/system_manager.h"
 
 namespace Yogi {
-    static std::unordered_map<std::string, ComponentManager::AddSystemFunc> ComponentManager::s_add_system_funcs{};
+    std::unordered_map<std::string, SystemManager::AddSystemFunc> SystemManager::s_add_system_funcs{};
 
-    void ComponentManager::init()
+    void SystemManager::init()
     {
         register_system<RenderSystem>();
         register_system<CameraSystem>();
@@ -18,7 +18,7 @@ namespace Yogi {
         };
     }
 
-    void* SystemManager::add_system(Ref<Scene> scene, std::string system_name)
+    void SystemManager::add_system(Ref<Scene> scene, std::string system_name)
     {
         s_add_system_funcs[system_name](scene);
     }

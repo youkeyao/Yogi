@@ -29,6 +29,13 @@ namespace Yogi {
         });
     }
 
+    void Scene::each_system(std::function<void(std::string, std::pair<int32_t, int32_t>)> func)
+    {
+        for (auto& [key, value] : m_systems) {
+            func(key, value);
+        }
+    }
+
     void Scene::on_update(Timestep ts)
     {
         YG_PROFILE_FUNCTION();

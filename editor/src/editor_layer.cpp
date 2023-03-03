@@ -60,8 +60,6 @@ namespace Yogi {
                 }
                 if (ImGui::MenuItem("open")) {
                     m_scene = SceneManager::load_scene("scene.yg");
-                    m_scene->register_system<CameraSystem>();
-                    m_scene->register_system<RenderSystem>();
                     m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
                 }
                 if (ImGui::MenuItem("save")) {

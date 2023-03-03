@@ -74,7 +74,9 @@ namespace Yogi {
 
         writer.Key("systems");
         writer.StartArray();
-
+        scene->each_system([&writer](std::string system_name, auto){
+            writer.String(system_name.c_str());
+        });
         writer.EndArray();
         
         writer.EndObject();
@@ -98,7 +100,10 @@ namespace Yogi {
             return scene;
         }
         std::string json;
-        in >> json;
+        in.seekg(0, std::ios::end);
+        json.resize(in.tellg());
+        in.seekg(0, std::ios::beg);
+        in.read(&json[0], json.size());
         in.close();
         rapidjson::Document document;
         document.Parse(json.c_str());
@@ -146,7 +151,8 @@ namespace Yogi {
                     }
                     else if (value.type_hash == typeid(Entity).hash_code()) {
                         Entity& target = *(Entity*)((uint8_t*)component + value.offset);
-                        target = scene->get_entity(component_fields_value[key.c_str()].GetInt());
+                        int32_t handle = component_fields_value[key.c_str()].GetInt();
+                        target = handle >= 0 ? scene->get_entity(handle) : Entity{};
                     }
                 }
             }
