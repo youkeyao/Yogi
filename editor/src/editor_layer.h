@@ -16,9 +16,7 @@ namespace Yogi {
         void on_update(Timestep ts) override;
         void on_event(Event& event) override;
 
-        void imgui_init();
-        void imgui_begin();
-        void imgui_end();
+        void imgui_update();
 
     private:
         Ref<Scene> m_scene;
@@ -31,8 +29,6 @@ namespace Yogi {
 
         Ref<Texture2D> m_frame_texture;
         Ref<FrameBuffer> m_frame_buffer;
-
-        glm::vec4 m_square_color = { 0.2f, 0.3f, 0.8f, 1.0f };
     };
 
 }

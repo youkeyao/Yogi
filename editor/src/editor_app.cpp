@@ -2,6 +2,7 @@
 #include "base/core/entrypoint.h"
 
 #include "editor_layer.h"
+#include "imgui_layer.h"
 
 namespace Yogi {
 
@@ -10,6 +11,7 @@ namespace Yogi {
     public:
         Editor() : Application("Yogi Editor")
         {
+            push_layer(new ImguiLayer());
             push_layer(new EditorLayer());
         }
 

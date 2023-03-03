@@ -81,7 +81,8 @@ namespace Yogi {
 
         ImGui::Begin("Components");
         if (m_selected_entity) {
-            if (ImGui::Button("Add Component"))
+            draw_components();
+            if (ImGui::Button("+", { ImGui::GetContentRegionAvail().x, 0.0f }))
                 ImGui::OpenPopup("AddComponent");
             if (ImGui::BeginPopup("AddComponent")) {
                 ComponentManager::each_component_type([this](std::string component_name){
@@ -92,7 +93,6 @@ namespace Yogi {
                 });
                 ImGui::EndPopup();
             }
-            draw_components();
         }
 
         ImGui::End();

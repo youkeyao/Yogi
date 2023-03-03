@@ -1,5 +1,4 @@
 #include "editor_layer.h"
-#include "imgui_config.h"
 #include "editor_camera_controller_system.h"
 #include "reflect/component_manager.h"
 #include <imgui.h>
@@ -9,13 +8,12 @@ namespace Yogi {
 
     static uint32_t s_max_viewport_size = 4096;
 
-    EditorLayer::EditorLayer() : Layer("Sandbox 2D") {}
+    EditorLayer::EditorLayer() : Layer("EditorLayer") {}
 
     void EditorLayer::on_attach()
     {
         YG_PROFILE_FUNCTION();
 
-        imgui_init();
         ComponentManager::init();
 
         m_frame_texture = Texture2D::create(s_max_viewport_size, s_max_viewport_size);
@@ -44,18 +42,13 @@ namespace Yogi {
     void EditorLayer::on_detach()
     {
         YG_PROFILE_FUNCTION();
-
-        ImGui_Renderer_Shutdown();
-        ImGui_Window_Shutdown();
-
-        ImGui::DestroyContext();
     }
 
     void EditorLayer::on_update(Timestep ts)
     {
         YG_PROFILE_FUNCTION();
         
-        imgui_begin();
+        imgui_update();
         m_hierarchy_panel->on_imgui_render();
 
         Renderer2D::reset_stats();
@@ -67,92 +60,19 @@ namespace Yogi {
         m_scene->on_update(ts);
 
         m_frame_buffer->unbind();
-
-        imgui_end();
     }
 
-    void EditorLayer::imgui_init()
-    {
-        IMGUI_CHECKVERSION();
-        ImGui::CreateContext();
-
-        ImGuiIO& io = ImGui::GetIO();
-        (void) io;
-
-        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-        io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-        io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
-
-        ImGui::StyleColorsDark();
-
-        ImGuiStyle& style = ImGui::GetStyle();
-        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-            style.WindowRounding = 0.0f;
-            style.Colors[ImGuiCol_WindowBg].w = 1.0f;
-        }
-
-        Application& app = Application::get();
-        ImGui_Window_Init(app.get_window().get_native_window(), true);
-        ImGui_Renderer_Init("#version 330");
-    }
-
-    void EditorLayer::imgui_begin()
+    void EditorLayer::imgui_update()
     {
         YG_PROFILE_FUNCTION();
 
-        ImGui_Renderer_NewFrame();
-        ImGui_Window_NewFrame();
-        ImGui::NewFrame();
-        
         Renderer2D::Statistics stats = Renderer2D::get_stats();
-
-        static bool p_open = true;
-        static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;
-
-        ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
-        const ImGuiViewport* viewport = ImGui::GetMainViewport();
-        ImGui::SetNextWindowPos(viewport->WorkPos);
-        ImGui::SetNextWindowSize(viewport->WorkSize);
-        ImGui::SetNextWindowViewport(viewport->ID);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-        window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
-        window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
-
-        if (dockspace_flags & ImGuiDockNodeFlags_PassthruCentralNode)
-            window_flags |= ImGuiWindowFlags_NoBackground;
-
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-        ImGui::Begin("DockSpace Demo", &p_open, window_flags);
-        ImGui::PopStyleVar();
-
-        ImGui::PopStyleVar(2);
-
-        // Submit the DockSpace
-        ImGuiIO& io = ImGui::GetIO();
-        if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable) {
-            ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
-            ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
-        }
-
-        if (ImGui::BeginMenuBar()) {
-            if (ImGui::BeginMenu("File")) {
-                if (ImGui::MenuItem("Exit"))
-                    Application::get().close();
-                
-                ImGui::EndMenu();
-            }
-
-            ImGui::EndMenuBar();
-        }
-
         ImGui::Begin("Stats");
         ImGui::Text("Renderer2D Stats:");
         ImGui::Text("Draw Calls: %d", stats.draw_calls);
         ImGui::Text("Quads: %d", stats.quad_count);
         ImGui::Text("Vertices: %d", stats.get_total_vertex_count());
         ImGui::Text("Indices: %d", stats.get_total_index_count());
-        ImGui::ColorEdit4("Square color", glm::value_ptr(m_square_color));
         ImGui::End();
 
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
@@ -184,25 +104,12 @@ namespace Yogi {
         );
         ImGui::End();
         ImGui::PopStyleVar();
-
-        ImGui::End();
-    }
-
-    void EditorLayer::imgui_end()
-    {
-        YG_PROFILE_FUNCTION();
-
-        ImGuiIO& io = ImGui::GetIO();
-        Application& app = Application::get();
-        io.DisplaySize = ImVec2(app.get_window().get_width(), app.get_window().get_height());
-
-        ImGui::Render();
-        ImGui_Renderer_Draw(ImGui::GetDrawData());
-        ImGui_Window_Render();
     }
 
     void EditorLayer::on_event(Event& e)
     {
+        YG_PROFILE_FUNCTION();
+        
         if (e.get_event_type() != WindowResizeEvent::get_static_type()) {
             if (m_viewport_focused)
                 EditorCameraControllerSystem::on_event(e, m_scene.get());
