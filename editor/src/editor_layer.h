@@ -1,6 +1,7 @@
 #pragma once
 
 #include <engine.h>
+#include "editor_camera.h"
 #include "panels/scene_hierarchy_panel.h"
 
 namespace Yogi {
@@ -17,11 +18,12 @@ namespace Yogi {
         void on_event(Event& event) override;
 
         void imgui_update();
-
+        void open_scene();
+        void save_scene();
     private:
         Ref<Scene> m_scene;
         Ref<SceneHierarchyPanel> m_hierarchy_panel;
-        Ref<Entity> m_editor_camera;
+        EditorCamera editor_camera;
 
         bool m_viewport_focused = false;
         glm::vec2 m_viewport_size;

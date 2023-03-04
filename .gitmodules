@@ -7,12 +7,18 @@
 [submodule "engine/vendor/glm"]
 	path = engine/vendor/glm
 	url = https://github.com/g-truc/glm.git
-[submodule "editor/vendor/imgui"]
-	path = editor/vendor/imgui
-	url = https://github.com/ocornut/imgui.git
 [submodule "engine/vendor/entt"]
 	path = engine/vendor/entt
 	url = https://github.com/skypjack/entt.git
+[submodule "editor/vendor/imgui"]
+	path = editor/vendor/imgui
+	url = https://github.com/ocornut/imgui.git
 [submodule "editor/vendor/rapidjson"]
 	path = editor/vendor/rapidjson
 	url = https://github.com/Tencent/rapidjson.git
+[submodule "editor/vendor/portable-file-dialogs"]
+	path = editor/vendor/portable-file-dialogs
+	url = https://github.com/samhocevar/portable-file-dialogs.git
+[submodule "editor/vendor/ImGuizmo"]
+	path = editor/vendor/ImGuizmo
+	url = https://github.com/CedricGuillemet/ImGuizmo.git

@@ -7,7 +7,7 @@
 
 namespace Yogi {
 
-    void SceneManager::save_scene(Ref<Scene> scene, std::string filepath)
+    std::string SceneManager::serialize_scene(Ref<Scene> scene)
     {
         rapidjson::StringBuffer buffer;
         rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
@@ -80,31 +80,13 @@ namespace Yogi {
         writer.EndArray();
         
         writer.EndObject();
-        std::string json = std::string(buffer.GetString());
-        std::ofstream out(filepath, std::ios::out);
-        if (!out) {
-            YG_CORE_ERROR("could not open file '{0}'", filepath);
-            return;
-        }
-        out << json;
-        out.close();
+        return std::string(buffer.GetString());
     }
 
-    Ref<Scene> SceneManager::load_scene(std::string filepath)
+    Ref<Scene> SceneManager::deserialize_scene(std::string json)
     {
         Ref<Scene> scene = CreateRef<Scene>();
 
-        std::ifstream in(filepath, std::ios::in);
-        if (!in) {
-            YG_CORE_WARN("Could not open file '{0}'!", filepath);
-            return scene;
-        }
-        std::string json;
-        in.seekg(0, std::ios::end);
-        json.resize(in.tellg());
-        in.seekg(0, std::ios::beg);
-        in.read(&json[0], json.size());
-        in.close();
         rapidjson::Document document;
         document.Parse(json.c_str());
 

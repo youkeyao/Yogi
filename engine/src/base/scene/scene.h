@@ -33,17 +33,27 @@ namespace Yogi {
         void remove_system()
         {
             std::string system_name = get_type_name<T>();
+            bool is_update_deleted = false;
+            bool is_event_deleted = false;
             for (auto iter = m_systems.begin(); iter != m_systems.end(); iter++) {
                 auto& [name, pos] = *iter;
                 if (name == system_name) {
                     if (pos.first >= 0) {
                         m_system_update_funcs.erase(m_system_update_funcs.begin() + pos.first);
+                        is_update_deleted = true;
                     }
                     if (pos.second >= 0) {
                         m_system_event_funcs.erase(m_system_event_funcs.begin() + pos.second);
+                        is_event_deleted = true;
                     }
-                    m_systems.erase(iter);
-                    break;
+                    iter = m_systems.erase(iter);
+                    if (m_systems.empty()) break;
+                }
+                if (is_update_deleted && pos.first > 0) {
+                    pos.first --;
+                }
+                if (is_event_deleted && pos.second > 0) {
+                    pos.second --;
                 }
             }
         }

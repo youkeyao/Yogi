@@ -1,10 +1,11 @@
 #include "editor_layer.h"
-#include "editor_camera_controller_system.h"
 #include "reflect/component_manager.h"
 #include "reflect/system_manager.h"
 #include "reflect/scene_manager.h"
 #include <imgui.h>
 #include <glm/gtc/type_ptr.hpp>
+#include <portable-file-dialogs.h>
+#include <ImGuizmo.h>
 
 namespace Yogi {
 
@@ -22,7 +23,7 @@ namespace Yogi {
         m_frame_texture = Texture2D::create(s_max_viewport_size, s_max_viewport_size);
         m_frame_buffer = FrameBuffer::create(s_max_viewport_size, s_max_viewport_size, { m_frame_texture });
 
-        m_scene = SceneManager::load_scene("scene.yg");
+        m_scene = CreateRef<Scene>();
         m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
     }
 
@@ -42,7 +43,7 @@ namespace Yogi {
         m_frame_buffer->bind();
 
         if (m_viewport_focused) {
-            EditorCameraControllerSystem::on_update(ts, m_scene.get());
+            editor_camera.on_update(ts);
         }
         m_scene->on_update(ts);
 
@@ -55,20 +56,21 @@ namespace Yogi {
 
         if (ImGui::BeginMenuBar()) {
             if (ImGui::BeginMenu("File")) {
+                if (ImGui::MenuItem("New")) {
+                    m_scene = CreateRef<Scene>();
+                    m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
+                }
+                if (ImGui::MenuItem("Open...")) {
+                    open_scene();
+                }
+                if (ImGui::MenuItem("Save As...")) {
+                    save_scene();
+                }
                 if (ImGui::MenuItem("Exit")) {
                     Application::get().close();
                 }
-                if (ImGui::MenuItem("open")) {
-                    m_scene = SceneManager::load_scene("scene.yg");
-                    m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
-                }
-                if (ImGui::MenuItem("save")) {
-                    SceneManager::save_scene(m_scene, "scene.yg");
-                }
-                
                 ImGui::EndMenu();
             }
-
             ImGui::EndMenuBar();
         }
 
@@ -99,7 +101,7 @@ namespace Yogi {
             m_viewport_size = new_viewport_size;
             WindowResizeEvent e((uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y);
             m_scene->on_event(e);
-            EditorCameraControllerSystem::on_event(e, m_scene.get());
+            editor_camera.on_event(e);
             RenderCommand::set_viewport(0.0f, 0.0f, m_viewport_size.x, m_viewport_size.y);
         }
         ImGui::Image(
@@ -108,6 +110,16 @@ namespace Yogi {
             ImVec2( 0, m_viewport_size.y / m_frame_texture->get_height() ),
             ImVec2( m_viewport_size.x / m_frame_texture->get_width(), 0 )
         );
+
+        // Gizmos
+        Entity selected_entity = m_hierarchy_panel->get_selected_entity();
+        if (selected_entity) {
+            ImGuizmo::SetOrthographic(false);
+			ImGuizmo::SetDrawlist();
+			ImGuizmo::SetRect(m_viewport_bounds[0].x, m_viewport_bounds[0].y, m_viewport_size.x, m_viewport_size.y);
+            TransformComponent& tc = selected_entity.get_component<TransformComponent>();
+        }
+
         ImGui::End();
         ImGui::PopStyleVar();
     }
@@ -118,8 +130,45 @@ namespace Yogi {
         
         if (e.get_event_type() != WindowResizeEvent::get_static_type()) {
             if (m_viewport_focused)
-                EditorCameraControllerSystem::on_event(e, m_scene.get());
+                editor_camera.on_event(e);
             m_scene->on_event(e);
+        }
+    }
+
+    void EditorLayer::open_scene()
+    {
+        auto f = pfd::open_file("Open scene").result();
+        if (!f.empty()) {
+            std::ifstream in(f[0], std::ios::in);
+            if (!in) {
+                YG_CORE_WARN("Could not open file '{0}'!", "scene.yg");
+                return;
+            }
+            std::string json;
+            in.seekg(0, std::ios::end);
+            json.resize(in.tellg());
+            in.seekg(0, std::ios::beg);
+            in.read(&json[0], json.size());
+            in.close();
+
+            m_scene = SceneManager::deserialize_scene(json);
+            m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
+        }
+    }
+
+    void EditorLayer::save_scene()
+    {
+        auto f = pfd::save_file("Save scene").result();
+        if (!f.empty()) {
+            std::string json = SceneManager::serialize_scene(m_scene);
+
+            std::ofstream out(f, std::ios::out);
+            if (!out) {
+                YG_CORE_ERROR("Could not open file '{0}'!", "scene.yg");
+                return;
+            }
+            out << json;
+            out.close();
         }
     }
 

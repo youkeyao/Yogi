@@ -33,15 +33,34 @@ target_include_directories( imgui
 )
 # -----------------------------------------------------------
 
+# ---imguizmo----------------------------------------------------
+file(GLOB
+    IMGUIZMO_SOURSES CONFIGURE_DEPENDS
+        vendor/ImGuizmo/*.cpp
+)
+add_library( imguizmo
+    STATIC
+        ${IMGUIZMO_SOURSES}
+)
+target_include_directories( imguizmo
+    PRIVATE
+        vendor/imgui
+        vendor/ImGuizmo
+)
+# -----------------------------------------------------------
+
 add_executable(editor ${YG_EDITOR_SOURCES})
 target_link_libraries( editor
     PRIVATE
         engine
         imgui
+        imguizmo
 )
 target_include_directories( editor
     PRIVATE
         src
         vendor/imgui
         vendor/rapidjson/include
+        vendor/portable-file-dialogs
+        vendor/ImGuizmo
 )

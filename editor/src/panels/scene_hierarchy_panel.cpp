@@ -67,7 +67,7 @@ namespace Yogi {
             ImVec2 viewport_region_max = ImGui::GetWindowContentRegionMax();
             ImGui::InvisibleButton("blank", { std::max(viewport_region_max.x - viewport_region_min.x, 1.0f), std::max(viewport_region_max.y - viewport_region_min.y, 1.0f) });
             if (ImGui::IsItemClicked()) {
-                m_selected_entity.reset();
+                m_selected_entity = Entity{};
             }
             if (ImGui::BeginDragDropTarget()) {
                 if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("hierarchy")) {
@@ -87,7 +87,7 @@ namespace Yogi {
             if (ImGui::BeginPopup("AddComponent")) {
                 ComponentManager::each_component_type([this](std::string component_name){
                     if (ImGui::MenuItem(component_name.c_str())) {
-                        ComponentManager::add_component(*m_selected_entity, component_name);
+                        ComponentManager::add_component(m_selected_entity, component_name);
                         ImGui::CloseCurrentPopup();
                     }
                 });
@@ -118,17 +118,17 @@ namespace Yogi {
     {
         auto& tag = entity.get_component<TagComponent>().tag;
         
-        ImGuiTreeNodeFlags flags = (m_selected_entity && (*m_selected_entity) == entity ? ImGuiTreeNodeFlags_Selected : 0) |
+        ImGuiTreeNodeFlags flags = (m_selected_entity && m_selected_entity == entity ? ImGuiTreeNodeFlags_Selected : 0) |
             ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
         bool is_opened = ImGui::TreeNodeEx((void*)(uint64_t)(uint32_t)entity, flags, "%s", tag.c_str());
         if (ImGui::IsItemClicked()) {
-            m_selected_entity = CreateRef<Entity>(entity);
+            m_selected_entity = entity;
         }
 
         if (ImGui::BeginPopupContextItem()) {
             if (ImGui::MenuItem("Delete Entity")) {
                 delete_entity_and_children(entity, relations);
-                if (*m_selected_entity == entity) m_selected_entity.reset();
+                if (m_selected_entity == entity) m_selected_entity = Entity{};
             }
             ImGui::EndPopup();
         }
@@ -158,7 +158,7 @@ namespace Yogi {
 
     void SceneHierarchyPanel::draw_components()
     {
-        m_selected_entity->each_component([this](std::string_view name, void* component){
+        m_selected_entity.each_component([this](std::string_view name, void* component){
             std::string component_name{name};
             ComponentType type = ComponentManager::get_component_type(component_name);
             ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed |
@@ -166,7 +166,7 @@ namespace Yogi {
             bool is_opened = ImGui::TreeNodeEx(component, flags, "%s", component_name.c_str());
             if (ImGui::BeginPopupContextItem()) {
                 if (ImGui::MenuItem("Delete Component")) {
-                    ComponentManager::remove_component(*m_selected_entity, component_name);
+                    ComponentManager::remove_component(m_selected_entity, component_name);
                 }
                 ImGui::EndPopup();
             }
@@ -268,7 +268,7 @@ namespace Yogi {
         if (component_name == "Yogi::TransformComponent" && field == "parent") {
             std::size_t offset = type.m_fields[field].offset;
             Entity& entity = *(Entity*)((uint8_t*)ptr + offset);
-            if (check_entity_parent(entity, *m_selected_entity) && check_entity_parent(*m_selected_entity, entity)) {
+            if (check_entity_parent(entity, m_selected_entity) && check_entity_parent(m_selected_entity, entity)) {
                 entity = Entity{};
             }
         }

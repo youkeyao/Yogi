@@ -7,8 +7,8 @@ namespace Yogi {
     class SceneManager
     {
     public:
-        static void save_scene(Ref<Scene> scene, std::string filepath);
-        static Ref<Scene> load_scene(std::string filepath);
+        static std::string serialize_scene(Ref<Scene> scene);
+        static Ref<Scene> deserialize_scene(std::string json);
     };
 
 }
