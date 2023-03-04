@@ -1,5 +1,6 @@
 #include "panels/scene_hierarchy_panel.h"
 #include "reflect/component_manager.h"
+#include "reflect/system_manager.h"
 #include <imgui.h>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -28,7 +29,6 @@ namespace Yogi {
     void SceneHierarchyPanel::on_imgui_render()
     {
         ImGui::Begin("Scene Hierarchy");
-
         if (m_context) {
             if (ImGui::BeginPopupContextWindow()) {
                 if (ImGui::MenuItem("Create Empty Entity")) {
@@ -94,7 +94,23 @@ namespace Yogi {
                 ImGui::EndPopup();
             }
         }
+        ImGui::End();
 
+        ImGui::Begin("Systems");
+        if (m_context) {
+            draw_systems();
+            if (ImGui::Button("+", { ImGui::GetContentRegionAvail().x, 0.0f }))
+                ImGui::OpenPopup("AddSystem");
+            if (ImGui::BeginPopup("AddSystem")) {
+                SystemManager::each_system_type([this](std::string system_name){
+                    if (ImGui::MenuItem(system_name.c_str())) {
+                        SystemManager::add_system(m_context, system_name);
+                        ImGui::CloseCurrentPopup();
+                    }
+                });
+                ImGui::EndPopup();
+            }
+        }
         ImGui::End();
     }
 
@@ -203,6 +219,46 @@ namespace Yogi {
                 }
                 ImGui::TreePop();
             }
+        });
+    }
+
+    void SceneHierarchyPanel::draw_systems()
+    {
+        uint32_t index = 0;
+        m_context->each_system([this, &index](std::string system_name, int32_t update_pos, int32_t event_pos){
+            ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed |
+                ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_FramePadding;
+            bool is_opened = ImGui::TreeNodeEx(system_name.c_str(), flags);
+            if (ImGui::BeginPopupContextItem()) {
+                if (ImGui::MenuItem("Delete System")) {
+                    SystemManager::remove_system(m_context, system_name);
+                }
+                ImGui::EndPopup();
+            }
+
+            if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
+                ImGui::SetDragDropPayload("system", &index, sizeof(Entity));
+                ImGui::EndDragDropSource();
+            }
+            if (ImGui::BeginDragDropTarget()) {
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("system")) {
+                    uint32_t old_index = *(uint32_t*)payload->Data;
+                    m_context->change_system_order(old_index, index);
+                }
+                ImGui::EndDragDropTarget();
+            }
+
+            if (is_opened) {
+                if (update_pos >= 0) {
+                    ImGui::Text("%s::on_update", system_name.c_str());
+                }
+                if (event_pos >= 0) {
+                    ImGui::Text("%s::on_event", system_name.c_str());
+                }
+                ImGui::TreePop();
+            }
+
+            index ++;
         });
     }
 

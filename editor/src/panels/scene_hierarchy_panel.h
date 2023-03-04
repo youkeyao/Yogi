@@ -18,6 +18,7 @@ namespace Yogi {
         void delete_entity_and_children(Entity entity, std::unordered_map<uint32_t, std::list<Entity>>& relations);
         void draw_entity_node(Entity& entity, std::unordered_map<uint32_t, std::list<Entity>>& relations);
         void draw_components();
+        void draw_systems();
         void check_field(std::string component, std::string field, void* ptr);
     private:
         Ref<Scene> m_context;

@@ -74,7 +74,7 @@ namespace Yogi {
 
         writer.Key("systems");
         writer.StartArray();
-        scene->each_system([&writer](std::string system_name, auto){
+        scene->each_system([&writer](std::string system_name, int32_t, int32_t){
             writer.String(system_name.c_str());
         });
         writer.EndArray();
