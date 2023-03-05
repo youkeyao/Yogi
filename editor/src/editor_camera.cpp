@@ -2,34 +2,41 @@
 
 namespace Yogi {
 
-    void EditorCamera::on_update(Timestep ts)
+    EditorCamera::EditorCamera()
     {
-        bool is_moved = false;
-        if (Input::is_key_pressed(YG_KEY_A)) {
-            m_transform_component.translation.x -= m_camera_translation_speed * ts;
-            is_moved = true;
-        } else if (Input::is_key_pressed(YG_KEY_D)) {
-            m_transform_component.translation.x += m_camera_translation_speed * ts;
-            is_moved = true;
-        }
+        m_camera_view_matrix = glm::inverse((glm::mat4)m_transform_component.transform);
+        recalculate_projection();
+        m_camera_projection_view_matrix = m_camera_projection_matrix * m_camera_view_matrix;
+    }
 
-        if (Input::is_key_pressed(YG_KEY_W)) {
-            m_transform_component.translation.y += m_camera_translation_speed * ts;
-            is_moved = true;
-        } else if (Input::is_key_pressed(YG_KEY_S)) {
-            m_transform_component.translation.y -= m_camera_translation_speed * ts;
-            is_moved = true;
-        }
+    void EditorCamera::on_update(Timestep ts, bool is_focused)
+    {
+        if (is_focused) {
+            bool is_moved = false;
+            glm::mat4& transform = (glm::mat4&)m_transform_component.transform;
+            if (Input::is_key_pressed(YG_KEY_A)) {
+                transform = glm::translate(transform, {-m_camera_translation_speed * ts, 0, 0});
+                is_moved = true;
+            } else if (Input::is_key_pressed(YG_KEY_D)) {
+                transform = glm::translate(transform, {m_camera_translation_speed * ts, 0, 0});
+                is_moved = true;
+            }
 
-        if (is_moved) {
-            glm::mat4 t = glm::translate(glm::mat4(1.0f), m_transform_component.translation) *
-                glm::rotate(glm::mat4(1.0f), glm::radians(m_transform_component.rotation.x), glm::vec3(1, 0, 0)) *
-                glm::rotate(glm::mat4(1.0f), glm::radians(m_transform_component.rotation.y), glm::vec3(0, 1, 0)) *
-                glm::rotate(glm::mat4(1.0f), glm::radians(m_transform_component.rotation.z), glm::vec3(0, 0, 1)) *
-                glm::scale(glm::mat4(1.0f), m_transform_component.scale);
-            m_transform_inverse_matrix = glm::inverse(t);
-            Renderer2D::set_view_projection_matrix(m_camera_projection_matrix * glm::inverse(t));
+            if (Input::is_key_pressed(YG_KEY_W)) {
+                transform = glm::translate(transform, {0, m_camera_translation_speed * ts, 0});
+                is_moved = true;
+            } else if (Input::is_key_pressed(YG_KEY_S)) {
+                transform = glm::translate(transform, {0, -m_camera_translation_speed * ts, 0});
+                is_moved = true;
+            }
+
+            if (is_moved) {
+                m_camera_view_matrix = glm::inverse(transform);
+                m_camera_projection_view_matrix = m_camera_projection_matrix * m_camera_view_matrix;
+            }
         }
+        
+        Renderer2D::set_projection_view_matrix(m_camera_projection_view_matrix);
     }
 
     void EditorCamera::recalculate_projection()
@@ -38,7 +45,7 @@ namespace Yogi {
             m_camera_projection_matrix = glm::ortho(-m_camera_component.aspect_ratio * m_camera_component.zoom_level, m_camera_component.aspect_ratio * m_camera_component.zoom_level, -m_camera_component.zoom_level, m_camera_component.zoom_level, -1.0f, 1.0f);
         else
             m_camera_projection_matrix = glm::perspective(m_camera_component.fov, m_camera_component.aspect_ratio, m_camera_component.zoom_level, 100.0f);
-        Renderer2D::set_view_projection_matrix(m_camera_projection_matrix * m_transform_inverse_matrix);
+        m_camera_projection_view_matrix = m_camera_projection_matrix * m_camera_view_matrix;
     }
 
     void EditorCamera::on_event(Event& e)
@@ -51,6 +58,7 @@ namespace Yogi {
     bool EditorCamera::on_mouse_scrolled(MouseScrolledEvent& e)
     {
         m_camera_component.zoom_level -= e.get_y_offset() * 0.25f;
+        m_camera_component.zoom_level = std::max(m_camera_component.zoom_level, 0.25f);
         m_camera_translation_speed = m_camera_component.zoom_level;
         recalculate_projection();
 

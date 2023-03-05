@@ -58,6 +58,24 @@ namespace Yogi {
                         writer.Double(((glm::vec4*)((uint8_t*)component + value.offset))->w);
                         writer.EndArray();
                     }
+                    else if (value.type_hash == typeid(Color).hash_code()) {
+                        writer.StartArray();
+                        writer.Double(((glm::vec4*)((uint8_t*)component + value.offset))->x);
+                        writer.Double(((glm::vec4*)((uint8_t*)component + value.offset))->y);
+                        writer.Double(((glm::vec4*)((uint8_t*)component + value.offset))->z);
+                        writer.Double(((glm::vec4*)((uint8_t*)component + value.offset))->w);
+                        writer.EndArray();
+                    }
+                    else if (value.type_hash == typeid(Transform).hash_code()) {
+                        glm::mat4& transform = *(glm::mat4*)((uint8_t*)component + value.offset);
+                        writer.StartArray();
+                        for (int i = 0; i < 4; i ++) {
+                            for (int j = 0; j < 4; j ++) {
+                                writer.Double(transform[i][j]);
+                            }
+                        }
+                        writer.EndArray();
+                    }
                     else if (value.type_hash == typeid(Entity).hash_code()) {
                         writer.Int((uint32_t)*(Entity*)((uint8_t*)component + value.offset));
                     }
@@ -130,6 +148,21 @@ namespace Yogi {
                         vec4.y = component_fields_value[key.c_str()][1].GetFloat();
                         vec4.z = component_fields_value[key.c_str()][2].GetFloat();
                         vec4.w = component_fields_value[key.c_str()][3].GetFloat();
+                    }
+                    else if (value.type_hash == typeid(Color).hash_code()) {
+                        glm::vec4& vec4 = *(glm::vec4*)((uint8_t*)component + value.offset);
+                        vec4.x = component_fields_value[key.c_str()][0].GetFloat();
+                        vec4.y = component_fields_value[key.c_str()][1].GetFloat();
+                        vec4.z = component_fields_value[key.c_str()][2].GetFloat();
+                        vec4.w = component_fields_value[key.c_str()][3].GetFloat();
+                    }
+                    else if (value.type_hash == typeid(Transform).hash_code()) {
+                        glm::mat4& transform = *(glm::mat4*)((uint8_t*)component + value.offset);
+                        for (int i = 0; i < 4; i ++) {
+                            for (int j = 0; j < 4; j ++) {
+                                transform[i][j] = component_fields_value[key.c_str()][i * 4 + j].GetFloat();
+                            }
+                        }
                     }
                     else if (value.type_hash == typeid(Entity).hash_code()) {
                         Entity& target = *(Entity*)((uint8_t*)component + value.offset);

@@ -23,7 +23,7 @@ namespace Yogi {
     private:
         Ref<Scene> m_scene;
         Ref<SceneHierarchyPanel> m_hierarchy_panel;
-        EditorCamera editor_camera;
+        EditorCamera m_editor_camera;
 
         bool m_viewport_focused = false;
         glm::vec2 m_viewport_size;

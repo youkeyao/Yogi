@@ -199,7 +199,53 @@ namespace Yogi {
                     }
                     else if (value.type_hash == typeid(glm::vec4).hash_code()) {
                         glm::vec4& vec4 = *(glm::vec4*)((uint8_t*)component + value.offset);
-                        ImGui::ColorEdit4(key.c_str(), glm::value_ptr(vec4));
+                        ImGui::DragFloat4(key.c_str(), glm::value_ptr(vec4));
+                    }
+                    else if (value.type_hash == typeid(Color).hash_code()) {
+                        glm::vec4& color = *(glm::vec4*)((uint8_t*)component + value.offset);
+                        ImGui::ColorEdit4(key.c_str(), glm::value_ptr(color));
+                    }
+                    else if (value.type_hash == typeid(Transform).hash_code()) {
+                        glm::mat4& transform = *(glm::mat4*)((uint8_t*)component + value.offset);
+                        glm::vec3 translation_old = {transform[3][0], transform[3][1], transform[3][2]};
+                        glm::vec3 translation_new = translation_old;
+                        glm::vec3 scale_old;
+                        scale_old.x = glm::length(glm::vec3{transform[0][0], transform[0][1], transform[0][2]});
+                        scale_old.y = glm::length(glm::vec3{transform[1][0], transform[1][1], transform[1][2]});
+                        scale_old.z = glm::length(glm::vec3{transform[2][0], transform[2][1], transform[2][2]});
+                        glm::vec3 scale_new = scale_old;
+                        glm::vec3 rotation_old;
+                        rotation_old.y = asin(transform[2][0] / (scale_old.z + glm::epsilon<float>()));
+                        if (cos(rotation_old.y) != 0) {
+                            rotation_old.x = -atan2(transform[2][1], transform[2][2]);
+                            rotation_old.z = -atan2(transform[1][0] / (scale_old.y + glm::epsilon<float>()), transform[0][0] / (scale_old.x + glm::epsilon<float>()));
+                        } else {
+                            rotation_old.x = atan2(transform[0][2], transform[1][1]);
+                            rotation_old.z = 0;
+                        }
+                        rotation_old *= 180.0f / glm::pi<float>();
+                        glm::vec3 rotation_new = rotation_old;
+                        if (ImGui::DragFloat3("position", glm::value_ptr(translation_new), 0.25f)) {
+                            transform = glm::translate(glm::mat4(1.0f), translation_new) *
+                                glm::rotate(glm::mat4(1.0f), glm::radians(rotation_new.x), glm::vec3(1, 0, 0)) *
+                                glm::rotate(glm::mat4(1.0f), glm::radians(rotation_new.y), glm::vec3(0, 1, 0)) *
+                                glm::rotate(glm::mat4(1.0f), glm::radians(rotation_new.z), glm::vec3(0, 0, 1)) *
+                                glm::scale(glm::mat4(1.0f), scale_new);
+                        }
+                        if (ImGui::DragFloat3("rotation", glm::value_ptr(rotation_new), 0.25f)) {
+                            transform = glm::translate(glm::mat4(1.0f), translation_new) *
+                                glm::rotate(glm::mat4(1.0f), glm::radians(rotation_new.x), glm::vec3(1, 0, 0)) *
+                                glm::rotate(glm::mat4(1.0f), glm::radians(rotation_new.y), glm::vec3(0, 1, 0)) *
+                                glm::rotate(glm::mat4(1.0f), glm::radians(rotation_new.z), glm::vec3(0, 0, 1)) *
+                                glm::scale(glm::mat4(1.0f), scale_new);
+                        }
+                        if (ImGui::DragFloat3("scale", glm::value_ptr(scale_new), 0.25f)) {
+                            transform = glm::translate(glm::mat4(1.0f), translation_new) *
+                                glm::rotate(glm::mat4(1.0f), glm::radians(rotation_new.x), glm::vec3(1, 0, 0)) *
+                                glm::rotate(glm::mat4(1.0f), glm::radians(rotation_new.y), glm::vec3(0, 1, 0)) *
+                                glm::rotate(glm::mat4(1.0f), glm::radians(rotation_new.z), glm::vec3(0, 0, 1)) *
+                                glm::scale(glm::mat4(1.0f), scale_new);
+                        }
                     }
                     else if (value.type_hash == typeid(Entity).hash_code()) {
                         Entity& entity = *(Entity*)((uint8_t*)component + value.offset);

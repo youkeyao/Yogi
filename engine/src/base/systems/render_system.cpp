@@ -13,12 +13,7 @@ namespace Yogi {
         RenderCommand::clear();
         
         scene->view_components<TransformComponent, SpriteRendererComponent>([ts](TransformComponent& transform, SpriteRendererComponent& sprite){
-            glm::mat4 transform_matrix = glm::translate(glm::mat4(1.0f), transform.translation) *
-                glm::rotate(glm::mat4(1.0f), glm::radians(transform.rotation.x), glm::vec3(1, 0, 0)) *
-                glm::rotate(glm::mat4(1.0f), glm::radians(transform.rotation.y), glm::vec3(0, 1, 0)) *
-                glm::rotate(glm::mat4(1.0f), glm::radians(transform.rotation.z), glm::vec3(0, 0, 1)) *
-                glm::scale(glm::mat4(1.0f), transform.scale);
-            Renderer2D::draw_quad(transform_matrix, sprite.texture, {sprite.texcoords_min, sprite.texcoords_max}, sprite.color);
+            Renderer2D::draw_quad(transform.transform, sprite.texture, {sprite.tex_min, sprite.tex_max}, sprite.color);
         });
 
         Renderer2D::flush();

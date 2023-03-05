@@ -23,7 +23,21 @@ namespace Yogi {
         m_frame_texture = Texture2D::create(s_max_viewport_size, s_max_viewport_size);
         m_frame_buffer = FrameBuffer::create(s_max_viewport_size, s_max_viewport_size, { m_frame_texture });
 
-        m_scene = CreateRef<Scene>();
+        // m_scene = CreateRef<Scene>();
+        // m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
+        std::ifstream in("test.yg", std::ios::in);
+        if (!in) {
+            YG_CORE_WARN("Could not open file '{0}'!", "scene.yg");
+            return;
+        }
+        std::string json;
+        in.seekg(0, std::ios::end);
+        json.resize(in.tellg());
+        in.seekg(0, std::ios::beg);
+        in.read(&json[0], json.size());
+        in.close();
+
+        m_scene = SceneManager::deserialize_scene(json);
         m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
     }
 
@@ -42,9 +56,7 @@ namespace Yogi {
         Renderer2D::reset_stats();
         m_frame_buffer->bind();
 
-        if (m_viewport_focused) {
-            editor_camera.on_update(ts);
-        }
+        m_editor_camera.on_update(ts, m_viewport_focused);
         m_scene->on_update(ts);
 
         m_frame_buffer->unbind();
@@ -59,6 +71,7 @@ namespace Yogi {
                 if (ImGui::MenuItem("New")) {
                     m_scene = CreateRef<Scene>();
                     m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
+                    m_editor_camera = EditorCamera{};
                 }
                 if (ImGui::MenuItem("Open...")) {
                     open_scene();
@@ -101,7 +114,7 @@ namespace Yogi {
             m_viewport_size = new_viewport_size;
             WindowResizeEvent e((uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y);
             m_scene->on_event(e);
-            editor_camera.on_event(e);
+            m_editor_camera.on_event(e);
             RenderCommand::set_viewport(0.0f, 0.0f, m_viewport_size.x, m_viewport_size.y);
         }
         ImGui::Image(
@@ -114,10 +127,16 @@ namespace Yogi {
         // Gizmos
         Entity selected_entity = m_hierarchy_panel->get_selected_entity();
         if (selected_entity) {
-            ImGuizmo::SetOrthographic(false);
-			ImGuizmo::SetDrawlist();
-			ImGuizmo::SetRect(m_viewport_bounds[0].x, m_viewport_bounds[0].y, m_viewport_size.x, m_viewport_size.y);
+            ImGuizmo::SetOrthographic(m_editor_camera.get_is_ortho());
+            ImGuizmo::SetDrawlist();
+            ImGuizmo::SetRect(m_viewport_bounds[0].x, m_viewport_bounds[0].y, m_viewport_size.x, m_viewport_size.y);
+            
+            glm::mat4 camera_projection = m_editor_camera.get_projection();
+            glm::mat4 camera_view = m_editor_camera.get_view();
+
             TransformComponent& tc = selected_entity.get_component<TransformComponent>();
+            ImGuizmo::Manipulate(glm::value_ptr(camera_view), glm::value_ptr(camera_projection),
+                ImGuizmo::OPERATION::ROTATE, ImGuizmo::LOCAL, glm::value_ptr((glm::mat4&)tc.transform));
         }
 
         ImGui::End();
@@ -130,7 +149,7 @@ namespace Yogi {
         
         if (e.get_event_type() != WindowResizeEvent::get_static_type()) {
             if (m_viewport_focused)
-                editor_camera.on_event(e);
+                m_editor_camera.on_event(e);
             m_scene->on_event(e);
         }
     }

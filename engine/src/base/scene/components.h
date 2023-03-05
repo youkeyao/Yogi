@@ -6,6 +6,20 @@
 
 namespace Yogi {
 
+    struct Transform
+    {
+        operator glm::mat4() const { return m_transform; }
+    private:
+        glm::mat4 m_transform = glm::mat4(1.0f);
+    };
+
+    struct Color
+    {
+        operator glm::vec4() const { return m_color; }
+    private:
+        glm::vec4 m_color = glm::vec4(1.0f);
+    };
+
     struct TagComponent
     {
         std::string tag = "";
@@ -14,17 +28,15 @@ namespace Yogi {
     struct TransformComponent
     {
         Entity parent;
-        glm::vec3 translation = { 0.0f, 0.0f, 0.0f };
-        glm::vec3 rotation = { 0.0f, 0.0f, 0.0f };
-        glm::vec3 scale = { 1.0f, 1.0f, 1.0f };
+        Transform transform;
     };
 
     struct SpriteRendererComponent
     {
-        glm::vec4 color = { 1.0f, 1.0f, 1.0f, 1.0f };
+        Color color;
         Ref<Texture2D> texture = nullptr;
-        glm::vec2 texcoords_min = { 0.0f, 0.0f };
-        glm::vec2 texcoords_max = { 1.0f, 1.0f };
+        glm::vec2 tex_min = { 0.0f, 0.0f };
+        glm::vec2 tex_max = { 1.0f, 1.0f };
     };
 
     struct CameraComponent

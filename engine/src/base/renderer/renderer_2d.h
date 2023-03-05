@@ -12,7 +12,7 @@ namespace Yogi {
         static void init();
         static void shutdown();
 
-        static void set_view_projection_matrix(glm::mat4 view_projection_matrix);
+        static void set_projection_view_matrix(glm::mat4 projection_view_matrix);
         static void flush();
 
         // Primitives

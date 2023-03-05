@@ -74,7 +74,7 @@ namespace Yogi {
         for (uint32_t i = 0; i < Renderer2DData::max_texture_slots; i++) {
             samplers[i] = i;
         }
-        s_data.texture_shader = Yogi::Shader::create("../sandbox/assets/shaders/Texture.glsl");
+        s_data.texture_shader = Yogi::Shader::create("../engine/assets/shaders/Texture.glsl");
         s_data.texture_shader->bind();
         s_data.texture_shader->set_int_array("u_Textures", samplers, Renderer2DData::max_texture_slots);
 
@@ -91,12 +91,12 @@ namespace Yogi {
         delete[] s_data.quad_vertices_base;
     }
 
-    void Renderer2D::set_view_projection_matrix(glm::mat4 view_projection_matrix)
+    void Renderer2D::set_projection_view_matrix(glm::mat4 projection_view_matrix)
     {
         YG_PROFILE_FUNCTION();
 
         s_data.texture_shader->bind();
-        s_data.texture_shader->set_mat4("u_view_projection", view_projection_matrix);
+        s_data.texture_shader->set_mat4("u_projection_view", projection_view_matrix);
     }
 
     void Renderer2D::flush()

@@ -69,8 +69,8 @@ namespace Yogi {
     void ComponentManager::init()
     {
         register_component<TagComponent>({"tag"});
-        register_component<TransformComponent>({"parent", "translation", "rotation", "scale"});
-        register_component<SpriteRendererComponent>({"color", "texture", "texcoords_min", "texcoords_max"});
+        register_component<TransformComponent>({"parent", "transform"});
+        register_component<SpriteRendererComponent>({"color", "texture", "tex_min", "tex_max"});
         register_component<CameraComponent>({"is_ortho", "is_primary", "fov", "aspect_ratio", "zoom_level"});
     }
 
