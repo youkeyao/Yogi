@@ -47,13 +47,13 @@ namespace Yogi {
                         is_event_deleted = true;
                     }
                     iter = m_systems.erase(iter);
-                    if (m_systems.empty()) break;
+                    if (iter == m_systems.end()) break;
                 }
-                if (is_update_deleted && pos.first > 0) {
-                    pos.first --;
+                if (is_update_deleted && iter->second.first > 0) {
+                    iter->second.first --;
                 }
-                if (is_event_deleted && pos.second > 0) {
-                    pos.second --;
+                if (is_event_deleted && iter->second.second > 0) {
+                    iter->second.second --;
                 }
             }
         }
