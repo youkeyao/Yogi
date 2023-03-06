@@ -2,10 +2,8 @@
 #include "reflect/component_manager.h"
 #include "reflect/system_manager.h"
 #include "reflect/scene_manager.h"
-#include <imgui.h>
 #include <glm/gtc/type_ptr.hpp>
 #include <portable-file-dialogs.h>
-#include <ImGuizmo.h>
 
 namespace Yogi {
 
@@ -56,7 +54,7 @@ namespace Yogi {
         Renderer2D::reset_stats();
         m_frame_buffer->bind();
 
-        m_editor_camera.on_update(ts, m_viewport_focused);
+        m_editor_camera.on_update(ts, m_viewport_hovered);
         m_scene->on_update(ts);
 
         m_frame_buffer->unbind();
@@ -96,9 +94,21 @@ namespace Yogi {
         ImGui::Text("Indices: %d", stats.get_total_index_count());
         ImGui::End();
 
+        ImGui::Begin("Settings");
+        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed |
+            ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_FramePadding;
+        if (ImGui::TreeNodeEx("Editor Camera", flags)) {
+            bool is_ortho = m_editor_camera.get_is_ortho();
+            if (ImGui::Checkbox("is ortho", &is_ortho)) {
+                m_editor_camera.set_is_ortho(is_ortho);
+            }
+            ImGui::TreePop();
+        }
+        ImGui::End();
+
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
         ImGui::Begin("Viewport");
-        m_viewport_focused = ImGui::IsWindowFocused();
+        m_viewport_hovered = ImGui::IsWindowHovered();
         ImVec2 viewport_region_min = ImGui::GetWindowContentRegionMin();
         ImVec2 viewport_region_max = ImGui::GetWindowContentRegionMax();
         ImVec2 viewport_offset = ImGui::GetWindowPos();
@@ -134,9 +144,15 @@ namespace Yogi {
             glm::mat4 camera_projection = m_editor_camera.get_projection();
             glm::mat4 camera_view = m_editor_camera.get_view();
 
+            bool snap = Input::is_key_pressed(YG_KEY_LEFT_ALT);
+			float snap_value = 0.5f;
+			if (m_gizmo_type == ImGuizmo::OPERATION::ROTATE)
+				snap_value = 45.0f;
+
+			float snap_values[3] = { snap_value, snap_value, snap_value };
             TransformComponent& tc = selected_entity.get_component<TransformComponent>();
-            ImGuizmo::Manipulate(glm::value_ptr(camera_view), glm::value_ptr(camera_projection),
-                ImGuizmo::OPERATION::ROTATE, ImGuizmo::LOCAL, glm::value_ptr((glm::mat4&)tc.transform));
+            ImGuizmo::Manipulate(glm::value_ptr(camera_view), glm::value_ptr(camera_projection), m_gizmo_type,
+                ImGuizmo::LOCAL, glm::value_ptr((glm::mat4&)tc.transform), nullptr, snap ? snap_values : nullptr);
         }
 
         ImGui::End();
@@ -148,10 +164,22 @@ namespace Yogi {
         YG_PROFILE_FUNCTION();
         
         if (e.get_event_type() != WindowResizeEvent::get_static_type()) {
-            if (m_viewport_focused)
+            if (m_viewport_hovered)
                 m_editor_camera.on_event(e);
             m_scene->on_event(e);
+            EventDispatcher dispatcher(e);
+            dispatcher.dispatch<KeyPressedEvent>(YG_BIND_EVENT_FN(EditorLayer::on_key_pressed));
         }
+    }
+
+    bool EditorLayer::on_key_pressed(KeyPressedEvent& e)
+    {
+        switch (e.get_key_code()) {
+            case YG_KEY_W: m_gizmo_type = ImGuizmo::OPERATION::TRANSLATE; break;
+            case YG_KEY_E: m_gizmo_type = ImGuizmo::OPERATION::ROTATE; break;
+            case YG_KEY_R: m_gizmo_type = ImGuizmo::OPERATION::SCALE; break;
+        }
+        return false;
     }
 
     void EditorLayer::open_scene()

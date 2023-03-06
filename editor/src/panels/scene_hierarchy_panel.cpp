@@ -3,6 +3,7 @@
 #include "reflect/system_manager.h"
 #include <imgui.h>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/quaternion.hpp>
 
 namespace Yogi {
 
@@ -28,7 +29,7 @@ namespace Yogi {
 
     void SceneHierarchyPanel::on_imgui_render()
     {
-        ImGui::Begin("Scene Hierarchy");
+        ImGui::Begin("Hierarchy");
         if (m_context) {
             if (ImGui::BeginPopupContextWindow()) {
                 if (ImGui::MenuItem("Create Empty Entity")) {
@@ -207,44 +208,44 @@ namespace Yogi {
                     }
                     else if (value.type_hash == typeid(Transform).hash_code()) {
                         glm::mat4& transform = *(glm::mat4*)((uint8_t*)component + value.offset);
-                        glm::vec3 translation_old = {transform[3][0], transform[3][1], transform[3][2]};
-                        glm::vec3 translation_new = translation_old;
-                        glm::vec3 scale_old;
-                        scale_old.x = glm::length(glm::vec3{transform[0][0], transform[0][1], transform[0][2]});
-                        scale_old.y = glm::length(glm::vec3{transform[1][0], transform[1][1], transform[1][2]});
-                        scale_old.z = glm::length(glm::vec3{transform[2][0], transform[2][1], transform[2][2]});
-                        glm::vec3 scale_new = scale_old;
-                        glm::vec3 rotation_old;
-                        rotation_old.y = asin(transform[2][0] / (scale_old.z + glm::epsilon<float>()));
-                        if (cos(rotation_old.y) != 0) {
-                            rotation_old.x = -atan2(transform[2][1], transform[2][2]);
-                            rotation_old.z = -atan2(transform[1][0] / (scale_old.y + glm::epsilon<float>()), transform[0][0] / (scale_old.x + glm::epsilon<float>()));
+                        glm::vec3 translation = {transform[3][0], transform[3][1], transform[3][2]};
+                        glm::vec3 scale;
+                        scale.x = glm::length(glm::vec3{transform[0][0], transform[0][1], transform[0][2]});
+                        scale.y = glm::length(glm::vec3{transform[1][0], transform[1][1], transform[1][2]});
+                        scale.z = glm::length(glm::vec3{transform[2][0], transform[2][1], transform[2][2]});
+                        glm::vec3 rotation;
+                        if (scale.z == 0)
+                            rotation.y = asin(transform[2][0] / glm::epsilon<float>());
+                        else
+                            rotation.y = asin(transform[2][0] / scale.z);
+                        if (glm::abs(cos(rotation.y)) >= 0.001) {
+                            rotation.x = -atan2(transform[2][1], transform[2][2]);
+                            rotation.z = -atan2(transform[1][0], transform[0][0]);
                         } else {
-                            rotation_old.x = atan2(transform[0][2], transform[1][1]);
-                            rotation_old.z = 0;
+                            rotation.x = atan2(transform[1][2], transform[1][1]);
+                            rotation.z = 0;
                         }
-                        rotation_old *= 180.0f / glm::pi<float>();
-                        glm::vec3 rotation_new = rotation_old;
-                        if (ImGui::DragFloat3("position", glm::value_ptr(translation_new), 0.25f)) {
-                            transform = glm::translate(glm::mat4(1.0f), translation_new) *
-                                glm::rotate(glm::mat4(1.0f), glm::radians(rotation_new.x), glm::vec3(1, 0, 0)) *
-                                glm::rotate(glm::mat4(1.0f), glm::radians(rotation_new.y), glm::vec3(0, 1, 0)) *
-                                glm::rotate(glm::mat4(1.0f), glm::radians(rotation_new.z), glm::vec3(0, 0, 1)) *
-                                glm::scale(glm::mat4(1.0f), scale_new);
+                        rotation *= 180.0f / glm::pi<float>();
+                        if (ImGui::DragFloat3("position", glm::value_ptr(translation), 0.25f)) {
+                            transform = glm::translate(glm::mat4(1.0f), translation) *
+                                glm::rotate(glm::mat4(1.0f), glm::radians(rotation.x), glm::vec3{1.0f, 0, 0}) *
+                                glm::rotate(glm::mat4(1.0f), glm::radians(rotation.y), glm::vec3{0, 1.0f, 0}) *
+                                glm::rotate(glm::mat4(1.0f), glm::radians(rotation.z), glm::vec3{0, 0, 1.0f}) *
+                                glm::scale(glm::mat4(1.0f), scale);
                         }
-                        if (ImGui::DragFloat3("rotation", glm::value_ptr(rotation_new), 0.25f)) {
-                            transform = glm::translate(glm::mat4(1.0f), translation_new) *
-                                glm::rotate(glm::mat4(1.0f), glm::radians(rotation_new.x), glm::vec3(1, 0, 0)) *
-                                glm::rotate(glm::mat4(1.0f), glm::radians(rotation_new.y), glm::vec3(0, 1, 0)) *
-                                glm::rotate(glm::mat4(1.0f), glm::radians(rotation_new.z), glm::vec3(0, 0, 1)) *
-                                glm::scale(glm::mat4(1.0f), scale_new);
+                        if (ImGui::DragFloat3("rotation", glm::value_ptr(rotation), 0.25f)) {
+                            transform = glm::translate(glm::mat4(1.0f), translation) *
+                                glm::rotate(glm::mat4(1.0f), glm::radians(rotation.x), glm::vec3{1.0f, 0, 0}) *
+                                glm::rotate(glm::mat4(1.0f), glm::radians(rotation.y), glm::vec3{0, 1.0f, 0}) *
+                                glm::rotate(glm::mat4(1.0f), glm::radians(rotation.z), glm::vec3{0, 0, 1.0f}) *
+                                glm::scale(glm::mat4(1.0f), scale);
                         }
-                        if (ImGui::DragFloat3("scale", glm::value_ptr(scale_new), 0.25f)) {
-                            transform = glm::translate(glm::mat4(1.0f), translation_new) *
-                                glm::rotate(glm::mat4(1.0f), glm::radians(rotation_new.x), glm::vec3(1, 0, 0)) *
-                                glm::rotate(glm::mat4(1.0f), glm::radians(rotation_new.y), glm::vec3(0, 1, 0)) *
-                                glm::rotate(glm::mat4(1.0f), glm::radians(rotation_new.z), glm::vec3(0, 0, 1)) *
-                                glm::scale(glm::mat4(1.0f), scale_new);
+                        if (ImGui::DragFloat3("scale", glm::value_ptr(scale), 0.25f)) {
+                            transform = glm::translate(glm::mat4(1.0f), translation) *
+                                glm::rotate(glm::mat4(1.0f), glm::radians(rotation.x), glm::vec3{1.0f, 0, 0}) *
+                                glm::rotate(glm::mat4(1.0f), glm::radians(rotation.y), glm::vec3{0, 1.0f, 0}) *
+                                glm::rotate(glm::mat4(1.0f), glm::radians(rotation.z), glm::vec3{0, 0, 1.0f}) *
+                                glm::scale(glm::mat4(1.0f), scale);
                         }
                     }
                     else if (value.type_hash == typeid(Entity).hash_code()) {
