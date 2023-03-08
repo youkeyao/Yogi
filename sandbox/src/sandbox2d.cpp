@@ -1,7 +1,7 @@
 #include "sandbox2d.h"
 #include <glm/gtc/type_ptr.hpp>
 
-Sandbox2D::Sandbox2D() : Layer("Sandbox 2D"), m_camera_controller(1280.0f / 720.0f) {}
+Sandbox2D::Sandbox2D() : Layer("Sandbox 2D") {}
 
 void Sandbox2D::on_attach()
 {
@@ -77,5 +77,5 @@ void Sandbox2D::on_update(Yogi::Timestep ts)
 
 void Sandbox2D::on_event(Yogi::Event& e)
 {
-    m_camera_controller.on_event(e);
+    // m_camera_controller.on_event(e);
 }

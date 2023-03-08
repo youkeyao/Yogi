@@ -30,7 +30,4 @@
 #include "base/renderer/shader_library.h"
 #include "base/renderer/texture.h"
 #include "base/renderer/vertex_array.h"
-
-#include "base/renderer/orthographic_camera.h"
-#include "base/renderer/orthographic_camera_controller.h"
 // ---------------------------------------------

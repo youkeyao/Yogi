@@ -3,36 +3,41 @@
 layout(location = 0) in vec3 a_Position;
 layout(location = 1) in vec4 a_Color;
 layout(location = 2) in vec2 a_TexCoord;
-layout(location = 3) in float a_TexID;
+layout(location = 3) in int a_TexID;
+layout(location = 4) in int a_EntityID;
 
 uniform mat4 u_projection_view;
 
 out vec4 v_Color;
 out vec2 v_TexCoord;
-out float v_TexID;
+flat out int v_TexID;
+flat out int v_EntityID;
 
 void main()
 {
     v_Color = a_Color;
     v_TexCoord = a_TexCoord;
     v_TexID = a_TexID;
+    v_EntityID = a_EntityID;
     gl_Position = u_projection_view * vec4(a_Position, 1.0);
 }
 
 #type fragment
 #version 330 core
 layout(location = 0) out vec4 color;
+layout(location = 1) out int entity_id;
 
 in vec4 v_Color;
 in vec2 v_TexCoord;
-in float v_TexID;
+flat in int v_TexID;
+flat in int v_EntityID;
 
 uniform sampler2D u_Textures[32];
 
 void main()
 {
     color = v_Color;
-    switch (int(v_TexID)) {
+    switch (v_TexID) {
         case  1: color *= texture(u_Textures[ 1], v_TexCoord); break;
         case  2: color *= texture(u_Textures[ 2], v_TexCoord); break;
         case  3: color *= texture(u_Textures[ 3], v_TexCoord); break;
@@ -65,4 +70,5 @@ void main()
         case 30: color *= texture(u_Textures[30], v_TexCoord); break;
         case 31: color *= texture(u_Textures[31], v_TexCoord); break;
     }
+    entity_id = v_EntityID;
 }

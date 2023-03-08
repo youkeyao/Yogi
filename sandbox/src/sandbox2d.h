@@ -15,7 +15,7 @@ public:
 
 private:
     Yogi::Ref<Yogi::Scene> m_scene;
-    Yogi::OrthographicCameraController m_camera_controller;
+    // Yogi::OrthographicCameraController m_camera_controller;
 
     Yogi::Ref<Yogi::Texture2D> m_checkerboard_texture;
 

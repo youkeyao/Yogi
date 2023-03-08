@@ -17,7 +17,7 @@ public:
     ParticleSystem(uint32_t max_particles = 1000);
 
     void on_update(Yogi::Timestep ts);
-    void on_render(Yogi::OrthographicCamera& camera);
+    // void on_render(Yogi::OrthographicCamera& camera);
 
     void emit(const ParticleProps& particle_props);
 private:

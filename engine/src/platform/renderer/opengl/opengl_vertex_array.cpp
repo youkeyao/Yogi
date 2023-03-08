@@ -67,15 +67,59 @@ namespace Yogi {
         glBindVertexArray(m_renderer_id);
         vertex_buffer->bind();
 
-        uint32_t index = 0;
         const auto& layout = vertex_buffer->get_layout();
         for (const auto& element : layout) {
-            glEnableVertexAttribArray(index);
-            glVertexAttribPointer(index, element.get_component_count(),
-                                ShaderDataType_to_OpenGLBaseType(element.type),
-                                element.normalized ? GL_TRUE : GL_FALSE, layout.get_stride(),
-                                (const void*) (uintptr_t) element.offset);
-            index++;
+            switch (element.type) {
+				case ShaderDataType::Float:
+				case ShaderDataType::Float2:
+				case ShaderDataType::Float3:
+				case ShaderDataType::Float4:
+				{
+					glEnableVertexAttribArray(m_vertex_buffer_id);
+					glVertexAttribPointer(m_vertex_buffer_id,
+						element.get_component_count(),
+						ShaderDataType_to_OpenGLBaseType(element.type),
+						element.normalized ? GL_TRUE : GL_FALSE,
+						layout.get_stride(),
+						(const void*) (uintptr_t) element.offset);
+					m_vertex_buffer_id++;
+					break;
+				}
+				case ShaderDataType::Int:
+				case ShaderDataType::Int2:
+				case ShaderDataType::Int3:
+				case ShaderDataType::Int4:
+				case ShaderDataType::Bool:
+				{
+					glEnableVertexAttribArray(m_vertex_buffer_id);
+					glVertexAttribIPointer(m_vertex_buffer_id,
+						element.get_component_count(),
+						ShaderDataType_to_OpenGLBaseType(element.type),
+						layout.get_stride(),
+						(const void*) (uintptr_t) element.offset);
+					m_vertex_buffer_id++;
+					break;
+				}
+				case ShaderDataType::Mat3:
+				case ShaderDataType::Mat4:
+				{
+					uint8_t count = element.get_component_count();
+					for (uint8_t i = 0; i < count; i++) {
+						glEnableVertexAttribArray(m_vertex_buffer_id);
+						glVertexAttribPointer(m_vertex_buffer_id,
+							count,
+							ShaderDataType_to_OpenGLBaseType(element.type),
+							element.normalized ? GL_TRUE : GL_FALSE,
+							layout.get_stride(),
+							(const void*) (uintptr_t) (element.offset + sizeof(float) * count * i));
+						glVertexAttribDivisor(m_vertex_buffer_id, 1);
+						m_vertex_buffer_id++;
+					}
+					break;
+				}
+				default:
+					YG_CORE_ASSERT(false, "Unknown ShaderDataType!");
+			}
         }
 
         m_vertex_buffers.push_back(vertex_buffer);

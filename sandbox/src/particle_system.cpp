@@ -46,24 +46,24 @@ void ParticleSystem::on_update(Yogi::Timestep ts)
     }
 }
 
-void ParticleSystem::on_render(Yogi::OrthographicCamera& camera)
-{
-    // Yogi::Renderer2D::begin_scene(camera);
-    for (auto& particle : m_particle_pool) {
-        if (!particle.active)
-            continue;
+// void ParticleSystem::on_render(Yogi::OrthographicCamera& camera)
+// {
+//     // Yogi::Renderer2D::begin_scene(camera);
+//     for (auto& particle : m_particle_pool) {
+//         if (!particle.active)
+//             continue;
 
-        // Fade away particles
-        float life = particle.life_remaining / particle.life_time;
-        glm::vec4 color = glm::lerp(particle.color_end, particle.color_begin, life);
-        //color.a = color.a * life;
+//         // Fade away particles
+//         float life = particle.life_remaining / particle.life_time;
+//         glm::vec4 color = glm::lerp(particle.color_end, particle.color_begin, life);
+//         //color.a = color.a * life;
 
-        float size = glm::lerp(particle.size_end, particle.size_begin, life);
+//         float size = glm::lerp(particle.size_end, particle.size_begin, life);
         
-        // Yogi::Renderer2D::draw_quad({particle.position.x, particle.position.y, 0.0f}, particle.rotation, {size, size}, color);
-    }
-    // Yogi::Renderer2D::end_scene();
-}
+//         // Yogi::Renderer2D::draw_quad({particle.position.x, particle.position.y, 0.0f}, particle.rotation, {size, size}, color);
+//     }
+//     // Yogi::Renderer2D::end_scene();
+// }
 
 void ParticleSystem::emit(const ParticleProps& particle_props)
 {

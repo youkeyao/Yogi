@@ -3,9 +3,9 @@
 
 namespace Yogi {
 
-    Ref<Texture2D> Texture2D::create(uint32_t width, uint32_t height)
+    Ref<Texture2D> Texture2D::create(uint32_t width, uint32_t height, TextureFormat format)
     {
-        return CreateRef<OpenGLTexture2D>(width, height);
+        return CreateRef<OpenGLTexture2D>(width, height, format);
     }
 
     Ref<Texture2D> Texture2D::create(const std::string& path)
@@ -13,12 +13,21 @@ namespace Yogi {
         return CreateRef<OpenGLTexture2D>(path);
     }
 
-    OpenGLTexture2D::OpenGLTexture2D(uint32_t width, uint32_t height) : m_width(width), m_height(height)
+    OpenGLTexture2D::OpenGLTexture2D(uint32_t width, uint32_t height, TextureFormat format) : m_width(width), m_height(height)
     {
         YG_PROFILE_FUNCTION();
 
-        m_internal_format = GL_RGBA8;
-        m_data_format = GL_RGBA;
+        if (format == TextureFormat::RGBA8) {
+            m_internal_format = GL_RGBA8;
+            m_data_format = GL_RGBA;
+        }
+        else if (format == TextureFormat::RED_INTEGER) {
+            m_internal_format = GL_R32I;
+            m_data_format = GL_RED_INTEGER;
+        }
+        else {
+            YG_CORE_ERROR("Invalid texture format!");
+        }
 
         glCreateTextures(GL_TEXTURE_2D, 1, &m_renderer_id);
 		glTextureStorage2D(m_renderer_id, 1, m_internal_format, m_width, m_height);
@@ -77,14 +86,47 @@ namespace Yogi {
         glDeleteTextures(1, &m_renderer_id);
     }
 
+    void OpenGLTexture2D::read_pixel(int32_t x, int32_t y, void* data) const
+    {
+        YG_PROFILE_FUNCTION();
+
+        uint32_t bpp = 0;
+        GLenum type = GL_UNSIGNED_BYTE;
+        if (m_data_format == GL_RGBA) {
+            bpp = 4;
+        }
+        else if (m_data_format == GL_RGB) {
+            bpp = 3;
+        }
+        else if (m_data_format == GL_RED_INTEGER) {
+            type = GL_INT;
+            bpp = 4;
+        }
+        char* all_pixels = new char[m_width * m_height * bpp];
+        glGetTextureImage(m_renderer_id, 0, m_data_format, type, m_width * m_height * bpp, all_pixels);
+        memcpy(data, all_pixels + x * bpp + y * m_width * bpp, bpp);
+        delete[] all_pixels;
+    }
+
     void OpenGLTexture2D::set_data(void* data, size_t size)
     {
         YG_PROFILE_FUNCTION();
 
-        uint32_t bpp = m_data_format == GL_RGBA ? 4 : 3;
-        YG_CORE_ASSERT(size == m_width * m_height * bpp, "data must be entire texture!");
+        uint32_t bpp = 0;
+        GLenum type = GL_UNSIGNED_BYTE;
+        if (m_data_format == GL_RGBA) {
+            bpp = 4;
+        }
+        else if (m_data_format == GL_RGB) {
+            bpp = 3;
+        }
+        else if (m_data_format == GL_RED_INTEGER) {
+            type = GL_INT;
+            bpp = 4;
+        }
+        YG_CORE_ASSERT(size == m_width * m_height * bpp, "Data must be entire texture!");
 
-        glTextureSubImage2D(m_renderer_id, 0, 0, 0, m_width, m_height, m_data_format, GL_UNSIGNED_BYTE, data);
+        glTextureSubImage2D(m_renderer_id, 0, 0, 0, m_width, m_height, m_data_format, type, data);
     };
 
     void OpenGLTexture2D::bind(uint32_t slot) const

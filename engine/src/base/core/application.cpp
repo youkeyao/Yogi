@@ -46,8 +46,6 @@ namespace Yogi {
         YG_PROFILE_FUNCTION();
 
         EventDispatcher dispatcher(e);
-        dispatcher.dispatch<WindowCloseEvent>(YG_BIND_EVENT_FN(Application::on_window_close));
-        dispatcher.dispatch<WindowResizeEvent>(YG_BIND_EVENT_FN(Application::on_window_resize));
 
         for (auto it = m_layerstack.end(); it != m_layerstack.begin();) {
             (*--it)->on_event(e);
@@ -55,6 +53,9 @@ namespace Yogi {
                 break;
             }
         }
+
+        dispatcher.dispatch<WindowCloseEvent>(YG_BIND_EVENT_FN(Application::on_window_close));
+        dispatcher.dispatch<WindowResizeEvent>(YG_BIND_EVENT_FN(Application::on_window_resize));
     }
 
     void Application::close()
@@ -104,6 +105,7 @@ namespace Yogi {
         }
 
         m_minimized = false;
+        Renderer::on_window_resize(e.get_width(), e.get_height());
         return false;
     }
 

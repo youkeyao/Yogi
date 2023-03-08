@@ -50,7 +50,7 @@ namespace Yogi {
         template <typename T, typename... Args, typename F = std::function<bool(T&, Args...)>>
         bool dispatch(F func, Args&&... args)
         {
-            if (m_event.get_event_type() == T::get_static_type()) {
+            if (m_event.get_event_type() == T::get_static_type() && !m_event.m_handled) {
                 m_event.m_handled = func(*(T*) &m_event, std::forward<Args>(args)...);
                 return true;
             }

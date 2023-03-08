@@ -23,6 +23,7 @@ namespace Yogi {
         void open_scene();
         void save_scene();
     private:
+        bool on_mouse_button_pressed(MouseButtonPressedEvent& e);
         bool on_key_pressed(KeyPressedEvent& e);
     private:
         Ref<Scene> m_scene;
@@ -35,6 +36,7 @@ namespace Yogi {
         ImGuizmo::OPERATION m_gizmo_type = ImGuizmo::OPERATION::TRANSLATE;
 
         Ref<Texture2D> m_frame_texture;
+        Ref<Texture2D> m_entity_id_texture;
         Ref<FrameBuffer> m_frame_buffer;
     };
 

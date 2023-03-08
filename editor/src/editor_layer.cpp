@@ -7,7 +7,7 @@
 
 namespace Yogi {
 
-    static uint32_t s_max_viewport_size = 4096;
+    static uint32_t s_max_viewport_size = 2048;
 
     EditorLayer::EditorLayer() : Layer("EditorLayer") {}
 
@@ -19,7 +19,8 @@ namespace Yogi {
         SystemManager::init();
 
         m_frame_texture = Texture2D::create(s_max_viewport_size, s_max_viewport_size);
-        m_frame_buffer = FrameBuffer::create(s_max_viewport_size, s_max_viewport_size, { m_frame_texture });
+        m_entity_id_texture = Texture2D::create(s_max_viewport_size, s_max_viewport_size, TextureFormat::RED_INTEGER);
+        m_frame_buffer = FrameBuffer::create(s_max_viewport_size, s_max_viewport_size, { m_frame_texture, m_entity_id_texture });
 
         // m_scene = CreateRef<Scene>();
         // m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
@@ -37,6 +38,11 @@ namespace Yogi {
 
         m_scene = SceneManager::deserialize_scene(json);
         m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
+
+        Ref<Texture2D> checkboard = Texture2D::create("../sandbox/assets/textures/checkerboard.png");
+        m_scene->view_components<TransformComponent, SpriteRendererComponent>([checkboard](Entity entity, TransformComponent& transform, SpriteRendererComponent& sprite){
+            sprite.texture = checkboard;
+        });
     }
 
     void EditorLayer::on_detach()
@@ -164,12 +170,36 @@ namespace Yogi {
         YG_PROFILE_FUNCTION();
         
         if (e.get_event_type() != WindowResizeEvent::get_static_type()) {
-            if (m_viewport_hovered)
-                m_editor_camera.on_event(e);
-            m_scene->on_event(e);
             EventDispatcher dispatcher(e);
+            if (m_viewport_hovered) {
+                m_editor_camera.on_event(e);
+                dispatcher.dispatch<MouseButtonPressedEvent>(YG_BIND_EVENT_FN(EditorLayer::on_mouse_button_pressed));
+            }
+            m_scene->on_event(e);
             dispatcher.dispatch<KeyPressedEvent>(YG_BIND_EVENT_FN(EditorLayer::on_key_pressed));
         }
+        else {
+            e.m_handled = true;
+        }
+    }
+
+    bool EditorLayer::on_mouse_button_pressed(MouseButtonPressedEvent& e)
+    {
+        if (e.get_mouse_button() == YG_MOUSE_BUTTON_1 && !ImGuizmo::IsOver()) {
+            int entity_id;
+            ImVec2 mouse_pos = ImGui::GetMousePos();
+            int32_t mouse_x = mouse_pos.x - m_viewport_bounds[0].x;
+            int32_t mouse_y = mouse_pos.y - m_viewport_bounds[0].y;
+            mouse_y = m_viewport_size.y - mouse_y;
+            m_entity_id_texture->read_pixel(mouse_x, mouse_y, &entity_id);
+            if (entity_id & 0x20000000) {
+                m_hierarchy_panel->set_selected_entity(Entity{});
+            }
+            else {
+                m_hierarchy_panel->set_selected_entity(m_scene->get_entity((uint32_t)entity_id));
+            }
+        }
+        return false;
     }
 
     bool EditorLayer::on_key_pressed(KeyPressedEvent& e)

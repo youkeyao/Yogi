@@ -16,7 +16,7 @@ namespace Yogi {
     {
         YG_PROFILE_FUNCTION();
 
-        scene->view_components<TransformComponent, CameraComponent>([ts](TransformComponent& transform, CameraComponent& camera){
+        scene->view_components<TransformComponent, CameraComponent>([ts](Entity entity, TransformComponent& transform, CameraComponent& camera){
             if (camera.is_primary) {
                 if ((glm::mat4)transform.transform != last_camera_transform) {
                     last_camera_transform = transform.transform;

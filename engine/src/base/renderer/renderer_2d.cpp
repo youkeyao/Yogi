@@ -10,7 +10,8 @@ namespace Yogi {
         glm::vec3 position;
         glm::vec4 color;
         glm::vec2 texcoord;
-        float texid;
+        int texid;
+        int entityid;
     };
 
     struct Renderer2DData
@@ -49,7 +50,8 @@ namespace Yogi {
             { ShaderDataType::Float3, "a_Position" },
             { ShaderDataType::Float4, "a_Color" },
             { ShaderDataType::Float2, "a_TexCoord" },
-            { ShaderDataType::Float, "a_TexID" },
+            { ShaderDataType::Int, "a_TexID" },
+            { ShaderDataType::Int, "a_EntityID" },
         });
         s_data.quad_vertex_array->add_vertex_buffer(s_data.quad_vertex_buffer);
 
@@ -116,7 +118,7 @@ namespace Yogi {
         }
     }
 
-    void Renderer2D::draw_quad(const glm::mat4& transform, const Ref<Texture2D>& texture, const std::pair<glm::vec2, glm::vec2>& texcoords, const glm::vec4& tint_color)
+    void Renderer2D::draw_quad(const glm::mat4& transform, const Ref<Texture2D>& texture, const std::pair<glm::vec2, glm::vec2>& texcoords, const glm::vec4& tint_color, uint32_t entity_id)
     {
         YG_PROFILE_FUNCTION();
 
@@ -125,16 +127,16 @@ namespace Yogi {
             s_data.texture_slot_index = 1;
         }
 
-        float texture_index = 0.0f;
+        int texture_index = 0;
         if (texture) {
             for (uint32_t i = 1; i < s_data.texture_slot_index; i ++) {
                 if (s_data.texture_slots[i] == texture) {
-                    texture_index = (float)i;
+                    texture_index = i;
                     break;
                 }
             }
             if (texture_index == 0.0f) {
-                texture_index = (float)s_data.texture_slot_index;
+                texture_index = s_data.texture_slot_index;
                 s_data.texture_slots[s_data.texture_slot_index] = texture;
                 texture->bind(s_data.texture_slot_index);
                 s_data.texture_slot_index++;
@@ -151,6 +153,7 @@ namespace Yogi {
             s_data.quad_vertices_cur->position = transform * s_data.quad_vertex_positions[i];
             s_data.quad_vertices_cur->color = tint_color;
             s_data.quad_vertices_cur->texid = texture_index;
+            s_data.quad_vertices_cur->entityid = entity_id;
             s_data.quad_vertices_cur++;
 		}
 

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "base/renderer/orthographic_camera.h"
 #include "base/renderer/texture.h"
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -102,7 +101,7 @@ namespace Yogi {
         {
             draw_quad(transform, texture, {{0.0f, 0.0f}, {1.0f, 1.0f}}, tint_color);
         }
-        static void draw_quad(const glm::mat4& transform, const Ref<Texture2D>& texture, const std::pair<glm::vec2, glm::vec2>& texcoords, const glm::vec4& tint_color = glm::vec4(1.0f));
+        static void draw_quad(const glm::mat4& transform, const Ref<Texture2D>& texture, const std::pair<glm::vec2, glm::vec2>& texcoords, const glm::vec4& tint_color = glm::vec4(1.0f), uint32_t entity_id = 0);
 
         struct Statistics
         {

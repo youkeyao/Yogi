@@ -63,7 +63,8 @@ namespace Yogi {
         {
             auto view = m_registry.view<Args...>();
             for (auto entity : view) {
-                std::apply(func, view.get(entity));
+                Entity e(entity, &m_registry);
+                std::apply([&](auto&... args){func(e, args...);}, view.get(entity));
             }
         }
 

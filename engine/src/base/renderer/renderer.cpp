@@ -25,16 +25,6 @@ namespace Yogi {
         RenderCommand::set_viewport(0, 0, width, height);
     }
 
-    void Renderer::begin_scene(OrthographicCamera& camera)
-    {
-        m_scene_data->view_projection_matrix = camera.get_view_projection_matrix();
-    }
-
-    void Renderer::end_scene()
-    {
-
-    }
-
     void Renderer::submit(const Ref<Shader>& shader, const Ref<VertexArray>& vertex_array, const glm::mat4& transform)
     {
         shader->bind();
