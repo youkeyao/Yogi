@@ -1,0 +1,28 @@
+project( Shaders )
+
+file(GLOB_RECURSE
+    YG_SHADER_SOURCES CONFIGURE_DEPENDS
+        glsl/*.vert
+        glsl/*.frag
+)
+
+set(BUILD_SHADER_FOLDER "build")
+if (NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${BUILD_SHADER_FOLDER})
+  file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${BUILD_SHADER_FOLDER})
+endif()
+
+set(ALL_BUILD_FILES "")
+foreach(SHADER ${YG_SHADER_SOURCES})
+    get_filename_component(SHADER_NAME ${SHADER} NAME)
+    set(OUTPUT_FILE ${CMAKE_CURRENT_SOURCE_DIR}/build/${SHADER_NAME})
+    add_custom_command(
+        OUTPUT ${OUTPUT_FILE}
+        COMMAND ${yg_glslang_bin} -I${CMAKE_CURRENT_SOURCE_DIR}/glsl -V100 -o ${OUTPUT_FILE} ${SHADER}
+        DEPENDS ${SHADER}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    list(APPEND ALL_BUILD_FILES ${OUTPUT_FILE})
+endforeach()
+add_custom_target(Shaders DEPENDS
+    ${ALL_BUILD_FILES}
+    ${YG_SHADER_SOURCES}
+)

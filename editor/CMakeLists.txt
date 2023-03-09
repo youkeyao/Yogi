@@ -13,6 +13,8 @@ endif()
 # ---renderer--------------------------------------------
 if ( YG_RENDERER_API STREQUAL "OpenGL" )
     add_compile_definitions(YG_RENDERER_API=1)
+elseif ( YG_RENDERER_API STREQUAL "Vulkan" )
+    add_compile_definitions(YG_RENDERER_API=2)
 else()
     message( FATAL_ERROR "Unknow renderer" )
 endif()

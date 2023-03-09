@@ -1,5 +1,6 @@
 #define GLFW_INCLUDE_NONE
 // #define YG_PROFILE
+#define YG_DEBUG
 
 #include <stdint.h>
 #include <iostream>
@@ -15,15 +16,13 @@
 #include <vector>
 #include <list>
 #include <map>
+#include <set>
 #include <array>
 #include <algorithm>
 #include <utility>
 
-#include "base/core/log.h"
-#include "base/debug/instrumentor.h"
-
-#define BIT(x) (1 << x)
-#define YG_BIND_EVENT_FN(x) std::bind(&x, this, std::placeholders::_1)
+#include "runtime/core/log.h"
+#include "runtime/debug/instrumentor.h"
 
 namespace Yogi {
     template<typename T>

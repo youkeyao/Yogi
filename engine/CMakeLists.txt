@@ -7,10 +7,11 @@ set( GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE )
 # ---window--------------------------------------------
 if ( YG_WINDOW_API STREQUAL "GLFW" )
     add_compile_definitions(YG_WINDOW_API=1)
+    include_directories( vendor/glfw/include )
     add_subdirectory( vendor/glfw )
     file(GLOB_RECURSE
         YG_WINDOW_SOURCES CONFIGURE_DEPENDS
-            src/platform/window/glfw/*.cpp
+            src/backends/window/glfw/*.cpp
     )
     set(yg_window glfw)
 else()
@@ -21,23 +22,57 @@ endif()
 # ---renderer--------------------------------------------
 if ( YG_RENDERER_API STREQUAL "OpenGL" )
     add_compile_definitions(YG_RENDERER_API=1)
+    include_directories( vendor/glad/include )
     add_subdirectory( vendor/glad )
     file(GLOB_RECURSE
         YG_RENDERER_SOURCES CONFIGURE_DEPENDS
-            src/platform/renderer/opengl/*.cpp
+            src/backends/renderer/opengl/*.cpp
     )
     set(yg_renderer glad)
+elseif ( YG_RENDERER_API STREQUAL "Vulkan" )
+    add_compile_definitions(YG_RENDERER_API=2)
+    include_directories( vendor/VulkanSDK/include )
+    file(GLOB_RECURSE
+        YG_RENDERER_SOURCES CONFIGURE_DEPENDS
+            src/backends/renderer/vulkan/*.cpp
+    )
+    if (WIN32)
+        set(yg_renderer ${CMAKE_CURRENT_SOURCE_DIR}/vendor/VulkanSDK/lib/Win32/vulkan-1.lib)
+        add_compile_definitions(YG_VK_LAYER_PATH=${CMAKE_CURRENT_SOURCE_DIR}/vendor/VulkanSDK/bin/Win32)
+    elseif (APPLE)
+        set(yg_renderer ${CMAKE_CURRENT_SOURCE_DIR}/vendor/VulkanSDK/lib/MacOS/libvulkan.1.dylib)
+        add_compile_definitions(YG_VK_LAYER_PATH=${CMAKE_CURRENT_SOURCE_DIR}/vendor/VulkanSDK/bin/MacOS)
+    elseif (UNIX)
+        set(yg_renderer ${CMAKE_CURRENT_SOURCE_DIR}/vendor/VulkanSDK/lib/Linux/libvulkan.so.1.3.239)
+        add_compile_definitions(YG_VK_LAYER_PATH=${CMAKE_CURRENT_SOURCE_DIR}/vendor/VulkanSDK/bin/Linux)
+    else()
+        message(FATAL_ERROR "Unknown platform")
+    endif()
 else()
     message( FATAL_ERROR "Unknow renderer" )
 endif()
 #-------------------------------------------------------------
 
+if (WIN32)
+    set(yg_glslang_bin ${CMAKE_CURRENT_SOURCE_DIR}/vendor/VulkanSDK/bin/Win32/glslangValidator.exe)
+elseif (APPLE)
+    set(yg_glslang_bin ${CMAKE_CURRENT_SOURCE_DIR}/vendor/VulkanSDK/bin/MacOS/glslangValidator)
+elseif (UNIX)
+    set(yg_glslang_bin ${CMAKE_CURRENT_SOURCE_DIR}/vendor/VulkanSDK/bin/Linux/glslangValidator)
+else()
+    message(FATAL_ERROR "Unknown platform")
+endif()
+
+add_subdirectory( src/shaders )
 add_subdirectory( vendor/spdlog )
 add_subdirectory( vendor/stb_image )
 
 file(GLOB_RECURSE
     YG_ENGINE_SOURCES CONFIGURE_DEPENDS
-        src/base/*.cpp
+        src/runtime/*.cpp
+        # src/runtime/core/*.cpp
+        # src/runtime/events/*.cpp
+        # src/runtime/scene/*.cpp
 )
 
 add_library( engine
@@ -63,8 +98,8 @@ target_include_directories( engine
         vendor/glm
         vendor/entt/src
     PRIVATE
-        vendor/glfw/include
-        vendor/glad/include
+    vendor/glad/include
         vendor/spdlog/include
         vendor/stb_image
 )
+add_dependencies(engine Shaders)

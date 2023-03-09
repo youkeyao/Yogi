@@ -151,11 +151,11 @@ namespace Yogi {
             glm::mat4 camera_view = m_editor_camera.get_view();
 
             bool snap = Input::is_key_pressed(YG_KEY_LEFT_ALT);
-			float snap_value = 0.5f;
-			if (m_gizmo_type == ImGuizmo::OPERATION::ROTATE)
-				snap_value = 45.0f;
+            float snap_value = 0.5f;
+            if (m_gizmo_type == ImGuizmo::OPERATION::ROTATE)
+                snap_value = 45.0f;
 
-			float snap_values[3] = { snap_value, snap_value, snap_value };
+            float snap_values[3] = { snap_value, snap_value, snap_value };
             TransformComponent& tc = selected_entity.get_component<TransformComponent>();
             ImGuizmo::Manipulate(glm::value_ptr(camera_view), glm::value_ptr(camera_projection), m_gizmo_type,
                 ImGuizmo::LOCAL, glm::value_ptr((glm::mat4&)tc.transform), nullptr, snap ? snap_values : nullptr);

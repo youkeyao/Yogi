@@ -1,5 +1,5 @@
 #include <engine.h>
-#include "base/core/entrypoint.h"
+#include "runtime/core/entrypoint.h"
 
 #include "sandbox2d.h"
 

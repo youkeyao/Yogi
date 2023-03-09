@@ -1,5 +1,5 @@
 #include <engine.h>
-#include "base/core/entrypoint.h"
+#include "runtime/core/entrypoint.h"
 
 #include "editor_layer.h"
 #include "imgui_layer.h"

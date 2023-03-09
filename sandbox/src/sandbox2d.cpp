@@ -7,17 +7,17 @@ void Sandbox2D::on_attach()
 {
     YG_PROFILE_FUNCTION();
 
-    m_checkerboard_texture = Yogi::Texture2D::create("../sandbox/assets/textures/checkerboard.png");
+    // m_checkerboard_texture = Yogi::Texture2D::create("../sandbox/assets/textures/checkerboard.png");
 
     m_scene = Yogi::CreateRef<Yogi::Scene>();
 
-    m_scene->add_system<Yogi::RenderSystem>();
+    // m_scene->add_system<Yogi::RenderSystem>();
 
-    for (int32_t i = 0; i < 10000; i ++) {
-        Yogi::Entity e = m_scene->create_entity();
-        e.add_component<Yogi::TransformComponent>();
-        e.add_component<Yogi::SpriteRendererComponent>();
-    }
+    // for (int32_t i = 0; i < 10000; i ++) {
+    //     Yogi::Entity e = m_scene->create_entity();
+    //     e.add_component<Yogi::TransformComponent>();
+    //     e.add_component<Yogi::SpriteRendererComponent>();
+    // }
 }
 
 void Sandbox2D::on_detach()
@@ -28,11 +28,11 @@ void Sandbox2D::on_detach()
 void Sandbox2D::on_update(Yogi::Timestep ts)
 {
     YG_PROFILE_FUNCTION();
-    YG_CORE_INFO("{0}", 1.0f / ts);
+    // YG_CORE_INFO("{0}", 1.0f / ts);
 
     // m_camera_controller.on_update(ts);
 
-    Yogi::Renderer2D::reset_stats();
+    // Yogi::Renderer2D::reset_stats();
     {
         // YG_PROFILE_SCOPE("Render prep");
         // Yogi::RenderCommand::set_clear_color({ 0.1f, 0.1f, 0.1f, 1.0f });
