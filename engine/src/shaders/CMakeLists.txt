@@ -17,7 +17,7 @@ foreach(SHADER ${YG_SHADER_SOURCES})
     set(OUTPUT_FILE ${CMAKE_CURRENT_SOURCE_DIR}/build/${SHADER_NAME})
     add_custom_command(
         OUTPUT ${OUTPUT_FILE}
-        COMMAND ${yg_glslang_bin} -I${CMAKE_CURRENT_SOURCE_DIR}/glsl -V100 -o ${OUTPUT_FILE} ${SHADER}
+        COMMAND ${yg_glslang_bin} -I${CMAKE_CURRENT_SOURCE_DIR}/glsl -G -o ${OUTPUT_FILE} ${SHADER}
         DEPENDS ${SHADER}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
     list(APPEND ALL_BUILD_FILES ${OUTPUT_FILE})

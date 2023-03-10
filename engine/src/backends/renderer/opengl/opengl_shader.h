@@ -24,7 +24,7 @@ namespace Yogi {
         void set_float4(const std::string& name, const glm::vec4& value) const override;
         void set_mat4(const std::string& name, const glm::mat4& value) const override;
     private:
-        std::vector<uint8_t> read_file(const std::string& filepath);
+        std::vector<uint32_t> read_file(const std::string& filepath);
     private:
         uint32_t m_renderer_id;
         std::string m_name;

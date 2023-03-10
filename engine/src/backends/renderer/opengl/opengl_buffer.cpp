@@ -13,6 +13,11 @@ namespace Yogi {
         return CreateRef<OpenGLIndexBuffer>(indices, size);
     }
 
+    Ref<UniformBuffer> UniformBuffer::create(uint32_t size, uint32_t binding)
+    {
+        return CreateRef<OpenGLUniformBuffer>(size, binding);
+    }
+
     //
     // Vertex buffer
     //
@@ -85,5 +90,27 @@ namespace Yogi {
         
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     }
+
+    //
+    // Uniform buffer
+    //
+
+    OpenGLUniformBuffer::OpenGLUniformBuffer(uint32_t size, uint32_t binding)
+	{
+		glCreateBuffers(1, &m_renderer_id);
+		glNamedBufferData(m_renderer_id, size, nullptr, GL_DYNAMIC_DRAW);
+		glBindBufferBase(GL_UNIFORM_BUFFER, binding, m_renderer_id);
+	}
+
+	OpenGLUniformBuffer::~OpenGLUniformBuffer()
+	{
+		glDeleteBuffers(1, &m_renderer_id);
+	}
+
+
+	void OpenGLUniformBuffer::set_data(const void* data, uint32_t size, uint32_t offset)
+	{
+		glNamedBufferSubData(m_renderer_id, offset, size, data);
+	}
 
 }

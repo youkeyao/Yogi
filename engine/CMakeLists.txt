@@ -66,6 +66,7 @@ endif()
 add_subdirectory( src/shaders )
 add_subdirectory( vendor/spdlog )
 add_subdirectory( vendor/stb_image )
+add_subdirectory( vendor/SPIRV-Cross )
 
 file(GLOB_RECURSE
     YG_ENGINE_SOURCES CONFIGURE_DEPENDS
@@ -85,6 +86,7 @@ target_link_libraries( engine
     PUBLIC
         spdlog
         stb_image
+        spirv-cross-glsl
         ${yg_window}
         ${yg_renderer}
 )
@@ -98,7 +100,7 @@ target_include_directories( engine
         vendor/glm
         vendor/entt/src
     PRIVATE
-    vendor/glad/include
+        vendor/SPIRV-Cross
         vendor/spdlog/include
         vendor/stb_image
 )

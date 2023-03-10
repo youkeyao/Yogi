@@ -1,5 +1,6 @@
 #include "backends/renderer/opengl/opengl_shader.h"
 #include <glm/gtc/type_ptr.hpp>
+#include <spirv_glsl.hpp>
 
 #define SHADER_ROOT "../engine/src/shaders/build/"
 
@@ -30,10 +31,14 @@ namespace Yogi {
         GLuint program = glCreateProgram();
         std::vector<GLuint> shader_ids;
         for (auto type : types) {
-            std::vector<uint8_t> shader_bin = read_file(SHADER_ROOT + name + "." + type);
+            std::vector<uint32_t> shader_bin = read_file(SHADER_ROOT + name + "." + type);
+            spirv_cross::CompilerGLSL glsl(std::move(shader_bin));
+            glsl.set_common_options({330});
+            std::string shader_source = glsl.compile();
             GLuint shader_id = shader_ids.emplace_back(glCreateShader(shader_type_from_string(type)));
-            glShaderBinary(1, &shader_id, GL_SHADER_BINARY_FORMAT_SPIR_V, shader_bin.data(), shader_bin.size());
-            glSpecializeShader(shader_id, "main", 0, nullptr, nullptr);
+            const GLchar *source_cstr = shader_source.c_str();
+            glShaderSource(shader_id, 1, &source_cstr, 0);
+            glCompileShader(shader_id);
             GLint is_compiled = 0;
             glGetShaderiv(shader_id, GL_COMPILE_STATUS, &is_compiled);
             if (is_compiled == GL_FALSE) {
@@ -83,8 +88,8 @@ namespace Yogi {
         glDeleteProgram(m_renderer_id);
     }
 
-    std::vector<uint8_t> OpenGLShader::read_file(const std::string& filepath) {
-        std::vector<uint8_t> buffer;
+    std::vector<uint32_t> OpenGLShader::read_file(const std::string& filepath) {
+        std::vector<uint32_t> buffer;
         std::ifstream in(filepath, std::ios::ate | std::ios::binary);
 
         if (!in.is_open()) {
@@ -93,9 +98,9 @@ namespace Yogi {
         }
 
         in.seekg(0, std::ios::end);
-        buffer.resize(in.tellg());
+        buffer.resize(in.tellg() / 4);
         in.seekg(0, std::ios::beg);
-        in.read((char*)buffer.data(), buffer.size());
+        in.read((char*)buffer.data(), buffer.size() * 4);
         in.close();
 
         return buffer;

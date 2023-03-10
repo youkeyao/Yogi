@@ -10,6 +10,9 @@
 [submodule "engine/vendor/entt"]
 	path = engine/vendor/entt
 	url = https://github.com/skypjack/entt.git
+[submodule "engine/vendor/SPIRV-Cross"]
+	path = engine/vendor/SPIRV-Cross
+	url = https://github.com/KhronosGroup/SPIRV-Cross.git
 [submodule "editor/vendor/imgui"]
 	path = editor/vendor/imgui
 	url = https://github.com/ocornut/imgui.git

@@ -35,6 +35,13 @@ namespace Yogi {
         glm::vec4 quad_vertex_positions[4];
 
         Renderer2D::Statistics stats;
+
+        struct SceneData
+        {
+            glm::mat4 projection_view;
+        };
+        SceneData scene_data;
+        Ref<UniformBuffer> camera_uniform_buffer;
     };
 
     static Renderer2DData s_data;
@@ -81,9 +88,11 @@ namespace Yogi {
         s_data.texture_shader->set_int_array("u_Textures", samplers, Renderer2DData::max_texture_slots);
 
         s_data.quad_vertex_positions[0] = { -0.5f, -0.5f, 0.0f, 1.0f };
-		s_data.quad_vertex_positions[1] = {  0.5f, -0.5f, 0.0f, 1.0f };
-		s_data.quad_vertex_positions[2] = {  0.5f,  0.5f, 0.0f, 1.0f };
-		s_data.quad_vertex_positions[3] = { -0.5f,  0.5f, 0.0f, 1.0f };
+        s_data.quad_vertex_positions[1] = {  0.5f, -0.5f, 0.0f, 1.0f };
+        s_data.quad_vertex_positions[2] = {  0.5f,  0.5f, 0.0f, 1.0f };
+        s_data.quad_vertex_positions[3] = { -0.5f,  0.5f, 0.0f, 1.0f };
+
+        s_data.camera_uniform_buffer = UniformBuffer::create(sizeof(Renderer2DData::SceneData), 0);
     }
 
     void Renderer2D::shutdown()
@@ -97,8 +106,8 @@ namespace Yogi {
     {
         YG_PROFILE_FUNCTION();
 
-        s_data.texture_shader->bind();
-        s_data.texture_shader->set_mat4("u_projection_view", projection_view_matrix);
+        s_data.scene_data.projection_view = projection_view_matrix;
+        s_data.camera_uniform_buffer->set_data(&s_data.scene_data, sizeof(Renderer2DData::SceneData));
     }
 
     void Renderer2D::flush()
@@ -155,7 +164,7 @@ namespace Yogi {
             s_data.quad_vertices_cur->texid = texture_index;
             s_data.quad_vertices_cur->entityid = entity_id;
             s_data.quad_vertices_cur++;
-		}
+        }
 
         s_data.quad_index_count += 6;
         s_data.stats.quad_count++;

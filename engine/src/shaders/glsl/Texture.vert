@@ -1,8 +1,8 @@
 #version 460 core
 
-layout(set = 0, binding = 0) readonly buffer SceneData
+layout(set = 0, binding = 0) uniform SceneData
 {
-	mat4 projection_view;
+    mat4 u_projection_view;
 };
 
 layout(location = 0) in vec3 a_Position;
@@ -22,5 +22,5 @@ void main()
     v_TexCoord = a_TexCoord;
     v_TexID = a_TexID;
     v_EntityID = a_EntityID;
-    gl_Position = projection_view * vec4(a_Position, 1.0);
+    gl_Position = u_projection_view * vec4(a_Position, 1.0);
 }
