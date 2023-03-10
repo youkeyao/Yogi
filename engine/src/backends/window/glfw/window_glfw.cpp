@@ -28,7 +28,7 @@ namespace Yogi {
 
             int success = glfwInit();
             YG_CORE_ASSERT(success, "Could not initialize GLFW!");
-            #if YG_RENDERER_API == 2
+            #if YG_RENDERER_API == YG_RENDERER_VULKAN
                 glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
             #endif
             glfwSetErrorCallback(glfw_error_callback);
@@ -43,7 +43,9 @@ namespace Yogi {
 
         m_context = GraphicsContext::create(this);
         glfwSetWindowUserPointer(m_window, &m_data);
-        set_vsync(true);
+        #if YG_RENDERER_API == YG_RENDERER_OPENGL
+            set_vsync(true);
+        #endif
 
         // Set GLFW callbacks
         glfwSetWindowSizeCallback(m_window, [](GLFWwindow* window, int width, int height) {
@@ -129,7 +131,7 @@ namespace Yogi {
         YG_PROFILE_FUNCTION();
 
         glfwPollEvents();
-        glfwSwapBuffers(m_window);
+        m_context->swap_buffers();
     }
 
     void WindowGLFW::set_vsync(bool enabled)

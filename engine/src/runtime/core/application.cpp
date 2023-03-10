@@ -1,5 +1,5 @@
 #include "runtime/core/application.h"
-#include "runtime/renderer/renderer.h"
+// #include "runtime/renderer/renderer.h"
 
 namespace Yogi {
 
@@ -15,14 +15,14 @@ namespace Yogi {
         m_window = Window::create(WindowProps(name));
         m_window->set_event_callback(YG_BIND_EVENT_FN(Application::on_event));
 
-        Renderer::init();
+        // Renderer::init();
     }
 
     Application::~Application()
     {
         YG_PROFILE_FUNCTION();
 
-        Renderer::shutdown();
+        // Renderer::shutdown();
     }
 
     void Application::push_layer(Layer* layer)
@@ -105,7 +105,7 @@ namespace Yogi {
         }
 
         m_minimized = false;
-        Renderer::on_window_resize(e.get_width(), e.get_height());
+        // Renderer::on_window_resize(e.get_width(), e.get_height());
         return false;
     }
 

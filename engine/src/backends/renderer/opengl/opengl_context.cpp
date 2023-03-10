@@ -1,6 +1,6 @@
 #include "backends/renderer/opengl/opengl_context.h"
 #include <glad/glad.h>
-#if YG_WINDOW_API == 1
+#if YG_WINDOW_API == YG_WINDOW_GLFW
     #include <GLFW/glfw3.h>
 #endif
 
@@ -20,7 +20,7 @@ namespace Yogi {
     {
         YG_PROFILE_FUNCTION();
 
-        #if YG_WINDOW_API == 1
+        #if YG_WINDOW_API == YG_WINDOW_GLFW
             glfwMakeContextCurrent((GLFWwindow*)m_window->get_native_window());
             int status = gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
         #endif
@@ -33,6 +33,15 @@ namespace Yogi {
         YG_CORE_INFO("    Vendor:   {0}", vendor);
         YG_CORE_INFO("    Renderer: {0}", renderer);
         YG_CORE_INFO("    Version:  {0}", version);
+    }
+
+    void OpenGLContext::swap_buffers()
+    {
+        YG_PROFILE_FUNCTION();
+        
+        #if YG_WINDOW_API == YG_WINDOW_GLFW
+            glfwSwapBuffers((GLFWwindow*)m_window->get_native_window());
+        #endif
     }
 
 }

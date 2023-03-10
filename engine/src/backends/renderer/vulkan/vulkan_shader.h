@@ -1,22 +1,22 @@
 #pragma once
 
 #include "runtime/renderer/shader.h"
-#include <glad/glad.h>
+#include <vulkan/vulkan.h>
 
 namespace Yogi {
 
-    class OpenGLShader : public Shader
+    class VulkanShader : public Shader
     {
     public:
-        OpenGLShader(const std::string& name, const std::vector<std::string>& types = { "vert", "frag" });
-        ~OpenGLShader();
+        VulkanShader(const std::string& name, const std::vector<std::string>& types = { "vert", "frag" });
+        ~VulkanShader();
 
         void bind() const override;
         void unbind() const override;
 
         const std::string& get_name() const override {return m_name;}
     private:
-        std::vector<uint32_t> read_file(const std::string& filepath);
+        std::vector<uint8_t> read_file(const std::string& filepath);
     private:
         uint32_t m_renderer_id;
         std::string m_name;

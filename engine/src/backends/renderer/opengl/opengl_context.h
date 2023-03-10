@@ -12,6 +12,7 @@ namespace Yogi
         ~OpenGLContext() {}
 
         void init() override;
+        void swap_buffers() override;
     private:
         Window* m_window;
     };

@@ -1,8 +1,5 @@
 #include "backends/renderer/opengl/opengl_shader.h"
-#include <glm/gtc/type_ptr.hpp>
 #include <spirv_glsl.hpp>
-
-#define SHADER_ROOT "../engine/src/shaders/build/"
 
 namespace Yogi {
 
@@ -31,7 +28,7 @@ namespace Yogi {
         GLuint program = glCreateProgram();
         std::vector<GLuint> shader_ids;
         for (auto type : types) {
-            std::vector<uint32_t> shader_bin = read_file(SHADER_ROOT + name + "." + type);
+            std::vector<uint32_t> shader_bin = read_file(YG_SHADER_DIR + name + "." + type);
             spirv_cross::CompilerGLSL glsl(std::move(shader_bin));
             glsl.set_common_options({330});
             std::string shader_source = glsl.compile();
@@ -88,7 +85,8 @@ namespace Yogi {
         glDeleteProgram(m_renderer_id);
     }
 
-    std::vector<uint32_t> OpenGLShader::read_file(const std::string& filepath) {
+    std::vector<uint32_t> OpenGLShader::read_file(const std::string& filepath)
+    {
         std::vector<uint32_t> buffer;
         std::ifstream in(filepath, std::ios::ate | std::ios::binary);
 
@@ -118,49 +116,6 @@ namespace Yogi {
         YG_PROFILE_FUNCTION();
 
         glUseProgram(0);
-    }
-
-    void OpenGLShader::set_int(const std::string& name, int value) const
-    {
-        YG_PROFILE_FUNCTION();
-
-        const GLint location = glGetUniformLocation(m_renderer_id, name.c_str());
-        glUniform1i(location, value);
-    }
-    void OpenGLShader::set_int_array(const std::string& name, int* values, uint32_t count) const
-    {
-        YG_PROFILE_FUNCTION();
-
-        const GLint location = glGetUniformLocation(m_renderer_id, name.c_str());
-        glUniform1iv(location, count, values);
-    }
-    void OpenGLShader::set_float(const std::string& name, float value) const
-    {
-        YG_PROFILE_FUNCTION();
-
-        const GLint location = glGetUniformLocation(m_renderer_id, name.c_str());
-        glUniform1f(location, value);
-    }
-    void OpenGLShader::set_float3(const std::string& name, const glm::vec3& value) const
-    {
-        YG_PROFILE_FUNCTION();
-
-        const GLint location = glGetUniformLocation(m_renderer_id, name.c_str());
-        glUniform3f(location, value.x, value.y, value.z);
-    }
-    void OpenGLShader::set_float4(const std::string& name, const glm::vec4& value) const
-    {
-        YG_PROFILE_FUNCTION();
-
-        const GLint location = glGetUniformLocation(m_renderer_id, name.c_str());
-        glUniform4f(location, value.x, value.y, value.z, value.w);
-    }
-    void OpenGLShader::set_mat4(const std::string& name, const glm::mat4& value) const
-    {
-        YG_PROFILE_FUNCTION();
-
-        const GLint location = glGetUniformLocation(m_renderer_id, name.c_str());
-        glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(value));
     }
 
 }

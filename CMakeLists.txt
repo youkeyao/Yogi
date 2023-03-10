@@ -5,9 +5,35 @@ set( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_HOME_DIRECTORY}/bin )
 
 project( Yogi )
 
+set ( YG_WINDOW_GLFW 1 )
+set ( YG_RENDERER_OPENGL 1 )
+set ( YG_RENDERER_VULKAN 2 )
+
 set ( YG_WINDOW_API "GLFW" )
-set ( YG_RENDERER_API "OpenGL" )
+set ( YG_RENDERER_API "Vulkan" )
+
+# ---window--------------------------------------------
+if ( YG_WINDOW_API STREQUAL "GLFW" )
+    add_compile_definitions(YG_WINDOW_API=${YG_WINDOW_GLFW})
+else()
+    message( FATAL_ERROR "Unknow window" )
+endif()
+#-------------------------------------------------------------
+
+# ---renderer--------------------------------------------
+if ( YG_RENDERER_API STREQUAL "OpenGL" )
+    add_compile_definitions(YG_RENDERER_API=${YG_RENDERER_OPENGL})
+elseif ( YG_RENDERER_API STREQUAL "Vulkan" )
+    add_compile_definitions(YG_RENDERER_API=${YG_RENDERER_VULKAN})
+else()
+    message( FATAL_ERROR "Unknow renderer" )
+endif()
+#-------------------------------------------------------------
+
+if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
+    add_compile_definitions(YG_DEBUG)
+endif()
 
 add_subdirectory( engine )
 add_subdirectory( sandbox )
-add_subdirectory( editor )
+# add_subdirectory( editor )

@@ -2,24 +2,6 @@ project (Editor)
 
 file(GLOB_RECURSE YG_EDITOR_SOURCES CONFIGURE_DEPENDS src/*.cpp)
 
-# ---window--------------------------------------------
-if ( YG_WINDOW_API STREQUAL "GLFW" )
-    add_compile_definitions(YG_WINDOW_API=1)
-else()
-    message( FATAL_ERROR "Unknow window" )
-endif()
-#-------------------------------------------------------------
-
-# ---renderer--------------------------------------------
-if ( YG_RENDERER_API STREQUAL "OpenGL" )
-    add_compile_definitions(YG_RENDERER_API=1)
-elseif ( YG_RENDERER_API STREQUAL "Vulkan" )
-    add_compile_definitions(YG_RENDERER_API=2)
-else()
-    message( FATAL_ERROR "Unknow renderer" )
-endif()
-#-------------------------------------------------------------
-
 # ---imgui----------------------------------------------------
 file(GLOB
     IMGUI_SOURSES CONFIGURE_DEPENDS

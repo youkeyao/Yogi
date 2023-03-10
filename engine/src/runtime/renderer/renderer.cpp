@@ -28,8 +28,6 @@ namespace Yogi {
     void Renderer::submit(const Ref<Shader>& shader, const Ref<VertexArray>& vertex_array, const glm::mat4& transform)
     {
         shader->bind();
-        shader->set_mat4("u_view_projection", m_scene_data->view_projection_matrix);
-        shader->set_mat4("u_transform", transform);
 
         vertex_array->bind();
         RenderCommand::draw_indexed(vertex_array);

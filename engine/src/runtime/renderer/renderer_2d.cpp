@@ -84,8 +84,6 @@ namespace Yogi {
             samplers[i] = i;
         }
         s_data.texture_shader = Yogi::Shader::create("Texture");
-        s_data.texture_shader->bind();
-        s_data.texture_shader->set_int_array("u_Textures", samplers, Renderer2DData::max_texture_slots);
 
         s_data.quad_vertex_positions[0] = { -0.5f, -0.5f, 0.0f, 1.0f };
         s_data.quad_vertex_positions[1] = {  0.5f, -0.5f, 0.0f, 1.0f };
