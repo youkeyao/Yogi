@@ -24,10 +24,9 @@ namespace Yogi {
         inline void set_event_callback(const EventCallbackFn& callback) override {
             m_data.event_callback = callback;
         };
-        void set_vsync(bool enabled) override;
-        bool is_vsync() const override;
 
         void* get_native_window() const override { return m_window; }
+        void* get_context() const override { return m_context.get(); }
 
     private:
         GLFWwindow* m_window;
@@ -36,7 +35,6 @@ namespace Yogi {
         struct WindowData {
             std::string title;
             uint32_t width, height;
-            bool vsync;
             EventCallbackFn event_callback;
         };
 

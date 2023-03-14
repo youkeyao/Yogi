@@ -18,7 +18,7 @@ namespace Yogi {
         void push_layer(Layer* layer);
         void push_overlay(Layer* layer);
 
-        inline Window& get_window() { return*m_window; }
+        inline Window& get_window() { return *m_window; }
         inline static Application& get() { return *ms_instance; }
     private:
         bool on_window_close(WindowCloseEvent& e);

@@ -13,13 +13,10 @@ namespace Yogi {
 
         void bind() const override;
         void unbind() const override;
-
-        const std::string& get_name() const override {return m_name;}
     private:
         std::vector<uint32_t> read_file(const std::string& filepath);
     private:
         uint32_t m_renderer_id;
-        std::string m_name;
     };
 
 }

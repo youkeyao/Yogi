@@ -18,13 +18,8 @@ namespace Yogi {
         void unbind() const override;
 
         void set_data(const void* data, uint32_t size) override;
-
-        const BufferLayout& get_layout() const override { return m_layout; }
-        void set_layout(const BufferLayout& layout) override { m_layout = layout; }
-
     private:
         uint32_t m_renderer_id;
-        BufferLayout m_layout;
     };
 
     //
@@ -41,7 +36,6 @@ namespace Yogi {
         void unbind() const override;
 
         uint32_t get_count() const override { return m_count; }
-
     private:
         uint32_t m_renderer_id;
         uint32_t m_count;
@@ -52,14 +46,14 @@ namespace Yogi {
     //
 
     class OpenGLUniformBuffer : public UniformBuffer
-	{
-	public:
-		OpenGLUniformBuffer(uint32_t size, uint32_t binding);
-		~OpenGLUniformBuffer();
+    {
+    public:
+        OpenGLUniformBuffer(uint32_t size, uint32_t binding);
+        ~OpenGLUniformBuffer();
 
-		void set_data(const void* data, uint32_t size, uint32_t offset = 0) override;
-	private:
-		uint32_t m_renderer_id = 0;
-	};
+        void set_data(const void* data, uint32_t size, uint32_t offset = 0) override;
+    private:
+        uint32_t m_renderer_id = 0;
+    };
 
 }

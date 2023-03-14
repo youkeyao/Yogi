@@ -42,6 +42,8 @@ namespace Yogi {
     {
         YG_PROFILE_FUNCTION();
 
+        imgui_end();
+        
         ImGui_Renderer_Shutdown();
         ImGui_Window_Shutdown();
 
@@ -52,7 +54,6 @@ namespace Yogi {
     {
         imgui_end();
         imgui_begin();
-        
     }
 
     void ImguiLayer::on_event(Event& e)

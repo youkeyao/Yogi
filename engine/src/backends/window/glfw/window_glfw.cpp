@@ -15,8 +15,6 @@ namespace Yogi {
 
     WindowGLFW::WindowGLFW(const WindowProps& props)
     {
-        YG_PROFILE_FUNCTION();
-
         m_data.title = props.title;
         m_data.width = props.width;
         m_data.height = props.height;
@@ -24,8 +22,6 @@ namespace Yogi {
         YG_CORE_INFO("Creating Window {0} ({1} {2})", props.title, props.width, props.height);
 
         if (!s_glfw_initialized) {
-            YG_PROFILE_SCOPE("glfwInit");
-
             int success = glfwInit();
             YG_CORE_ASSERT(success, "Could not initialize GLFW!");
             #if YG_RENDERER_API == YG_RENDERER_VULKAN
@@ -35,17 +31,10 @@ namespace Yogi {
             s_glfw_initialized = true;
         }
 
-        {
-            YG_PROFILE_SCOPE("glfwCreateWindow");
-            
-            m_window = glfwCreateWindow(m_data.width, m_data.height, m_data.title.c_str(), nullptr, nullptr);
-        }
+        m_window = glfwCreateWindow(m_data.width, m_data.height, m_data.title.c_str(), nullptr, nullptr);
 
         m_context = GraphicsContext::create(this);
         glfwSetWindowUserPointer(m_window, &m_data);
-        #if YG_RENDERER_API == YG_RENDERER_OPENGL
-            set_vsync(true);
-        #endif
 
         // Set GLFW callbacks
         glfwSetWindowSizeCallback(m_window, [](GLFWwindow* window, int width, int height) {
@@ -120,34 +109,14 @@ namespace Yogi {
 
     WindowGLFW::~WindowGLFW()
     {
-        YG_PROFILE_FUNCTION();
-
         glfwDestroyWindow(m_window);
         glfwTerminate();
     }
 
     void WindowGLFW::on_update()
     {
-        YG_PROFILE_FUNCTION();
-
         glfwPollEvents();
         m_context->swap_buffers();
     }
-
-    void WindowGLFW::set_vsync(bool enabled)
-    {
-        YG_PROFILE_FUNCTION();
-        
-        if (enabled) {
-            glfwSwapInterval(1);
-        }
-        else {
-            glfwSwapInterval(0);
-        }
-
-        m_data.vsync = enabled;
-    }
-
-    bool WindowGLFW::is_vsync() const { return m_data.vsync; }
 
 }

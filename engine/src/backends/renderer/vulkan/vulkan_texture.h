@@ -1,16 +1,16 @@
 #pragma once
 
 #include "runtime/renderer/texture.h"
-#include <glad/glad.h>
+#include <vulkan/vulkan.h>
 
 namespace Yogi {
 
-    class OpenGLTexture2D : public Texture2D
+    class VulkanTexture2D : public Texture2D
     {
     public:
-        OpenGLTexture2D(uint32_t width, uint32_t height, TextureFormat format = TextureFormat::RGBA8);
-        OpenGLTexture2D(const std::string& path);
-        ~OpenGLTexture2D();
+        VulkanTexture2D(uint32_t width, uint32_t height, TextureFormat format = TextureFormat::RGBA8);
+        VulkanTexture2D(const std::string& path);
+        ~VulkanTexture2D();
 
         uint32_t get_width() const override { return m_width; }
         uint32_t get_height() const override{ return m_height; }
@@ -23,8 +23,9 @@ namespace Yogi {
     private:
         uint32_t m_width, m_height;
         uint32_t m_renderer_id;
-        GLenum m_internal_format;
-        GLenum m_data_format;
+        VkImage m_image;
+        VkDeviceMemory m_image_memory;
+        VkFormat m_internal_format;
     };
 
 }

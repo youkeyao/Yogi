@@ -23,8 +23,6 @@ namespace Yogi {
 
     OpenGLShader::OpenGLShader(const std::string& name, const std::vector<std::string>& types) : m_name(name)
     {
-        YG_PROFILE_FUNCTION();
-
         GLuint program = glCreateProgram();
         std::vector<GLuint> shader_ids;
         for (auto type : types) {
@@ -80,8 +78,6 @@ namespace Yogi {
 
     OpenGLShader::~OpenGLShader()
     {
-        YG_PROFILE_FUNCTION();
-
         glDeleteProgram(m_renderer_id);
     }
 
@@ -96,9 +92,9 @@ namespace Yogi {
         }
 
         in.seekg(0, std::ios::end);
-        buffer.resize(in.tellg() / 4);
+        buffer.resize(in.tellg() / sizeof(uint32_t));
         in.seekg(0, std::ios::beg);
-        in.read((char*)buffer.data(), buffer.size() * 4);
+        in.read((char*)buffer.data(), buffer.size() * sizeof(uint32_t));
         in.close();
 
         return buffer;
@@ -106,15 +102,11 @@ namespace Yogi {
 
     void OpenGLShader::bind() const
     {
-        YG_PROFILE_FUNCTION();
-
         glUseProgram(m_renderer_id);
     }
 
     void OpenGLShader::unbind() const
     {
-        YG_PROFILE_FUNCTION();
-
         glUseProgram(0);
     }
 

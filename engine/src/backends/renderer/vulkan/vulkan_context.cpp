@@ -3,24 +3,6 @@
     #include <GLFW/glfw3.h>
 #endif
 
-std::vector<uint8_t> read_file(const std::string& filepath) {
-        std::vector<uint8_t> buffer;
-        std::ifstream in(filepath, std::ios::ate | std::ios::binary);
-
-        if (!in.is_open()) {
-            YG_CORE_ERROR("Could not open file '{0}'!", filepath);
-            return buffer;
-        }
-
-        in.seekg(0, std::ios::end);
-        buffer.resize(in.tellg());
-        in.seekg(0, std::ios::beg);
-        in.read((char*)buffer.data(), buffer.size());
-        in.close();
-
-        return buffer;
-    }
-
 namespace Yogi {
 
     const int MAX_FRAMES_IN_FLIGHT = 2;
@@ -50,9 +32,22 @@ namespace Yogi {
         std::vector<VkPresentModeKHR> presentModes;
     };
 
-    bool checkValidationLayerSupport() {
-        setenv("VK_LAYER_PATH", YG_VK_LAYER_PATH, 1);
+    static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
+        VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+        VkDebugUtilsMessageTypeFlagsEXT messageType,
+        const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+        void* pUserData) {
 
+        if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
+            YG_CORE_ERROR("validation layer: {0}", pCallbackData->pMessage);
+        }
+        // else {
+        //     YG_CORE_INFO("validation layer: {0}", pCallbackData->pMessage);
+        // }
+
+        return VK_FALSE;
+    }
+    bool checkValidationLayerSupport() {
         uint32_t layerCount;
         vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
 
@@ -102,21 +97,6 @@ namespace Yogi {
         if (func != nullptr) {
             func(instance, debugMessenger, pAllocator);
         }
-    }
-    static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
-        VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-        VkDebugUtilsMessageTypeFlagsEXT messageType,
-        const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-        void* pUserData) {
-
-        if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
-            YG_CORE_ERROR("validation layer: {0}", pCallbackData->pMessage);
-        }
-        else {
-            YG_CORE_INFO("validation layer: {0}", pCallbackData->pMessage);
-        }
-
-        return VK_FALSE;
     }
     void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo) {
         createInfo = {};
@@ -226,16 +206,26 @@ namespace Yogi {
 
     VulkanContext::VulkanContext(Window* window) : m_window(window)
     {
+        setenv("VK_LAYER_PATH", YG_VK_LAYER_PATH, 1);
         init();
+
+        VkPhysicalDeviceProperties properties;
+        vkGetPhysicalDeviceProperties(m_physical_device, &properties);
+        YG_CORE_INFO("Vulkan Info:");
+        YG_CORE_INFO("    Vendor:   {0}", properties.vendorID);
+        YG_CORE_INFO("    Renderer: {0}", properties.deviceName);
+        YG_CORE_INFO("    Version:  {0}", properties.apiVersion);
+
+        begin_command_buffer();
     }
 
     VulkanContext::~VulkanContext()
     {
+        end_command_buffer();
+        
         vkDeviceWaitIdle(m_device);
 
         cleanup_swap_chain();
-        vkDestroyPipeline(m_device, m_graphics_pipeline, nullptr);
-        vkDestroyPipelineLayout(m_device, m_pipeline_layout, nullptr);
         vkDestroyRenderPass(m_device, m_render_pass, nullptr);
         for (std::size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i ++) {
             vkDestroySemaphore(m_device, m_image_available_semaphores[i], nullptr);
@@ -252,76 +242,80 @@ namespace Yogi {
         vkDestroyInstance(m_instance, nullptr);
     }
 
-    VkShaderModule VulkanContext::create_shader_module(const std::vector<uint8_t>& code) {
-        VkShaderModuleCreateInfo create_info{};
-        create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-        create_info.codeSize = code.size();
-        create_info.pCode = reinterpret_cast<const uint32_t*>(code.data());
-
-        VkShaderModule shader_module;
-        VkResult result = vkCreateShaderModule(m_device, &create_info, nullptr, &shader_module);
-        YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to create shader module!");
-        return shader_module;
-    }
-
-    void VulkanContext::record_command_buffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
-        VkCommandBufferBeginInfo beginInfo{};
-        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        beginInfo.flags = 0;
-        beginInfo.pInheritanceInfo = nullptr;
-
-        VkResult result = vkBeginCommandBuffer(commandBuffer, &beginInfo);
-        YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to begin recording command buffer!");
-
-        VkRenderPassBeginInfo renderPassInfo{};
-        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        renderPassInfo.renderPass = m_render_pass;
-        renderPassInfo.framebuffer = m_swap_chain_frame_buffers[0];
-        renderPassInfo.renderArea.offset = {0, 0};
-        renderPassInfo.renderArea.extent = m_swap_chain_extent;
-        VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
-        renderPassInfo.clearValueCount = 1;
-        renderPassInfo.pClearValues = &clearColor;
-        vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphics_pipeline);
-        VkViewport viewport{};
-        viewport.x = 0.0f;
-        viewport.y = 0.0f;
-        viewport.width = static_cast<float>(m_swap_chain_extent.width);
-        viewport.height = static_cast<float>(m_swap_chain_extent.height);
-        viewport.minDepth = 0.0f;
-        viewport.maxDepth = 1.0f;
-        vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-
-        VkRect2D scissor{};
-        scissor.offset = {0, 0};
-        scissor.extent = m_swap_chain_extent;
-        vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
-
-        vkCmdDraw(commandBuffer, 3, 1, 0, 0);
-
-        vkCmdEndRenderPass(commandBuffer);
-        
-        result = vkEndCommandBuffer(commandBuffer);
-        YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to record command buffer!");
-    }
-
-    void VulkanContext::recreate_swap_chain()
+    uint32_t VulkanContext::find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties)
     {
-        vkDeviceWaitIdle(m_device);
+        VkPhysicalDeviceMemoryProperties mem_properties;
+        vkGetPhysicalDeviceMemoryProperties(m_physical_device, &mem_properties);
 
-        cleanup_swap_chain();
+        for (uint32_t i = 0; i < mem_properties.memoryTypeCount; i++) {
+            if ((type_filter & (1 << i)) && (mem_properties.memoryTypes[i].propertyFlags & properties) == properties) {
+                return i;
+            }
+        }
 
-        create_swap_chain();
-        create_image_views();
-        create_frame_buffers();
+        YG_CORE_ERROR("Failed to find suitable memory type!");
+        return 0;
+    }
+
+    void VulkanContext::create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& buffer_memory)
+    {
+        VkBufferCreateInfo buffer_info{};
+        buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        buffer_info.size = size;
+        buffer_info.usage = usage;
+        buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        VkResult result = vkCreateBuffer(m_device, &buffer_info, nullptr, &buffer);
+        YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to create buffer!");
+
+        VkMemoryRequirements mem_requirements;
+        vkGetBufferMemoryRequirements(m_device, buffer, &mem_requirements);
+
+        VkMemoryAllocateInfo alloc_info{};
+        alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        alloc_info.allocationSize = mem_requirements.size;
+        alloc_info.memoryTypeIndex = find_memory_type(mem_requirements.memoryTypeBits, properties);
+
+        result = vkAllocateMemory(m_device, &alloc_info, nullptr, &buffer_memory);
+        YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to allocate buffer memory!");
+
+        vkBindBufferMemory(m_device, buffer, buffer_memory, 0);
+    }
+
+    void VulkanContext::copy_buffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size)
+    {
+        VkCommandBufferAllocateInfo alloc_info{};
+        alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        alloc_info.commandPool = m_command_pool;
+        alloc_info.commandBufferCount = 1;
+
+        VkCommandBuffer command_buffer;
+        vkAllocateCommandBuffers(m_device, &alloc_info, &command_buffer);
+
+        VkCommandBufferBeginInfo begin_info{};
+        begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+        vkBeginCommandBuffer(command_buffer, &begin_info);
+        VkBufferCopy copy_region{};
+        copy_region.size = size;
+        vkCmdCopyBuffer(command_buffer, src_buffer, dst_buffer, 1, &copy_region);
+        vkEndCommandBuffer(command_buffer);
+
+        VkSubmitInfo submit_info{};
+        submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submit_info.commandBufferCount = 1;
+        submit_info.pCommandBuffers = &command_buffer;
+
+        vkQueueSubmit(m_graphics_queue, 1, &submit_info, VK_NULL_HANDLE);
+        vkQueueWaitIdle(m_graphics_queue);
+
+        vkFreeCommandBuffers(m_device, m_command_pool, 1, &command_buffer);
     }
 
     void VulkanContext::init()
     {
-        YG_PROFILE_FUNCTION();
-
         create_instance();
         setup_debug_messenger();
         create_surface();
@@ -330,21 +324,21 @@ namespace Yogi {
         create_swap_chain();
         create_image_views();
         create_render_pass();
-        create_graphics_pipeline();
         create_frame_buffers();
         create_command_pool();
         create_command_buffer();
         create_sync_objects();
+
+        m_current_frame_buffer = m_swap_chain_frame_buffers[0];
+        m_viewport.width = m_window->get_width();
+        m_viewport.height = m_window->get_height();
     }
 
     void VulkanContext::swap_buffers()
     {
-        YG_PROFILE_FUNCTION();
+        end_command_buffer();
 
-        vkWaitForFences(m_device, 1, &m_in_flight_fences[m_current_frame], VK_TRUE, UINT64_MAX);
-
-        uint32_t image_index;
-        VkResult result = vkAcquireNextImageKHR(m_device, m_swap_chain, UINT64_MAX, m_image_available_semaphores[m_current_frame], VK_NULL_HANDLE, &image_index);
+        VkResult result = vkAcquireNextImageKHR(m_device, m_swap_chain, UINT64_MAX, m_image_available_semaphores[m_current_frame], VK_NULL_HANDLE, &m_image_index);
 
         if (result == VK_ERROR_OUT_OF_DATE_KHR) {
             recreate_swap_chain();
@@ -354,9 +348,6 @@ namespace Yogi {
         }
 
         vkResetFences(m_device, 1, &m_in_flight_fences[m_current_frame]);
-
-        vkResetCommandBuffer(m_command_buffers[m_current_frame], 0);
-        record_command_buffer(m_command_buffers[m_current_frame], image_index);
 
         VkSubmitInfo submit_info{};
         submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -385,18 +376,24 @@ namespace Yogi {
         VkSwapchainKHR swap_chains[] = {m_swap_chain};
         present_info.swapchainCount = 1;
         present_info.pSwapchains = swap_chains;
-        present_info.pImageIndices = &image_index;
+        present_info.pImageIndices = &m_image_index;
         present_info.pResults = nullptr;
 
         result = vkQueuePresentKHR(m_present_queue, &present_info);
         
-        if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+        if (result == VK_ERROR_OUT_OF_DATE_KHR || is_window_resized) {
+            is_window_resized = false;
             recreate_swap_chain();
         } else {
-            YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to present swap chain image!");
+            YG_CORE_ASSERT(result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR, "Failed to present swap chain image!");
         }
 
         m_current_frame = (m_current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
+
+        vkWaitForFences(m_device, 1, &m_in_flight_fences[m_current_frame], VK_TRUE, UINT64_MAX);
+        vkResetCommandBuffer(m_command_buffers[m_current_frame], 0);
+        
+        begin_command_buffer();
     }
 
     void VulkanContext::create_instance()
@@ -490,7 +487,6 @@ namespace Yogi {
         }
 
         VkPhysicalDeviceFeatures device_features{};
-        // device_features.samplerAnisotropy = VK_TRUE;
 
         VkDeviceCreateInfo create_info{};
         create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -519,7 +515,7 @@ namespace Yogi {
 
         VkSurfaceFormatKHR surface_format = chooseSwapSurfaceFormat(swap_chain_support.formats);
         VkPresentModeKHR present_mode = chooseSwapPresentMode(swap_chain_support.presentModes);
-        VkExtent2D extent = chooseSwapExtent(swap_chain_support.capabilities, m_window);
+        m_swap_chain_extent = chooseSwapExtent(swap_chain_support.capabilities, m_window);
 
         uint32_t image_count = swap_chain_support.capabilities.minImageCount + 1;
         if (swap_chain_support.capabilities.maxImageCount > 0 && image_count > swap_chain_support.capabilities.maxImageCount) {
@@ -533,7 +529,7 @@ namespace Yogi {
         create_info.minImageCount = image_count;
         create_info.imageFormat = surface_format.format;
         create_info.imageColorSpace = surface_format.colorSpace;
-        create_info.imageExtent = extent;
+        create_info.imageExtent = m_swap_chain_extent;
         create_info.imageArrayLayers = 1;
         create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
@@ -562,7 +558,6 @@ namespace Yogi {
         vkGetSwapchainImagesKHR(m_device, m_swap_chain, &image_count, m_swap_chain_images.data());
 
         m_swap_chain_image_format = surface_format.format;
-        m_swap_chain_extent = extent;
     }
 
     void VulkanContext::create_image_views()
@@ -628,137 +623,6 @@ namespace Yogi {
 
         VkResult result = vkCreateRenderPass(m_device, &renderPassInfo, nullptr, &m_render_pass);
         YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to create render pass!");
-    }
-
-    void VulkanContext::create_graphics_pipeline()
-    {
-        auto vert_shader_code = read_file(YG_SHADER_DIR + std::string{"editor.vert"});
-        auto frag_shader_code = read_file(YG_SHADER_DIR + std::string{"editor.frag"});
-
-        VkShaderModule vert_shader_module = create_shader_module(vert_shader_code);
-        VkShaderModule frag_shader_module = create_shader_module(frag_shader_code);
-
-        VkPipelineShaderStageCreateInfo vert_shader_stage_info{};
-        vert_shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        vert_shader_stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
-        vert_shader_stage_info.module = vert_shader_module;
-        vert_shader_stage_info.pName = "main";
-
-        VkPipelineShaderStageCreateInfo frag_shader_stage_info{};
-        frag_shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        frag_shader_stage_info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-        frag_shader_stage_info.module = frag_shader_module;
-        frag_shader_stage_info.pName = "main";
-
-        VkPipelineShaderStageCreateInfo shader_stages[] = {vert_shader_stage_info, frag_shader_stage_info};
-
-        VkPipelineDynamicStateCreateInfo dynamic_state{};
-        dynamic_state.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-        dynamic_state.dynamicStateCount = static_cast<uint32_t>(dynamic_states.size());
-        dynamic_state.pDynamicStates = dynamic_states.data();
-
-        VkPipelineVertexInputStateCreateInfo vertex_input_info{};
-        vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-        vertex_input_info.vertexBindingDescriptionCount = 0;
-        vertex_input_info.pVertexBindingDescriptions = nullptr;
-        vertex_input_info.vertexAttributeDescriptionCount = 0;
-        vertex_input_info.pVertexAttributeDescriptions = nullptr;
-
-        VkPipelineInputAssemblyStateCreateInfo input_assembly{};
-        input_assembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-        input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-        input_assembly.primitiveRestartEnable = VK_FALSE;
-
-        VkViewport viewport{};
-        viewport.x = 0.0f;
-        viewport.y = 0.0f;
-        viewport.width = (float) m_swap_chain_extent.width;
-        viewport.height = (float) m_swap_chain_extent.height;
-        viewport.minDepth = 0.0f;
-        viewport.maxDepth = 1.0f;
-
-        VkRect2D scissor{};
-        scissor.offset = {0, 0};
-        scissor.extent = m_swap_chain_extent;
-
-        VkPipelineViewportStateCreateInfo viewport_state{};
-        viewport_state.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-        viewport_state.viewportCount = 1;
-        viewport_state.scissorCount = 1;
-
-        VkPipelineRasterizationStateCreateInfo rasterizer{};
-        rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-        rasterizer.depthClampEnable = VK_FALSE;
-        rasterizer.rasterizerDiscardEnable = VK_FALSE;
-        rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
-        rasterizer.lineWidth = 1.0f;
-        rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-        rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
-        rasterizer.depthBiasEnable = VK_FALSE;
-
-        VkPipelineMultisampleStateCreateInfo multisampling{};
-        multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-        multisampling.sampleShadingEnable = VK_FALSE;
-        multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-        multisampling.minSampleShading = 1.0f;
-        multisampling.pSampleMask = nullptr;
-        multisampling.alphaToCoverageEnable = VK_FALSE;
-        multisampling.alphaToOneEnable = VK_FALSE;
-
-        VkPipelineColorBlendAttachmentState color_blend_attachment{};
-        color_blend_attachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-        color_blend_attachment.blendEnable = VK_TRUE;
-        color_blend_attachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-        color_blend_attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-        color_blend_attachment.colorBlendOp = VK_BLEND_OP_ADD;
-        color_blend_attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-        color_blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-        color_blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
-
-        VkPipelineColorBlendStateCreateInfo color_blending{};
-        color_blending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-        color_blending.logicOpEnable = VK_FALSE;
-        color_blending.logicOp = VK_LOGIC_OP_COPY;
-        color_blending.attachmentCount = 1;
-        color_blending.pAttachments = &color_blend_attachment;
-        color_blending.blendConstants[0] = 0.0f;
-        color_blending.blendConstants[1] = 0.0f;
-        color_blending.blendConstants[2] = 0.0f;
-        color_blending.blendConstants[3] = 0.0f;
-
-        VkPipelineLayoutCreateInfo pipeline_layout_info{};
-        pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-        pipeline_layout_info.setLayoutCount = 0;
-        pipeline_layout_info.pSetLayouts = nullptr;
-        pipeline_layout_info.pushConstantRangeCount = 0;
-        pipeline_layout_info.pPushConstantRanges = nullptr;
-
-        VkResult result = vkCreatePipelineLayout(m_device, &pipeline_layout_info, nullptr, &m_pipeline_layout);
-        YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to create pipeline layout!");
-
-        VkGraphicsPipelineCreateInfo pipeline_info{};
-        pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-        pipeline_info.stageCount = 2;
-        pipeline_info.pStages = shader_stages;
-        pipeline_info.pVertexInputState = &vertex_input_info;
-        pipeline_info.pInputAssemblyState = &input_assembly;
-        pipeline_info.pViewportState = &viewport_state;
-        pipeline_info.pRasterizationState = &rasterizer;
-        pipeline_info.pMultisampleState = &multisampling;
-        pipeline_info.pDepthStencilState = nullptr;
-        pipeline_info.pColorBlendState = &color_blending;
-        pipeline_info.pDynamicState = &dynamic_state;
-        pipeline_info.layout = m_pipeline_layout;
-        pipeline_info.renderPass = m_render_pass;
-        pipeline_info.subpass = 0;
-        pipeline_info.basePipelineHandle = VK_NULL_HANDLE;
-        pipeline_info.basePipelineIndex = -1;
-
-        result = vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &m_graphics_pipeline);
-        YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to create graphics pipeline!");
-
-        vkDestroyShaderModule(m_device, frag_shader_module, nullptr);
-        vkDestroyShaderModule(m_device, vert_shader_module, nullptr);
     }
 
     void VulkanContext::create_frame_buffers() {
@@ -841,6 +705,60 @@ namespace Yogi {
         }
 
         vkDestroySwapchainKHR(m_device, m_swap_chain, nullptr);
+    }
+
+    void VulkanContext::recreate_swap_chain()
+    {
+        vkDeviceWaitIdle(m_device);
+
+        bool is_swap_chain_frame_buffer = m_current_frame_buffer == m_swap_chain_frame_buffers[0];
+
+        cleanup_swap_chain();
+
+        create_swap_chain();
+        create_image_views();
+        create_frame_buffers();
+
+        if (is_swap_chain_frame_buffer) m_current_frame_buffer = m_swap_chain_frame_buffers[0];
+    }
+
+    void VulkanContext::begin_command_buffer()
+    {
+        VkCommandBuffer command_buffer = m_command_buffers[m_current_frame];
+
+        VkCommandBufferBeginInfo begin_info{};
+        begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        begin_info.flags = 0;
+        begin_info.pInheritanceInfo = nullptr;
+
+        VkResult result = vkBeginCommandBuffer(command_buffer, &begin_info);
+        YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to begin recording command buffer!");
+
+        VkRenderPassBeginInfo render_begin_info{};
+        render_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        render_begin_info.renderPass = m_render_pass;
+        render_begin_info.framebuffer = m_current_frame_buffer;
+        render_begin_info.renderArea.offset = { 0, 0 };
+        render_begin_info.renderArea.extent = m_swap_chain_extent;
+        render_begin_info.clearValueCount = 1;
+        render_begin_info.pClearValues = &m_clear_color;
+        vkCmdBeginRenderPass(command_buffer, &render_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+
+        vkCmdSetViewport(command_buffer, 0, 1, &m_viewport);
+        VkRect2D scissor{};
+        scissor.offset = { (int32_t)m_viewport.x, (int32_t)m_viewport.y };
+        scissor.extent = { (uint32_t)m_viewport.width, (uint32_t)m_viewport.height };
+        vkCmdSetScissor(command_buffer, 0, 1, &scissor);
+    }
+
+    void VulkanContext::end_command_buffer()
+    {
+        VkCommandBuffer command_buffer = m_command_buffers[m_current_frame];
+
+        vkCmdEndRenderPass(m_command_buffers[m_current_frame]);
+        
+        VkResult result = vkEndCommandBuffer(command_buffer);
+        YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to record command buffer!");
     }
 
 }

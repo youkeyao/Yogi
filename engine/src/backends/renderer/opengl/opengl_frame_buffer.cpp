@@ -10,8 +10,6 @@ namespace Yogi {
 
     OpenGLFrameBuffer::OpenGLFrameBuffer(uint32_t width, uint32_t height, const std::vector<Ref<Texture2D>>& color_attachments) : m_width(width), m_height(height)
     {
-        YG_PROFILE_FUNCTION();
-
         YG_CORE_ASSERT(0 < color_attachments.size() && color_attachments.size() <= 4, "Wrong color attachments size!");
 
         glCreateFramebuffers(1, &m_renderer_id);
@@ -36,30 +34,22 @@ namespace Yogi {
     }
 
     OpenGLFrameBuffer::~OpenGLFrameBuffer()
-    {
-        YG_PROFILE_FUNCTION();
-        
+    {        
         glDeleteFramebuffers(1, &m_renderer_id);
     }
 
     void OpenGLFrameBuffer::bind() const
     {
-        YG_PROFILE_FUNCTION();
-
         glBindFramebuffer(GL_FRAMEBUFFER, m_renderer_id);
     }
 
     void OpenGLFrameBuffer::unbind() const
     {
-        YG_PROFILE_FUNCTION();
-
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
 
     void OpenGLFrameBuffer::resize(uint32_t width, uint32_t height)
     {
-        YG_PROFILE_FUNCTION();
-
         m_width = width;
         m_height = height;
 
@@ -69,8 +59,6 @@ namespace Yogi {
 
     void OpenGLFrameBuffer::add_color_attachment(uint32_t index, const Ref<Texture2D>& attachment)
     {
-        YG_PROFILE_FUNCTION();
-
         YG_CORE_ASSERT(index < 4 && !m_color_attachments[index], "Invalid attachment index!");
 
         glBindFramebuffer(GL_FRAMEBUFFER, m_renderer_id);
@@ -87,16 +75,12 @@ namespace Yogi {
 
     void OpenGLFrameBuffer::remove_color_attachment(uint32_t index)
     {
-        YG_PROFILE_FUNCTION();
-
         YG_CORE_ASSERT(index < 4 && m_color_attachments[index], "Invalid attachment index!");
         m_color_attachments[index] = nullptr;
     }
 
     const Ref<Texture2D>& OpenGLFrameBuffer::get_color_attachment(uint32_t index) const
     {
-        YG_PROFILE_FUNCTION();
-
         YG_CORE_ASSERT(index < 4 && m_color_attachments[index], "Invalid attachment index!");
         return m_color_attachments[index];
     };

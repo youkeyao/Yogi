@@ -15,8 +15,6 @@ namespace Yogi {
 
     OpenGLTexture2D::OpenGLTexture2D(uint32_t width, uint32_t height, TextureFormat format) : m_width(width), m_height(height)
     {
-        YG_PROFILE_FUNCTION();
-
         if (format == TextureFormat::RGBA8) {
             m_internal_format = GL_RGBA8;
             m_data_format = GL_RGBA;
@@ -30,19 +28,17 @@ namespace Yogi {
         }
 
         glCreateTextures(GL_TEXTURE_2D, 1, &m_renderer_id);
-		glTextureStorage2D(m_renderer_id, 1, m_internal_format, m_width, m_height);
+        glTextureStorage2D(m_renderer_id, 1, m_internal_format, m_width, m_height);
 
-		glTextureParameteri(m_renderer_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTextureParameteri(m_renderer_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTextureParameteri(m_renderer_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTextureParameteri(m_renderer_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-		glTextureParameteri(m_renderer_id, GL_TEXTURE_WRAP_S, GL_REPEAT);
-		glTextureParameteri(m_renderer_id, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTextureParameteri(m_renderer_id, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTextureParameteri(m_renderer_id, GL_TEXTURE_WRAP_T, GL_REPEAT);
     }
 
-    OpenGLTexture2D::OpenGLTexture2D(const std::string& path) : m_path(path)
+    OpenGLTexture2D::OpenGLTexture2D(const std::string& path)
     {
-        YG_PROFILE_FUNCTION();
-
         stbi_set_flip_vertically_on_load(1);
 
         int width, height, channels;
@@ -81,15 +77,11 @@ namespace Yogi {
 
     OpenGLTexture2D::~OpenGLTexture2D()
     {
-        YG_PROFILE_FUNCTION();
-
         glDeleteTextures(1, &m_renderer_id);
     }
 
     void OpenGLTexture2D::read_pixel(int32_t x, int32_t y, void* data) const
     {
-        YG_PROFILE_FUNCTION();
-
         uint32_t bpp = 0;
         GLenum type = GL_UNSIGNED_BYTE;
         if (m_data_format == GL_RGBA) {
@@ -110,8 +102,6 @@ namespace Yogi {
 
     void OpenGLTexture2D::set_data(void* data, size_t size)
     {
-        YG_PROFILE_FUNCTION();
-
         uint32_t bpp = 0;
         GLenum type = GL_UNSIGNED_BYTE;
         if (m_data_format == GL_RGBA) {
@@ -131,8 +121,6 @@ namespace Yogi {
 
     void OpenGLTexture2D::bind(uint32_t slot) const
     {
-        YG_PROFILE_FUNCTION();
-
         glBindTextureUnit(slot, m_renderer_id);
     }
 

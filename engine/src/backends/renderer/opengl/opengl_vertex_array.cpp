@@ -31,16 +31,12 @@ namespace Yogi {
     }
 
     OpenGLVertexArray::OpenGLVertexArray()
-    {
-        YG_PROFILE_FUNCTION();
-        
+    {        
         glCreateVertexArrays(1, &m_renderer_id);
     }
 
     OpenGLVertexArray::~OpenGLVertexArray()
     {
-        YG_PROFILE_FUNCTION();
-
         glDeleteVertexArrays(1, &m_renderer_id);
     }
 

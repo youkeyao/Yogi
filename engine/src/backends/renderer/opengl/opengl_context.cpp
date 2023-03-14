@@ -14,17 +14,6 @@ namespace Yogi {
     OpenGLContext::OpenGLContext(Window* window) : m_window(window)
     {
         init();
-    }
-
-    void OpenGLContext::init()
-    {
-        YG_PROFILE_FUNCTION();
-
-        #if YG_WINDOW_API == YG_WINDOW_GLFW
-            glfwMakeContextCurrent((GLFWwindow*)m_window->get_native_window());
-            int status = gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
-        #endif
-        YG_CORE_ASSERT(status, "Could not initialize GLad!");
 
         std::string vendor = std::string(reinterpret_cast<const char*>(glGetString(GL_VENDOR)));
         std::string renderer = std::string(reinterpret_cast<const char*>(glGetString(GL_RENDERER)));
@@ -35,13 +24,26 @@ namespace Yogi {
         YG_CORE_INFO("    Version:  {0}", version);
     }
 
-    void OpenGLContext::swap_buffers()
+    void OpenGLContext::init()
     {
-        YG_PROFILE_FUNCTION();
-        
+        #if YG_WINDOW_API == YG_WINDOW_GLFW
+            glfwMakeContextCurrent((GLFWwindow*)m_window->get_native_window());
+            int status = gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
+            glfwSwapInterval(1);
+        #endif
+        YG_CORE_ASSERT(status, "Could not initialize GLad!");
+
+        glEnable(GL_BLEND);
+        glEnable(GL_DEPTH_TEST);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    }
+
+    void OpenGLContext::swap_buffers()
+    {        
         #if YG_WINDOW_API == YG_WINDOW_GLFW
             glfwSwapBuffers((GLFWwindow*)m_window->get_native_window());
         #endif
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     }
 
 }
