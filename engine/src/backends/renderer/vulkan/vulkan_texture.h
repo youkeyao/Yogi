@@ -21,11 +21,15 @@ namespace Yogi {
 
         void bind(uint32_t slot = 0) const override;
     private:
+        void create_image();
+    private:
         uint32_t m_width, m_height;
         uint32_t m_renderer_id;
         VkImage m_image;
         VkDeviceMemory m_image_memory;
         VkFormat m_internal_format;
+        VkImageView m_image_view;
+        VkSampler m_sampler;
     };
 
 }

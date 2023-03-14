@@ -27,6 +27,57 @@ namespace Yogi {
             YG_CORE_ERROR("Invalid texture format!");
         }
 
+        create_image();
+    }
+
+    VulkanTexture2D::VulkanTexture2D(const std::string& path)
+    {
+        stbi_set_flip_vertically_on_load(1);
+
+        int width, height, channels;
+        stbi_uc* data = nullptr;
+        {
+            YG_PROFILE_SCOPE("stbi_load - VulkanTexture2D::VulkanTexture2D(const std::string&)");
+            data = stbi_load(path.c_str(), &width, &height, &channels, 0);
+        }
+        YG_CORE_ASSERT(data, "Failed to load image!");
+        m_width = width;
+        m_height = height;
+        VkDeviceSize image_size;
+
+        if (channels == 4) {
+            m_internal_format = VK_FORMAT_R8G8B8A8_SRGB;
+            image_size = m_width * m_height * 4;
+        }
+        else if (channels == 3) {
+            m_internal_format = VK_FORMAT_R8G8B8_SINT;
+            image_size = m_width * m_height * 3;
+        }
+        else {
+            YG_CORE_ERROR("Invalid texture format!");
+        }
+
+        create_image();
+        set_data(data, image_size);
+
+        stbi_image_free(data);
+    }
+
+    VulkanTexture2D::~VulkanTexture2D()
+    {
+        VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
+
+        vkDeviceWaitIdle(context->get_device());
+        vkDestroySampler(context->get_device(), m_sampler, nullptr);
+        vkDestroyImageView(context->get_device(), m_image_view, nullptr);
+        vkDestroyImage(context->get_device(), m_image, nullptr);
+        vkFreeMemory(context->get_device(), m_image_memory, nullptr);
+    }
+
+    void VulkanTexture2D::create_image()
+    {
+        VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
+        
         VkImageCreateInfo image_info{};
         image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
         image_info.imageType = VK_IMAGE_TYPE_2D;
@@ -43,69 +94,56 @@ namespace Yogi {
         image_info.samples = VK_SAMPLE_COUNT_1_BIT;
         image_info.flags = 0;
 
-        VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
         VkResult result = vkCreateImage(context->get_device(), &image_info, nullptr, &m_image);
         YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to create image!");
 
         VkMemoryRequirements mem_requirements;
         vkGetImageMemoryRequirements(context->get_device(), m_image, &mem_requirements);
 
-        VkMemoryAllocateInfo allocInfo{};
-        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-        allocInfo.allocationSize = mem_requirements.size;
-        allocInfo.memoryTypeIndex = context->find_memory_type(mem_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        VkMemoryAllocateInfo alloc_info{};
+        alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        alloc_info.allocationSize = mem_requirements.size;
+        alloc_info.memoryTypeIndex = context->find_memory_type(mem_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-        result = vkAllocateMemory(context->get_device(), &allocInfo, nullptr, &m_image_memory);
+        result = vkAllocateMemory(context->get_device(), &alloc_info, nullptr, &m_image_memory);
         YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to allocate image memory!");
 
         vkBindImageMemory(context->get_device(), m_image, m_image_memory, 0);
-    }
 
-    VulkanTexture2D::VulkanTexture2D(const std::string& path)
-    {
-        stbi_set_flip_vertically_on_load(1);
+        VkImageViewCreateInfo viewInfo{};
+        viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        viewInfo.image = m_image;
+        viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        viewInfo.format = m_internal_format;
+        viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        viewInfo.subresourceRange.baseMipLevel = 0;
+        viewInfo.subresourceRange.levelCount = 1;
+        viewInfo.subresourceRange.baseArrayLayer = 0;
+        viewInfo.subresourceRange.layerCount = 1;
 
-        int width, height, channels;
-        stbi_uc* data = nullptr;
-        {
-            YG_PROFILE_SCOPE("stbi_load - VulkanTexture2D::VulkanTexture2D(const std::string&)");
-            data = stbi_load(path.c_str(), &width, &height, &channels, 0);
-        }
-        YG_CORE_ASSERT(data, "Failed to load image!");
-        m_width = width;
-        m_height = height;
-        VkDeviceSize image_size = m_width * m_height * 4;
+        result = vkCreateImageView(context->get_device(), &viewInfo, nullptr, &m_image_view);
+        YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to create texture image view!");
 
-        if (channels == 4) {
-            m_internal_format = VK_FORMAT_R8G8B8A8_SRGB;
-        }
-        else if (channels == 3) {
-            m_internal_format = VK_FORMAT_R8G8B8_SRGB;
-        }
-        else {
-            YG_CORE_ERROR("Invalid texture format!");
-        }
+        VkSamplerCreateInfo samplerInfo{};
+        samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+        samplerInfo.magFilter = VK_FILTER_LINEAR;
+        samplerInfo.minFilter = VK_FILTER_LINEAR;
+        samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        samplerInfo.anisotropyEnable = VK_FALSE;
+        samplerInfo.maxAnisotropy = 1.0f;
+        samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+        samplerInfo.unnormalizedCoordinates = VK_FALSE;
+        samplerInfo.compareEnable = VK_FALSE;
+        samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+        samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        samplerInfo.mipLodBias = 0.0f;
+        samplerInfo.minLod = 0.0f;
+        samplerInfo.maxLod = 0.0f;
 
-        VkBuffer stagingBuffer;
-        VkDeviceMemory stagingBufferMemory;
-        VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
-        context->create_buffer(image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
-
-        void* pdata;
-        vkMapMemory(context->get_device(), stagingBufferMemory, 0, image_size, 0, &pdata);
-        memcpy(pdata, data, static_cast<size_t>(image_size));
-        vkUnmapMemory(context->get_device(), stagingBufferMemory);
-
-        stbi_image_free(pdata);
-        vkDestroyBuffer(context->get_device(), stagingBuffer, nullptr);
-        vkFreeMemory(context->get_device(), stagingBufferMemory, nullptr);
-    }
-
-    VulkanTexture2D::~VulkanTexture2D()
-    {
-        VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
-        vkDestroyImage(context->get_device(), m_image, nullptr);
-        vkFreeMemory(context->get_device(), m_image_memory, nullptr);
+        result = vkCreateSampler(context->get_device(), &samplerInfo, nullptr, &m_sampler);
+        YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to create texture sampler!");
     }
 
     void VulkanTexture2D::read_pixel(int32_t x, int32_t y, void* data) const
@@ -114,10 +152,95 @@ namespace Yogi {
 
     void VulkanTexture2D::set_data(void* data, size_t size)
     {
+        VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
+
+        VkImageMemoryBarrier barrier{};
+        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.image = m_image;
+        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        barrier.subresourceRange.baseMipLevel = 0;
+        barrier.subresourceRange.levelCount = 1;
+        barrier.subresourceRange.baseArrayLayer = 0;
+        barrier.subresourceRange.layerCount = 1;
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = 0;
+        vkCmdPipelineBarrier(
+            context->get_current_command_buffer(),
+            0 /* TODO */, 0 /* TODO */,
+            0,
+            0, nullptr,
+            0, nullptr,
+            1, &barrier
+        );
+
+        VkBufferImageCopy region{};
+        region.bufferOffset = 0;
+        region.bufferRowLength = 0;
+        region.bufferImageHeight = 0;
+
+        region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        region.imageSubresource.mipLevel = 0;
+        region.imageSubresource.baseArrayLayer = 0;
+        region.imageSubresource.layerCount = 1;
+
+        region.imageOffset = {0, 0, 0};
+        region.imageExtent = {
+            m_width,
+            m_height,
+            1
+        };
+
+        VkBuffer staging_buffer;
+        VkDeviceMemory staging_buffer_memory;
+        context->create_buffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
+
+        void* pdata;
+        vkMapMemory(context->get_device(), staging_buffer_memory, 0, size, 0, &pdata);
+        memcpy(pdata, data, static_cast<size_t>(size));
+        vkUnmapMemory(context->get_device(), staging_buffer_memory);
+
+        vkCmdCopyBufferToImage(
+            context->get_current_command_buffer(),
+            staging_buffer,
+            m_image,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            1,
+            &region
+        );
+
+        vkDestroyBuffer(context->get_device(), staging_buffer, nullptr);
+        vkFreeMemory(context->get_device(), staging_buffer_memory, nullptr);
+
+        bind();
     };
 
     void VulkanTexture2D::bind(uint32_t slot) const
     {
+        VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
+
+        if (context->get_current_pipeline() && !context->get_current_pipeline()->get_descriptor_sets().empty()) {
+            VkDescriptorImageInfo image_info{};
+            image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            image_info.imageView = m_image_view;
+            image_info.sampler = m_sampler;
+
+            VkWriteDescriptorSet descriptor_write{};
+            descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptor_write.dstSet = context->get_current_pipeline()->get_descriptor_sets()[0];
+            descriptor_write.dstBinding = slot;
+            descriptor_write.dstArrayElement = 0;
+            descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            descriptor_write.descriptorCount = 1;
+            descriptor_write.pBufferInfo = nullptr;
+            descriptor_write.pImageInfo = &image_info;
+            descriptor_write.pTexelBufferView = nullptr;
+
+            vkUpdateDescriptorSets(context->get_device(), 1, &descriptor_write, 0, nullptr);
+        }
     }
 
 }

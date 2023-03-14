@@ -3,6 +3,7 @@
 #include "runtime/renderer/render_command.h"
 #include "runtime/renderer/shader.h"
 #include "runtime/renderer/buffer.h"
+#include "runtime/renderer/texture.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -75,10 +76,10 @@ namespace Yogi {
         m_last_frame_time = std::chrono::time_point_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()).time_since_epoch().count() * 0.000001f;
         Ref<Shader> s = Shader::create("editor", {"vert", "frag"});
         float vertices[] = {
-            -0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
-            0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
-            0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
-            -0.5f, 0.5f, 1.0f, 1.0f, 1.0f
+            -0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+            0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+            0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f,
+            -0.5f, 0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f
         };
         uint32_t indices[] = {
             0, 1, 2, 2, 3, 0
@@ -96,6 +97,7 @@ namespace Yogi {
         ubo.proj[1][1] *= -1;
         Ref<UniformBuffer> uniform_buffer = UniformBuffer::create(sizeof(UniformBufferObject), 0);
         uniform_buffer->set_data(&ubo, sizeof(ubo));
+        // Ref<Texture2D> texture = Texture2D::create("../sandbox/assets/textures/checkerboard.png");
         while (m_running) {
             YG_PROFILE_SCOPE("RunLoop");
 

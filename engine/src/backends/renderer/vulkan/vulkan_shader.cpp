@@ -57,7 +57,8 @@ namespace Yogi {
 
         VkVertexInputBindingDescription binding_description{};
         std::vector<VkVertexInputAttributeDescription> attribute_descriptions{};
-        std::vector<std::vector<VkDescriptorSetLayoutBinding>> ubo_layout_bindings{};
+        std::vector<std::vector<VkDescriptorSetLayoutBinding>> layout_bindings{};
+        uint32_t ubo_count = 0, sampler_count = 0;
 
         for (auto type : types) {
             auto shader_code = read_file(YG_SHADER_DIR + name + "." + type);
@@ -76,31 +77,37 @@ namespace Yogi {
             else if (type == "frag") {
                 shader_stage_info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
             }
-            reflect_uniform_buffer(compiler, ubo_layout_bindings, shader_stage_info.stage);
+            reflect_uniform_buffer(compiler, layout_bindings, shader_stage_info.stage, ubo_count);
+            reflect_sampler(compiler, layout_bindings, shader_stage_info.stage, sampler_count);
 
             shader_stages.push_back(shader_stage_info);
             shader_modules.push_back(shader_module);
         }
 
-        if (!ubo_layout_bindings.empty()) {
-            m_descriptor_set_layouts.resize(ubo_layout_bindings.size());
-            for (int32_t i = 0; i < ubo_layout_bindings.size(); i ++) {
+        if (!layout_bindings.empty()) {
+            m_descriptor_set_layouts.resize(layout_bindings.size());
+            for (int32_t i = 0; i < layout_bindings.size(); i ++) {
                 VkDescriptorSetLayoutCreateInfo layout_info{};
                 layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-                layout_info.bindingCount = ubo_layout_bindings[i].size();
-                layout_info.pBindings = ubo_layout_bindings[i].data();
+                layout_info.bindingCount = layout_bindings[i].size();
+                layout_info.pBindings = layout_bindings[i].data();
 
                 VkResult result = vkCreateDescriptorSetLayout(context->get_device(), &layout_info, nullptr, &m_descriptor_set_layouts[i]);
                 YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to create descriptor set layout!");
             }
 
-            VkDescriptorPoolSize pool_size{};
-            pool_size.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            pool_size.descriptorCount = static_cast<uint32_t>(m_descriptor_set_layouts.size());
+            std::vector<VkDescriptorPoolSize> pool_sizes{};
+            if (ubo_count > 0) {
+                pool_sizes.push_back({ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ubo_count });
+            }
+            if (sampler_count > 0) {
+                pool_sizes.push_back({ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, sampler_count });
+            }
+
             VkDescriptorPoolCreateInfo pool_info{};
             pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-            pool_info.poolSizeCount = 1;
-            pool_info.pPoolSizes = &pool_size;
+            pool_info.poolSizeCount = static_cast<uint32_t>(pool_sizes.size());;
+            pool_info.pPoolSizes = pool_sizes.data();
             pool_info.maxSets = static_cast<uint32_t>(m_descriptor_set_layouts.size());
 
             VkResult result = vkCreateDescriptorPool(context->get_device(), &pool_info, nullptr, &m_descriptor_pool);
@@ -286,7 +293,7 @@ namespace Yogi {
         binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
     }
 
-    void VulkanShader::reflect_uniform_buffer(const spirv_cross::CompilerGLSL& compiler, std::vector<std::vector<VkDescriptorSetLayoutBinding>>& ubo_layout_bindings, VkShaderStageFlagBits stage_flag)
+    void VulkanShader::reflect_uniform_buffer(const spirv_cross::CompilerGLSL& compiler, std::vector<std::vector<VkDescriptorSetLayoutBinding>>& ubo_layout_bindings, VkShaderStageFlagBits stage_flag, uint32_t& ubo_count)
     {
         spirv_cross::ShaderResources resources = compiler.get_shader_resources();
 
@@ -312,6 +319,30 @@ namespace Yogi {
                 uniform_layout.add_element({ spirv_type_to_shader_data_type(member_type), compiler.get_member_name(uniform_type.self, i) });
             }
             m_uniform_layouts[binding] = uniform_layout;
+
+            ubo_count ++;
+        }
+    }
+
+    void VulkanShader::reflect_sampler(const spirv_cross::CompilerGLSL& compiler, std::vector<std::vector<VkDescriptorSetLayoutBinding>>& sampler_layout_bindings, VkShaderStageFlagBits stage_flag, uint32_t& sampler_count)
+    {
+        spirv_cross::ShaderResources resources = compiler.get_shader_resources();
+
+        for (auto& sampled_image : resources.sampled_images) {
+            uint32_t set = compiler.get_decoration(sampled_image.id, spv::DecorationDescriptorSet);
+            uint32_t binding = compiler.get_decoration(sampled_image.id, spv::DecorationBinding);
+            while (sampler_layout_bindings.size() < set + 1) sampler_layout_bindings.push_back(std::vector<VkDescriptorSetLayoutBinding>{});
+
+            VkDescriptorSetLayoutBinding sampler_layout_binding{};
+            sampler_layout_binding.binding = binding;
+            sampler_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            sampler_layout_binding.descriptorCount = compiler.get_type(sampled_image.type_id).columns;
+            sampler_layout_binding.stageFlags = stage_flag;
+            sampler_layout_binding.pImmutableSamplers = nullptr;
+
+            sampler_layout_bindings[set].push_back(sampler_layout_binding);
+
+            sampler_count ++;
         }
     }
 

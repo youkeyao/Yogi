@@ -40,7 +40,7 @@ elseif ( YG_RENDERER_API STREQUAL "Vulkan" )
         set(yg_renderer ${CMAKE_CURRENT_SOURCE_DIR}/vendor/VulkanSDK/lib/MacOS/libvulkan.1.dylib)
         add_compile_definitions(YG_VK_LAYER_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}/vendor/VulkanSDK/bin/MacOS\")
     elseif (UNIX)
-        set(yg_renderer ${CMAKE_CURRENT_SOURCE_DIR}/vendor/VulkanSDK/lib/Linux/libvulkan.so.1.3.239)
+        set(yg_renderer ${CMAKE_CURRENT_SOURCE_DIR}/vendor/VulkanSDK/lib/Linux/libvulkan.so.1)
         add_compile_definitions(YG_VK_LAYER_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}/vendor/VulkanSDK/bin/Linux\")
     else()
         message(FATAL_ERROR "Unknown platform")
@@ -108,9 +108,12 @@ target_include_directories( engine
         src
         vendor/glm
         vendor/entt/src
+        vendor/VulkanSDK/include
+        vendor/glfw/include
+        vendor/stb_image
     PRIVATE
         vendor/SPIRV-Cross
         vendor/spdlog/include
-        vendor/stb_image
+        
 )
 add_dependencies(engine Shaders)
