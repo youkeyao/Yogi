@@ -76,74 +76,74 @@ namespace Yogi {
 
     void VulkanTexture2D::create_image()
     {
-        VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
+        // VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
         
-        VkImageCreateInfo image_info{};
-        image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-        image_info.imageType = VK_IMAGE_TYPE_2D;
-        image_info.extent.width = m_width;
-        image_info.extent.height = m_height;
-        image_info.extent.depth = 1;
-        image_info.mipLevels = 1;
-        image_info.arrayLayers = 1;
-        image_info.format = m_internal_format;
-        image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
-        image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        image_info.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-        image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        image_info.samples = VK_SAMPLE_COUNT_1_BIT;
-        image_info.flags = 0;
+        // VkImageCreateInfo image_info{};
+        // image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        // image_info.imageType = VK_IMAGE_TYPE_2D;
+        // image_info.extent.width = m_width;
+        // image_info.extent.height = m_height;
+        // image_info.extent.depth = 1;
+        // image_info.mipLevels = 1;
+        // image_info.arrayLayers = 1;
+        // image_info.format = m_internal_format;
+        // image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
+        // image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        // image_info.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        // image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        // image_info.samples = VK_SAMPLE_COUNT_1_BIT;
+        // image_info.flags = 0;
 
-        VkResult result = vkCreateImage(context->get_device(), &image_info, nullptr, &m_image);
-        YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to create image!");
+        // VkResult result = vkCreateImage(context->get_device(), &image_info, nullptr, &m_image);
+        // YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to create image!");
 
-        VkMemoryRequirements mem_requirements;
-        vkGetImageMemoryRequirements(context->get_device(), m_image, &mem_requirements);
+        // VkMemoryRequirements mem_requirements;
+        // vkGetImageMemoryRequirements(context->get_device(), m_image, &mem_requirements);
 
-        VkMemoryAllocateInfo alloc_info{};
-        alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-        alloc_info.allocationSize = mem_requirements.size;
-        alloc_info.memoryTypeIndex = context->find_memory_type(mem_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        // VkMemoryAllocateInfo alloc_info{};
+        // alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        // alloc_info.allocationSize = mem_requirements.size;
+        // alloc_info.memoryTypeIndex = context->find_memory_type(mem_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-        result = vkAllocateMemory(context->get_device(), &alloc_info, nullptr, &m_image_memory);
-        YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to allocate image memory!");
+        // result = vkAllocateMemory(context->get_device(), &alloc_info, nullptr, &m_image_memory);
+        // YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to allocate image memory!");
 
-        vkBindImageMemory(context->get_device(), m_image, m_image_memory, 0);
+        // vkBindImageMemory(context->get_device(), m_image, m_image_memory, 0);
 
-        VkImageViewCreateInfo viewInfo{};
-        viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        viewInfo.image = m_image;
-        viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        viewInfo.format = m_internal_format;
-        viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        viewInfo.subresourceRange.baseMipLevel = 0;
-        viewInfo.subresourceRange.levelCount = 1;
-        viewInfo.subresourceRange.baseArrayLayer = 0;
-        viewInfo.subresourceRange.layerCount = 1;
+        // VkImageViewCreateInfo viewInfo{};
+        // viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        // viewInfo.image = m_image;
+        // viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        // viewInfo.format = m_internal_format;
+        // viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        // viewInfo.subresourceRange.baseMipLevel = 0;
+        // viewInfo.subresourceRange.levelCount = 1;
+        // viewInfo.subresourceRange.baseArrayLayer = 0;
+        // viewInfo.subresourceRange.layerCount = 1;
 
-        result = vkCreateImageView(context->get_device(), &viewInfo, nullptr, &m_image_view);
-        YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to create texture image view!");
+        // result = vkCreateImageView(context->get_device(), &viewInfo, nullptr, &m_image_view);
+        // YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to create texture image view!");
 
-        VkSamplerCreateInfo samplerInfo{};
-        samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-        samplerInfo.magFilter = VK_FILTER_LINEAR;
-        samplerInfo.minFilter = VK_FILTER_LINEAR;
-        samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        samplerInfo.anisotropyEnable = VK_FALSE;
-        samplerInfo.maxAnisotropy = 1.0f;
-        samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-        samplerInfo.unnormalizedCoordinates = VK_FALSE;
-        samplerInfo.compareEnable = VK_FALSE;
-        samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-        samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-        samplerInfo.mipLodBias = 0.0f;
-        samplerInfo.minLod = 0.0f;
-        samplerInfo.maxLod = 0.0f;
+        // VkSamplerCreateInfo samplerInfo{};
+        // samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+        // samplerInfo.magFilter = VK_FILTER_LINEAR;
+        // samplerInfo.minFilter = VK_FILTER_LINEAR;
+        // samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        // samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        // samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        // samplerInfo.anisotropyEnable = VK_FALSE;
+        // samplerInfo.maxAnisotropy = 1.0f;
+        // samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+        // samplerInfo.unnormalizedCoordinates = VK_FALSE;
+        // samplerInfo.compareEnable = VK_FALSE;
+        // samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+        // samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        // samplerInfo.mipLodBias = 0.0f;
+        // samplerInfo.minLod = 0.0f;
+        // samplerInfo.maxLod = 0.0f;
 
-        result = vkCreateSampler(context->get_device(), &samplerInfo, nullptr, &m_sampler);
-        YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to create texture sampler!");
+        // result = vkCreateSampler(context->get_device(), &samplerInfo, nullptr, &m_sampler);
+        // YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to create texture sampler!");
     }
 
     void VulkanTexture2D::read_pixel(int32_t x, int32_t y, void* data) const
@@ -196,7 +196,7 @@ namespace Yogi {
 
         VkBuffer staging_buffer;
         VkDeviceMemory staging_buffer_memory;
-        context->create_buffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
+        // context->create_buffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
 
         void* pdata;
         vkMapMemory(context->get_device(), staging_buffer_memory, 0, size, 0, &pdata);
@@ -222,25 +222,25 @@ namespace Yogi {
     {
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
 
-        if (context->get_current_pipeline() && !context->get_current_pipeline()->get_descriptor_sets().empty()) {
-            VkDescriptorImageInfo image_info{};
-            image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            image_info.imageView = m_image_view;
-            image_info.sampler = m_sampler;
+        // if (context->get_current_pipeline() && !context->get_current_pipeline()->get_descriptor_sets().empty()) {
+        //     VkDescriptorImageInfo image_info{};
+        //     image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        //     image_info.imageView = m_image_view;
+        //     image_info.sampler = m_sampler;
 
-            VkWriteDescriptorSet descriptor_write{};
-            descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptor_write.dstSet = context->get_current_pipeline()->get_descriptor_sets()[0];
-            descriptor_write.dstBinding = slot;
-            descriptor_write.dstArrayElement = 0;
-            descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            descriptor_write.descriptorCount = 1;
-            descriptor_write.pBufferInfo = nullptr;
-            descriptor_write.pImageInfo = &image_info;
-            descriptor_write.pTexelBufferView = nullptr;
+        //     VkWriteDescriptorSet descriptor_write{};
+        //     descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        //     descriptor_write.dstSet = context->get_current_pipeline()->get_descriptor_sets()[0];
+        //     descriptor_write.dstBinding = slot;
+        //     descriptor_write.dstArrayElement = 0;
+        //     descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        //     descriptor_write.descriptorCount = 1;
+        //     descriptor_write.pBufferInfo = nullptr;
+        //     descriptor_write.pImageInfo = &image_info;
+        //     descriptor_write.pTexelBufferView = nullptr;
 
-            vkUpdateDescriptorSets(context->get_device(), 1, &descriptor_write, 0, nullptr);
-        }
+        //     vkUpdateDescriptorSets(context->get_device(), 1, &descriptor_write, 0, nullptr);
+        // }
     }
 
 }

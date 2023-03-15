@@ -17,6 +17,7 @@ namespace Yogi {
 
         const std::vector<VkDescriptorSet>& get_descriptor_sets() { return m_descriptor_sets; }
         VkPipeline get_vk_pipeline() { return m_graphics_pipeline; }
+        VkPipelineLayout get_vk_pipeline_layout() { return m_pipeline_layout; }
     private:
         std::vector<uint32_t> read_file(const std::string& filepath);
         VkShaderModule create_shader_module(const std::vector<uint32_t>& code);
@@ -29,7 +30,7 @@ namespace Yogi {
         VkPipeline m_graphics_pipeline;
         std::vector<VkDescriptorSetLayout> m_descriptor_set_layouts;
         std::vector<VkDescriptorSet> m_descriptor_sets;
-        VkDescriptorPool m_descriptor_pool;
+        VkDescriptorPool m_descriptor_pool = VK_NULL_HANDLE;
     };
 
 }

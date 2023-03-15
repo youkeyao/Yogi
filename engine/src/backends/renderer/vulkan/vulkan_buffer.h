@@ -19,6 +19,8 @@ namespace Yogi {
         void unbind() const override;
 
         void set_data(const void* vertices, uint32_t size) override;
+
+        VkBuffer get_vk_buffer() { return m_buffer; }
     private:
         VkBuffer m_buffer;
         VkDeviceMemory m_buffer_memory;
@@ -36,6 +38,8 @@ namespace Yogi {
 
         void bind() const override;
         void unbind() const override;
+
+        VkBuffer get_vk_buffer() { return m_buffer; }
     private:
         VkBuffer m_buffer;
         VkDeviceMemory m_buffer_memory;
@@ -48,7 +52,7 @@ namespace Yogi {
     class VulkanUniformBuffer : public UniformBuffer
     {
     public:
-        VulkanUniformBuffer(uint32_t size, uint32_t binding);
+        VulkanUniformBuffer(uint32_t size);
         ~VulkanUniformBuffer();
 
         void bind(uint32_t binding) const override;

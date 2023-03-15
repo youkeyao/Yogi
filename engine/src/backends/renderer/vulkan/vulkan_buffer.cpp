@@ -14,9 +14,9 @@ namespace Yogi {
         return CreateRef<VulkanIndexBuffer>(indices, size);
     }
 
-    Ref<UniformBuffer> UniformBuffer::create(uint32_t size, uint32_t binding)
+    Ref<UniformBuffer> UniformBuffer::create(uint32_t size)
     {
-        return CreateRef<VulkanUniformBuffer>(size, binding);
+        return CreateRef<VulkanUniformBuffer>(size);
     }
 
     //
@@ -44,15 +44,13 @@ namespace Yogi {
     void VulkanVertexBuffer::bind() const
     {
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
-        VkBuffer vertex_buffers[] = {m_buffer};
-        VkDeviceSize offsets[] = {0};
-        vkCmdBindVertexBuffers(context->get_current_command_buffer(), 0, 1, vertex_buffers, offsets);
+        context->set_current_vertex_buffer(this);
     }
 
     void VulkanVertexBuffer::unbind() const
     {
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
-        vkCmdBindVertexBuffers(context->get_current_command_buffer(), 0, 0, nullptr, nullptr);
+        context->set_current_vertex_buffer(nullptr);
     }
 
     void VulkanVertexBuffer::set_data(const void* vertices, uint32_t size)
@@ -112,26 +110,24 @@ namespace Yogi {
     void VulkanIndexBuffer::bind() const
     {
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
-        vkCmdBindIndexBuffer(context->get_current_command_buffer(), m_buffer, 0, VK_INDEX_TYPE_UINT32);
+        context->set_current_index_buffer(this);
     }
 
     void VulkanIndexBuffer::unbind() const
     {
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
-        vkCmdBindIndexBuffer(context->get_current_command_buffer(), nullptr, 0, VK_INDEX_TYPE_NONE_KHR);
+        context->set_current_index_buffer(nullptr);
     }
 
     //
     // Uniform buffer
     //
 
-    VulkanUniformBuffer::VulkanUniformBuffer(uint32_t size, uint32_t binding) : m_size(size)
+    VulkanUniformBuffer::VulkanUniformBuffer(uint32_t size) : m_size(size)
 	{
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
         context->create_buffer(size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, m_buffer, m_buffer_memory);
         vkMapMemory(context->get_device(), m_buffer_memory, 0, size, 0, &m_buffer_mapped);
-
-        bind(binding);
 	}
 
 	VulkanUniformBuffer::~VulkanUniformBuffer()

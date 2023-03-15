@@ -77,6 +77,9 @@ namespace Yogi {
             else if (type == "frag") {
                 shader_stage_info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
             }
+            else {
+                YG_CORE_ASSERT(false, "Invalid shader stage!");
+            }
             reflect_uniform_buffer(compiler, layout_bindings, shader_stage_info.stage, ubo_count);
             reflect_sampler(compiler, layout_bindings, shader_stage_info.stage, sampler_count);
 
@@ -132,7 +135,7 @@ namespace Yogi {
 
         VkPipelineVertexInputStateCreateInfo vertex_input_info{};
         vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-        vertex_input_info.vertexBindingDescriptionCount = 1;
+        vertex_input_info.vertexBindingDescriptionCount = binding_description.stride > 0 ? 1 : 0;
         vertex_input_info.pVertexBindingDescriptions = &binding_description;
         vertex_input_info.vertexAttributeDescriptionCount = static_cast<uint32_t>(attribute_descriptions.size());
         vertex_input_info.pVertexAttributeDescriptions = attribute_descriptions.data();
@@ -154,7 +157,7 @@ namespace Yogi {
         rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
         rasterizer.lineWidth = 1.0f;
         rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-        rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+        rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
         rasterizer.depthBiasEnable = VK_FALSE;
 
         VkPipelineMultisampleStateCreateInfo multisampling{};
@@ -206,14 +209,12 @@ namespace Yogi {
         pipeline_info.pViewportState = &viewport_state;
         pipeline_info.pRasterizationState = &rasterizer;
         pipeline_info.pMultisampleState = &multisampling;
-        pipeline_info.pDepthStencilState = nullptr;
         pipeline_info.pColorBlendState = &color_blending;
         pipeline_info.pDynamicState = &dynamic_state;
         pipeline_info.layout = m_pipeline_layout;
         pipeline_info.renderPass = context->get_render_pass();
         pipeline_info.subpass = 0;
         pipeline_info.basePipelineHandle = VK_NULL_HANDLE;
-        pipeline_info.basePipelineIndex = -1;
 
         result = vkCreateGraphicsPipelines(context->get_device(), VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &m_graphics_pipeline);
         YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to create graphics pipeline!");
@@ -221,7 +222,6 @@ namespace Yogi {
         for (auto shader_module : shader_modules) {
             vkDestroyShaderModule(context->get_device(), shader_module, nullptr);
         }
-        bind();
     }
 
     VulkanShader::~VulkanShader()
@@ -229,7 +229,7 @@ namespace Yogi {
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
 
         vkDeviceWaitIdle(context->get_device());
-        vkDestroyDescriptorPool(context->get_device(), m_descriptor_pool, nullptr);
+        if (m_descriptor_pool) vkDestroyDescriptorPool(context->get_device(), m_descriptor_pool, nullptr);
         for (auto descriptor_set_layout : m_descriptor_set_layouts) {
             vkDestroyDescriptorSetLayout(context->get_device(), descriptor_set_layout, nullptr);
         }
@@ -274,14 +274,19 @@ namespace Yogi {
     {
         spirv_cross::ShaderResources resources = compiler.get_shader_resources();
 
+        std::map<uint32_t, spirv_cross::Resource*> stage_inputs;
         for (auto& stage_input : resources.stage_inputs) {
+            stage_inputs[compiler.get_decoration(stage_input.id, spv::DecorationLocation)] = &stage_input;
+        }
+        for (auto& [location, p_stage_input] : stage_inputs) {
+            auto& stage_input = *p_stage_input;
             const auto& input_type = compiler.get_type(stage_input.base_type_id);
 
             m_vertex_layout.add_element({ spirv_type_to_shader_data_type(input_type), stage_input.name });
 
             VkVertexInputAttributeDescription attribute_description;
             attribute_description.binding = compiler.get_decoration(stage_input.id, spv::DecorationBinding);
-            attribute_description.location = compiler.get_decoration(stage_input.id, spv::DecorationLocation);
+            attribute_description.location = location;
             attribute_description.format = spirv_type_to_vk_format(input_type);
             attribute_description.offset = m_vertex_layout.get_elements().back().offset;
 
@@ -350,8 +355,6 @@ namespace Yogi {
     {
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
         context->set_current_pipeline(this);
-        vkCmdBindPipeline(context->get_current_command_buffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphics_pipeline);
-        if (!m_descriptor_sets.empty()) vkCmdBindDescriptorSets(context->get_current_command_buffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline_layout, 0, 1, &m_descriptor_sets[0], 0, nullptr);
     }
 
     void VulkanShader::unbind() const
