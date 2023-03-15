@@ -16,24 +16,6 @@ const std::vector<const char*> deviceExtensions = {
 VkDebugUtilsMessengerEXT debugMessenger;
 VkSurfaceKHR surface;
 
-static std::vector<char> readFile(const std::string& filename) {
-    std::ifstream file(filename, std::ios::ate | std::ios::binary);
-
-    if (!file.is_open()) {
-        throw std::runtime_error("failed to open file!");
-    }
-
-    size_t fileSize = (size_t) file.tellg();
-    std::vector<char> buffer(fileSize);
-
-    file.seekg(0);
-    file.read(buffer.data(), fileSize);
-
-    file.close();
-
-    return buffer;
-}
-
 struct QueueFamilyIndices
 {
     std::optional<uint32_t> graphicsFamily;
@@ -69,25 +51,20 @@ bool checkValidationLayerSupport()
 {
     uint32_t layerCount;
     vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
-
     std::vector<VkLayerProperties> availableLayers(layerCount);
     vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
-
     for (const char* layerName : validationLayers) {
         bool layerFound = false;
-
         for (const auto& layerProperties : availableLayers) {
             if (strcmp(layerName, layerProperties.layerName) == 0) {
                 layerFound = true;
                 break;
             }
         }
-
         if (!layerFound) {
             return false;
         }
     }
-
     return true;
 }
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
@@ -137,16 +114,12 @@ bool checkDeviceExtensionSupport(VkPhysicalDevice device)
 {
     uint32_t extensionCount;
     vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
-
     std::vector<VkExtensionProperties> availableExtensions(extensionCount);
     vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data());
-
     std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
-
     for (const auto& extension : availableExtensions) {
         requiredExtensions.erase(extension.extensionName);
     }
-
     return requiredExtensions.empty();
 }
 SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device)
@@ -204,15 +177,12 @@ VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, Yogi::
     } else {
         int width, height;
         glfwGetFramebufferSize((GLFWwindow*)window->get_native_window(), &width, &height);
-
         VkExtent2D actualExtent = {
             static_cast<uint32_t>(width),
             static_cast<uint32_t>(height)
         };
-
         actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
         actualExtent.height = std::clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
-
         return actualExtent;
     }
 }
@@ -225,7 +195,11 @@ namespace Yogi {
 
     VulkanContext::VulkanContext(Window* window) : m_window(window)
     {
-        _putenv_s("VK_LAYER_PATH", YG_VK_LAYER_PATH);
+        #ifdef YG_PLATFORM_WINDOWS
+            _putenv_s("VK_LAYER_PATH", YG_VK_LAYER_PATH);
+        #else
+            setenv("VK_LAYER_PATH", YG_VK_LAYER_PATH, 1);
+        #endif
         init();
 
         VkPhysicalDeviceProperties properties;
@@ -323,34 +297,46 @@ namespace Yogi {
 
     void VulkanContext::copy_buffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size)
     {
-        VkCommandBufferAllocateInfo alloc_info{};
-        alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        alloc_info.commandPool = m_command_pool;
-        alloc_info.commandBufferCount = 1;
+        VkCommandBuffer commandBuffer = begin_single_time_commands();
 
-        VkCommandBuffer command_buffer;
-        vkAllocateCommandBuffers(m_device, &alloc_info, &command_buffer);
+        VkBufferCopy copyRegion{};
+        copyRegion.size = size;
+        vkCmdCopyBuffer(commandBuffer, src_buffer, dst_buffer, 1, &copyRegion);
 
-        VkCommandBufferBeginInfo begin_info{};
-        begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        end_single_time_commands(commandBuffer);
+    }
 
-        vkBeginCommandBuffer(command_buffer, &begin_info);
-        VkBufferCopy copy_region{};
-        copy_region.size = size;
-        vkCmdCopyBuffer(command_buffer, src_buffer, dst_buffer, 1, &copy_region);
-        vkEndCommandBuffer(command_buffer);
+    VkCommandBuffer VulkanContext::begin_single_time_commands() {
+        VkCommandBufferAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        allocInfo.commandPool = m_command_pool;
+        allocInfo.commandBufferCount = 1;
 
-        VkSubmitInfo submit_info{};
-        submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        submit_info.commandBufferCount = 1;
-        submit_info.pCommandBuffers = &command_buffer;
+        VkCommandBuffer commandBuffer;
+        vkAllocateCommandBuffers(m_device, &allocInfo, &commandBuffer);
 
-        vkQueueSubmit(m_graphics_queue, 1, &submit_info, VK_NULL_HANDLE);
+        VkCommandBufferBeginInfo beginInfo{};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+        vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+        return commandBuffer;
+    }
+
+    void VulkanContext::end_single_time_commands(VkCommandBuffer commandBuffer) {
+        vkEndCommandBuffer(commandBuffer);
+
+        VkSubmitInfo submitInfo{};
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &commandBuffer;
+
+        vkQueueSubmit(m_graphics_queue, 1, &submitInfo, VK_NULL_HANDLE);
         vkQueueWaitIdle(m_graphics_queue);
 
-        vkFreeCommandBuffers(m_device, m_command_pool, 1, &command_buffer);
+        vkFreeCommandBuffers(m_device, m_command_pool, 1, &commandBuffer);
     }
 
     void VulkanContext::swap_buffers()

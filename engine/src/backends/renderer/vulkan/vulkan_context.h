@@ -36,6 +36,8 @@ namespace Yogi
         uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties);
         void create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& buffer_memory);
         void copy_buffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size);
+        VkCommandBuffer begin_single_time_commands();
+        void end_single_time_commands(VkCommandBuffer command_buffer);
     private:
         void create_instance();
         void setup_debug_messenger();

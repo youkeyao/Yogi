@@ -9,6 +9,18 @@ set ( YG_WINDOW_GLFW 1 )
 set ( YG_RENDERER_OPENGL 1 )
 set ( YG_RENDERER_VULKAN 2 )
 
+# ---platform------------------------------------
+if (WIN32)
+    add_compile_definitions(YG_PLATFORM_WINDOWS)
+elseif (APPLE)
+    add_compile_definitions(YG_PLATFORM_APPLE)
+elseif (UNIX)
+    add_compile_definitions(YG_PLATFORM_UNIX)
+else()
+    message(FATAL_ERROR "Unknown platform")
+endif()
+#------------------------------------------------
+
 set ( YG_WINDOW_API "GLFW" )
 set ( YG_RENDERER_API "Vulkan" )
 

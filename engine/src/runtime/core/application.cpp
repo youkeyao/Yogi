@@ -96,7 +96,8 @@ namespace Yogi {
         } ubo;
         Ref<UniformBuffer> uniform_buffer = UniformBuffer::create(sizeof(UniformBufferObject));
         uniform_buffer->bind(0);
-        // Ref<Texture2D> texture = Texture2D::create("../sandbox/assets/textures/checkerboard.png");
+        Ref<Texture2D> texture = Texture2D::create("../sandbox/assets/textures/checkerboard.png");
+        texture->bind(1);
         while (m_running) {
             YG_PROFILE_SCOPE("RunLoop");
 
