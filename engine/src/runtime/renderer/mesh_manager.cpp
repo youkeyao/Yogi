@@ -14,7 +14,7 @@ namespace Yogi {
         { 0, 1, 2, 2, 3, 0 }});
     }
 
-    void MeshManager::add_mesh(std::string name, Mesh mesh)
+    void MeshManager::add_mesh(const std::string& name, Mesh mesh)
     {
         s_meshes[name] = mesh;
     }

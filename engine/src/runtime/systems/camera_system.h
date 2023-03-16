@@ -8,6 +8,7 @@ namespace Yogi {
     {
     public:
         static void on_update(Timestep ts, Scene* scene);
+        static void on_event(Event& e, Scene* scene);
     };
 
 }

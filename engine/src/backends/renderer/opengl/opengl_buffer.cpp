@@ -3,27 +3,29 @@
 
 namespace Yogi {
 
-    Ref<VertexBuffer> VertexBuffer::create(float* vertices, uint32_t size, bool is_static)
+    Ref<VertexBuffer> VertexBuffer::create(void* vertices, uint32_t size, bool is_static)
     {
         return CreateRef<OpenGLVertexBuffer>(vertices, size, is_static);
     }
 
-    Ref<IndexBuffer> IndexBuffer::create(uint32_t* indices, uint32_t size)
+    Ref<IndexBuffer> IndexBuffer::create(uint32_t* indices, uint32_t count, bool is_static)
     {
-        return CreateRef<OpenGLIndexBuffer>(indices, size);
+        return CreateRef<OpenGLIndexBuffer>(indices, count, is_static);
     }
 
-    Ref<UniformBuffer> UniformBuffer::create(uint32_t size, uint32_t binding)
+    Ref<UniformBuffer> UniformBuffer::create(uint32_t size)
     {
-        return CreateRef<OpenGLUniformBuffer>(size, binding);
+        return CreateRef<OpenGLUniformBuffer>(size);
     }
 
     //
     // Vertex buffer
     //
 
-    OpenGLVertexBuffer::OpenGLVertexBuffer(float* vertices, uint32_t size, bool is_static)
+    OpenGLVertexBuffer::OpenGLVertexBuffer(void* vertices, uint32_t size, bool is_static)
     {
+        m_size = size;
+
         glCreateBuffers(1, &m_renderer_id);
         glBindBuffer(GL_ARRAY_BUFFER, m_renderer_id);
         glBufferData(GL_ARRAY_BUFFER, size, vertices, is_static ? GL_STATIC_DRAW : GL_DYNAMIC_DRAW);
@@ -54,11 +56,13 @@ namespace Yogi {
     // Index buffer
     //
 
-    OpenGLIndexBuffer::OpenGLIndexBuffer(uint32_t* indices, uint32_t count) : m_count(count)
+    OpenGLIndexBuffer::OpenGLIndexBuffer(uint32_t* indices, uint32_t count, bool is_static)
     {
+        m_count = count;
+
         glCreateBuffers(1, &m_renderer_id);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_renderer_id);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, count * sizeof(uint32_t), indices, GL_STATIC_DRAW);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, count * sizeof(uint32_t), indices, is_static ? GL_STATIC_DRAW : GL_DYNAMIC_DRAW);
     }
 
     OpenGLIndexBuffer::~OpenGLIndexBuffer()
@@ -76,15 +80,20 @@ namespace Yogi {
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     }
 
+    void OpenGLIndexBuffer::set_data(const uint32_t* indices, uint32_t size)
+    {
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_renderer_id);
+        glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, size, indices);
+    }
+
     //
     // Uniform buffer
     //
 
-    OpenGLUniformBuffer::OpenGLUniformBuffer(uint32_t size, uint32_t binding)
+    OpenGLUniformBuffer::OpenGLUniformBuffer(uint32_t size)
     {
         glCreateBuffers(1, &m_renderer_id);
         glNamedBufferData(m_renderer_id, size, nullptr, GL_DYNAMIC_DRAW);
-        glBindBufferBase(GL_UNIFORM_BUFFER, binding, m_renderer_id);
     }
 
     OpenGLUniformBuffer::~OpenGLUniformBuffer()
@@ -92,6 +101,10 @@ namespace Yogi {
         glDeleteBuffers(1, &m_renderer_id);
     }
 
+    void OpenGLUniformBuffer::bind(uint32_t binding) const
+    {
+        glBindBufferBase(GL_UNIFORM_BUFFER, binding, m_renderer_id);
+    }
 
     void OpenGLUniformBuffer::set_data(const void* data, uint32_t size, uint32_t offset)
     {

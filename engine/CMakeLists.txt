@@ -79,10 +79,7 @@ add_subdirectory( vendor/SPIRV-Cross )
 
 file(GLOB_RECURSE
     YG_ENGINE_SOURCES CONFIGURE_DEPENDS
-        # src/runtime/*.cpp
-        src/runtime/core/*.cpp
-        src/runtime/events/*.cpp
-        src/runtime/scene/*.cpp
+        src/runtime/*.cpp
 )
 
 add_library( engine

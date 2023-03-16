@@ -30,9 +30,9 @@ namespace Yogi
         void set_viewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height)
         {
             recreate_swap_chain();
-            m_viewport = { (float)x, (float)y, (float)width, (float)height, 0.0f, 1.0f };
+            m_viewport = { (float)x, (float)height + y, (float)width, -(float)height, 0.0f, 1.0f };
         };
-        void set_draw() { is_draw = true; }
+        void set_draw_count(uint32_t count) { draw_index_count = count; }
 
         uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties);
         void create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& buffer_memory);
@@ -42,6 +42,10 @@ namespace Yogi
         void transition_image_layout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout, VkImageAspectFlags aspect_flags);
         VkCommandBuffer begin_single_time_commands();
         void end_single_time_commands(VkCommandBuffer command_buffer);
+
+        VkBuffer get_tmp_buffer() { return tmp_buffer; }
+        VkImageView get_tmp_image_view() { return tmp_image_view; }
+        VkSampler get_tmp_sampler() { return tmp_sampler; }
     private:
         void create_instance();
         void setup_debug_messenger();
@@ -99,7 +103,15 @@ namespace Yogi
         VulkanVertexBuffer* m_vertex_buffer = nullptr;
         VulkanIndexBuffer* m_index_buffer = nullptr;
 
-        bool is_draw = true;
+        uint32_t draw_index_count = 0;
+        #ifdef YG_DEBUG
+            VkBuffer tmp_buffer;
+            VkDeviceMemory tmp_buffer_memory;
+            VkImage tmp_image;
+            VkDeviceMemory tmp_image_memory;
+            VkImageView tmp_image_view;
+            VkSampler tmp_sampler;
+        #endif
     };
 
 }

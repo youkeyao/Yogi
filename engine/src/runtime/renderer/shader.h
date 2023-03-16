@@ -140,9 +140,9 @@ namespace Yogi {
         virtual void bind() const = 0;
         virtual void unbind() const = 0;
 
-        const std::string& get_name() { return m_name; }
-        const ShaderVertexLayout& get_vertex_layout() { return m_vertex_layout; }
-        const std::map<uint32_t, ShaderUniformLayout>& get_uniform_layout() { return m_uniform_layouts; }
+        const std::string& get_name() const { return m_name; }
+        const ShaderVertexLayout& get_vertex_layout() const { return m_vertex_layout; }
+        const std::map<uint32_t, ShaderUniformLayout>& get_uniform_layout() const { return m_uniform_layouts; }
 
         static Ref<Shader> create(const std::string& name, const std::vector<std::string>& types = { "vert", "frag" });
     protected:

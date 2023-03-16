@@ -119,9 +119,9 @@ namespace Yogi {
         glTextureSubImage2D(m_renderer_id, 0, 0, 0, m_width, m_height, m_data_format, type, data);
     };
 
-    void OpenGLTexture2D::bind(uint32_t slot) const
+    void OpenGLTexture2D::bind(uint32_t binding, uint32_t slot) const
     {
-        glBindTextureUnit(slot, m_renderer_id);
+        glBindTextureUnit(slot + 1, m_renderer_id);
     }
 
 }

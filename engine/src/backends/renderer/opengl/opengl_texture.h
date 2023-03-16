@@ -19,7 +19,7 @@ namespace Yogi {
 
         void set_data(void* data, size_t size) override;
 
-        void bind(uint32_t slot = 0) const override;
+        void bind(uint32_t binding = 0, uint32_t slot = 0) const override;
     private:
         uint32_t m_width, m_height;
         uint32_t m_renderer_id;

@@ -118,7 +118,7 @@ namespace Yogi {
     {
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
 
-        context->transition_image_layout(m_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+        context->transition_image_layout(m_image, m_internal_format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
         VkCommandBuffer command_buffer = context->begin_single_time_commands();
         VkBufferImageCopy region{};
         region.bufferOffset = 0;
@@ -150,13 +150,13 @@ namespace Yogi {
             &region
         );
         context->end_single_time_commands(command_buffer);
-        context->transition_image_layout(m_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+        context->transition_image_layout(m_image, m_internal_format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
         vkDestroyBuffer(context->get_device(), staging_buffer, nullptr);
         vkFreeMemory(context->get_device(), staging_buffer_memory, nullptr);
     };
 
-    void VulkanTexture2D::bind(uint32_t slot) const
+    void VulkanTexture2D::bind(uint32_t binding, uint32_t slot) const
     {
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
 
@@ -169,8 +169,8 @@ namespace Yogi {
             VkWriteDescriptorSet descriptor_write{};
             descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             descriptor_write.dstSet = context->get_current_pipeline()->get_descriptor_sets()[0];
-            descriptor_write.dstBinding = slot;
-            descriptor_write.dstArrayElement = 0;
+            descriptor_write.dstBinding = binding;
+            descriptor_write.dstArrayElement = slot;
             descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
             descriptor_write.descriptorCount = 1;
             descriptor_write.pBufferInfo = nullptr;

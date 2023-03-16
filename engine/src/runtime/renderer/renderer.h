@@ -1,29 +1,20 @@
 #pragma once
 
-#include "runtime/renderer/vertex_array.h"
-#include "runtime/renderer/shader.h"
+#include <glm/glm.hpp>
+#include "runtime/renderer/texture.h"
 
-namespace Yogi
-{
+namespace Yogi {
 
     class Renderer
     {
     public:
         static void init();
         static void shutdown();
-
         static void on_window_resize(uint32_t width, uint32_t height);
-        
-        static void end_scene();
 
-        static void submit(const Ref<Shader>& shader, const Ref<VertexArray>& vertex_array, const glm::mat4& transform = glm::mat4(1.0f));
-    private:
-        struct SceneData
-        {
-            glm::mat4 view_projection_matrix;
-        };
-
-        static SceneData* m_scene_data;
+        static void set_projection_view_matrix(glm::mat4 projection_view_matrix);
+        static void flush();
+        static void draw_mesh(const std::string& name, const glm::mat4& transform, const Ref<Texture2D>& texture, const glm::vec4& color);
     };
 
 }

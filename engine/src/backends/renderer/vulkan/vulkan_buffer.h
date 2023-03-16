@@ -33,11 +33,13 @@ namespace Yogi {
     class VulkanIndexBuffer : public IndexBuffer
     {
     public:
-        VulkanIndexBuffer(uint32_t* indices, uint32_t count);
+        VulkanIndexBuffer(uint32_t* indices, uint32_t count, bool is_static);
         ~VulkanIndexBuffer();
 
         void bind() const override;
         void unbind() const override;
+
+        void set_data(const uint32_t* indices, uint32_t size) override;
 
         VkBuffer get_vk_buffer() { return m_buffer; }
     private:

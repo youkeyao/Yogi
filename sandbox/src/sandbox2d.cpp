@@ -1,5 +1,6 @@
 #include "sandbox2d.h"
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 Sandbox2D::Sandbox2D() : Layer("Sandbox 2D") {}
 
@@ -7,11 +8,28 @@ void Sandbox2D::on_attach()
 {
     YG_PROFILE_FUNCTION();
 
-    // m_checkerboard_texture = Yogi::Texture2D::create("../sandbox/assets/textures/checkerboard.png");
+    m_checkerboard_texture = Yogi::Texture2D::create("../sandbox/assets/textures/checkerboard.png");
+    Yogi::Ref<Yogi::Texture2D> cherno_texture = Yogi::Texture2D::create("../sandbox/assets/textures/cherno_logo.png");
 
     m_scene = Yogi::CreateRef<Yogi::Scene>();
 
-    // m_scene->add_system<Yogi::RenderSystem>();
+    m_scene->add_system<Yogi::RenderSystem>();
+    m_scene->add_system<Yogi::CameraSystem>();
+    Yogi::Entity e = m_scene->create_entity();
+    e.add_component<Yogi::TransformComponent>().transform = glm::translate(glm::mat4(1.0f), {0, -0.3, 0});
+    e.add_component<Yogi::SpriteRendererComponent>().texture = m_checkerboard_texture;
+
+    e = m_scene->create_entity();
+    e.add_component<Yogi::TransformComponent>();
+    e.add_component<Yogi::SpriteRendererComponent>().texture = cherno_texture;
+
+    e = m_scene->create_entity();
+    e.add_component<Yogi::TransformComponent>();
+    e.add_component<Yogi::CameraComponent>().aspect_ratio = 1280.0f / 720.0f;
+
+    e = m_scene->create_entity();
+    e.add_component<Yogi::TransformComponent>().transform = glm::translate(glm::mat4(1.0f), {-0.7, 0, 0});
+    e.add_component<Yogi::SpriteRendererComponent>().color = {0.8, 0.2, 0.3, 0.7};
 
     // for (int32_t i = 0; i < 10000; i ++) {
     //     Yogi::Entity e = m_scene->create_entity();
@@ -77,5 +95,6 @@ void Sandbox2D::on_update(Yogi::Timestep ts)
 
 void Sandbox2D::on_event(Yogi::Event& e)
 {
+    m_scene->on_event(e);
     // m_camera_controller.on_event(e);
 }

@@ -18,11 +18,10 @@ namespace Yogi {
         context->set_clear_color(color);
     }
 
-    void RenderCommand::draw_indexed(const Ref<IndexBuffer>& index_buffer)
+    void RenderCommand::draw_indexed(uint32_t count)
     {
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
-        index_buffer->bind();
-        context->set_draw();
+        context->set_draw_count(count);
     }
 
 }

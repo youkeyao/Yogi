@@ -9,6 +9,7 @@ namespace Yogi {
     struct Transform
     {
         operator glm::mat4() const { return m_transform; }
+        Transform& operator=(const glm::mat4& transform) { m_transform = transform; return *this; }
     private:
         glm::mat4 m_transform = glm::mat4(1.0f);
     };
@@ -16,6 +17,7 @@ namespace Yogi {
     struct Color
     {
         operator glm::vec4() const { return m_color; }
+        Color& operator=(const glm::vec4& color) { m_color = color; return *this; }
     private:
         glm::vec4 m_color = glm::vec4(1.0f);
     };

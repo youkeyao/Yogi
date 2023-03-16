@@ -125,6 +125,39 @@ namespace Yogi {
             m_descriptor_sets.resize(m_descriptor_set_layouts.size());
             result = vkAllocateDescriptorSets(context->get_device(), &alloc_info, m_descriptor_sets.data());
             YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to allocate descriptor sets!");
+
+            #ifdef YG_DEBUG
+                for (int32_t i = 0; i < layout_bindings.size(); i ++) {
+                    for (int32_t j = 0; j < layout_bindings[i].size(); j ++) {
+                        std::vector<VkDescriptorBufferInfo> buffer_infos;
+                        std::vector<VkDescriptorImageInfo> image_infos;
+                        for (int32_t k = 0; k < layout_bindings[i][j].descriptorCount; k ++) {
+                            VkDescriptorBufferInfo buffer_info{};
+                            buffer_info.buffer = context->get_tmp_buffer();
+                            buffer_info.offset = 0;
+                            buffer_info.range = 1;
+                            buffer_infos.push_back(buffer_info);
+                            VkDescriptorImageInfo image_info{};
+                            image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                            image_info.imageView = context->get_tmp_image_view();
+                            image_info.sampler =  context->get_tmp_sampler();
+                            image_infos.push_back(image_info);
+                        }
+                        VkWriteDescriptorSet descriptor_write{};
+                        descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                        descriptor_write.dstSet = m_descriptor_sets[i];
+                        descriptor_write.dstBinding = layout_bindings[i][j].binding;
+                        descriptor_write.dstArrayElement = 0;
+                        descriptor_write.descriptorType = layout_bindings[i][j].descriptorType;
+                        descriptor_write.descriptorCount = layout_bindings[i][j].descriptorCount;
+                        descriptor_write.pBufferInfo = buffer_infos.data();
+                        descriptor_write.pImageInfo = image_infos.data();
+                        descriptor_write.pTexelBufferView = nullptr;
+
+                        vkUpdateDescriptorSets(context->get_device(), 1, &descriptor_write, 0, nullptr);
+                    }
+                }
+            #endif
         }
 
         std::vector<VkDynamicState> dynamic_states = context->get_dynamic_states();
@@ -320,10 +353,12 @@ namespace Yogi {
             uint32_t binding = compiler.get_decoration(uniform_buffer.id, spv::DecorationBinding);
             while (ubo_layout_bindings.size() < set + 1) ubo_layout_bindings.push_back(std::vector<VkDescriptorSetLayoutBinding>{});
 
+            uint32_t array_count = uniform_type.array_size_literal[0] ? uniform_type.array[0] : 1;
+
             VkDescriptorSetLayoutBinding ubo_layout_binding{};
             ubo_layout_binding.binding = binding;
             ubo_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            ubo_layout_binding.descriptorCount = uniform_type.columns;
+            ubo_layout_binding.descriptorCount = array_count;
             ubo_layout_binding.stageFlags = stage_flag;
             ubo_layout_binding.pImmutableSamplers = nullptr;
 
@@ -336,7 +371,7 @@ namespace Yogi {
             }
             m_uniform_layouts[binding] = uniform_layout;
 
-            ubo_count ++;
+            ubo_count += array_count;
         }
     }
 
@@ -345,20 +380,24 @@ namespace Yogi {
         spirv_cross::ShaderResources resources = compiler.get_shader_resources();
 
         for (auto& sampled_image : resources.sampled_images) {
+            auto &sampler_type = compiler.get_type(sampled_image.type_id);
+
             uint32_t set = compiler.get_decoration(sampled_image.id, spv::DecorationDescriptorSet);
             uint32_t binding = compiler.get_decoration(sampled_image.id, spv::DecorationBinding);
             while (sampler_layout_bindings.size() < set + 1) sampler_layout_bindings.push_back(std::vector<VkDescriptorSetLayoutBinding>{});
 
+            uint32_t array_count = sampler_type.array_size_literal[0] ? sampler_type.array[0] : 1;
+
             VkDescriptorSetLayoutBinding sampler_layout_binding{};
             sampler_layout_binding.binding = binding;
             sampler_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            sampler_layout_binding.descriptorCount = compiler.get_type(sampled_image.type_id).columns;
+            sampler_layout_binding.descriptorCount = array_count;
             sampler_layout_binding.stageFlags = stage_flag;
             sampler_layout_binding.pImmutableSamplers = nullptr;
 
             sampler_layout_bindings[set].push_back(sampler_layout_binding);
 
-            sampler_count ++;
+            sampler_count += array_count;
         }
     }
 

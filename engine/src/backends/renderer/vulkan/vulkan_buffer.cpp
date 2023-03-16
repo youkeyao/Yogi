@@ -9,9 +9,9 @@ namespace Yogi {
         return CreateRef<VulkanVertexBuffer>(vertices, size, is_static);
     }
 
-    Ref<IndexBuffer> IndexBuffer::create(uint32_t* indices, uint32_t size)
+    Ref<IndexBuffer> IndexBuffer::create(uint32_t* indices, uint32_t size, bool is_static)
     {
-        return CreateRef<VulkanIndexBuffer>(indices, size);
+        return CreateRef<VulkanIndexBuffer>(indices, size, is_static);
     }
 
     Ref<UniformBuffer> UniformBuffer::create(uint32_t size)
@@ -29,7 +29,7 @@ namespace Yogi {
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
 
         context->create_buffer(size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_buffer, m_buffer_memory);
-        set_data(vertices, size);
+        if (vertices) set_data(vertices, size);
     }
 
     VulkanVertexBuffer::~VulkanVertexBuffer()
@@ -76,26 +76,14 @@ namespace Yogi {
     // Index buffer
     //
 
-    VulkanIndexBuffer::VulkanIndexBuffer(uint32_t* indices, uint32_t count)
+    VulkanIndexBuffer::VulkanIndexBuffer(uint32_t* indices, uint32_t count, bool is_static)
     {
         m_count = count;
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
         VkDeviceSize size = count * sizeof(uint32_t);
 
-        VkBuffer staging_buffer;
-        VkDeviceMemory staging_buffer_memory;
-        context->create_buffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
-
-        void* data;
-        vkMapMemory(context->get_device(), staging_buffer_memory, 0, size, 0, &data);
-        memcpy(data, indices, size);
-        vkUnmapMemory(context->get_device(), staging_buffer_memory);
-
         context->create_buffer(size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_buffer, m_buffer_memory);
-        context->copy_buffer(staging_buffer, m_buffer, size);
-
-        vkDestroyBuffer(context->get_device(), staging_buffer, nullptr);
-        vkFreeMemory(context->get_device(), staging_buffer_memory, nullptr);
+        if (indices) set_data(indices, size);
     }
 
     VulkanIndexBuffer::~VulkanIndexBuffer()
@@ -119,25 +107,44 @@ namespace Yogi {
         context->set_current_index_buffer(nullptr);
     }
 
+    void VulkanIndexBuffer::set_data(const uint32_t* indices, uint32_t size)
+    {
+        VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
+
+        VkBuffer staging_buffer;
+        VkDeviceMemory staging_buffer_memory;
+        context->create_buffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
+
+        void* data;
+        vkMapMemory(context->get_device(), staging_buffer_memory, 0, size, 0, &data);
+        memcpy(data, indices, size);
+        vkUnmapMemory(context->get_device(), staging_buffer_memory);
+
+        context->copy_buffer(staging_buffer, m_buffer, size);
+
+        vkDestroyBuffer(context->get_device(), staging_buffer, nullptr);
+        vkFreeMemory(context->get_device(), staging_buffer_memory, nullptr);
+    }
+
     //
     // Uniform buffer
     //
 
     VulkanUniformBuffer::VulkanUniformBuffer(uint32_t size) : m_size(size)
-	{
+    {
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
         context->create_buffer(size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, m_buffer, m_buffer_memory);
         vkMapMemory(context->get_device(), m_buffer_memory, 0, size, 0, &m_buffer_mapped);
-	}
+    }
 
-	VulkanUniformBuffer::~VulkanUniformBuffer()
-	{
+    VulkanUniformBuffer::~VulkanUniformBuffer()
+    {
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
 
         vkDeviceWaitIdle(context->get_device());
         vkDestroyBuffer(context->get_device(), m_buffer, nullptr);
         vkFreeMemory(context->get_device(), m_buffer_memory, nullptr);
-	}
+    }
 
     void VulkanUniformBuffer::bind(uint32_t binding) const
     {
@@ -164,9 +171,9 @@ namespace Yogi {
         }
     }
 
-	void VulkanUniformBuffer::set_data(const void* data, uint32_t size, uint32_t offset)
-	{
+    void VulkanUniformBuffer::set_data(const void* data, uint32_t size, uint32_t offset)
+    {
         memcpy(m_buffer_mapped, data, size);
-	}
+    }
 
 }

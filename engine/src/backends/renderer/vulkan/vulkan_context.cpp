@@ -10,7 +10,8 @@ const std::vector<const char*> validationLayers = {
 };
 
 const std::vector<const char*> deviceExtensions = {
-    VK_KHR_SWAPCHAIN_EXTENSION_NAME
+    VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+    VK_KHR_MAINTENANCE1_EXTENSION_NAME
 };
 
 VkDebugUtilsMessengerEXT debugMessenger;
@@ -212,7 +213,8 @@ namespace Yogi {
         YG_CORE_INFO("    Version:  {0}", properties.apiVersion);
 
         m_viewport.width = window->get_width();
-        m_viewport.height = window->get_height();
+        m_viewport.height = -(float)window->get_height();
+        m_viewport.y = window->get_height();
     }
 
     void VulkanContext::init()
@@ -230,11 +232,41 @@ namespace Yogi {
         create_frame_buffers();
         create_command_buffer();
         create_sync_objects();
+
+        #ifdef YG_DEBUG
+            create_buffer(1, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, tmp_buffer, tmp_buffer_memory);
+            create_image(1, 1, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, tmp_image, tmp_image_memory);
+            transition_image_layout(tmp_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+            tmp_image_view = create_image_view(tmp_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
+            VkSamplerCreateInfo samplerInfo{};
+            samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+            samplerInfo.magFilter = VK_FILTER_NEAREST;
+            samplerInfo.minFilter = VK_FILTER_NEAREST;
+            samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            samplerInfo.anisotropyEnable = VK_FALSE;
+            samplerInfo.maxAnisotropy = 1.0f;
+            samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+            samplerInfo.unnormalizedCoordinates = VK_FALSE;
+            samplerInfo.compareEnable = VK_FALSE;
+            samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+            samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+            VkResult result = vkCreateSampler(m_device, &samplerInfo, nullptr, &tmp_sampler);
+            YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to create texture sampler!");
+        #endif
     }
 
     VulkanContext::~VulkanContext()
     {
         vkDeviceWaitIdle(m_device);
+
+        vkDestroyBuffer(m_device, tmp_buffer, nullptr);
+        vkFreeMemory(m_device, tmp_buffer_memory, nullptr);
+        vkDestroySampler(m_device, tmp_sampler, nullptr);
+        vkDestroyImageView(m_device, tmp_image_view, nullptr);
+        vkDestroyImage(m_device, tmp_image, nullptr);
+        vkFreeMemory(m_device, tmp_image_memory, nullptr);
 
         cleanup_swap_chain();
 
@@ -390,6 +422,12 @@ namespace Yogi {
             sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
             destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
         } else if (old_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+            barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+            sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+            destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        } else if (old_layout == VK_IMAGE_LAYOUT_UNDEFINED && new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
             barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
             barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
@@ -896,11 +934,10 @@ namespace Yogi {
 
         VkRect2D scissor{};
         scissor.offset = {0, 0};
-        scissor.extent = {(uint32_t)m_viewport.width, (uint32_t)m_viewport.height};
+        scissor.extent = m_swap_chain_extent;
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-        if (m_pipeline && is_draw) {
-            is_draw = false;
+        if (m_pipeline && draw_index_count) {
             const ShaderVertexLayout& vertex_layout = m_pipeline->get_vertex_layout();
             const std::map<uint32_t, ShaderUniformLayout>& uniform_layout = m_pipeline->get_uniform_layout();
             if (m_vertex_buffer) {
@@ -912,12 +949,13 @@ namespace Yogi {
                 vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertex_buffers, offsets);
                 if (m_index_buffer) {
                     vkCmdBindIndexBuffer(commandBuffer, m_index_buffer->get_vk_buffer(), 0, VK_INDEX_TYPE_UINT32);
-                    vkCmdDrawIndexed(commandBuffer, m_index_buffer->get_count(), 1, 0, 0, 0);
+                    vkCmdDrawIndexed(commandBuffer, draw_index_count, 1, 0, 0, 0);
                 }
                 else {
                     vkCmdDraw(commandBuffer, m_vertex_buffer->get_size() / vertex_layout.get_stride(), 1, 0, 0);
                 }
             }
+            draw_index_count = 0;
         }
 
         vkCmdEndRenderPass(m_command_buffers[m_current_frame]);

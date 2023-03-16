@@ -9,10 +9,10 @@ namespace Yogi {
     public:
         virtual ~GraphicsContext() = default;
 
-		virtual void init() = 0;
+        virtual void init() = 0;
         virtual void swap_buffers() = 0;
 
-		static Scope<GraphicsContext> create(Window* window);
+        static Scope<GraphicsContext> create(Window* window);
     };
 
 }

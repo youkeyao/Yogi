@@ -14,7 +14,8 @@ namespace Yogi {
     {
     public:
         static void init();
-        static void add_mesh(std::string name, Mesh mesh);
+        static void add_mesh(const std::string& name, Mesh mesh);
+        static const Mesh& get_mesh(const std::string& name) { return s_meshes[name]; }
     private:
         static std::map<std::string, Mesh> s_meshes;
     };
