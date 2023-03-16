@@ -21,8 +21,7 @@ namespace Yogi {
 
         void bind(uint32_t slot = 0) const override;
     private:
-        void create_image();
-        void transition_image_layout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout);
+        void init_texture();
     private:
         uint32_t m_width, m_height;
         uint32_t m_renderer_id;

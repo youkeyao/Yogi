@@ -21,17 +21,8 @@ namespace Yogi {
     void RenderCommand::draw_indexed(const Ref<IndexBuffer>& index_buffer)
     {
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
-        // index_buffer->bind();
-        // vkCmdDrawIndexed(context->get_current_command_buffer(), index_buffer->get_count(), 1, 0, 0, 0);
-        // if (context->get_current_pipeline()) {
-        //     context->begin_command_buffer();
-        //     vkCmdBindPipeline(context->get_current_command_buffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, context->get_current_pipeline()->get_vk_pipeline());
-        //     const std::vector<VkDescriptorSet>& descriptor_sets = context->get_current_pipeline()->get_descriptor_sets();
-        //     if (!descriptor_sets.empty()) vkCmdBindDescriptorSets(context->get_current_command_buffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, context->get_current_pipeline()->get_vk_pipeline_layout(), 0, 1, &descriptor_sets[0], 0, nullptr);
-        //     vkCmdDraw(context->get_current_command_buffer(), 3, 1, 0, 0);
-        //     context->end_command_buffer();
-        // }
-        context->set_current_index_buffer((VulkanIndexBuffer*)index_buffer.get());
+        index_buffer->bind();
+        context->set_draw();
     }
 
 }

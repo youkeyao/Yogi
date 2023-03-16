@@ -27,7 +27,7 @@ namespace Yogi {
             YG_CORE_ERROR("Invalid texture format!");
         }
 
-        create_image();
+        init_texture();
     }
 
     VulkanTexture2D::VulkanTexture2D(const std::string& path)
@@ -57,7 +57,7 @@ namespace Yogi {
             YG_CORE_ERROR("Invalid texture format!");
         }
 
-        create_image();
+        init_texture();
         set_data(data, image_size);
 
         stbi_image_free(data);
@@ -74,55 +74,13 @@ namespace Yogi {
         vkFreeMemory(context->get_device(), m_image_memory, nullptr);
     }
 
-    void VulkanTexture2D::create_image()
+    void VulkanTexture2D::init_texture()
     {
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
+
+        context->create_image(m_width, m_height, m_internal_format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_image, m_image_memory);
         
-        VkImageCreateInfo image_info{};
-        image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-        image_info.imageType = VK_IMAGE_TYPE_2D;
-        image_info.extent.width = m_width;
-        image_info.extent.height = m_height;
-        image_info.extent.depth = 1;
-        image_info.mipLevels = 1;
-        image_info.arrayLayers = 1;
-        image_info.format = m_internal_format;
-        image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
-        image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        image_info.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-        image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        image_info.samples = VK_SAMPLE_COUNT_1_BIT;
-        image_info.flags = 0;
-
-        VkResult result = vkCreateImage(context->get_device(), &image_info, nullptr, &m_image);
-        YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to create image!");
-
-        VkMemoryRequirements mem_requirements;
-        vkGetImageMemoryRequirements(context->get_device(), m_image, &mem_requirements);
-
-        VkMemoryAllocateInfo alloc_info{};
-        alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-        alloc_info.allocationSize = mem_requirements.size;
-        alloc_info.memoryTypeIndex = context->find_memory_type(mem_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-        result = vkAllocateMemory(context->get_device(), &alloc_info, nullptr, &m_image_memory);
-        YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to allocate image memory!");
-
-        vkBindImageMemory(context->get_device(), m_image, m_image_memory, 0);
-
-        VkImageViewCreateInfo viewInfo{};
-        viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        viewInfo.image = m_image;
-        viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        viewInfo.format = m_internal_format;
-        viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        viewInfo.subresourceRange.baseMipLevel = 0;
-        viewInfo.subresourceRange.levelCount = 1;
-        viewInfo.subresourceRange.baseArrayLayer = 0;
-        viewInfo.subresourceRange.layerCount = 1;
-
-        result = vkCreateImageView(context->get_device(), &viewInfo, nullptr, &m_image_view);
-        YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to create texture image view!");
+        m_image_view = context->create_image_view(m_image, m_internal_format, VK_IMAGE_ASPECT_COLOR_BIT);
 
         VkSamplerCreateInfo samplerInfo{};
         samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -148,7 +106,7 @@ namespace Yogi {
         samplerInfo.minLod = 0.0f;
         samplerInfo.maxLod = 0.0f;
 
-        result = vkCreateSampler(context->get_device(), &samplerInfo, nullptr, &m_sampler);
+        VkResult result = vkCreateSampler(context->get_device(), &samplerInfo, nullptr, &m_sampler);
         YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to create texture sampler!");
     }
 
@@ -156,61 +114,11 @@ namespace Yogi {
     {
     }
 
-    void VulkanTexture2D::transition_image_layout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout)
-    {
-        VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
-
-        VkCommandBuffer commandBuffer = context->begin_single_time_commands();
-
-        VkImageMemoryBarrier barrier{};
-        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-        barrier.oldLayout = old_layout;
-        barrier.newLayout = new_layout;
-        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barrier.image = image;
-        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        barrier.subresourceRange.baseMipLevel = 0;
-        barrier.subresourceRange.levelCount = 1;
-        barrier.subresourceRange.baseArrayLayer = 0;
-        barrier.subresourceRange.layerCount = 1;
-
-        VkPipelineStageFlags sourceStage;
-        VkPipelineStageFlags destinationStage;
-
-        if (old_layout == VK_IMAGE_LAYOUT_UNDEFINED && new_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
-            barrier.srcAccessMask = 0;
-            barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-
-            sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-            destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-        } else if (old_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
-            barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-            sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-            destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-        } else {
-            YG_CORE_ASSERT(false, "Unsupported layout transition!");
-        }
-
-        vkCmdPipelineBarrier(
-            commandBuffer,
-            sourceStage, destinationStage,
-            0,
-            0, nullptr,
-            0, nullptr,
-            1, &barrier
-        );
-
-        context->end_single_time_commands(commandBuffer);
-    }
-
     void VulkanTexture2D::set_data(void* data, size_t size)
     {
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
 
-        transition_image_layout(m_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+        context->transition_image_layout(m_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
         VkCommandBuffer command_buffer = context->begin_single_time_commands();
         VkBufferImageCopy region{};
         region.bufferOffset = 0;
@@ -242,7 +150,7 @@ namespace Yogi {
             &region
         );
         context->end_single_time_commands(command_buffer);
-        transition_image_layout(m_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        context->transition_image_layout(m_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
         vkDestroyBuffer(context->get_device(), staging_buffer, nullptr);
         vkFreeMemory(context->get_device(), staging_buffer_memory, nullptr);

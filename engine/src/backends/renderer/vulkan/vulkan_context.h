@@ -24,18 +24,22 @@ namespace Yogi
         VulkanShader* get_current_pipeline() { return m_pipeline; }
         void set_current_pipeline(const VulkanShader* pipeline) { m_pipeline = (VulkanShader*)pipeline; }
         void set_current_vertex_buffer(const VulkanVertexBuffer* vertex_buffer) { m_vertex_buffer = (VulkanVertexBuffer*)vertex_buffer; }
-        void set_current_index_buffer(const VulkanIndexBuffer* index_buffer) { m_index_buffer = (VulkanIndexBuffer*)index_buffer; is_draw = true; }
+        void set_current_index_buffer(const VulkanIndexBuffer* index_buffer) { m_index_buffer = (VulkanIndexBuffer*)index_buffer; }
         std::vector<VkDynamicState> get_dynamic_states() { return std::vector<VkDynamicState>{ VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR }; }
         void set_clear_color(const glm::vec4& color) { m_clear_color = { color.x, color.y, color.z, color.w }; }
         void set_viewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height)
         {
+            recreate_swap_chain();
             m_viewport = { (float)x, (float)y, (float)width, (float)height, 0.0f, 1.0f };
-            is_window_resized = true;
         };
+        void set_draw() { is_draw = true; }
 
         uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties);
         void create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& buffer_memory);
+        void create_image(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& image_memory);
+        VkImageView create_image_view(VkImage image, VkFormat format, VkImageAspectFlags aspect_flags);
         void copy_buffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size);
+        void transition_image_layout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout, VkImageAspectFlags aspect_flags);
         VkCommandBuffer begin_single_time_commands();
         void end_single_time_commands(VkCommandBuffer command_buffer);
     private:
@@ -47,14 +51,17 @@ namespace Yogi
         void create_swap_chain();
         void create_image_views();
         void create_render_pass();
-        void create_frame_buffers();
         void create_command_pool();
+        void create_depth_resources();
+        void create_frame_buffers();
         void create_command_buffer();
         void create_sync_objects();
 
         void cleanup_swap_chain();
         void recreate_swap_chain();
         void record_render_command();
+        VkFormat find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
+        VkFormat find_depth_format();
     private:
         Window* m_window;
         VkInstance m_instance;
@@ -80,6 +87,10 @@ namespace Yogi
         std::vector<VkSemaphore> m_render_finished_semaphores;
         std::vector<VkFence> m_in_flight_fences;
 
+        VkImage m_depth_image;
+        VkDeviceMemory m_depth_image_memory;
+        VkImageView m_depth_image_view;
+
         uint32_t m_current_frame = 0;
         uint32_t m_image_index = 0;
         VkViewport m_viewport{ 0, 0, 0, 0, 0, 1};
@@ -88,7 +99,6 @@ namespace Yogi
         VulkanVertexBuffer* m_vertex_buffer = nullptr;
         VulkanIndexBuffer* m_index_buffer = nullptr;
 
-        bool is_window_resized = false;
         bool is_draw = true;
     };
 

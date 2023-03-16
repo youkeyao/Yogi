@@ -77,13 +77,19 @@ namespace Yogi {
         Ref<Shader> s = Shader::create("editor", {"vert", "frag"});
         s->bind();
         float vertices[] = {
-            -0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-            0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
-            0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f,
-            -0.5f, 0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f
+            -0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+            0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f,
+            0.5f, 0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
+            -0.5f, 0.5f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
+
+            -0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+            0.5f, -0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f,
+            0.5f, 0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
+            -0.5f, 0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f
         };
         uint32_t indices[] = {
-            0, 1, 2, 2, 3, 0
+            0, 1, 2, 2, 3, 0,
+            4, 5, 6, 6, 7, 4
         };
         Ref<VertexBuffer> vertex_buffer = VertexBuffer::create(vertices, sizeof(vertices));
         vertex_buffer->bind();
@@ -96,7 +102,7 @@ namespace Yogi {
         } ubo;
         Ref<UniformBuffer> uniform_buffer = UniformBuffer::create(sizeof(UniformBufferObject));
         uniform_buffer->bind(0);
-        Ref<Texture2D> texture = Texture2D::create("../sandbox/assets/textures/checkerboard.png");
+        Ref<Texture2D> texture = Texture2D::create("../sandbox/assets/textures/cherno_logo.png");
         texture->bind(1);
         while (m_running) {
             YG_PROFILE_SCOPE("RunLoop");

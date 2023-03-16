@@ -176,8 +176,8 @@ namespace Yogi {
         color_blend_attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
         color_blend_attachment.colorBlendOp = VK_BLEND_OP_ADD;
         color_blend_attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-        color_blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-        color_blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
+        color_blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+        color_blend_attachment.alphaBlendOp = VK_BLEND_OP_MIN;
 
         VkPipelineColorBlendStateCreateInfo color_blending{};
         color_blending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
@@ -189,6 +189,16 @@ namespace Yogi {
         color_blending.blendConstants[1] = 0.0f;
         color_blending.blendConstants[2] = 0.0f;
         color_blending.blendConstants[3] = 0.0f;
+
+        VkPipelineDepthStencilStateCreateInfo depth_stencil{};
+        depth_stencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+        depth_stencil.depthTestEnable = VK_TRUE;
+        depth_stencil.depthWriteEnable = VK_TRUE;
+        depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS;
+        depth_stencil.depthBoundsTestEnable = VK_FALSE;
+        depth_stencil.minDepthBounds = 0.0f;
+        depth_stencil.maxDepthBounds = 1.0f;
+        depth_stencil.stencilTestEnable = VK_FALSE;
 
         VkPipelineLayoutCreateInfo pipeline_layout_info{};
         pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -215,6 +225,7 @@ namespace Yogi {
         pipeline_info.renderPass = context->get_render_pass();
         pipeline_info.subpass = 0;
         pipeline_info.basePipelineHandle = VK_NULL_HANDLE;
+        pipeline_info.pDepthStencilState = &depth_stencil;
 
         result = vkCreateGraphicsPipelines(context->get_device(), VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &m_graphics_pipeline);
         YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to create graphics pipeline!");
