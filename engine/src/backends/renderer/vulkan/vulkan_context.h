@@ -18,7 +18,11 @@ namespace Yogi
         void init() override;
         void swap_buffers() override;
 
+        VkInstance get_instance() { return m_instance; }
+        VkPhysicalDevice get_physical_device() { return m_physical_device; }
         VkDevice get_device() { return m_device; }
+        VkQueue get_graphics_queue() { return m_graphics_queue; }
+        uint32_t get_swap_chain_image_count() { return m_swap_chain_images.size(); }
         VkCommandBuffer get_current_command_buffer() { return m_command_buffers[m_current_frame]; }
         VkRenderPass get_render_pass() { return m_render_pass; }
         VulkanShader* get_current_pipeline() { return m_pipeline; }
@@ -26,13 +30,14 @@ namespace Yogi
         void set_current_vertex_buffer(const VulkanVertexBuffer* vertex_buffer) { m_vertex_buffer = (VulkanVertexBuffer*)vertex_buffer; }
         void set_current_index_buffer(const VulkanIndexBuffer* index_buffer) { m_index_buffer = (VulkanIndexBuffer*)index_buffer; }
         std::vector<VkDynamicState> get_dynamic_states() { return std::vector<VkDynamicState>{ VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR }; }
-        void set_clear_color(const glm::vec4& color) { m_clear_color = { color.x, color.y, color.z, color.w }; }
+        void set_clear_color(const glm::vec4& color) { m_clear_color = {{ color.x, color.y, color.z, color.w }}; }
         void set_viewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height)
         {
             recreate_swap_chain();
             m_viewport = { (float)x, (float)height + y, (float)width, -(float)height, 0.0f, 1.0f };
         };
         void set_draw_count(uint32_t count) { draw_index_count = count; }
+        void add_render_func(std::function<void(VkCommandBuffer)> func) { m_render_funcs.push_back(func); }
 
         uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties);
         void create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& buffer_memory);
@@ -43,9 +48,11 @@ namespace Yogi
         VkCommandBuffer begin_single_time_commands();
         void end_single_time_commands(VkCommandBuffer command_buffer);
 
-        VkBuffer get_tmp_buffer() { return tmp_buffer; }
-        VkImageView get_tmp_image_view() { return tmp_image_view; }
-        VkSampler get_tmp_sampler() { return tmp_sampler; }
+        #ifdef YG_DEBUG
+            VkBuffer get_tmp_buffer() { return tmp_buffer; }
+            VkImageView get_tmp_image_view() { return tmp_image_view; }
+            VkSampler get_tmp_sampler() { return tmp_sampler; }
+        #endif
     private:
         void create_instance();
         void setup_debug_messenger();
@@ -98,10 +105,12 @@ namespace Yogi
         uint32_t m_current_frame = 0;
         uint32_t m_image_index = 0;
         VkViewport m_viewport{ 0, 0, 0, 0, 0, 1};
-        VkClearValue m_clear_color = {{ 0.0f, 0.0f, 0.0f, 1.0f }};
+        VkClearColorValue m_clear_color = {{ 0.0f, 0.0f, 0.0f, 1.0f }};
         VulkanShader* m_pipeline = nullptr;
         VulkanVertexBuffer* m_vertex_buffer = nullptr;
         VulkanIndexBuffer* m_index_buffer = nullptr;
+
+        std::vector<std::function<void(VkCommandBuffer)>> m_render_funcs;
 
         uint32_t draw_index_count = 0;
         #ifdef YG_DEBUG

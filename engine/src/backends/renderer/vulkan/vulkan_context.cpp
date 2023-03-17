@@ -11,7 +11,7 @@ const std::vector<const char*> validationLayers = {
 
 const std::vector<const char*> deviceExtensions = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-    VK_KHR_MAINTENANCE1_EXTENSION_NAME
+    VK_KHR_MAINTENANCE1_EXTENSION_NAME,
 };
 
 VkDebugUtilsMessengerEXT debugMessenger;
@@ -155,7 +155,7 @@ bool isDeviceSuitable(VkPhysicalDevice device)
 VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats)
 {
     for (const auto& availableFormat : availableFormats) {
-        if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+        if (availableFormat.format == VK_FORMAT_B8G8R8A8_UNORM && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
             return availableFormat;
         }
     }
@@ -235,9 +235,9 @@ namespace Yogi {
 
         #ifdef YG_DEBUG
             create_buffer(1, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, tmp_buffer, tmp_buffer_memory);
-            create_image(1, 1, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, tmp_image, tmp_image_memory);
-            transition_image_layout(tmp_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-            tmp_image_view = create_image_view(tmp_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
+            create_image(1, 1, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, tmp_image, tmp_image_memory);
+            transition_image_layout(tmp_image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+            tmp_image_view = create_image_view(tmp_image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
             VkSamplerCreateInfo samplerInfo{};
             samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
             samplerInfo.magFilter = VK_FILTER_NEAREST;
@@ -534,7 +534,6 @@ namespace Yogi {
         VkSwapchainKHR swapChains[] = {m_swap_chain};
         presentInfo.swapchainCount = 1;
         presentInfo.pSwapchains = swapChains;
-
         presentInfo.pImageIndices = &m_image_index;
 
         result = vkQueuePresentKHR(m_present_queue, &presentInfo);
@@ -630,7 +629,7 @@ namespace Yogi {
         }
 
         if (m_physical_device == VK_NULL_HANDLE) {
-            throw std::runtime_error("failed to find a suitable GPU!");
+            YG_CORE_ASSERT(false, "Failed to find a suitable GPU!");
         }
     }
 
@@ -925,7 +924,9 @@ namespace Yogi {
         renderPassInfo.framebuffer = m_swap_chain_frame_buffers[m_image_index];
         renderPassInfo.renderArea.offset = {0, 0};
         renderPassInfo.renderArea.extent = m_swap_chain_extent;
-        std::array<VkClearValue, 2> clear_values{m_clear_color, {1.0f, 0}};
+        std::array<VkClearValue, 2> clear_values;
+        clear_values[0].color = m_clear_color;
+        clear_values[1].depthStencil = {1.0f, 0};
         renderPassInfo.clearValueCount = static_cast<uint32_t>(clear_values.size());
         renderPassInfo.pClearValues = clear_values.data();
 
@@ -957,6 +958,9 @@ namespace Yogi {
             }
             draw_index_count = 0;
         }
+
+        for (auto& func : m_render_funcs) func(commandBuffer);
+        m_render_funcs.clear();
 
         vkCmdEndRenderPass(m_command_buffers[m_current_frame]);
 

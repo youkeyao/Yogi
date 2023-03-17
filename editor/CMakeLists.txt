@@ -47,4 +47,5 @@ target_include_directories( editor
         vendor/rapidjson/include
         vendor/portable-file-dialogs
         vendor/ImGuizmo
+        ../engine/src
 )

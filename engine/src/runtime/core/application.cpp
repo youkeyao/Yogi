@@ -24,6 +24,9 @@ namespace Yogi {
         YG_PROFILE_FUNCTION();
 
         Renderer::shutdown();
+        for (Layer* layer : m_layerstack) {
+            layer->on_detach();
+        }
     }
 
     void Application::push_layer(Layer* layer)

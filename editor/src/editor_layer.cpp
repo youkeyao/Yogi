@@ -1,4 +1,5 @@
 #include "editor_layer.h"
+#include "imgui_setting.h"
 #include "reflect/component_manager.h"
 #include "reflect/system_manager.h"
 #include "reflect/scene_manager.h"
@@ -14,13 +15,14 @@ namespace Yogi {
     void EditorLayer::on_attach()
     {
         YG_PROFILE_FUNCTION();
+        ImguiSetting::init();
 
         ComponentManager::init();
         SystemManager::init();
 
         m_frame_texture = Texture2D::create(s_max_viewport_size, s_max_viewport_size);
         m_entity_id_texture = Texture2D::create(s_max_viewport_size, s_max_viewport_size, TextureFormat::RED_INTEGER);
-        m_frame_buffer = FrameBuffer::create(s_max_viewport_size, s_max_viewport_size, { m_frame_texture, m_entity_id_texture });
+        // m_frame_buffer = FrameBuffer::create(s_max_viewport_size, s_max_viewport_size, { m_frame_texture, m_entity_id_texture });
 
         // m_scene = CreateRef<Scene>();
         // m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
@@ -48,22 +50,27 @@ namespace Yogi {
     void EditorLayer::on_detach()
     {
         YG_PROFILE_FUNCTION();
+
+        ImguiSetting::shutdown();
     }
 
     void EditorLayer::on_update(Timestep ts)
     {
         YG_PROFILE_FUNCTION();
+
+        ImguiSetting::imgui_begin();
         
         imgui_update();
         m_hierarchy_panel->on_imgui_render();
 
-        Renderer2D::reset_stats();
-        m_frame_buffer->bind();
+        // Renderer2D::reset_stats();
+        // m_frame_buffer->bind();
 
         m_editor_camera.on_update(ts, m_viewport_hovered);
         m_scene->on_update(ts);
 
-        m_frame_buffer->unbind();
+        // m_frame_buffer->unbind();
+        ImguiSetting::imgui_end();
     }
 
     void EditorLayer::imgui_update()
@@ -91,14 +98,14 @@ namespace Yogi {
             ImGui::EndMenuBar();
         }
 
-        Renderer2D::Statistics stats = Renderer2D::get_stats();
-        ImGui::Begin("Stats");
-        ImGui::Text("Renderer2D Stats:");
-        ImGui::Text("Draw Calls: %d", stats.draw_calls);
-        ImGui::Text("Quads: %d", stats.quad_count);
-        ImGui::Text("Vertices: %d", stats.get_total_vertex_count());
-        ImGui::Text("Indices: %d", stats.get_total_index_count());
-        ImGui::End();
+        // Renderer2D::Statistics stats = Renderer2D::get_stats();
+        // ImGui::Begin("Stats");
+        // ImGui::Text("Renderer2D Stats:");
+        // ImGui::Text("Draw Calls: %d", stats.draw_calls);
+        // ImGui::Text("Quads: %d", stats.quad_count);
+        // ImGui::Text("Vertices: %d", stats.get_total_vertex_count());
+        // ImGui::Text("Indices: %d", stats.get_total_index_count());
+        // ImGui::End();
 
         ImGui::Begin("Settings");
         ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed |
@@ -133,12 +140,12 @@ namespace Yogi {
             m_editor_camera.on_event(e);
             RenderCommand::set_viewport(0.0f, 0.0f, m_viewport_size.x, m_viewport_size.y);
         }
-        ImGui::Image(
-            (void*)(uint64_t)m_frame_texture->get_renderer_id(),
-            ImVec2(m_viewport_size.x, m_viewport_size.y),
-            ImVec2( 0, m_viewport_size.y / m_frame_texture->get_height() ),
-            ImVec2( m_viewport_size.x / m_frame_texture->get_width(), 0 )
-        );
+        // ImGui::Image(
+        //     (void*)(uint64_t)m_frame_texture->get_renderer_id(),
+        //     ImVec2(m_viewport_size.x, m_viewport_size.y),
+        //     ImVec2( 0, m_viewport_size.y / m_frame_texture->get_height() ),
+        //     ImVec2( m_viewport_size.x / m_frame_texture->get_width(), 0 )
+        // );
 
         // Gizmos
         Entity selected_entity = m_hierarchy_panel->get_selected_entity();

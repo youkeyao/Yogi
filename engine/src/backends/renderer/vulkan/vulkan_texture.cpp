@@ -18,7 +18,7 @@ namespace Yogi {
     VulkanTexture2D::VulkanTexture2D(uint32_t width, uint32_t height, TextureFormat format) : m_width(width), m_height(height)
     {
         if (format == TextureFormat::RGBA8) {
-            m_internal_format = VK_FORMAT_R8G8B8A8_SRGB;
+            m_internal_format = VK_FORMAT_R8G8B8A8_UNORM;
         }
         else if (format == TextureFormat::RED_INTEGER) {
             m_internal_format = VK_FORMAT_R32_SINT;
@@ -46,11 +46,11 @@ namespace Yogi {
         VkDeviceSize image_size;
 
         if (channels == 4) {
-            m_internal_format = VK_FORMAT_R8G8B8A8_SRGB;
+            m_internal_format = VK_FORMAT_R8G8B8A8_UNORM;
             image_size = m_width * m_height * 4;
         }
         else if (channels == 3) {
-            m_internal_format = VK_FORMAT_R8G8B8_SRGB;
+            m_internal_format = VK_FORMAT_R8G8B8_UNORM;
             image_size = m_width * m_height * 3;
         }
         else {
