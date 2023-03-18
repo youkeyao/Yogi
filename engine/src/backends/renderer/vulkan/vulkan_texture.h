@@ -14,17 +14,21 @@ namespace Yogi {
 
         uint32_t get_width() const override { return m_width; }
         uint32_t get_height() const override{ return m_height; }
-        uint32_t get_renderer_id() const override { return m_renderer_id; }
+        void* get_renderer_id() const override { return m_image_memory; }
         void read_pixel(int32_t x, int32_t y, void* data) const override;
 
         void set_data(void* data, size_t size) override;
 
         void bind(uint32_t binding = 0, uint32_t slot = 0) const override;
+
+        VkImage get_vk_image() const { return m_image; }
+        VkImageView get_vk_image_view() const { return m_image_view; }
+        VkFormat get_vk_format() const { return m_internal_format; }
+        VkSampler get_vk_sampler() const { return m_sampler; }
     private:
         void init_texture();
     private:
         uint32_t m_width, m_height;
-        uint32_t m_renderer_id;
         VkImage m_image;
         VkDeviceMemory m_image_memory;
         VkFormat m_internal_format;

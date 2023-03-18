@@ -44,6 +44,26 @@ namespace Yogi {
         return VK_FORMAT_UNDEFINED;
     }
 
+    static VkFormat spirv_type_to_vk_image_format(spirv_cross::SPIRType stype)
+    {
+        switch (stype.basetype) {
+            case spirv_cross::SPIRType::Float:
+                if (stype.vecsize == 1) return VK_FORMAT_R32_SFLOAT;
+                else if (stype.vecsize == 2) return VK_FORMAT_R32G32_SFLOAT;
+                else if (stype.vecsize == 3) return VK_FORMAT_R32G32B32_SFLOAT;
+                else if (stype.vecsize == 4) return VK_FORMAT_B8G8R8A8_UNORM;
+            case spirv_cross::SPIRType::Int:
+                if (stype.vecsize == 1) return VK_FORMAT_R32_SINT;
+                else if (stype.vecsize == 2) return VK_FORMAT_R32G32_SINT;
+                else if (stype.vecsize == 3) return VK_FORMAT_R32G32B32_SINT;
+                else if (stype.vecsize == 4) return VK_FORMAT_R32G32B32A32_SINT;
+            case spirv_cross::SPIRType::Boolean:
+                if (stype.vecsize == 1) return VK_FORMAT_R32_UINT;
+        }
+        YG_CORE_ASSERT(false, "Unknown spirv type!");
+        return VK_FORMAT_UNDEFINED;
+    }
+
     Ref<Shader> Shader::create(const std::string& name, const std::vector<std::string>& types)
     {
         return CreateRef<VulkanShader>(name);
@@ -76,6 +96,7 @@ namespace Yogi {
             }
             else if (type == "frag") {
                 shader_stage_info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+                reflect_output(compiler);
             }
             else {
                 YG_CORE_ASSERT(false, "Invalid shader stage!");
@@ -133,14 +154,14 @@ namespace Yogi {
                         std::vector<VkDescriptorImageInfo> image_infos;
                         for (int32_t k = 0; k < layout_bindings[i][j].descriptorCount; k ++) {
                             VkDescriptorBufferInfo buffer_info{};
-                            buffer_info.buffer = context->get_tmp_buffer();
+                            buffer_info.buffer = context->get_tmp_uniform_buffer()->get_vk_buffer();
                             buffer_info.offset = 0;
                             buffer_info.range = 1;
                             buffer_infos.push_back(buffer_info);
                             VkDescriptorImageInfo image_info{};
                             image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-                            image_info.imageView = context->get_tmp_image_view();
-                            image_info.sampler =  context->get_tmp_sampler();
+                            image_info.imageView = context->get_tmp_texture()->get_vk_image_view();
+                            image_info.sampler = context->get_tmp_texture()->get_vk_sampler();
                             image_infos.push_back(image_info);
                         }
                         VkWriteDescriptorSet descriptor_write{};
@@ -255,7 +276,7 @@ namespace Yogi {
         pipeline_info.pColorBlendState = &color_blending;
         pipeline_info.pDynamicState = &dynamic_state;
         pipeline_info.layout = m_pipeline_layout;
-        pipeline_info.renderPass = context->get_render_pass();
+        pipeline_info.renderPass = m_render_pass;
         pipeline_info.subpass = 0;
         pipeline_info.basePipelineHandle = VK_NULL_HANDLE;
         pipeline_info.pDepthStencilState = &depth_stencil;
@@ -279,6 +300,7 @@ namespace Yogi {
         }
         vkDestroyPipeline(context->get_device(), m_graphics_pipeline, nullptr);
         vkDestroyPipelineLayout(context->get_device(), m_pipeline_layout, nullptr);
+        vkDestroyRenderPass(context->get_device(), m_render_pass, nullptr);
     }
 
     std::vector<uint32_t> VulkanShader::read_file(const std::string& filepath)
@@ -364,7 +386,7 @@ namespace Yogi {
 
             ubo_layout_bindings[set].push_back(ubo_layout_binding);
 
-            ShaderUniformLayout uniform_layout;
+            PipelineLayout uniform_layout;
             for (int32_t i = 0; i < uniform_type.member_types.size(); i ++) {
                 const auto& member_type = compiler.get_type(uniform_type.member_types[i]);
                 uniform_layout.add_element({ spirv_type_to_shader_data_type(member_type), compiler.get_member_name(uniform_type.self, i) });
@@ -399,6 +421,27 @@ namespace Yogi {
 
             sampler_count += array_count;
         }
+    }
+
+    void VulkanShader::reflect_output(const spirv_cross::CompilerGLSL& compiler)
+    {
+        spirv_cross::ShaderResources resources = compiler.get_shader_resources();
+
+        std::map<uint32_t, spirv_cross::Resource*> stage_outputs;
+        for (auto& stage_output : resources.stage_outputs) {
+            stage_outputs[compiler.get_decoration(stage_output.id, spv::DecorationLocation)] = &stage_output;
+        }
+        std::vector<VkFormat> color_attachment_formats;
+        for (auto& [location, p_stage_output] : stage_outputs) {
+            auto& stage_output = *p_stage_output;
+            const auto& output_type = compiler.get_type(stage_output.base_type_id);
+
+            m_output_layout.add_element({ spirv_type_to_shader_data_type(output_type), stage_output.name });
+
+            color_attachment_formats.push_back(spirv_type_to_vk_image_format(output_type));
+        }
+        VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
+        m_render_pass = context->create_render_pass(color_attachment_formats);
     }
 
     void VulkanShader::bind() const

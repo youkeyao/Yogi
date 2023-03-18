@@ -14,6 +14,7 @@ namespace Yogi {
         ms_instance = this;
 
         m_window = Window::create(WindowProps(name));
+        m_window->init();
         m_window->set_event_callback(YG_BIND_EVENT_FN(Application::on_event));
 
         Renderer::init();

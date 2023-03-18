@@ -18,8 +18,11 @@ namespace Yogi {
         m_data.title = props.title;
         m_data.width = props.width;
         m_data.height = props.height;
+    }
 
-        YG_CORE_INFO("Creating Window {0} ({1} {2})", props.title, props.width, props.height);
+    void WindowGLFW::init()
+    {
+        YG_CORE_INFO("Creating Window {0} ({1} {2})", m_data.title, m_data.width, m_data.height);
 
         if (!s_glfw_initialized) {
             int success = glfwInit();
@@ -34,6 +37,7 @@ namespace Yogi {
         m_window = glfwCreateWindow(m_data.width, m_data.height, m_data.title.c_str(), nullptr, nullptr);
 
         m_context = GraphicsContext::create(this);
+        m_context->init();
         glfwSetWindowUserPointer(m_window, &m_data);
 
         // Set GLFW callbacks

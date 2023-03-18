@@ -7,6 +7,7 @@
     #define ImGui_Renderer_Shutdown(...) ImGui_ImplOpenGL3_Shutdown(__VA_ARGS__)
     #define ImGui_Renderer_NewFrame(...) ImGui_ImplOpenGL3_NewFrame(__VA_ARGS__)
     #define ImGui_Renderer_Draw(...) ImGui_ImplOpenGL3_RenderDrawData(__VA_ARGS__)
+    #define ImGui_Renderer_Texture(x) x->get_renderer_id()
 
     #if YG_WINDOW_API == YG_WINDOW_GLFW
         #include <backends/imgui_impl_glfw.h>
@@ -28,10 +29,16 @@
     #include <backends/imgui_impl_vulkan.h>
     #include <backends/imgui_impl_vulkan.cpp>
     VkDescriptorPool g_DescriptorPool;
+    VkRenderPass g_RenderPass;
+    VkCommandBuffer g_CommandBuffer;
+    std::vector<VkFramebuffer> g_Framebuffers;
     void imgui_vulkan_init()
     {
         ImGui_ImplVulkan_InitInfo init_info = {};
         Yogi::VulkanContext* context = (Yogi::VulkanContext*)Yogi::Application::get().get_window().get_context();
+
+        g_RenderPass = context->create_render_pass({context->get_swap_chain_image_format()}, false);
+        g_CommandBuffer = context->add_command_buffer();
 
         init_info.Instance = context->get_instance();
         init_info.PhysicalDevice = context->get_physical_device();
@@ -69,7 +76,7 @@
         init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
         init_info.Allocator = nullptr;
         init_info.CheckVkResultFn = nullptr;
-        ImGui_ImplVulkan_Init(&init_info, context->get_render_pass());
+        ImGui_ImplVulkan_Init(&init_info, g_RenderPass);
 
         VkCommandBuffer command_buffer = context->begin_single_time_commands();
         ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
@@ -79,19 +86,56 @@
     void frame_render()
     {
         Yogi::VulkanContext* context = (Yogi::VulkanContext*)Yogi::Application::get().get_window().get_context();
-        context->add_render_func([](VkCommandBuffer command_buffer){
-            ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), command_buffer);
-        });
+        VkCommandBufferBeginInfo beginInfo{};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+        vkResetCommandBuffer(g_CommandBuffer, 0);
+        VkResult result = vkBeginCommandBuffer(g_CommandBuffer, &beginInfo);
+        YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to begin recording command buffer!");
+
+        VkExtent2D extent = context->get_swap_chain_extent();
+
+        VkRenderPassBeginInfo renderPassInfo{};
+        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        renderPassInfo.renderPass = g_RenderPass;
+        renderPassInfo.framebuffer = context->get_current_frame_buffer();
+        renderPassInfo.renderArea.offset = {0, 0};
+        renderPassInfo.renderArea.extent = extent;
+        VkClearValue clear_value{{0, 0, 0, 1}};
+        renderPassInfo.clearValueCount = 1;
+        renderPassInfo.pClearValues = &clear_value;
+
+        vkCmdBeginRenderPass(g_CommandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+        VkViewport viewport{0, 0, (float)extent.width, (float)extent.height, 0, 1};
+        vkCmdSetViewport(g_CommandBuffer, 0, 1, &viewport);
+
+        VkRect2D scissor{};
+        scissor.offset = {0, 0};
+        scissor.extent = extent;
+        vkCmdSetScissor(g_CommandBuffer, 0, 1, &scissor);
+
+        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), g_CommandBuffer);
+
+        vkCmdEndRenderPass(g_CommandBuffer);
+
+        result = vkEndCommandBuffer(g_CommandBuffer);
+        YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to record imgui command buffer!");
+    }
+    void imgui_vulkan_shutdown()
+    {
+        ImGui_ImplVulkan_Shutdown();
+        Yogi::VulkanContext* context = (Yogi::VulkanContext*)Yogi::Application::get().get_window().get_context();
+        vkDeviceWaitIdle(context->get_device());
+        vkDestroyRenderPass(context->get_device(), g_RenderPass, nullptr);
+        vkFreeCommandBuffers(context->get_device(), context->get_command_pool(), 1, &g_CommandBuffer);
+        vkDestroyDescriptorPool(context->get_device(), g_DescriptorPool, nullptr);
     }
 
     #define ImGui_Renderer_Init(...) imgui_vulkan_init()
-    #define ImGui_Renderer_Shutdown(...) \
-        ImGui_ImplVulkan_Shutdown(__VA_ARGS__); \
-        VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context(); \
-        vkDeviceWaitIdle(context->get_device()); \
-        vkDestroyDescriptorPool(context->get_device(), g_DescriptorPool, nullptr);
+    #define ImGui_Renderer_Shutdown(...) imgui_vulkan_shutdown()
     #define ImGui_Renderer_NewFrame(...) ImGui_ImplVulkan_NewFrame(__VA_ARGS__)
     #define ImGui_Renderer_Draw(...) frame_render()
+    #define ImGui_Renderer_Texture(x) ImGui_ImplVulkan_AddTexture(((VulkanTexture2D*)x.get())->get_vk_sampler(), ((VulkanTexture2D*)x.get())->get_vk_image_view(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
 
     #if YG_WINDOW_API == YG_WINDOW_GLFW
         #include <backends/imgui_impl_glfw.h>

@@ -203,18 +203,6 @@ namespace Yogi {
         #else
             setenv("VK_LAYER_PATH", YG_VK_LAYER_PATH, 1);
         #endif
-        init();
-
-        VkPhysicalDeviceProperties properties;
-        vkGetPhysicalDeviceProperties(m_physical_device, &properties);
-        YG_CORE_INFO("Vulkan Info:");
-        YG_CORE_INFO("    Vendor:   {0}", properties.vendorID);
-        YG_CORE_INFO("    Renderer: {0}", properties.deviceName);
-        YG_CORE_INFO("    Version:  {0}", properties.apiVersion);
-
-        m_viewport.width = window->get_width();
-        m_viewport.height = -(float)window->get_height();
-        m_viewport.y = window->get_height();
     }
 
     void VulkanContext::init()
@@ -226,51 +214,32 @@ namespace Yogi {
         create_logical_device();
         create_swap_chain();
         create_image_views();
-        create_render_pass();
         create_command_pool();
         create_depth_resources();
-        create_frame_buffers();
         create_command_buffer();
         create_sync_objects();
 
         #ifdef YG_DEBUG
-            create_buffer(1, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, tmp_buffer, tmp_buffer_memory);
-            create_image(1, 1, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, tmp_image, tmp_image_memory);
-            transition_image_layout(tmp_image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-            tmp_image_view = create_image_view(tmp_image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
-            VkSamplerCreateInfo samplerInfo{};
-            samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-            samplerInfo.magFilter = VK_FILTER_NEAREST;
-            samplerInfo.minFilter = VK_FILTER_NEAREST;
-            samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            samplerInfo.anisotropyEnable = VK_FALSE;
-            samplerInfo.maxAnisotropy = 1.0f;
-            samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-            samplerInfo.unnormalizedCoordinates = VK_FALSE;
-            samplerInfo.compareEnable = VK_FALSE;
-            samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-            samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-            VkResult result = vkCreateSampler(m_device, &samplerInfo, nullptr, &tmp_sampler);
-            YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to create texture sampler!");
+            tmp_texture = Texture2D::create(1, 1, TextureFormat::RGBA8);
+            tmp_uniform_buffer = UniformBuffer::create(1);
         #endif
+
+        VkPhysicalDeviceProperties properties;
+        vkGetPhysicalDeviceProperties(m_physical_device, &properties);
+        YG_CORE_INFO("Vulkan Info:");
+        YG_CORE_INFO("    Vendor:   {0}", properties.vendorID);
+        YG_CORE_INFO("    Renderer: {0}", properties.deviceName);
+        YG_CORE_INFO("    Version:  {0}", properties.apiVersion);
     }
 
     VulkanContext::~VulkanContext()
     {
         vkDeviceWaitIdle(m_device);
 
-        vkDestroyBuffer(m_device, tmp_buffer, nullptr);
-        vkFreeMemory(m_device, tmp_buffer_memory, nullptr);
-        vkDestroySampler(m_device, tmp_sampler, nullptr);
-        vkDestroyImageView(m_device, tmp_image_view, nullptr);
-        vkDestroyImage(m_device, tmp_image, nullptr);
-        vkFreeMemory(m_device, tmp_image_memory, nullptr);
+        tmp_texture.reset();
+        tmp_uniform_buffer.reset();
 
         cleanup_swap_chain();
-
-        vkDestroyRenderPass(m_device, m_render_pass, nullptr);
 
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
             vkDestroySemaphore(m_device, m_render_finished_semaphores[i], nullptr);
@@ -278,6 +247,7 @@ namespace Yogi {
             vkDestroyFence(m_device, m_in_flight_fences[i], nullptr);
         }
 
+        vkFreeCommandBuffers(m_device, m_command_pool, MAX_FRAMES_IN_FLIGHT, m_command_buffers.data());
         vkDestroyCommandPool(m_device, m_command_pool, nullptr);
 
         vkDestroyDevice(m_device, nullptr);
@@ -502,9 +472,6 @@ namespace Yogi {
         }
 
         vkResetFences(m_device, 1, &m_in_flight_fences[m_current_frame]);
-        vkResetCommandBuffer(m_command_buffers[m_current_frame], 0);
-
-        record_render_command();
 
         VkSubmitInfo submitInfo{};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -515,8 +482,12 @@ namespace Yogi {
         submitInfo.pWaitSemaphores = waitSemaphores;
         submitInfo.pWaitDstStageMask = waitStages;
 
-        submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &m_command_buffers[m_current_frame];
+        std::vector<VkCommandBuffer> command_buffers{m_command_buffers[m_current_frame]};
+        for (auto& command_buffer : m_extern_command_buffers) {
+            command_buffers.push_back(command_buffer);
+        }
+        submitInfo.commandBufferCount = static_cast<uint32_t>(command_buffers.size());
+        submitInfo.pCommandBuffers = command_buffers.data();
 
         VkSemaphore signalSemaphores[] = {m_render_finished_semaphores[m_current_frame]};
         submitInfo.signalSemaphoreCount = 1;
@@ -545,6 +516,7 @@ namespace Yogi {
         }
 
         m_current_frame = (m_current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
+        vkResetCommandBuffer(m_command_buffers[m_current_frame], 0);
     }
 
     void VulkanContext::create_instance()
@@ -737,42 +709,48 @@ namespace Yogi {
         }
     }
 
-    void VulkanContext::create_render_pass()
+    VkRenderPass VulkanContext::create_render_pass(const std::vector<VkFormat>& color_attachment_formats, bool has_depth_attachment)
     {
-        VkAttachmentDescription colorAttachment{};
-        colorAttachment.format = m_swap_chain_image_format;
-        colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-        colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        std::vector<VkAttachmentDescription> all_attachments;
+        std::vector<VkAttachmentReference> color_attachments;
+        for (auto& format : color_attachment_formats) {
+            VkAttachmentDescription colorAttachment{};
+            colorAttachment.format = format;
+            colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+            colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+            colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+            colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+            colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+            colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
-        VkAttachmentReference colorAttachmentRef{};
-        colorAttachmentRef.attachment = 0;
-        colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            VkAttachmentReference colorAttachmentRef{};
+            colorAttachmentRef.attachment = static_cast<uint32_t>(color_attachments.size());
+            colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
+            all_attachments.push_back(colorAttachment);
+            color_attachments.push_back(colorAttachmentRef);
+        }
         VkAttachmentDescription depthAttachment{};
-        depthAttachment.format = find_depth_format();
-        depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-        depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-        
         VkAttachmentReference depthAttachmentRef{};
-        depthAttachmentRef.attachment = 1;
-        depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
         VkSubpassDescription subpass{};
         subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-        subpass.colorAttachmentCount = 1;
-        subpass.pColorAttachments = &colorAttachmentRef;
-        subpass.pDepthStencilAttachment = &depthAttachmentRef;
-
+        subpass.colorAttachmentCount = static_cast<uint32_t>(color_attachments.size());
+        subpass.pColorAttachments = color_attachments.data();
+        if (has_depth_attachment) {
+            depthAttachment.format = find_depth_format();
+            depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+            depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+            depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+            depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+            depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+            depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            all_attachments.push_back(depthAttachment);
+            depthAttachmentRef.attachment = static_cast<uint32_t>(color_attachments.size());
+            depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            subpass.pDepthStencilAttachment = &depthAttachmentRef;
+        }
         VkSubpassDependency dependency{};
         dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
         dependency.dstSubpass = 0;
@@ -781,41 +759,45 @@ namespace Yogi {
         dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
         dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
-        std::array<VkAttachmentDescription, 2> attachments = {colorAttachment, depthAttachment};
         VkRenderPassCreateInfo renderPassInfo{};
         renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-        renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
-        renderPassInfo.pAttachments = attachments.data();
+        renderPassInfo.attachmentCount = static_cast<uint32_t>(all_attachments.size());
+        renderPassInfo.pAttachments = all_attachments.data();
         renderPassInfo.subpassCount = 1;
         renderPassInfo.pSubpasses = &subpass;
         renderPassInfo.dependencyCount = 1;
         renderPassInfo.pDependencies = &dependency;
 
-        VkResult result = vkCreateRenderPass(m_device, &renderPassInfo, nullptr, &m_render_pass);
+        VkRenderPass render_pass;
+        VkResult result = vkCreateRenderPass(m_device, &renderPassInfo, nullptr, &render_pass);
         YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to create render pass!");
+
+        return render_pass;
     }
 
     void VulkanContext::create_frame_buffers()
     {
-        m_swap_chain_frame_buffers.resize(m_swap_chain_image_views.size());
+        if (m_pipeline) {
+            m_swap_chain_frame_buffers.resize(m_swap_chain_image_views.size());
 
-        for (size_t i = 0; i < m_swap_chain_image_views.size(); i++) {
-            std::array<VkImageView, 2> attachments = {
-                m_swap_chain_image_views[i],
-                m_depth_image_view
-            };
+            for (size_t i = 0; i < m_swap_chain_image_views.size(); i++) {
+                std::array<VkImageView, 2> attachments = {
+                    m_swap_chain_image_views[i],
+                    m_depth_image_view
+                };
 
-            VkFramebufferCreateInfo framebufferInfo{};
-            framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-            framebufferInfo.renderPass = m_render_pass;
-            framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
-            framebufferInfo.pAttachments = attachments.data();
-            framebufferInfo.width = m_swap_chain_extent.width;
-            framebufferInfo.height = m_swap_chain_extent.height;
-            framebufferInfo.layers = 1;
+                VkFramebufferCreateInfo framebufferInfo{};
+                framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+                framebufferInfo.renderPass = m_pipeline->get_vk_render_pass();
+                framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+                framebufferInfo.pAttachments = attachments.data();
+                framebufferInfo.width = m_swap_chain_extent.width;
+                framebufferInfo.height = m_swap_chain_extent.height;
+                framebufferInfo.layers = 1;
 
-            VkResult result = vkCreateFramebuffer(m_device, &framebufferInfo, nullptr, &m_swap_chain_frame_buffers[i]);
-            YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to create framebuffer!");
+                VkResult result = vkCreateFramebuffer(m_device, &framebufferInfo, nullptr, &m_swap_chain_frame_buffers[i]);
+                YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to create framebuffer!");
+            }
         }
     }
 
@@ -909,65 +891,6 @@ namespace Yogi {
         create_frame_buffers();
     }
 
-    void VulkanContext::record_render_command()
-    {
-        VkCommandBuffer commandBuffer = m_command_buffers[m_current_frame];
-        VkCommandBufferBeginInfo beginInfo{};
-        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-
-        VkResult result = vkBeginCommandBuffer(commandBuffer, &beginInfo);
-        YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to begin recording command buffer!");
-
-        VkRenderPassBeginInfo renderPassInfo{};
-        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        renderPassInfo.renderPass = m_render_pass;
-        renderPassInfo.framebuffer = m_swap_chain_frame_buffers[m_image_index];
-        renderPassInfo.renderArea.offset = {0, 0};
-        renderPassInfo.renderArea.extent = m_swap_chain_extent;
-        std::array<VkClearValue, 2> clear_values;
-        clear_values[0].color = m_clear_color;
-        clear_values[1].depthStencil = {1.0f, 0};
-        renderPassInfo.clearValueCount = static_cast<uint32_t>(clear_values.size());
-        renderPassInfo.pClearValues = clear_values.data();
-
-        vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-        vkCmdSetViewport(commandBuffer, 0, 1, &m_viewport);
-
-        VkRect2D scissor{};
-        scissor.offset = {0, 0};
-        scissor.extent = m_swap_chain_extent;
-        vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
-
-        if (m_pipeline && draw_index_count) {
-            const ShaderVertexLayout& vertex_layout = m_pipeline->get_vertex_layout();
-            const std::map<uint32_t, ShaderUniformLayout>& uniform_layout = m_pipeline->get_uniform_layout();
-            if (m_vertex_buffer) {
-                vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->get_vk_pipeline());
-                const std::vector<VkDescriptorSet>& descriptor_sets = m_pipeline->get_descriptor_sets();
-                if (!descriptor_sets.empty()) vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->get_vk_pipeline_layout(), 0, 1, &descriptor_sets[0], 0, nullptr);
-                VkBuffer vertex_buffers[] = {m_vertex_buffer->get_vk_buffer()};
-                VkDeviceSize offsets[] = {0};
-                vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertex_buffers, offsets);
-                if (m_index_buffer) {
-                    vkCmdBindIndexBuffer(commandBuffer, m_index_buffer->get_vk_buffer(), 0, VK_INDEX_TYPE_UINT32);
-                    vkCmdDrawIndexed(commandBuffer, draw_index_count, 1, 0, 0, 0);
-                }
-                else {
-                    vkCmdDraw(commandBuffer, m_vertex_buffer->get_size() / vertex_layout.get_stride(), 1, 0, 0);
-                }
-            }
-            draw_index_count = 0;
-        }
-
-        for (auto& func : m_render_funcs) func(commandBuffer);
-        m_render_funcs.clear();
-
-        vkCmdEndRenderPass(m_command_buffers[m_current_frame]);
-
-        result = vkEndCommandBuffer(commandBuffer);
-        YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to record command buffer!");
-    }
-
     VkFormat VulkanContext::find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) {
         for (VkFormat format : candidates) {
             VkFormatProperties props;
@@ -989,5 +912,23 @@ namespace Yogi {
             VK_IMAGE_TILING_OPTIMAL,
             VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
         );
+    }
+
+    VkCommandBuffer VulkanContext::add_command_buffer()
+    {
+        VkCommandBuffer command_buffer;
+
+        VkCommandBufferAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        allocInfo.commandPool = m_command_pool;
+        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        allocInfo.commandBufferCount = 1;
+
+        VkResult result = vkAllocateCommandBuffers(m_device, &allocInfo, &command_buffer);
+        YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to add command buffer!");
+
+        m_extern_command_buffers.push_back(command_buffer);
+
+        return command_buffer;
     }
 }

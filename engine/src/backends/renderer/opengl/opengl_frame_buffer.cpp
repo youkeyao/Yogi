@@ -77,6 +77,7 @@ namespace Yogi {
     {
         YG_CORE_ASSERT(index < 4 && m_color_attachments[index], "Invalid attachment index!");
         m_color_attachments[index] = nullptr;
+        m_color_attachments_size --;
     }
 
     const Ref<Texture2D>& OpenGLFrameBuffer::get_color_attachment(uint32_t index) const

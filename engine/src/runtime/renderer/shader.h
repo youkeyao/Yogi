@@ -72,15 +72,18 @@ namespace Yogi {
         ShaderDataType type;
         std::string name;
         uint32_t offset;
+        uint32_t size;
+        uint32_t count;
 
-        ShaderElement(ShaderDataType type, const std::string& name) : type(type), name(name), offset(0) {}
+        ShaderElement(ShaderDataType type, const std::string& name)
+         : type(type), name(name), offset(0), size(shader_data_type_size(type)), count(shader_data_type_count(type)) {}
     };
 
-    class ShaderVertexLayout
+    class PipelineLayout
     {
     public:
-        ShaderVertexLayout() {}
-        ShaderVertexLayout(const std::initializer_list<ShaderElement>& elements)
+        PipelineLayout() {}
+        PipelineLayout(const std::initializer_list<ShaderElement>& elements)
         {
             for (auto element : elements) add_element(element);
         }
@@ -96,35 +99,7 @@ namespace Yogi {
             m_elements.push_back(element);
             ShaderElement& se = m_elements.back();
             se.offset = m_stride;
-            m_stride += shader_data_type_size(se.type);
-        }
-
-    private:
-        std::vector<ShaderElement> m_elements;
-        uint32_t m_stride = 0;
-    };
-
-    class ShaderUniformLayout
-    {
-    public:
-        ShaderUniformLayout() {}
-        ShaderUniformLayout(const std::initializer_list<ShaderElement>& elements)
-        {
-            for (auto element : elements) add_element(element);
-        }
-
-        inline uint32_t get_stride() const { return m_stride; }
-        inline const std::vector<ShaderElement>& get_elements() const { return m_elements; }
-
-        std::vector<ShaderElement>::const_iterator begin() const { return m_elements.begin(); }
-        std::vector<ShaderElement>::const_iterator end() const { return m_elements.end(); }
-
-        void add_element(const ShaderElement& element)
-        {
-            m_elements.push_back(element);
-            ShaderElement& se = m_elements.back();
-            se.offset = m_stride;
-            m_stride += shader_data_type_size(se.type);
+            m_stride += se.size;
         }
 
     private:
@@ -141,13 +116,15 @@ namespace Yogi {
         virtual void unbind() const = 0;
 
         const std::string& get_name() const { return m_name; }
-        const ShaderVertexLayout& get_vertex_layout() const { return m_vertex_layout; }
-        const std::map<uint32_t, ShaderUniformLayout>& get_uniform_layout() const { return m_uniform_layouts; }
+        const PipelineLayout& get_vertex_layout() const { return m_vertex_layout; }
+        const std::map<uint32_t, PipelineLayout>& get_uniform_layout() const { return m_uniform_layouts; }
+        const PipelineLayout& get_output_layout() const { return m_output_layout; }
 
         static Ref<Shader> create(const std::string& name, const std::vector<std::string>& types = { "vert", "frag" });
     protected:
-        ShaderVertexLayout m_vertex_layout;
-        std::map<uint32_t, ShaderUniformLayout> m_uniform_layouts;
+        PipelineLayout m_vertex_layout;
+        PipelineLayout m_output_layout;
+        std::map<uint32_t, PipelineLayout> m_uniform_layouts;
         std::string m_name;
     };
 

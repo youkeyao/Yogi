@@ -15,20 +15,22 @@ void Sandbox2D::on_attach()
 
     m_scene->add_system<Yogi::RenderSystem>();
     m_scene->add_system<Yogi::CameraSystem>();
-    Yogi::Entity e = m_scene->create_entity();
-    e.add_component<Yogi::TransformComponent>().transform = glm::translate(glm::mat4(1.0f), {0, -0.3, 0});
-    e.add_component<Yogi::SpriteRendererComponent>().texture = m_checkerboard_texture;
+    checker = m_scene->create_entity();
+    checker.add_component<Yogi::TransformComponent>().transform = glm::translate(glm::mat4(1.0f), {0, -0.3, 0});
+    checker.add_component<Yogi::SpriteRendererComponent>().texture = m_checkerboard_texture;
 
-    e = m_scene->create_entity();
-    e.add_component<Yogi::TransformComponent>();
+    Yogi::Entity e = m_scene->create_entity();
+    e.add_component<Yogi::TransformComponent>().transform = glm::translate(glm::mat4(1.0f), {0, 0, 0.1});
     e.add_component<Yogi::SpriteRendererComponent>().texture = cherno_texture;
 
     e = m_scene->create_entity();
-    e.add_component<Yogi::TransformComponent>();
-    e.add_component<Yogi::CameraComponent>().aspect_ratio = 1280.0f / 720.0f;
+    e.add_component<Yogi::TransformComponent>().transform = glm::rotate(glm::mat4(1.0f), 1.0f, {0, 1, 0}) * glm::translate(glm::mat4(1.0f), {1, 1, 5});
+    auto& camera = e.add_component<Yogi::CameraComponent>();
+    camera.aspect_ratio = 1280.0f / 720.0f;
+    camera.is_ortho = false;
 
     e = m_scene->create_entity();
-    e.add_component<Yogi::TransformComponent>().transform = glm::translate(glm::mat4(1.0f), {-0.7, 0, 0});
+    e.add_component<Yogi::TransformComponent>().transform = glm::translate(glm::mat4(1.0f), {0.4, 0, 0.11});
     e.add_component<Yogi::SpriteRendererComponent>().color = {0.8, 0.2, 0.3, 0.7};
 
     // for (int32_t i = 0; i < 10000; i ++) {
@@ -71,6 +73,8 @@ void Sandbox2D::on_update(Yogi::Timestep ts)
         //         Yogi::Renderer2D::draw_quad({x, y}, {0.45f, 0.45f}, {(x + 5.0f) / 10.0f, 0.4f, (y + 5.0f) / 10.0f, 0.7f});
         //     }
         // }
+        // auto& transform = checker.get_component<Yogi::TransformComponent>().transform;
+        // transform = glm::rotate(glm::mat4(1.0f), (float)ts, glm::vec3{0, 1, 0}) * (glm::mat4)transform;
         m_scene->on_update(ts);
         // Yogi::Renderer2D::end_scene();
     }

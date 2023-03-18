@@ -22,7 +22,7 @@ namespace Yogi {
 
         m_frame_texture = Texture2D::create(s_max_viewport_size, s_max_viewport_size);
         m_entity_id_texture = Texture2D::create(s_max_viewport_size, s_max_viewport_size, TextureFormat::RED_INTEGER);
-        // m_frame_buffer = FrameBuffer::create(s_max_viewport_size, s_max_viewport_size, { m_frame_texture, m_entity_id_texture });
+        m_frame_buffer = FrameBuffer::create(s_max_viewport_size, s_max_viewport_size, { m_frame_texture, m_entity_id_texture });
 
         // m_scene = CreateRef<Scene>();
         // m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
@@ -64,12 +64,12 @@ namespace Yogi {
         m_hierarchy_panel->on_imgui_render();
 
         // Renderer2D::reset_stats();
-        // m_frame_buffer->bind();
+        m_frame_buffer->bind();
 
         m_editor_camera.on_update(ts, m_viewport_hovered);
         m_scene->on_update(ts);
 
-        // m_frame_buffer->unbind();
+        m_frame_buffer->unbind();
         ImguiSetting::imgui_end();
     }
 
@@ -140,12 +140,12 @@ namespace Yogi {
             m_editor_camera.on_event(e);
             RenderCommand::set_viewport(0.0f, 0.0f, m_viewport_size.x, m_viewport_size.y);
         }
-        // ImGui::Image(
-        //     (void*)(uint64_t)m_frame_texture->get_renderer_id(),
-        //     ImVec2(m_viewport_size.x, m_viewport_size.y),
-        //     ImVec2( 0, m_viewport_size.y / m_frame_texture->get_height() ),
-        //     ImVec2( m_viewport_size.x / m_frame_texture->get_width(), 0 )
-        // );
+        ImGui::Image(
+            ImguiSetting::get_texture_id(m_frame_texture),
+            ImVec2(m_viewport_size.x, m_viewport_size.y),
+            ImVec2( 0, m_viewport_size.y / m_frame_texture->get_height() ),
+            ImVec2( m_viewport_size.x / m_frame_texture->get_width(), 0 )
+        );
 
         // Gizmos
         Entity selected_entity = m_hierarchy_panel->get_selected_entity();

@@ -15,6 +15,7 @@ namespace Yogi {
         WindowGLFW(const WindowProps& props);
         virtual ~WindowGLFW();
 
+        void init() override;
         void on_update() override;
 
         inline uint32_t get_width() const override { return m_data.width; }

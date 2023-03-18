@@ -15,6 +15,7 @@ public:
 
 private:
     Yogi::Ref<Yogi::Scene> m_scene;
+    Yogi::Entity checker;
 
     Yogi::Ref<Yogi::Texture2D> m_checkerboard_texture;
 

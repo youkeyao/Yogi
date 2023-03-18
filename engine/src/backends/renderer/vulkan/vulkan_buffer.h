@@ -60,6 +60,8 @@ namespace Yogi {
         void bind(uint32_t binding) const override;
 
         void set_data(const void* data, uint32_t size, uint32_t offset = 0) override;
+
+        VkBuffer get_vk_buffer() { return m_buffer; }
     private:
         VkBuffer m_buffer;
         VkDeviceMemory m_buffer_memory;

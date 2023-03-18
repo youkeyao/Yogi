@@ -78,7 +78,7 @@ namespace Yogi {
     void OpenGLContext::set_vertex_layout(const Shader* shader)
     {
         m_vertex_buffer_id = 0;
-        const ShaderVertexLayout& layout = shader->get_vertex_layout();
+        const PipelineLayout& layout = shader->get_vertex_layout();
         for (const auto& element : layout) {
             switch (element.type) {
                 case ShaderDataType::Float:
@@ -88,7 +88,7 @@ namespace Yogi {
                 {
                     glEnableVertexAttribArray(m_vertex_buffer_id);
                     glVertexAttribPointer(m_vertex_buffer_id,
-                        shader_data_type_count(element.type),
+                        element.count,
                         ShaderDataType_to_OpenGLBaseType(element.type),
                         GL_FALSE,
                         layout.get_stride(),
@@ -104,7 +104,7 @@ namespace Yogi {
                 {
                     glEnableVertexAttribArray(m_vertex_buffer_id);
                     glVertexAttribIPointer(m_vertex_buffer_id,
-                        shader_data_type_count(element.type),
+                        element.count,
                         ShaderDataType_to_OpenGLBaseType(element.type),
                         layout.get_stride(),
                         (const void*) (uintptr_t) element.offset);
@@ -114,7 +114,7 @@ namespace Yogi {
                 case ShaderDataType::Mat3:
                 case ShaderDataType::Mat4:
                 {
-                    uint8_t count = shader_data_type_count(element.type);
+                    uint8_t count = element.count;
                     for (uint8_t i = 0; i < count; i++) {
                         glEnableVertexAttribArray(m_vertex_buffer_id);
                         glVertexAttribPointer(m_vertex_buffer_id,

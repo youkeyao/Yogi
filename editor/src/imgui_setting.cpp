@@ -1,6 +1,5 @@
 #include "imgui_setting.h"
 #include "imgui_config.h"
-#include <imgui.h>
 
 namespace Yogi {
 
@@ -128,6 +127,11 @@ namespace Yogi {
         ImGui::Render();
         ImGui_Renderer_Draw(ImGui::GetDrawData());
         ImGui_Window_Render();
+    }
+
+    ImTextureID ImguiSetting::get_texture_id(const Ref<Texture2D>& t)
+    {
+        return ImGui_Renderer_Texture(t);
     }
 
 }

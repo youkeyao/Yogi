@@ -3,6 +3,7 @@
 #include "runtime/renderer/render_command.h"
 #include "runtime/renderer/buffer.h"
 #include "runtime/renderer/shader.h"
+#include "runtime/core/application.h"
 
 namespace Yogi {
 
@@ -62,6 +63,9 @@ namespace Yogi {
 
         s_data->mesh_vertices_cur = s_data->mesh_vertices_base = new Vertex[RendererData::max_vertices];
         s_data->mesh_indices_cur = s_data->mesh_indices_base = new uint32_t[RendererData::max_indices];
+
+        auto& window = Application::get().get_window();
+        on_window_resize(window.get_width(), window.get_height());
     }
 
     void Renderer::shutdown()

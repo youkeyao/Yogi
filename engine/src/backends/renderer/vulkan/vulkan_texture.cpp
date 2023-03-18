@@ -28,6 +28,8 @@ namespace Yogi {
         }
 
         init_texture();
+        VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
+        context->transition_image_layout(m_image, m_internal_format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
     }
 
     VulkanTexture2D::VulkanTexture2D(const std::string& path)
@@ -78,7 +80,7 @@ namespace Yogi {
     {
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
 
-        context->create_image(m_width, m_height, m_internal_format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_image, m_image_memory);
+        context->create_image(m_width, m_height, m_internal_format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_image, m_image_memory);
         
         m_image_view = context->create_image_view(m_image, m_internal_format, VK_IMAGE_ASPECT_COLOR_BIT);
 
