@@ -230,6 +230,9 @@ namespace Yogi {
         YG_CORE_INFO("    Vendor:   {0}", properties.vendorID);
         YG_CORE_INFO("    Renderer: {0}", properties.deviceName);
         YG_CORE_INFO("    Version:  {0}", properties.apiVersion);
+
+        vkAcquireNextImageKHR(m_device, m_swap_chain, UINT64_MAX, m_image_available_semaphores[m_current_frame], VK_NULL_HANDLE, &m_image_index);
+        vkResetFences(m_device, 1, &m_in_flight_fences[m_current_frame]);
     }
 
     VulkanContext::~VulkanContext()
@@ -460,19 +463,6 @@ namespace Yogi {
 
     void VulkanContext::swap_buffers()
     {
-        vkWaitForFences(m_device, 1, &m_in_flight_fences[m_current_frame], VK_TRUE, UINT64_MAX);
-
-        VkResult result = vkAcquireNextImageKHR(m_device, m_swap_chain, UINT64_MAX, m_image_available_semaphores[m_current_frame], VK_NULL_HANDLE, &m_image_index);
-
-        if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-            recreate_swap_chain();
-            return;
-        } else {
-            YG_CORE_ASSERT(result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR, "Failed to present swap chain image!");
-        }
-
-        vkResetFences(m_device, 1, &m_in_flight_fences[m_current_frame]);
-
         VkSubmitInfo submitInfo{};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
@@ -493,7 +483,7 @@ namespace Yogi {
         submitInfo.signalSemaphoreCount = 1;
         submitInfo.pSignalSemaphores = signalSemaphores;
 
-        result = vkQueueSubmit(m_graphics_queue, 1, &submitInfo, m_in_flight_fences[m_current_frame]);
+        VkResult result = vkQueueSubmit(m_graphics_queue, 1, &submitInfo, m_in_flight_fences[m_current_frame]);
         YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to submit draw command buffer!");
 
         VkPresentInfoKHR presentInfo{};
@@ -516,6 +506,18 @@ namespace Yogi {
         }
 
         m_current_frame = (m_current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
+        vkWaitForFences(m_device, 1, &m_in_flight_fences[m_current_frame], VK_TRUE, UINT64_MAX);
+
+        result = vkAcquireNextImageKHR(m_device, m_swap_chain, UINT64_MAX, m_image_available_semaphores[m_current_frame], VK_NULL_HANDLE, &m_image_index);
+
+        if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+            recreate_swap_chain();
+            return;
+        } else {
+            YG_CORE_ASSERT(result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR, "Failed to present swap chain image!");
+        }
+
+        vkResetFences(m_device, 1, &m_in_flight_fences[m_current_frame]);
         vkResetCommandBuffer(m_command_buffers[m_current_frame], 0);
     }
 
@@ -709,7 +711,7 @@ namespace Yogi {
         }
     }
 
-    VkRenderPass VulkanContext::create_render_pass(const std::vector<VkFormat>& color_attachment_formats, bool has_depth_attachment)
+    VkRenderPass VulkanContext::create_render_pass(const std::vector<VkFormat>& color_attachment_formats, bool has_depth_attachment, bool is_last)
     {
         std::vector<VkAttachmentDescription> all_attachments;
         std::vector<VkAttachmentReference> color_attachments;
@@ -722,7 +724,7 @@ namespace Yogi {
             colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
             colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
             colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-            colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+            colorAttachment.finalLayout = is_last ? VK_IMAGE_LAYOUT_PRESENT_SRC_KHR : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
             VkAttachmentReference colorAttachmentRef{};
             colorAttachmentRef.attachment = static_cast<uint32_t>(color_attachments.size());
@@ -737,6 +739,7 @@ namespace Yogi {
         subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
         subpass.colorAttachmentCount = static_cast<uint32_t>(color_attachments.size());
         subpass.pColorAttachments = color_attachments.data();
+        subpass.pDepthStencilAttachment = nullptr;
         if (has_depth_attachment) {
             depthAttachment.format = find_depth_format();
             depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;

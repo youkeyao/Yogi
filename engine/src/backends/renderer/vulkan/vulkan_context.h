@@ -1,7 +1,7 @@
 #pragma once
 
 #include "runtime/renderer/graphics_context.h"
-#include "backends/renderer/vulkan/vulkan_shader.h"
+#include "backends/renderer/vulkan/vulkan_pipeline.h"
 #include "backends/renderer/vulkan/vulkan_buffer.h"
 #include "backends/renderer/vulkan/vulkan_texture.h"
 #include <glm/glm.hpp>
@@ -29,21 +29,22 @@ namespace Yogi
         VkExtent2D get_swap_chain_extent() { return m_swap_chain_extent; }
         VkCommandBuffer get_current_command_buffer() { return m_command_buffers[m_current_frame]; }
         VkCommandPool get_command_pool() { return m_command_pool; }
-        VulkanShader* get_current_pipeline() { return m_pipeline; }
+        VulkanPipeline* get_current_pipeline() { return m_pipeline; }
         VulkanVertexBuffer* get_current_vertex_buffer() { return m_vertex_buffer; }
         VulkanIndexBuffer* get_current_index_buffer() { return m_index_buffer; }
         VkFramebuffer get_current_frame_buffer() { return m_current_frame_buffer ? m_current_frame_buffer : m_swap_chain_frame_buffers[m_image_index]; }
+        uint32_t get_current_present_image_index() { return m_image_index; }
         void set_current_vertex_buffer(const VulkanVertexBuffer* vertex_buffer) { m_vertex_buffer = (VulkanVertexBuffer*)vertex_buffer; }
         void set_current_index_buffer(const VulkanIndexBuffer* index_buffer) { m_index_buffer = (VulkanIndexBuffer*)index_buffer; }
         void set_current_frame_buffer(VkFramebuffer frame_buffer) { m_current_frame_buffer = frame_buffer; }
-        void set_current_pipeline(const VulkanShader* pipeline)
+        void set_current_pipeline(const VulkanPipeline* pipeline)
         {
             if (m_pipeline) {
                 for (auto framebuffer : m_swap_chain_frame_buffers) {
                     vkDestroyFramebuffer(m_device, framebuffer, nullptr);
                 }
             }
-            m_pipeline = (VulkanShader*)pipeline;
+            m_pipeline = (VulkanPipeline*)pipeline;
             create_frame_buffers();
         }
         
@@ -52,7 +53,7 @@ namespace Yogi
         void create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& buffer_memory);
         void create_image(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& image_memory);
         VkImageView create_image_view(VkImage image, VkFormat format, VkImageAspectFlags aspect_flags);
-        VkRenderPass create_render_pass(const std::vector<VkFormat>& color_attachment_formats, bool has_depth_attachment = true);
+        VkRenderPass create_render_pass(const std::vector<VkFormat>& color_attachment_formats, bool has_depth_attachment = true, bool is_last = true);
         void copy_buffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size);
         void transition_image_layout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout, VkImageAspectFlags aspect_flags);
         VkCommandBuffer begin_single_time_commands();
@@ -113,7 +114,7 @@ namespace Yogi
 
         uint32_t m_current_frame = 0;
         uint32_t m_image_index = 0;
-        VulkanShader* m_pipeline = nullptr;
+        VulkanPipeline* m_pipeline = nullptr;
         VulkanVertexBuffer* m_vertex_buffer = nullptr;
         VulkanIndexBuffer* m_index_buffer = nullptr;
 

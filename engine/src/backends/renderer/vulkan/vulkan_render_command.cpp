@@ -12,22 +12,19 @@ namespace Yogi {
     void RenderCommand::set_viewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height)
     {
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
-        // context->set_viewport(x, y, width, height);
         context->recreate_swap_chain();
-        viewport = { (float)x, (float)height + y, (float)width, -(float)height, 0.0f, 1.0f };
+        viewport = { (float)x, (float)y, (float)width, (float)height, 0.0f, 1.0f };
     }
 
     void RenderCommand::set_clear_color(const glm::vec4& color)
     {
         clear_color = {{ color.x, color.y, color.z, color.w }};
-        // VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
-        // context->set_clear_color(color);
     }
 
     void RenderCommand::draw_indexed(uint32_t count)
     {
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
-        VulkanShader* pipeline = context->get_current_pipeline();
+        VulkanPipeline* pipeline = context->get_current_pipeline();
         if (pipeline) {
             VkCommandBuffer commandBuffer = context->get_current_command_buffer();
             VkCommandBufferBeginInfo beginInfo{};
@@ -36,12 +33,13 @@ namespace Yogi {
             VkResult result = vkBeginCommandBuffer(commandBuffer, &beginInfo);
             YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to begin recording command buffer!");
 
+            VkExtent2D extent = context->get_swap_chain_extent();
             VkRenderPassBeginInfo renderPassInfo{};
             renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
             renderPassInfo.renderPass = pipeline->get_vk_render_pass();
             renderPassInfo.framebuffer = context->get_current_frame_buffer();
             renderPassInfo.renderArea.offset = {0, 0};
-            renderPassInfo.renderArea.extent = context->get_swap_chain_extent();
+            renderPassInfo.renderArea.extent = extent;
             uint32_t color_attachments_size = pipeline->get_output_layout().get_elements().size();
             std::vector<VkClearValue> clear_values;
             for (int32_t i = 0; i < color_attachments_size; i ++) {
@@ -52,11 +50,15 @@ namespace Yogi {
             renderPassInfo.pClearValues = clear_values.data();
 
             vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-            vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+            VkViewport vp{viewport.x, viewport.y, 0, 0, 0, 1};
+            vp.width = viewport.width != 0 ? viewport.width : (float)extent.width;
+            vp.height = viewport.height != 0 ? -viewport.height : -(float)extent.height;
+            vp.y -= vp.height;
+            vkCmdSetViewport(commandBuffer, 0, 1, &vp);
 
             VkRect2D scissor{};
             scissor.offset = {0, 0};
-            scissor.extent = context->get_swap_chain_extent();
+            scissor.extent = extent;
             vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
             const PipelineLayout& vertex_layout = pipeline->get_vertex_layout();

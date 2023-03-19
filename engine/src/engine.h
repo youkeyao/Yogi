@@ -25,6 +25,6 @@
 
 #include "runtime/renderer/buffer.h"
 #include "runtime/renderer/frame_buffer.h"
-#include "runtime/renderer/shader.h"
+#include "runtime/renderer/pipeline.h"
 #include "runtime/renderer/texture.h"
 // ---------------------------------------------

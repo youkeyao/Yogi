@@ -18,7 +18,7 @@ namespace Yogi {
     VulkanTexture2D::VulkanTexture2D(uint32_t width, uint32_t height, TextureFormat format) : m_width(width), m_height(height)
     {
         if (format == TextureFormat::RGBA8) {
-            m_internal_format = VK_FORMAT_R8G8B8A8_UNORM;
+            m_internal_format = VK_FORMAT_B8G8R8A8_UNORM;
         }
         else if (format == TextureFormat::RED_INTEGER) {
             m_internal_format = VK_FORMAT_R32_SINT;

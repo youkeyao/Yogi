@@ -2,7 +2,6 @@
 #include "runtime/renderer/mesh_manager.h"
 #include "runtime/renderer/render_command.h"
 #include "runtime/renderer/buffer.h"
-#include "runtime/renderer/shader.h"
 #include "runtime/core/application.h"
 
 namespace Yogi {
@@ -25,7 +24,7 @@ namespace Yogi {
         Ref<VertexBuffer> mesh_vertex_buffer;
         Ref<IndexBuffer> mesh_index_buffer;
         Ref<UniformBuffer> scene_uniform_buffer;
-        Ref<Shader> render_shader;
+        Ref<Pipeline> render_pipeline;
 
         Vertex* mesh_vertices_base = nullptr;
         Vertex* mesh_vertices_cur = nullptr;
@@ -56,16 +55,13 @@ namespace Yogi {
         s_data->mesh_vertex_buffer->bind();
         s_data->mesh_index_buffer = IndexBuffer::create(nullptr, RendererData::max_indices, false);
         s_data->mesh_index_buffer->bind();
-        s_data->render_shader = Shader::create("editor");
-        s_data->render_shader->bind();
+        s_data->render_pipeline = Pipeline::create("editor");
+        s_data->render_pipeline->bind();
         s_data->scene_uniform_buffer = UniformBuffer::create(sizeof(RendererData::SceneData));
         s_data->scene_uniform_buffer->bind(0);
 
         s_data->mesh_vertices_cur = s_data->mesh_vertices_base = new Vertex[RendererData::max_vertices];
         s_data->mesh_indices_cur = s_data->mesh_indices_base = new uint32_t[RendererData::max_indices];
-
-        auto& window = Application::get().get_window();
-        on_window_resize(window.get_width(), window.get_height());
     }
 
     void Renderer::shutdown()
@@ -80,6 +76,13 @@ namespace Yogi {
     void Renderer::on_window_resize(uint32_t width, uint32_t height)
     {
         RenderCommand::set_viewport(0, 0, width, height);
+    }
+
+    void Renderer::set_pipeline(Ref<Pipeline> pipeline)
+    {
+        s_data->render_pipeline = pipeline;
+        s_data->render_pipeline->bind();
+        s_data->scene_uniform_buffer->bind(0);
     }
 
     void Renderer::set_projection_view_matrix(glm::mat4 projection_view_matrix)

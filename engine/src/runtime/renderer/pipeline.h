@@ -107,10 +107,10 @@ namespace Yogi {
         uint32_t m_stride = 0;
     };
 
-    class Shader
+    class Pipeline
     {
     public:
-        virtual ~Shader() = default;
+        virtual ~Pipeline() = default;
 
         virtual void bind() const = 0;
         virtual void unbind() const = 0;
@@ -120,7 +120,7 @@ namespace Yogi {
         const std::map<uint32_t, PipelineLayout>& get_uniform_layout() const { return m_uniform_layouts; }
         const PipelineLayout& get_output_layout() const { return m_output_layout; }
 
-        static Ref<Shader> create(const std::string& name, const std::vector<std::string>& types = { "vert", "frag" });
+        static Ref<Pipeline> create(const std::string& name, const std::vector<std::string>& types = { "vert", "frag" }, bool is_last = true);
     protected:
         PipelineLayout m_vertex_layout;
         PipelineLayout m_output_layout;

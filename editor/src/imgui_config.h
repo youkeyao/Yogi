@@ -8,6 +8,7 @@
     #define ImGui_Renderer_NewFrame(...) ImGui_ImplOpenGL3_NewFrame(__VA_ARGS__)
     #define ImGui_Renderer_Draw(...) ImGui_ImplOpenGL3_RenderDrawData(__VA_ARGS__)
     #define ImGui_Renderer_Texture(x) x->get_renderer_id()
+    #define ImGui_Renderer_Resize()
 
     #if YG_WINDOW_API == YG_WINDOW_GLFW
         #include <backends/imgui_impl_glfw.h>
@@ -32,6 +33,33 @@
     VkRenderPass g_RenderPass;
     VkCommandBuffer g_CommandBuffer;
     std::vector<VkFramebuffer> g_Framebuffers;
+    void create_frame_buffers()
+    {
+        Yogi::VulkanContext* context = (Yogi::VulkanContext*)Yogi::Application::get().get_window().get_context();
+        const std::vector<VkImageView>& swap_chain_image_views = context->get_swap_chain_image_views();
+        VkFramebufferCreateInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        info.renderPass = g_RenderPass;
+        info.attachmentCount = 1;
+        info.width = context->get_swap_chain_extent().width;
+        info.height = context->get_swap_chain_extent().height;
+        info.layers = 1;
+        g_Framebuffers.resize(swap_chain_image_views.size());
+        for (int32_t i = 0; i < swap_chain_image_views.size(); i ++) {
+            VkFramebuffer frame_buffer;
+            info.pAttachments = &swap_chain_image_views[i];
+            vkCreateFramebuffer(context->get_device(), &info, nullptr, &frame_buffer);
+            g_Framebuffers[i] = frame_buffer;
+        }
+    }
+    void imgui_vulkan_resize()
+    {
+        Yogi::VulkanContext* context = (Yogi::VulkanContext*)Yogi::Application::get().get_window().get_context();
+        for (auto& frame_buffer : g_Framebuffers) {
+            vkDestroyFramebuffer(context->get_device(), frame_buffer, nullptr);
+        }
+        create_frame_buffers();
+    }
     void imgui_vulkan_init()
     {
         ImGui_ImplVulkan_InitInfo init_info = {};
@@ -82,8 +110,10 @@
         ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
         context->end_single_time_commands(command_buffer);
         ImGui_ImplVulkan_DestroyFontUploadObjects();
+
+        create_frame_buffers();
     }
-    void frame_render()
+    void imgui_vulkan_draw()
     {
         Yogi::VulkanContext* context = (Yogi::VulkanContext*)Yogi::Application::get().get_window().get_context();
         VkCommandBufferBeginInfo beginInfo{};
@@ -98,7 +128,7 @@
         VkRenderPassBeginInfo renderPassInfo{};
         renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         renderPassInfo.renderPass = g_RenderPass;
-        renderPassInfo.framebuffer = context->get_current_frame_buffer();
+        renderPassInfo.framebuffer = g_Framebuffers[context->get_current_present_image_index()];
         renderPassInfo.renderArea.offset = {0, 0};
         renderPassInfo.renderArea.extent = extent;
         VkClearValue clear_value{{0, 0, 0, 1}};
@@ -126,6 +156,9 @@
         ImGui_ImplVulkan_Shutdown();
         Yogi::VulkanContext* context = (Yogi::VulkanContext*)Yogi::Application::get().get_window().get_context();
         vkDeviceWaitIdle(context->get_device());
+        for (auto& frame_buffer : g_Framebuffers) {
+            vkDestroyFramebuffer(context->get_device(), frame_buffer, nullptr);
+        }
         vkDestroyRenderPass(context->get_device(), g_RenderPass, nullptr);
         vkFreeCommandBuffers(context->get_device(), context->get_command_pool(), 1, &g_CommandBuffer);
         vkDestroyDescriptorPool(context->get_device(), g_DescriptorPool, nullptr);
@@ -134,8 +167,9 @@
     #define ImGui_Renderer_Init(...) imgui_vulkan_init()
     #define ImGui_Renderer_Shutdown(...) imgui_vulkan_shutdown()
     #define ImGui_Renderer_NewFrame(...) ImGui_ImplVulkan_NewFrame(__VA_ARGS__)
-    #define ImGui_Renderer_Draw(...) frame_render()
+    #define ImGui_Renderer_Draw(...) imgui_vulkan_draw()
     #define ImGui_Renderer_Texture(x) ImGui_ImplVulkan_AddTexture(((VulkanTexture2D*)x.get())->get_vk_sampler(), ((VulkanTexture2D*)x.get())->get_vk_image_view(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+    #define ImGui_Renderer_Resize() imgui_vulkan_resize()
 
     #if YG_WINDOW_API == YG_WINDOW_GLFW
         #include <backends/imgui_impl_glfw.h>

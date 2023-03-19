@@ -16,13 +16,15 @@ namespace Yogi {
     {
         YG_PROFILE_FUNCTION();
         ImguiSetting::init();
+        Renderer::set_pipeline(Pipeline::create("editor", {"vert", "frag"}, false));
 
         ComponentManager::init();
         SystemManager::init();
 
         m_frame_texture = Texture2D::create(s_max_viewport_size, s_max_viewport_size);
         m_entity_id_texture = Texture2D::create(s_max_viewport_size, s_max_viewport_size, TextureFormat::RED_INTEGER);
-        m_frame_buffer = FrameBuffer::create(s_max_viewport_size, s_max_viewport_size, { m_frame_texture, m_entity_id_texture });
+        // m_frame_buffer = FrameBuffer::create(s_max_viewport_size, s_max_viewport_size, { m_frame_texture, m_entity_id_texture });
+        m_frame_buffer = FrameBuffer::create(s_max_viewport_size, s_max_viewport_size, { m_frame_texture });
 
         // m_scene = CreateRef<Scene>();
         // m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
@@ -139,6 +141,7 @@ namespace Yogi {
             m_scene->on_event(e);
             m_editor_camera.on_event(e);
             RenderCommand::set_viewport(0.0f, 0.0f, m_viewport_size.x, m_viewport_size.y);
+            ImguiSetting::imgui_resize();
         }
         ImGui::Image(
             ImguiSetting::get_texture_id(m_frame_texture),

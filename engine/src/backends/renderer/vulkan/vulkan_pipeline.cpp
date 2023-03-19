@@ -1,4 +1,4 @@
-#include "backends/renderer/vulkan/vulkan_shader.h"
+#include "backends/renderer/vulkan/vulkan_pipeline.h"
 #include "runtime/core/application.h"
 #include "backends/renderer/vulkan/vulkan_context.h"
 
@@ -64,12 +64,12 @@ namespace Yogi {
         return VK_FORMAT_UNDEFINED;
     }
 
-    Ref<Shader> Shader::create(const std::string& name, const std::vector<std::string>& types)
+    Ref<Pipeline> Pipeline::create(const std::string& name, const std::vector<std::string>& types, bool is_last)
     {
-        return CreateRef<VulkanShader>(name);
+        return CreateRef<VulkanPipeline>(name, types, is_last);
     }
 
-    VulkanShader::VulkanShader(const std::string& name, const std::vector<std::string>& types) : m_name(name)
+    VulkanPipeline::VulkanPipeline(const std::string& name, const std::vector<std::string>& types, bool is_last) : m_name(name)
     {
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
         std::vector<VkPipelineShaderStageCreateInfo> shader_stages;
@@ -96,7 +96,7 @@ namespace Yogi {
             }
             else if (type == "frag") {
                 shader_stage_info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-                reflect_output(compiler);
+                reflect_output(compiler, is_last);
             }
             else {
                 YG_CORE_ASSERT(false, "Invalid shader stage!");
@@ -289,7 +289,7 @@ namespace Yogi {
         }
     }
 
-    VulkanShader::~VulkanShader()
+    VulkanPipeline::~VulkanPipeline()
     {
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
 
@@ -303,7 +303,7 @@ namespace Yogi {
         vkDestroyRenderPass(context->get_device(), m_render_pass, nullptr);
     }
 
-    std::vector<uint32_t> VulkanShader::read_file(const std::string& filepath)
+    std::vector<uint32_t> VulkanPipeline::read_file(const std::string& filepath)
     {
         std::vector<uint32_t> buffer;
         std::ifstream in(filepath, std::ios::ate | std::ios::binary);
@@ -322,7 +322,7 @@ namespace Yogi {
         return buffer;
     }
 
-    VkShaderModule VulkanShader::create_shader_module(const std::vector<uint32_t>& code)
+    VkShaderModule VulkanPipeline::create_shader_module(const std::vector<uint32_t>& code)
     {
         VkShaderModuleCreateInfo create_info{};
         create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -336,7 +336,7 @@ namespace Yogi {
         return shader_module;
     }
 
-    void VulkanShader::reflect_vertex(const spirv_cross::CompilerGLSL& compiler, VkVertexInputBindingDescription& binding_description, std::vector<VkVertexInputAttributeDescription>& attribute_descriptions)
+    void VulkanPipeline::reflect_vertex(const spirv_cross::CompilerGLSL& compiler, VkVertexInputBindingDescription& binding_description, std::vector<VkVertexInputAttributeDescription>& attribute_descriptions)
     {
         spirv_cross::ShaderResources resources = compiler.get_shader_resources();
 
@@ -364,7 +364,7 @@ namespace Yogi {
         binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
     }
 
-    void VulkanShader::reflect_uniform_buffer(const spirv_cross::CompilerGLSL& compiler, std::vector<std::vector<VkDescriptorSetLayoutBinding>>& ubo_layout_bindings, VkShaderStageFlagBits stage_flag, uint32_t& ubo_count)
+    void VulkanPipeline::reflect_uniform_buffer(const spirv_cross::CompilerGLSL& compiler, std::vector<std::vector<VkDescriptorSetLayoutBinding>>& ubo_layout_bindings, VkShaderStageFlagBits stage_flag, uint32_t& ubo_count)
     {
         spirv_cross::ShaderResources resources = compiler.get_shader_resources();
 
@@ -397,7 +397,7 @@ namespace Yogi {
         }
     }
 
-    void VulkanShader::reflect_sampler(const spirv_cross::CompilerGLSL& compiler, std::vector<std::vector<VkDescriptorSetLayoutBinding>>& sampler_layout_bindings, VkShaderStageFlagBits stage_flag, uint32_t& sampler_count)
+    void VulkanPipeline::reflect_sampler(const spirv_cross::CompilerGLSL& compiler, std::vector<std::vector<VkDescriptorSetLayoutBinding>>& sampler_layout_bindings, VkShaderStageFlagBits stage_flag, uint32_t& sampler_count)
     {
         spirv_cross::ShaderResources resources = compiler.get_shader_resources();
 
@@ -423,7 +423,7 @@ namespace Yogi {
         }
     }
 
-    void VulkanShader::reflect_output(const spirv_cross::CompilerGLSL& compiler)
+    void VulkanPipeline::reflect_output(const spirv_cross::CompilerGLSL& compiler, bool is_last)
     {
         spirv_cross::ShaderResources resources = compiler.get_shader_resources();
 
@@ -441,16 +441,16 @@ namespace Yogi {
             color_attachment_formats.push_back(spirv_type_to_vk_image_format(output_type));
         }
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
-        m_render_pass = context->create_render_pass(color_attachment_formats);
+        m_render_pass = context->create_render_pass(color_attachment_formats, true, is_last);
     }
 
-    void VulkanShader::bind() const
+    void VulkanPipeline::bind() const
     {
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
         context->set_current_pipeline(this);
     }
 
-    void VulkanShader::unbind() const
+    void VulkanPipeline::unbind() const
     {
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
         context->set_current_pipeline(nullptr);

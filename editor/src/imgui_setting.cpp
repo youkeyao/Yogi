@@ -134,4 +134,9 @@ namespace Yogi {
         return ImGui_Renderer_Texture(t);
     }
 
+    void ImguiSetting::imgui_resize()
+    {
+        ImGui_Renderer_Resize();
+    }
+
 }
