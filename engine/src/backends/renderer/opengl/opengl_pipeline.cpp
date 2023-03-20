@@ -1,4 +1,4 @@
-#include "backends/renderer/opengl/opengl_shader.h"
+#include "backends/renderer/opengl/opengl_pipeline.h"
 #include "runtime/core/application.h"
 #include "backends/renderer/opengl/opengl_context.h"
 
@@ -24,9 +24,9 @@ namespace Yogi {
         return ShaderDataType::None;
     }
 
-    Ref<Shader> Shader::create(const std::string& name, const std::vector<std::string>& types)
+    Ref<Pipeline> Pipeline::create(const std::string& name, const std::vector<std::string>& types, bool is_last)
     {
-        return CreateRef<OpenGLShader>(name, types);
+        return CreateRef<OpenGLPipeline>(name, types);
     }
 
     static GLenum shader_type_from_string(const std::string& type)
@@ -42,7 +42,7 @@ namespace Yogi {
         return 0;
     }
 
-    OpenGLShader::OpenGLShader(const std::string& name, const std::vector<std::string>& types)
+    OpenGLPipeline::OpenGLPipeline(const std::string& name, const std::vector<std::string>& types)
     {
         m_name = name;
 
@@ -103,12 +103,12 @@ namespace Yogi {
         m_renderer_id = program;
     }
 
-    OpenGLShader::~OpenGLShader()
+    OpenGLPipeline::~OpenGLPipeline()
     {
         glDeleteProgram(m_renderer_id);
     }
 
-    std::vector<uint32_t> OpenGLShader::read_file(const std::string& filepath)
+    std::vector<uint32_t> OpenGLPipeline::read_file(const std::string& filepath)
     {
         std::vector<uint32_t> buffer;
         std::ifstream in(filepath, std::ios::ate | std::ios::binary);
@@ -127,7 +127,7 @@ namespace Yogi {
         return buffer;
     }
 
-    void OpenGLShader::reflect_vertex(const spirv_cross::CompilerGLSL& compiler)
+    void OpenGLPipeline::reflect_vertex(const spirv_cross::CompilerGLSL& compiler)
     {
         spirv_cross::ShaderResources resources = compiler.get_shader_resources();
 
@@ -143,7 +143,7 @@ namespace Yogi {
         }
     }
 
-    void OpenGLShader::reflect_uniform_buffer(const spirv_cross::CompilerGLSL& compiler)
+    void OpenGLPipeline::reflect_uniform_buffer(const spirv_cross::CompilerGLSL& compiler)
     {
         spirv_cross::ShaderResources resources = compiler.get_shader_resources();
 
@@ -151,7 +151,7 @@ namespace Yogi {
             auto &uniform_type = compiler.get_type(uniform_buffer.type_id);
             uint32_t binding = compiler.get_decoration(uniform_buffer.id, spv::DecorationBinding);
 
-            ShaderUniformLayout uniform_layout;
+            PipelineLayout uniform_layout;
             for (int32_t i = 0; i < uniform_type.member_types.size(); i ++) {
                 const auto& member_type = compiler.get_type(uniform_type.member_types[i]);
                 uniform_layout.add_element({ spirv_type_to_shader_data_type(member_type), compiler.get_member_name(uniform_type.self, i) });
@@ -160,7 +160,7 @@ namespace Yogi {
         }
     }
 
-    void OpenGLShader::bind() const
+    void OpenGLPipeline::bind() const
     {
         glUseProgram(m_renderer_id);
 
@@ -168,7 +168,7 @@ namespace Yogi {
         context->set_vertex_layout(this);
     }
 
-    void OpenGLShader::unbind() const
+    void OpenGLPipeline::unbind() const
     {
         glUseProgram(0);
     }

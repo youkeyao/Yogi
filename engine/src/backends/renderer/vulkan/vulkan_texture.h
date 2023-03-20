@@ -14,7 +14,6 @@ namespace Yogi {
 
         uint32_t get_width() const override { return m_width; }
         uint32_t get_height() const override{ return m_height; }
-        void* get_renderer_id() const override { return m_image_memory; }
         void read_pixel(int32_t x, int32_t y, void* data) const override;
 
         void set_data(void* data, size_t size) override;
@@ -26,7 +25,7 @@ namespace Yogi {
         VkFormat get_vk_format() const { return m_internal_format; }
         VkSampler get_vk_sampler() const { return m_sampler; }
     private:
-        void init_texture();
+        void init_texture(bool is_attachment);
     private:
         uint32_t m_width, m_height;
         VkImage m_image;

@@ -911,7 +911,8 @@ namespace Yogi {
         submitInfo.signalSemaphoreCount = 1;
         submitInfo.pSignalSemaphores = waitSemaphores;
 
-        wait_render_command();
+        vkWaitForFences(m_device, 1, &m_render_command_fences[m_current_frame], VK_TRUE, UINT64_MAX);
+        vkResetFences(m_device, 1, &m_render_command_fences[m_current_frame]);
         result = vkQueueSubmit(m_graphics_queue, 1, &submitInfo, m_render_command_fences[m_current_frame]);
         YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to submit render command buffer!");
         m_current_command_buffer_index = (m_current_command_buffer_index + 1) % MAX_FRAMES_IN_FLIGHT;
@@ -920,7 +921,6 @@ namespace Yogi {
     void VulkanContext::wait_render_command()
     {
         vkWaitForFences(m_device, 1, &m_render_command_fences[m_current_frame], VK_TRUE, UINT64_MAX);
-        vkResetFences(m_device, 1, &m_render_command_fences[m_current_frame]);
     }
 
     void VulkanContext::begin_frame()
@@ -934,6 +934,5 @@ namespace Yogi {
         } else {
             YG_CORE_ASSERT(result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR, "Failed to present swap chain image!");
         }
-        vkResetFences(m_device, 1, &m_render_command_fences[m_current_frame]);
     }
 }

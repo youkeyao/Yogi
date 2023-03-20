@@ -1,4 +1,5 @@
 #include "backends/renderer/opengl/opengl_texture.h"
+#include <glad/glad.h>
 #include <stb_image.h>
 
 namespace Yogi {
@@ -22,6 +23,10 @@ namespace Yogi {
         else if (format == TextureFormat::RED_INTEGER) {
             m_internal_format = GL_R32I;
             m_data_format = GL_RED_INTEGER;
+        }
+        else if (format == TextureFormat::ATTACHMENT) {
+            m_internal_format = GL_RGBA8;
+            m_data_format = GL_RGBA;
         }
         else {
             YG_CORE_ERROR("Invalid texture format!");

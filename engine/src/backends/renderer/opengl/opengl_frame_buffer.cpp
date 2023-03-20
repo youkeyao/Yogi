@@ -1,4 +1,5 @@
 #include "backends/renderer/opengl/opengl_frame_buffer.h"
+#include "backends/renderer/opengl/opengl_texture.h"
 #include <glad/glad.h>
 
 namespace Yogi {
@@ -16,7 +17,7 @@ namespace Yogi {
         glBindFramebuffer(GL_FRAMEBUFFER, m_renderer_id);
 
         for (const auto& attachment : color_attachments) {
-            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + m_color_attachments_size, GL_TEXTURE_2D, attachment->get_renderer_id(), 0);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + m_color_attachments_size, GL_TEXTURE_2D, ((OpenGLTexture2D*)attachment.get())->get_renderer_id(), 0);
             m_color_attachments[m_color_attachments_size] = attachment;
             m_color_attachments_size ++;
         }
@@ -63,7 +64,7 @@ namespace Yogi {
 
         glBindFramebuffer(GL_FRAMEBUFFER, m_renderer_id);
 
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + index, GL_TEXTURE_2D, attachment->get_renderer_id(), 0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + index, GL_TEXTURE_2D, ((OpenGLTexture2D*)attachment.get())->get_renderer_id(), 0);
         m_color_attachments[index] = attachment;
         m_color_attachments_size ++;
 

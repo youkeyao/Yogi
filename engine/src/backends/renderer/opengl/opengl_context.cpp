@@ -34,15 +34,6 @@ namespace Yogi {
 
     OpenGLContext::OpenGLContext(Window* window) : m_window(window)
     {
-        init();
-
-        std::string vendor = std::string(reinterpret_cast<const char*>(glGetString(GL_VENDOR)));
-        std::string renderer = std::string(reinterpret_cast<const char*>(glGetString(GL_RENDERER)));
-        std::string version = std::string(reinterpret_cast<const char*>(glGetString(GL_VERSION)));
-        YG_CORE_INFO("OpenGL Info:");
-        YG_CORE_INFO("    Vendor:   {0}", vendor);
-        YG_CORE_INFO("    Renderer: {0}", renderer);
-        YG_CORE_INFO("    Version:  {0}", version);
     }
 
     OpenGLContext::~OpenGLContext()
@@ -65,6 +56,14 @@ namespace Yogi {
 
         glCreateVertexArrays(1, &m_vertex_array);
         glBindVertexArray(m_vertex_array);
+
+        std::string vendor = std::string(reinterpret_cast<const char*>(glGetString(GL_VENDOR)));
+        std::string renderer = std::string(reinterpret_cast<const char*>(glGetString(GL_RENDERER)));
+        std::string version = std::string(reinterpret_cast<const char*>(glGetString(GL_VERSION)));
+        YG_CORE_INFO("OpenGL Info:");
+        YG_CORE_INFO("    Vendor:   {0}", vendor);
+        YG_CORE_INFO("    Renderer: {0}", renderer);
+        YG_CORE_INFO("    Version:  {0}", version);
     }
 
     void OpenGLContext::swap_buffers()
@@ -72,13 +71,12 @@ namespace Yogi {
         #if YG_WINDOW_API == YG_WINDOW_GLFW
             glfwSwapBuffers((GLFWwindow*)m_window->get_native_window());
         #endif
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     }
 
-    void OpenGLContext::set_vertex_layout(const Shader* shader)
+    void OpenGLContext::set_vertex_layout(const Pipeline* pipeline)
     {
         m_vertex_buffer_id = 0;
-        const PipelineLayout& layout = shader->get_vertex_layout();
+        const PipelineLayout& layout = pipeline->get_vertex_layout();
         for (const auto& element : layout) {
             switch (element.type) {
                 case ShaderDataType::Float:

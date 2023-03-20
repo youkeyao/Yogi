@@ -1,7 +1,7 @@
 #pragma once
 
 #include "runtime/renderer/graphics_context.h"
-#include "runtime/renderer/shader.h"
+#include "runtime/renderer/pipeline.h"
 #include <glad/glad.h>
 
 namespace Yogi
@@ -16,7 +16,7 @@ namespace Yogi
         void init() override;
         void swap_buffers() override;
 
-        void set_vertex_layout(const Shader* shader);
+        void set_vertex_layout(const Pipeline* pipeline);
     private:
         Window* m_window;
         uint32_t m_vertex_array;

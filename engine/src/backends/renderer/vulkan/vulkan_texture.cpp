@@ -17,18 +17,22 @@ namespace Yogi {
 
     VulkanTexture2D::VulkanTexture2D(uint32_t width, uint32_t height, TextureFormat format) : m_width(width), m_height(height)
     {
+        VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
+
         if (format == TextureFormat::RGBA8) {
-            m_internal_format = VK_FORMAT_B8G8R8A8_UNORM;
+            m_internal_format = VK_FORMAT_R8G8B8A8_UNORM;
         }
         else if (format == TextureFormat::RED_INTEGER) {
             m_internal_format = VK_FORMAT_R32_SINT;
+        }
+        else if (format == TextureFormat::ATTACHMENT) {
+            m_internal_format = context->get_swap_chain_image_format();
         }
         else {
             YG_CORE_ERROR("Invalid texture format!");
         }
 
-        init_texture();
-        VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
+        init_texture(format == TextureFormat::ATTACHMENT);
         context->transition_image_layout(m_image, m_internal_format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
     }
 
@@ -59,7 +63,7 @@ namespace Yogi {
             YG_CORE_ERROR("Invalid texture format!");
         }
 
-        init_texture();
+        init_texture(false);
         set_data(data, image_size);
 
         stbi_image_free(data);
@@ -76,12 +80,17 @@ namespace Yogi {
         vkFreeMemory(context->get_device(), m_image_memory, nullptr);
     }
 
-    void VulkanTexture2D::init_texture()
+    void VulkanTexture2D::init_texture(bool is_attachment)
     {
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
 
-        context->create_image(m_width, m_height, m_internal_format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_image, m_image_memory);
-        
+        if (is_attachment) {
+            context->create_image(m_width, m_height, m_internal_format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_image, m_image_memory);
+        }
+        else {
+            context->create_image(m_width, m_height, m_internal_format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_image, m_image_memory);
+        }
+
         m_image_view = context->create_image_view(m_image, m_internal_format, VK_IMAGE_ASPECT_COLOR_BIT);
 
         VkSamplerCreateInfo samplerInfo{};

@@ -3,11 +3,12 @@
 #if YG_RENDERER_API == YG_RENDERER_OPENGL
     #include <backends/imgui_impl_opengl3.h>
     #include <backends/imgui_impl_opengl3.cpp>
+    #include "backends/renderer/opengl/opengl_texture.h"
     #define ImGui_Renderer_Init(...) ImGui_ImplOpenGL3_Init("#version 330")
     #define ImGui_Renderer_Shutdown(...) ImGui_ImplOpenGL3_Shutdown(__VA_ARGS__)
     #define ImGui_Renderer_NewFrame(...) ImGui_ImplOpenGL3_NewFrame(__VA_ARGS__)
     #define ImGui_Renderer_Draw(...) ImGui_ImplOpenGL3_RenderDrawData(__VA_ARGS__)
-    #define ImGui_Renderer_Texture(x) x->get_renderer_id()
+    #define ImGui_Renderer_Texture(x) (void*)(uint64_t)((OpenGLTexture2D*)x.get())->get_renderer_id()
     #define ImGui_Renderer_Resize()
 
     #if YG_WINDOW_API == YG_WINDOW_GLFW

@@ -1,16 +1,16 @@
 #pragma once
 
-#include "runtime/renderer/shader.h"
+#include "runtime/renderer/pipeline.h"
 #include <glad/glad.h>
 #include <spirv_glsl.hpp>
 
 namespace Yogi {
 
-    class OpenGLShader : public Shader
+    class OpenGLPipeline : public Pipeline
     {
     public:
-        OpenGLShader(const std::string& name, const std::vector<std::string>& types = { "vert", "frag" });
-        ~OpenGLShader();
+        OpenGLPipeline(const std::string& name, const std::vector<std::string>& types = { "vert", "frag" });
+        ~OpenGLPipeline();
 
         void bind() const override;
         void unbind() const override;
