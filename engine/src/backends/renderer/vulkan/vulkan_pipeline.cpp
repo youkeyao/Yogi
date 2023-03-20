@@ -276,7 +276,7 @@ namespace Yogi {
         pipeline_info.pColorBlendState = &color_blending;
         pipeline_info.pDynamicState = &dynamic_state;
         pipeline_info.layout = m_pipeline_layout;
-        pipeline_info.renderPass = m_render_pass;
+        pipeline_info.renderPass = m_clear_render_pass;
         pipeline_info.subpass = 0;
         pipeline_info.basePipelineHandle = VK_NULL_HANDLE;
         pipeline_info.pDepthStencilState = &depth_stencil;
@@ -300,7 +300,8 @@ namespace Yogi {
         }
         vkDestroyPipeline(context->get_device(), m_graphics_pipeline, nullptr);
         vkDestroyPipelineLayout(context->get_device(), m_pipeline_layout, nullptr);
-        vkDestroyRenderPass(context->get_device(), m_render_pass, nullptr);
+        vkDestroyRenderPass(context->get_device(), m_clear_render_pass, nullptr);
+        vkDestroyRenderPass(context->get_device(), m_load_render_pass, nullptr);
     }
 
     std::vector<uint32_t> VulkanPipeline::read_file(const std::string& filepath)
@@ -441,7 +442,9 @@ namespace Yogi {
             color_attachment_formats.push_back(spirv_type_to_vk_image_format(output_type));
         }
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
-        m_render_pass = context->create_render_pass(color_attachment_formats, true, is_last);
+        VkImageLayout final_layout = is_last? VK_IMAGE_LAYOUT_PRESENT_SRC_KHR : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        m_clear_render_pass = context->create_render_pass(color_attachment_formats, VK_IMAGE_LAYOUT_UNDEFINED, final_layout);
+        m_load_render_pass = context->create_render_pass(color_attachment_formats, final_layout, final_layout);
     }
 
     void VulkanPipeline::bind() const

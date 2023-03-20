@@ -31,7 +31,6 @@
     #include <backends/imgui_impl_vulkan.cpp>
     VkDescriptorPool g_DescriptorPool;
     VkRenderPass g_RenderPass;
-    VkCommandBuffer g_CommandBuffer;
     std::vector<VkFramebuffer> g_Framebuffers;
     void create_frame_buffers()
     {
@@ -65,8 +64,7 @@
         ImGui_ImplVulkan_InitInfo init_info = {};
         Yogi::VulkanContext* context = (Yogi::VulkanContext*)Yogi::Application::get().get_window().get_context();
 
-        g_RenderPass = context->create_render_pass({context->get_swap_chain_image_format()}, false);
-        g_CommandBuffer = context->add_command_buffer();
+        g_RenderPass = context->create_render_pass({context->get_swap_chain_image_format()}, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, false);
 
         init_info.Instance = context->get_instance();
         init_info.PhysicalDevice = context->get_physical_device();
@@ -116,12 +114,8 @@
     void imgui_vulkan_draw()
     {
         Yogi::VulkanContext* context = (Yogi::VulkanContext*)Yogi::Application::get().get_window().get_context();
-        VkCommandBufferBeginInfo beginInfo{};
-        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
-        vkResetCommandBuffer(g_CommandBuffer, 0);
-        VkResult result = vkBeginCommandBuffer(g_CommandBuffer, &beginInfo);
-        YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to begin recording command buffer!");
+        VkCommandBuffer command_buffer = context->begin_render_command();
 
         VkExtent2D extent = context->get_swap_chain_extent();
 
@@ -135,21 +129,20 @@
         renderPassInfo.clearValueCount = 1;
         renderPassInfo.pClearValues = &clear_value;
 
-        vkCmdBeginRenderPass(g_CommandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+        vkCmdBeginRenderPass(command_buffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
         VkViewport viewport{0, 0, (float)extent.width, (float)extent.height, 0, 1};
-        vkCmdSetViewport(g_CommandBuffer, 0, 1, &viewport);
+        vkCmdSetViewport(command_buffer, 0, 1, &viewport);
 
         VkRect2D scissor{};
         scissor.offset = {0, 0};
         scissor.extent = extent;
-        vkCmdSetScissor(g_CommandBuffer, 0, 1, &scissor);
+        vkCmdSetScissor(command_buffer, 0, 1, &scissor);
 
-        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), g_CommandBuffer);
+        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), command_buffer);
 
-        vkCmdEndRenderPass(g_CommandBuffer);
+        vkCmdEndRenderPass(command_buffer);
 
-        result = vkEndCommandBuffer(g_CommandBuffer);
-        YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to record imgui command buffer!");
+        context->end_render_command();
     }
     void imgui_vulkan_shutdown()
     {
@@ -160,7 +153,6 @@
             vkDestroyFramebuffer(context->get_device(), frame_buffer, nullptr);
         }
         vkDestroyRenderPass(context->get_device(), g_RenderPass, nullptr);
-        vkFreeCommandBuffers(context->get_device(), context->get_command_pool(), 1, &g_CommandBuffer);
         vkDestroyDescriptorPool(context->get_device(), g_DescriptorPool, nullptr);
     }
 

@@ -73,8 +73,8 @@ void Sandbox2D::on_update(Yogi::Timestep ts)
         //         Yogi::Renderer2D::draw_quad({x, y}, {0.45f, 0.45f}, {(x + 5.0f) / 10.0f, 0.4f, (y + 5.0f) / 10.0f, 0.7f});
         //     }
         // }
-        // auto& transform = checker.get_component<Yogi::TransformComponent>().transform;
-        // transform = glm::rotate(glm::mat4(1.0f), (float)ts, glm::vec3{0, 1, 0}) * (glm::mat4)transform;
+        auto& transform = checker.get_component<Yogi::TransformComponent>().transform;
+        transform = glm::rotate(glm::mat4(1.0f), (float)ts, glm::vec3{0, 1, 0}) * (glm::mat4)transform;
         m_scene->on_update(ts);
         // Yogi::Renderer2D::end_scene();
     }

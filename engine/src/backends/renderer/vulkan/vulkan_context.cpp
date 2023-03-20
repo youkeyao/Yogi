@@ -230,9 +230,6 @@ namespace Yogi {
         YG_CORE_INFO("    Vendor:   {0}", properties.vendorID);
         YG_CORE_INFO("    Renderer: {0}", properties.deviceName);
         YG_CORE_INFO("    Version:  {0}", properties.apiVersion);
-
-        vkAcquireNextImageKHR(m_device, m_swap_chain, UINT64_MAX, m_image_available_semaphores[m_current_frame], VK_NULL_HANDLE, &m_image_index);
-        vkResetFences(m_device, 1, &m_in_flight_fences[m_current_frame]);
     }
 
     VulkanContext::~VulkanContext()
@@ -247,7 +244,7 @@ namespace Yogi {
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
             vkDestroySemaphore(m_device, m_render_finished_semaphores[i], nullptr);
             vkDestroySemaphore(m_device, m_image_available_semaphores[i], nullptr);
-            vkDestroyFence(m_device, m_in_flight_fences[i], nullptr);
+            vkDestroyFence(m_device, m_render_command_fences[i], nullptr);
         }
 
         vkFreeCommandBuffers(m_device, m_command_pool, MAX_FRAMES_IN_FLIGHT, m_command_buffers.data());
@@ -428,7 +425,8 @@ namespace Yogi {
         end_single_time_commands(commandBuffer);
     }
 
-    VkCommandBuffer VulkanContext::begin_single_time_commands() {
+    VkCommandBuffer VulkanContext::begin_single_time_commands()
+    {
         VkCommandBufferAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
         allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
@@ -447,7 +445,8 @@ namespace Yogi {
         return commandBuffer;
     }
 
-    void VulkanContext::end_single_time_commands(VkCommandBuffer commandBuffer) {
+    void VulkanContext::end_single_time_commands(VkCommandBuffer commandBuffer)
+    {
         vkEndCommandBuffer(commandBuffer);
 
         VkSubmitInfo submitInfo{};
@@ -463,41 +462,16 @@ namespace Yogi {
 
     void VulkanContext::swap_buffers()
     {
-        VkSubmitInfo submitInfo{};
-        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-
-        VkSemaphore waitSemaphores[] = {m_image_available_semaphores[m_current_frame]};
-        VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-        submitInfo.waitSemaphoreCount = 1;
-        submitInfo.pWaitSemaphores = waitSemaphores;
-        submitInfo.pWaitDstStageMask = waitStages;
-
-        std::vector<VkCommandBuffer> command_buffers{m_command_buffers[m_current_frame]};
-        for (auto& command_buffer : m_extern_command_buffers) {
-            command_buffers.push_back(command_buffer);
-        }
-        submitInfo.commandBufferCount = static_cast<uint32_t>(command_buffers.size());
-        submitInfo.pCommandBuffers = command_buffers.data();
-
-        VkSemaphore signalSemaphores[] = {m_render_finished_semaphores[m_current_frame]};
-        submitInfo.signalSemaphoreCount = 1;
-        submitInfo.pSignalSemaphores = signalSemaphores;
-
-        VkResult result = vkQueueSubmit(m_graphics_queue, 1, &submitInfo, m_in_flight_fences[m_current_frame]);
-        YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to submit draw command buffer!");
-
         VkPresentInfoKHR presentInfo{};
         presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-
-        presentInfo.waitSemaphoreCount = 1;
-        presentInfo.pWaitSemaphores = signalSemaphores;
-
         VkSwapchainKHR swapChains[] = {m_swap_chain};
         presentInfo.swapchainCount = 1;
         presentInfo.pSwapchains = swapChains;
         presentInfo.pImageIndices = &m_image_index;
+        presentInfo.waitSemaphoreCount = 1;
+        presentInfo.pWaitSemaphores = &m_image_available_semaphores[m_current_frame];
 
-        result = vkQueuePresentKHR(m_present_queue, &presentInfo);
+        VkResult result = vkQueuePresentKHR(m_present_queue, &presentInfo);
 
         if (result == VK_ERROR_OUT_OF_DATE_KHR) {
             recreate_swap_chain();
@@ -506,19 +480,6 @@ namespace Yogi {
         }
 
         m_current_frame = (m_current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
-        vkWaitForFences(m_device, 1, &m_in_flight_fences[m_current_frame], VK_TRUE, UINT64_MAX);
-
-        result = vkAcquireNextImageKHR(m_device, m_swap_chain, UINT64_MAX, m_image_available_semaphores[m_current_frame], VK_NULL_HANDLE, &m_image_index);
-
-        if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-            recreate_swap_chain();
-            return;
-        } else {
-            YG_CORE_ASSERT(result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR, "Failed to present swap chain image!");
-        }
-
-        vkResetFences(m_device, 1, &m_in_flight_fences[m_current_frame]);
-        vkResetCommandBuffer(m_command_buffers[m_current_frame], 0);
     }
 
     void VulkanContext::create_instance()
@@ -711,7 +672,7 @@ namespace Yogi {
         }
     }
 
-    VkRenderPass VulkanContext::create_render_pass(const std::vector<VkFormat>& color_attachment_formats, bool has_depth_attachment, bool is_last)
+    VkRenderPass VulkanContext::create_render_pass(const std::vector<VkFormat>& color_attachment_formats, VkImageLayout init_layout, VkImageLayout final_layout, bool has_depth_attachment)
     {
         std::vector<VkAttachmentDescription> all_attachments;
         std::vector<VkAttachmentReference> color_attachments;
@@ -719,12 +680,12 @@ namespace Yogi {
             VkAttachmentDescription colorAttachment{};
             colorAttachment.format = format;
             colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-            colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+            colorAttachment.loadOp = init_layout == VK_IMAGE_LAYOUT_UNDEFINED ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
             colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
             colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
             colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-            colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-            colorAttachment.finalLayout = is_last ? VK_IMAGE_LAYOUT_PRESENT_SRC_KHR : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            colorAttachment.initialLayout = init_layout;
+            colorAttachment.finalLayout = final_layout;
 
             VkAttachmentReference colorAttachmentRef{};
             colorAttachmentRef.attachment = static_cast<uint32_t>(color_attachments.size());
@@ -743,11 +704,11 @@ namespace Yogi {
         if (has_depth_attachment) {
             depthAttachment.format = find_depth_format();
             depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-            depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-            depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+            depthAttachment.loadOp = init_layout == VK_IMAGE_LAYOUT_UNDEFINED ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
+            depthAttachment.storeOp = init_layout == VK_IMAGE_LAYOUT_UNDEFINED ? VK_ATTACHMENT_STORE_OP_DONT_CARE : VK_ATTACHMENT_STORE_OP_STORE;
             depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
             depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-            depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            depthAttachment.initialLayout = init_layout == VK_IMAGE_LAYOUT_UNDEFINED ? VK_IMAGE_LAYOUT_UNDEFINED : VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
             depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
             all_attachments.push_back(depthAttachment);
             depthAttachmentRef.attachment = static_cast<uint32_t>(color_attachments.size());
@@ -758,7 +719,7 @@ namespace Yogi {
         dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
         dependency.dstSubpass = 0;
         dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-        dependency.srcAccessMask = 0;
+        dependency.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
         dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
         dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
@@ -791,7 +752,7 @@ namespace Yogi {
 
                 VkFramebufferCreateInfo framebufferInfo{};
                 framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-                framebufferInfo.renderPass = m_pipeline->get_vk_render_pass();
+                framebufferInfo.renderPass = m_pipeline->get_vk_clear_render_pass();
                 framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
                 framebufferInfo.pAttachments = attachments.data();
                 framebufferInfo.width = m_swap_chain_extent.width;
@@ -844,7 +805,7 @@ namespace Yogi {
     {
         m_image_available_semaphores.resize(MAX_FRAMES_IN_FLIGHT);
         m_render_finished_semaphores.resize(MAX_FRAMES_IN_FLIGHT);
-        m_in_flight_fences.resize(MAX_FRAMES_IN_FLIGHT);
+        m_render_command_fences.resize(MAX_FRAMES_IN_FLIGHT);
 
         VkSemaphoreCreateInfo semaphoreInfo{};
         semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -856,7 +817,7 @@ namespace Yogi {
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
             YG_CORE_ASSERT((vkCreateSemaphore(m_device, &semaphoreInfo, nullptr, &m_image_available_semaphores[i]) == VK_SUCCESS &&
                 vkCreateSemaphore(m_device, &semaphoreInfo, nullptr, &m_render_finished_semaphores[i]) == VK_SUCCESS &&
-                vkCreateFence(m_device, &fenceInfo, nullptr, &m_in_flight_fences[i]) == VK_SUCCESS)
+                vkCreateFence(m_device, &fenceInfo, nullptr, &m_render_command_fences[i]) == VK_SUCCESS)
             , "Failed to create semaphores!");
         }
     }
@@ -917,21 +878,62 @@ namespace Yogi {
         );
     }
 
-    VkCommandBuffer VulkanContext::add_command_buffer()
+    VkCommandBuffer VulkanContext::begin_render_command()
     {
-        VkCommandBuffer command_buffer;
+        VkCommandBuffer command_buffer = m_command_buffers[m_current_command_buffer_index];
 
-        VkCommandBufferAllocateInfo allocInfo{};
-        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        allocInfo.commandPool = m_command_pool;
-        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        allocInfo.commandBufferCount = 1;
+        VkCommandBufferBeginInfo beginInfo{};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
-        VkResult result = vkAllocateCommandBuffers(m_device, &allocInfo, &command_buffer);
-        YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to add command buffer!");
-
-        m_extern_command_buffers.push_back(command_buffer);
+        vkResetCommandBuffer(command_buffer, 0);
+        VkResult result = vkBeginCommandBuffer(command_buffer, &beginInfo);
+        YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to begin recording render command buffer!");
 
         return command_buffer;
+    }
+
+    void VulkanContext::end_render_command()
+    {
+        VkCommandBuffer command_buffer = m_command_buffers[m_current_command_buffer_index];
+        VkResult result = vkEndCommandBuffer(command_buffer);
+        YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to end recording render command buffer!");
+
+        VkSubmitInfo submitInfo{};
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &command_buffer;
+
+        VkSemaphore waitSemaphores[] = {m_image_available_semaphores[m_current_frame]};
+        VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+        submitInfo.waitSemaphoreCount = 1;
+        submitInfo.pWaitSemaphores = waitSemaphores;
+        submitInfo.pWaitDstStageMask = waitStages;
+        submitInfo.signalSemaphoreCount = 1;
+        submitInfo.pSignalSemaphores = waitSemaphores;
+
+        wait_render_command();
+        result = vkQueueSubmit(m_graphics_queue, 1, &submitInfo, m_render_command_fences[m_current_frame]);
+        YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to submit render command buffer!");
+        m_current_command_buffer_index = (m_current_command_buffer_index + 1) % MAX_FRAMES_IN_FLIGHT;
+    }
+
+    void VulkanContext::wait_render_command()
+    {
+        vkWaitForFences(m_device, 1, &m_render_command_fences[m_current_frame], VK_TRUE, UINT64_MAX);
+        vkResetFences(m_device, 1, &m_render_command_fences[m_current_frame]);
+    }
+
+    void VulkanContext::begin_frame()
+    {
+        vkWaitForFences(m_device, 1, &m_render_command_fences[m_current_frame], VK_TRUE, UINT64_MAX);
+        VkResult result = vkAcquireNextImageKHR(m_device, m_swap_chain, UINT64_MAX, m_image_available_semaphores[m_current_frame], VK_NULL_HANDLE, &m_image_index);
+
+        if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+            recreate_swap_chain();
+            return;
+        } else {
+            YG_CORE_ASSERT(result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR, "Failed to present swap chain image!");
+        }
+        vkResetFences(m_device, 1, &m_render_command_fences[m_current_frame]);
     }
 }

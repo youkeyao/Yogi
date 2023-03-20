@@ -179,6 +179,7 @@ namespace Yogi {
             descriptor_write.pImageInfo = &image_info;
             descriptor_write.pTexelBufferView = nullptr;
 
+            context->wait_render_command();
             vkUpdateDescriptorSets(context->get_device(), 1, &descriptor_write, 0, nullptr);
         }
     }

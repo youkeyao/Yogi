@@ -66,6 +66,7 @@ namespace Yogi {
         memcpy(data, vertices, size);
         vkUnmapMemory(context->get_device(), staging_buffer_memory);
 
+        context->wait_render_command();
         context->copy_buffer(staging_buffer, m_buffer, size);
 
         vkDestroyBuffer(context->get_device(), staging_buffer, nullptr);
@@ -120,6 +121,7 @@ namespace Yogi {
         memcpy(data, indices, size);
         vkUnmapMemory(context->get_device(), staging_buffer_memory);
 
+        context->wait_render_command();
         context->copy_buffer(staging_buffer, m_buffer, size);
 
         vkDestroyBuffer(context->get_device(), staging_buffer, nullptr);
@@ -167,6 +169,7 @@ namespace Yogi {
             descriptor_write.pImageInfo = nullptr;
             descriptor_write.pTexelBufferView = nullptr;
 
+            context->wait_render_command();
             vkUpdateDescriptorSets(context->get_device(), 1, &descriptor_write, 0, nullptr);
         }
     }

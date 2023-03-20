@@ -53,7 +53,7 @@ namespace Yogi {
 
         VkFramebufferCreateInfo framebufferInfo{};
         framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        framebufferInfo.renderPass = context->get_current_pipeline()->get_vk_render_pass();
+        framebufferInfo.renderPass = context->get_current_pipeline()->get_vk_clear_render_pass();
         framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
         framebufferInfo.pAttachments = attachments.data();
         framebufferInfo.width = m_width;

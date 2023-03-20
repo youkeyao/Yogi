@@ -8,6 +8,7 @@ namespace Yogi {
     void RenderSystem::on_update(Timestep ts, Scene* scene)
     {
         RenderCommand::set_clear_color({ 0.1f, 0.1f, 0.1f, 1.0f });
+        RenderCommand::clear();
         
         scene->view_components<TransformComponent, SpriteRendererComponent>([ts](Entity entity, TransformComponent& transform, SpriteRendererComponent& sprite){
             // Renderer2D::draw_quad(transform.transform, sprite.texture, {sprite.tex_min, sprite.tex_max}, sprite.color, entity);
