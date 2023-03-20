@@ -397,6 +397,18 @@ namespace Yogi {
 
             sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
             destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        } else if (old_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL && new_layout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
+            barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+
+            sourceStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+            destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        } else if (old_layout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+            barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+
+            sourceStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+            destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
         } else if (old_layout == VK_IMAGE_LAYOUT_UNDEFINED && new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
             barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
             barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
@@ -741,14 +753,15 @@ namespace Yogi {
 
     void VulkanContext::create_frame_buffers()
     {
-        if (m_pipeline) {
+        if (m_pipeline && m_pipeline->get_output_layout().get_elements().size() == 1) {
             m_swap_chain_frame_buffers.resize(m_swap_chain_image_views.size());
 
             for (size_t i = 0; i < m_swap_chain_image_views.size(); i++) {
-                std::array<VkImageView, 2> attachments = {
-                    m_swap_chain_image_views[i],
-                    m_depth_image_view
-                };
+                std::vector<VkImageView> attachments;
+                for (int32_t i = 0; i < m_pipeline->get_output_layout().get_elements().size(); i ++) {
+                    attachments.push_back(m_swap_chain_image_views[i]);
+                }
+                attachments.push_back(m_depth_image_view);
 
                 VkFramebufferCreateInfo framebufferInfo{};
                 framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;

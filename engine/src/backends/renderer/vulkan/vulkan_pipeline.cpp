@@ -232,13 +232,17 @@ namespace Yogi {
         color_blend_attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
         color_blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
         color_blend_attachment.alphaBlendOp = VK_BLEND_OP_MIN;
+        std::vector<VkPipelineColorBlendAttachmentState> color_blend_attachments;
+        for (int32_t i = 0; i < m_output_layout.get_elements().size(); i ++) {
+            color_blend_attachments.push_back(color_blend_attachment);
+        }
 
         VkPipelineColorBlendStateCreateInfo color_blending{};
         color_blending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
         color_blending.logicOpEnable = VK_FALSE;
         color_blending.logicOp = VK_LOGIC_OP_COPY;
-        color_blending.attachmentCount = 1;
-        color_blending.pAttachments = &color_blend_attachment;
+        color_blending.attachmentCount = static_cast<uint32_t>(color_blend_attachments.size());
+        color_blending.pAttachments = color_blend_attachments.data();
         color_blending.blendConstants[0] = 0.0f;
         color_blending.blendConstants[1] = 0.0f;
         color_blending.blendConstants[2] = 0.0f;

@@ -16,7 +16,7 @@ namespace Yogi {
         static void set_pipeline(Ref<Pipeline> pipeline);
         static void set_projection_view_matrix(glm::mat4 projection_view_matrix);
         static void flush();
-        static void draw_mesh(const std::string& name, const glm::mat4& transform, const Ref<Texture2D>& texture, const glm::vec4& color);
+        static void draw_mesh(const std::string& name, const glm::mat4& transform, const Ref<Texture2D>& texture, const glm::vec4& color, uint32_t entity_id);
     };
 
 }

@@ -16,15 +16,14 @@ namespace Yogi {
     {
         YG_PROFILE_FUNCTION();
         ImguiSetting::init();
-        Renderer::set_pipeline(Pipeline::create("editor", {"vert", "frag"}, false));
+        Renderer::set_pipeline(Pipeline::create("Flat", {"vert", "frag"}, false));
 
         ComponentManager::init();
         SystemManager::init();
 
-        m_frame_texture = Texture2D::create(s_max_viewport_size, s_max_viewport_size);
+        m_frame_texture = Texture2D::create(s_max_viewport_size, s_max_viewport_size, TextureFormat::ATTACHMENT);
         m_entity_id_texture = Texture2D::create(s_max_viewport_size, s_max_viewport_size, TextureFormat::RED_INTEGER);
-        // m_frame_buffer = FrameBuffer::create(s_max_viewport_size, s_max_viewport_size, { m_frame_texture, m_entity_id_texture });
-        m_frame_buffer = FrameBuffer::create(s_max_viewport_size, s_max_viewport_size, { m_frame_texture });
+        m_frame_buffer = FrameBuffer::create(s_max_viewport_size, s_max_viewport_size, { m_frame_texture, m_entity_id_texture });
 
         // m_scene = CreateRef<Scene>();
         // m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
@@ -65,7 +64,6 @@ namespace Yogi {
         imgui_update();
         m_hierarchy_panel->on_imgui_render();
 
-        // Renderer2D::reset_stats();
         m_frame_buffer->bind();
 
         m_editor_camera.on_update(ts, m_viewport_hovered);

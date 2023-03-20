@@ -32,7 +32,7 @@ namespace Yogi {
             YG_CORE_ERROR("Invalid texture format!");
         }
 
-        init_texture(format == TextureFormat::ATTACHMENT);
+        init_texture(true);
         context->transition_image_layout(m_image, m_internal_format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
     }
 
@@ -85,7 +85,7 @@ namespace Yogi {
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
 
         if (is_attachment) {
-            context->create_image(m_width, m_height, m_internal_format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_image, m_image_memory);
+            context->create_image(m_width, m_height, m_internal_format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_image, m_image_memory);
         }
         else {
             context->create_image(m_width, m_height, m_internal_format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_image, m_image_memory);
@@ -123,6 +123,62 @@ namespace Yogi {
 
     void VulkanTexture2D::read_pixel(int32_t x, int32_t y, void* data) const
     {
+        VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
+
+        context->transition_image_layout(m_image, m_internal_format, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+        uint32_t bpp = 0;
+        if (m_internal_format == VK_FORMAT_R8G8B8A8_UNORM) {
+            bpp = 4;
+        }
+        else if (m_internal_format == VK_FORMAT_R8G8B8_UNORM) {
+            bpp = 3;
+        }
+        else if (m_internal_format == VK_FORMAT_R32_SINT) {
+            bpp = 4;
+        }
+        else if (m_internal_format == VK_FORMAT_B8G8R8A8_UNORM) {
+            bpp = 4;
+        }
+        else {
+            YG_CORE_ERROR("Invalid texture format!");
+        }
+
+        VkCommandBuffer command_buffer = context->begin_single_time_commands();
+        VkBufferImageCopy region{};
+        region.bufferOffset = 0;
+        region.bufferRowLength = 0;
+        region.bufferImageHeight = 0;
+        region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        region.imageSubresource.mipLevel = 0;
+        region.imageSubresource.baseArrayLayer = 0;
+        region.imageSubresource.layerCount = 1;
+        region.imageOffset = {0, 0, 0};
+        region.imageExtent = {
+            m_width,
+            m_height,
+            1
+        };
+        VkBuffer staging_buffer;
+        VkDeviceMemory staging_buffer_memory;
+        context->create_buffer(m_width * m_height * bpp, VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
+        void* pdata;
+        vkMapMemory(context->get_device(), staging_buffer_memory, 0, m_width * m_height * bpp, 0, &pdata);
+        
+        vkCmdCopyImageToBuffer(
+            command_buffer,
+            m_image,
+            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            staging_buffer,
+            1,
+            &region
+        );
+        context->end_single_time_commands(command_buffer);
+        memcpy(data, (uint8_t*)pdata + x * bpp + y * m_width * bpp, bpp);
+        vkUnmapMemory(context->get_device(), staging_buffer_memory);
+        context->transition_image_layout(m_image, m_internal_format, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+
+        vkDestroyBuffer(context->get_device(), staging_buffer, nullptr);
+        vkFreeMemory(context->get_device(), staging_buffer_memory, nullptr);
     }
 
     void VulkanTexture2D::set_data(void* data, size_t size)

@@ -12,6 +12,7 @@ namespace Yogi {
         glm::vec4 color;
         glm::vec2 texcoord;
         int texid;
+        int entityid;
     };
 
     struct RendererData
@@ -55,7 +56,7 @@ namespace Yogi {
         s_data->mesh_vertex_buffer->bind();
         s_data->mesh_index_buffer = IndexBuffer::create(nullptr, RendererData::max_indices, false);
         s_data->mesh_index_buffer->bind();
-        s_data->render_pipeline = Pipeline::create("editor");
+        s_data->render_pipeline = Pipeline::create("Flat");
         s_data->render_pipeline->bind();
         s_data->scene_uniform_buffer = UniformBuffer::create(sizeof(RendererData::SceneData));
         s_data->scene_uniform_buffer->bind(0);
@@ -105,9 +106,10 @@ namespace Yogi {
         }
     }
 
-    void Renderer::draw_mesh(const std::string& name, const glm::mat4& transform, const Ref<Texture2D>& texture, const glm::vec4& color)
+    void Renderer::draw_mesh(const std::string& name, const glm::mat4& transform, const Ref<Texture2D>& texture, const glm::vec4& color, uint32_t entity_id)
     {
-        if (s_data->mesh_indices_cur - s_data->mesh_indices_base >= RendererData::max_indices || s_data->texture_slot_index >= RendererData::max_texture_slots) {
+        const Mesh& mesh = MeshManager::get_mesh(name);
+        if (s_data->mesh_indices_cur - s_data->mesh_indices_base + mesh.indices.size() >= RendererData::max_indices || s_data->texture_slot_index >= RendererData::max_texture_slots) {
             flush();
             s_data->texture_slot_index = 1;
         }
@@ -130,13 +132,13 @@ namespace Yogi {
 
         uint32_t vertices_count = s_data->mesh_vertices_cur - s_data->mesh_vertices_base;
 
-        const Mesh& mesh = MeshManager::get_mesh(name);
         for (auto& [pos, texcoord] : mesh.vertices) {
             glm::vec4 position{pos.x, pos.y, pos.z, 1.0f};
             s_data->mesh_vertices_cur->position = transform * position;
             s_data->mesh_vertices_cur->color = color;
             s_data->mesh_vertices_cur->texcoord = texcoord;
             s_data->mesh_vertices_cur->texid = texture_index;
+            s_data->mesh_vertices_cur->entityid = entity_id;
             s_data->mesh_vertices_cur ++;
         }
         for (auto& index : mesh.indices) {
