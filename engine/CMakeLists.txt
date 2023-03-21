@@ -13,6 +13,14 @@ if ( YG_WINDOW_API STREQUAL "GLFW" )
             src/backends/window/glfw/*.cpp
     )
     set(yg_window glfw)
+elseif ( YG_WINDOW_API STREQUAL "SDL" )
+    set(SDL_TEST off)
+    add_subdirectory( vendor/SDL )
+    file(GLOB_RECURSE
+        YG_WINDOW_SOURCES CONFIGURE_DEPENDS
+            src/backends/window/sdl/*.cpp
+    )
+    set(yg_window SDL2-static)
 else()
     message( FATAL_ERROR "Unknow window" )
 endif()

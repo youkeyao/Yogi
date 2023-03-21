@@ -1,6 +1,9 @@
 #include "backends/renderer/vulkan/vulkan_context.h"
 #if YG_WINDOW_API == YG_WINDOW_GLFW
     #include <GLFW/glfw3.h>
+#elif YG_WINDOW_API == YG_WINDOW_SDL
+    #include <SDL.h>
+    #include <SDL_vulkan.h>
 #endif
 
 const int MAX_FRAMES_IN_FLIGHT = 2;
@@ -176,7 +179,11 @@ VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, Yogi::
         return capabilities.currentExtent;
     } else {
         int width, height;
-        glfwGetFramebufferSize((GLFWwindow*)window->get_native_window(), &width, &height);
+        #if YG_WINDOW_API == YG_WINDOW_GLFW
+            glfwGetFramebufferSize((GLFWwindow*)window->get_native_window(), &width, &height);
+        #elif YG_WINDOW_API == YG_WINDOW_SDL
+            SDL_GetWindowSize((SDL_Window*)window->get_native_window(), &width, &height);
+        #endif
         VkExtent2D actualExtent = {
             static_cast<uint32_t>(width),
             static_cast<uint32_t>(height)
@@ -508,13 +515,16 @@ namespace Yogi {
         createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
         createInfo.pApplicationInfo = &appInfo;
 
-        uint32_t glfwExtensionCount = 0;
-        const char** glfwExtensions;
+        uint32_t ExtensionCount = 0;
         #if YG_WINDOW_API == YG_WINDOW_GLFW
-            glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+            const char** Extensions = glfwGetRequiredInstanceExtensions(&ExtensionCount);
+        #elif YG_WINDOW_API == YG_WINDOW_SDL
+            SDL_Vulkan_GetInstanceExtensions((SDL_Window*)m_window->get_native_window(), &ExtensionCount, NULL);
+            const char** Extensions = new const char*[ExtensionCount];
+            SDL_Vulkan_GetInstanceExtensions((SDL_Window*)m_window->get_native_window(), &ExtensionCount, Extensions);
         #endif
 
-        std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
+        std::vector<const char*> extensions(Extensions, Extensions + ExtensionCount);
 
         VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
         #ifdef YG_DEBUG
@@ -535,6 +545,8 @@ namespace Yogi {
 
         VkResult result = vkCreateInstance(&createInfo, nullptr, &m_instance);
         YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to create instance!");
+
+        delete[] Extensions;
     }
 
     void VulkanContext::setup_debug_messenger()
@@ -552,8 +564,10 @@ namespace Yogi {
     {
         #if YG_WINDOW_API == YG_WINDOW_GLFW
             VkResult result = glfwCreateWindowSurface(m_instance, (GLFWwindow*)m_window->get_native_window(), nullptr, &surface);
-            YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to create window surface!");
+        #elif YG_WINDOW_API == YG_WINDOW_SDL
+            VkResult result = SDL_Vulkan_CreateSurface((SDL_Window*)m_window->get_native_window(), m_instance, &surface) ? VK_SUCCESS : VK_NOT_READY;
         #endif
+        YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to create window surface!");
     }
 
     void VulkanContext::pick_physical_device()
@@ -852,11 +866,19 @@ namespace Yogi {
     void VulkanContext::recreate_swap_chain()
     {
         int width = 0, height = 0;
-        glfwGetFramebufferSize((GLFWwindow*)m_window->get_native_window(), &width, &height);
-        while (width == 0 || height == 0) {
+        #if YG_WINDOW_API == YG_WINDOW_GLFW
             glfwGetFramebufferSize((GLFWwindow*)m_window->get_native_window(), &width, &height);
-            glfwWaitEvents();
-        }
+            while (width == 0 || height == 0) {
+                glfwGetFramebufferSize((GLFWwindow*)m_window->get_native_window(), &width, &height);
+                glfwWaitEvents();
+            }
+        #elif YG_WINDOW_API == YG_WINDOW_SDL
+            SDL_GetWindowSize((SDL_Window*)m_window->get_native_window(), &width, &height);
+            while (width == 0 || height == 0) {
+                SDL_GetWindowSize((SDL_Window*)m_window->get_native_window(), &width, &height);
+                SDL_WaitEvent(nullptr);
+            }
+        #endif
 
         vkDeviceWaitIdle(m_device);
 

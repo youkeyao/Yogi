@@ -17,12 +17,28 @@
         #define ImGui_Window_Init(window, install_callback) ImGui_ImplGlfw_InitForOpenGL(static_cast<GLFWwindow*>(window), install_callback)
         #define ImGui_Window_Shutdown(...) ImGui_ImplGlfw_Shutdown(__VA_ARGS__)
         #define ImGui_Window_NewFrame(...) ImGui_ImplGlfw_NewFrame(__VA_ARGS__)
+        #define ImGui_Window_OnEvent(e)
         #define ImGui_Window_Render() \
             if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) { \
                 GLFWwindow* backup_current_context = glfwGetCurrentContext(); \
                 ImGui::UpdatePlatformWindows(); \
                 ImGui::RenderPlatformWindowsDefault(); \
                 glfwMakeContextCurrent(backup_current_context); \
+            }
+    #elif YG_WINDOW_API == YG_WINDOW_SDL
+        #include <backends/imgui_impl_sdl2.h>
+        #include <backends/imgui_impl_sdl2.cpp>
+        #define ImGui_Window_Init(window, install_callback) ImGui_ImplSDL2_InitForOpenGL(static_cast<SDL_Window*>(window), SDL_GL_GetCurrentContext())
+        #define ImGui_Window_Shutdown(...) ImGui_ImplSDL2_Shutdown(__VA_ARGS__)
+        #define ImGui_Window_NewFrame(...) ImGui_ImplSDL2_NewFrame(__VA_ARGS__)
+        #define ImGui_Window_OnEvent(e) ImGui_ImplSDL2_ProcessEvent((SDL_Event*)e.native_event)
+        #define ImGui_Window_Render() \
+            if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) { \
+                SDL_Window* backup_current_window = SDL_GL_GetCurrentWindow(); \
+                SDL_GLContext backup_current_context = SDL_GL_GetCurrentContext(); \
+                ImGui::UpdatePlatformWindows(); \
+                ImGui::RenderPlatformWindowsDefault(); \
+                SDL_GL_MakeCurrent(backup_current_window, backup_current_context); \
             }
     #endif
 #elif YG_RENDERER_API == YG_RENDERER_VULKAN
@@ -70,7 +86,7 @@
         init_info.Instance = context->get_instance();
         init_info.PhysicalDevice = context->get_physical_device();
         init_info.Device = context->get_device();
-        init_info.QueueFamily = 1;
+        init_info.QueueFamily = 0;
         init_info.Queue = context->get_graphics_queue();
         init_info.PipelineCache = VK_NULL_HANDLE;
 
@@ -170,6 +186,19 @@
         #define ImGui_Window_Init(window, install_callback) ImGui_ImplGlfw_InitForVulkan(static_cast<GLFWwindow*>(window), install_callback)
         #define ImGui_Window_Shutdown(...) ImGui_ImplGlfw_Shutdown(__VA_ARGS__)
         #define ImGui_Window_NewFrame(...) ImGui_ImplGlfw_NewFrame(__VA_ARGS__)
+        #define ImGui_Window_OnEvent(e)
+        #define ImGui_Window_Render() \
+            if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) { \
+                ImGui::UpdatePlatformWindows(); \
+                ImGui::RenderPlatformWindowsDefault(); \
+            }
+    #elif YG_WINDOW_API == YG_WINDOW_SDL
+        #include <backends/imgui_impl_sdl2.h>
+        #include <backends/imgui_impl_sdl2.cpp>
+        #define ImGui_Window_Init(window, install_callback) ImGui_ImplSDL2_InitForVulkan(static_cast<SDL_Window*>(window))
+        #define ImGui_Window_Shutdown(...) ImGui_ImplSDL2_Shutdown(__VA_ARGS__)
+        #define ImGui_Window_NewFrame(...) ImGui_ImplSDL2_NewFrame(__VA_ARGS__)
+        #define ImGui_Window_OnEvent(e) ImGui_ImplSDL2_ProcessEvent((SDL_Event*)e.native_event)
         #define ImGui_Window_Render() \
             if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) { \
                 ImGui::UpdatePlatformWindows(); \

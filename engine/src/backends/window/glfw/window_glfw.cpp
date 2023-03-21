@@ -46,14 +46,14 @@ namespace Yogi {
             data.width = width;
             data.height = height;
 
-            WindowResizeEvent event(width, height);
+            WindowResizeEvent event(width, height, nullptr);
             data.event_callback(event);
         });
 
         glfwSetWindowCloseCallback(m_window, [](GLFWwindow* window) {
             WindowData& data = *(WindowData*) glfwGetWindowUserPointer(window);
 
-            WindowCloseEvent event;
+            WindowCloseEvent event(nullptr);
             data.event_callback(event);
         });
 
@@ -62,17 +62,17 @@ namespace Yogi {
 
             switch (action) {
                 case GLFW_PRESS: {
-                    KeyPressedEvent event(key, 0);
+                    KeyPressedEvent event(key, 0, nullptr);
                     data.event_callback(event);
                     break;
                 }
                 case GLFW_RELEASE: {
-                    KeyReleasedEvent event(key);
+                    KeyReleasedEvent event(key, nullptr);
                     data.event_callback(event);
                     break;
                 }
                 case GLFW_REPEAT: {
-                    KeyPressedEvent event(key, 1);
+                    KeyPressedEvent event(key, 1, nullptr);
                     data.event_callback(event);
                     break;
                 }
@@ -84,12 +84,12 @@ namespace Yogi {
 
             switch (action) {
                 case GLFW_PRESS: {
-                    MouseButtonPressedEvent event(button);
+                    MouseButtonPressedEvent event(button, nullptr);
                     data.event_callback(event);
                     break;
                 }
                 case GLFW_RELEASE: {
-                    MouseButtonReleasedEvent event(button);
+                    MouseButtonReleasedEvent event(button, nullptr);
                     data.event_callback(event);
                     break;
                 }
@@ -99,14 +99,14 @@ namespace Yogi {
         glfwSetScrollCallback(m_window, [](GLFWwindow* window, double x_offset, double y_offset) {
             WindowData& data = *(WindowData*) glfwGetWindowUserPointer(window);
 
-            MouseScrolledEvent event(x_offset, y_offset);
+            MouseScrolledEvent event(x_offset, y_offset, nullptr);
             data.event_callback(event);
         });
 
         glfwSetCursorPosCallback(m_window, [](GLFWwindow* window, double x_position, double y_position) {
             WindowData& data = *(WindowData*) glfwGetWindowUserPointer(window);
 
-            MouseMovedEvent event(x_position, y_position);
+            MouseMovedEvent event(x_position, y_position, nullptr);
             data.event_callback(event);
         });
     }

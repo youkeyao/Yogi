@@ -10,7 +10,7 @@ namespace Yogi {
 
     void EditorCamera::on_update(Timestep ts, bool is_update)
     {
-        if (is_update && Input::is_mouse_button_pressed(YG_MOUSE_BUTTON_2)) {
+        if (is_update && Input::is_mouse_button_pressed(YG_MOUSE_BUTTON_RIGHT)) {
             ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
             if (!m_camera_component.is_ortho) {
                 glm::mat4& transform = (glm::mat4&)m_transform_component.transform;
@@ -64,7 +64,7 @@ namespace Yogi {
 
     bool EditorCamera::on_mouse_button_pressed(MouseButtonPressedEvent& e)
     {
-        if (e.get_mouse_button() == YG_MOUSE_BUTTON_2) {
+        if (e.get_mouse_button() == YG_MOUSE_BUTTON_RIGHT) {
             m_last_mouse_x = Input::get_mouse_x();
             m_last_mouse_y = Input::get_mouse_y();
         }
@@ -72,7 +72,7 @@ namespace Yogi {
     }
     bool EditorCamera::on_mouse_moved(MouseMovedEvent& e)
     {
-        if (Input::is_mouse_button_pressed(YG_MOUSE_BUTTON_2)) {
+        if (Input::is_mouse_button_pressed(YG_MOUSE_BUTTON_RIGHT)) {
             glm::mat4& transform = (glm::mat4&)m_transform_component.transform;
             if (m_camera_component.is_ortho) {
                 transform = glm::translate(transform, {(m_last_mouse_x - e.get_x()) / m_pixel_ratio, (e.get_y() - m_last_mouse_y) / m_pixel_ratio, 0});
@@ -81,6 +81,7 @@ namespace Yogi {
                 transform *= glm::rotate(glm::mat4(1.0f), glm::radians(m_last_mouse_y - e.get_y()) / m_pixel_ratio * 40.0f, glm::vec3{1.0f, 0, 0});
                 transform *= glm::rotate(glm::mat4(1.0f), glm::radians(m_last_mouse_x - e.get_x()) / m_pixel_ratio * 40.0f, glm::inverse(glm::mat3(transform)) * glm::vec3{0, 1.0f, 0});
             }
+            YG_CORE_INFO("{0}", m_last_mouse_y - e.get_y());
             recalculate_view();
             m_last_mouse_x = e.get_x();
             m_last_mouse_y = e.get_y();

@@ -7,7 +7,7 @@ namespace Yogi {
     class MouseMovedEvent : public Event
     {
     public:
-        MouseMovedEvent(float x, float y) : m_x(x), m_y(y) {}
+        MouseMovedEvent(float x, float y, void* event) : m_x(x), m_y(y), Event(event) {}
 
         inline float get_x() const { return m_x; }
         inline float get_y() const { return m_y; }
@@ -30,7 +30,7 @@ namespace Yogi {
     class MouseScrolledEvent : public Event
     {
     public:
-        MouseScrolledEvent(float x_offset, float y_offset) : m_x_offset(x_offset), m_y_offset(y_offset) {}
+        MouseScrolledEvent(float x_offset, float y_offset, void* event) : m_x_offset(x_offset), m_y_offset(y_offset), Event(event) {}
 
         inline float get_x_offset() const { return m_x_offset; }
         inline float get_y_offset() const { return m_y_offset; }
@@ -58,14 +58,14 @@ namespace Yogi {
         EVENT_CLASS_CATEGORY(EventCategoryMouse | EventCategoryInput)
 
     protected:
-        MouseButtonEvent(int button) : m_button(button) {}
+        MouseButtonEvent(int button, void* event) : m_button(button), Event(event) {}
         int m_button;
     };
 
     class MouseButtonPressedEvent : public MouseButtonEvent
     {
     public:
-        MouseButtonPressedEvent(int button) : MouseButtonEvent(button) {}
+        MouseButtonPressedEvent(int button, void* event) : MouseButtonEvent(button, event) {}
 
         std::string to_string() const override
         {
@@ -80,7 +80,7 @@ namespace Yogi {
     class MouseButtonReleasedEvent : public MouseButtonEvent
     {
     public:
-        MouseButtonReleasedEvent(int button) : MouseButtonEvent(button) {}
+        MouseButtonReleasedEvent(int button, void* event) : MouseButtonEvent(button, event) {}
 
         std::string to_string() const override
         {

@@ -7,7 +7,7 @@ namespace Yogi {
     class WindowResizeEvent : public Event
     {
     public:
-        WindowResizeEvent(uint32_t width, uint32_t height) : m_width(width), m_height(height) {}
+        WindowResizeEvent(uint32_t width, uint32_t height, void* event) : m_width(width), m_height(height), Event(event) {}
 
         inline uint32_t get_width() const { return m_width; }
         inline uint32_t get_height() const { return m_height; }
@@ -29,35 +29,9 @@ namespace Yogi {
     class WindowCloseEvent : public Event
     {
     public:
-        WindowCloseEvent() {}
+        WindowCloseEvent(void* event) : Event(event) {}
 
         EVENT_CLASS_TYPE(WindowClose)
-        EVENT_CLASS_CATEGORY(EventCategoryApplication)
-    };
-
-    class AppTickEvent : public Event
-    {
-        AppTickEvent() {}
-
-        EVENT_CLASS_TYPE(AppTick)
-        EVENT_CLASS_CATEGORY(EventCategoryApplication)
-    };
-
-    class AppUpdateEvent : public Event
-    {
-    public:
-        AppUpdateEvent() {}
-
-        EVENT_CLASS_TYPE(AppUpdate)
-        EVENT_CLASS_CATEGORY(EventCategoryApplication)
-    };
-
-    class AppRenderEvent : public Event
-    {
-    public:
-        AppRenderEvent() {}
-
-        EVENT_CLASS_TYPE(AppRender)
         EVENT_CLASS_CATEGORY(EventCategoryApplication)
     };
 

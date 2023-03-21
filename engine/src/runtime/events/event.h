@@ -9,7 +9,6 @@ namespace Yogi {
     {
         None = 0,
         WindowClose, WindowResize, WindowFocus, WindowLostFocus, WindowMoved,
-        AppTick, AppUpdate, AppRender,
         KeyPressed, KeyReleased,
         MouseButtonPressed, MouseButtonReleased, MouseMoved, MouseScrolled
     };
@@ -37,12 +36,14 @@ namespace Yogi {
         friend class EventDispatcher;
 
     public:
+        Event(void* event) : native_event(event) {}
         virtual EventType get_event_type() const = 0;
         virtual const char* get_name() const = 0;
         virtual int get_category_flags() const = 0;
         virtual std::string to_string() const { return get_name(); }
         inline bool is_in_category(EventCategory category) { return get_category_flags() & category; }
         bool m_handled = false;
+        void* native_event;
     };
 
     class EventDispatcher

@@ -139,4 +139,9 @@ namespace Yogi {
         ImGui_Renderer_Resize();
     }
 
+    void ImguiSetting::imgui_on_event(Event& e)
+    {
+        ImGui_Window_OnEvent(e);
+    }
+
 }

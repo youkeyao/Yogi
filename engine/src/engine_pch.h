@@ -1,5 +1,6 @@
 #define GLFW_INCLUDE_NONE
 #define YG_WINDOW_GLFW 1
+#define YG_WINDOW_SDL 2
 #define YG_RENDERER_OPENGL 1
 #define YG_RENDERER_VULKAN 2
 // #define YG_PROFILE

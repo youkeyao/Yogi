@@ -1,6 +1,6 @@
 #include "runtime/core/input.h"
 #include "runtime/core/application.h"
-#include "GLFW/glfw3.h"
+#include <GLFW/glfw3.h>
 
 namespace Yogi {
 

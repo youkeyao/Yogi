@@ -135,7 +135,7 @@ namespace Yogi {
         }
         else if (new_viewport_size.x != m_viewport_size.x || new_viewport_size.y != m_viewport_size.y) {
             m_viewport_size = new_viewport_size;
-            WindowResizeEvent e((uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y);
+            WindowResizeEvent e((uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y, nullptr);
             m_scene->on_event(e);
             m_editor_camera.on_event(e);
             RenderCommand::set_viewport(0.0f, 0.0f, m_viewport_size.x, m_viewport_size.y);
@@ -177,6 +177,7 @@ namespace Yogi {
     {
         YG_PROFILE_FUNCTION();
         
+        ImguiSetting::imgui_on_event(e);
         if (e.get_event_type() != WindowResizeEvent::get_static_type()) {
             EventDispatcher dispatcher(e);
             if (m_viewport_hovered) {
@@ -193,7 +194,7 @@ namespace Yogi {
 
     bool EditorLayer::on_mouse_button_pressed(MouseButtonPressedEvent& e)
     {
-        if (e.get_mouse_button() == YG_MOUSE_BUTTON_1 && !ImGuizmo::IsOver()) {
+        if (e.get_mouse_button() == YG_MOUSE_BUTTON_LEFT && !ImGuizmo::IsOver()) {
             int entity_id;
             ImVec2 mouse_pos = ImGui::GetMousePos();
             int32_t mouse_x = mouse_pos.x - m_viewport_bounds[0].x;

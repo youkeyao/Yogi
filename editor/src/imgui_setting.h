@@ -14,6 +14,7 @@ namespace Yogi {
         static void imgui_end();
         static ImTextureID get_texture_id(const Ref<Texture2D>& t);
         static void imgui_resize();
+        static void imgui_on_event(Event& e);
     };
 
 }

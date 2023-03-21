@@ -6,6 +6,7 @@ set( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_HOME_DIRECTORY}/bin )
 project( Yogi )
 
 set ( YG_WINDOW_GLFW 1 )
+set ( YG_WINDOW_SDL 2 )
 set ( YG_RENDERER_OPENGL 1 )
 set ( YG_RENDERER_VULKAN 2 )
 
@@ -21,12 +22,14 @@ else()
 endif()
 #------------------------------------------------
 
-set ( YG_WINDOW_API "GLFW" )
-set ( YG_RENDERER_API "Vulkan" )
+set ( YG_WINDOW_API "SDL" )
+set ( YG_RENDERER_API "OpenGL" )
 
 # ---window--------------------------------------------
 if ( YG_WINDOW_API STREQUAL "GLFW" )
     add_compile_definitions(YG_WINDOW_API=${YG_WINDOW_GLFW})
+elseif ( YG_WINDOW_API STREQUAL "SDL" )
+    add_compile_definitions(YG_WINDOW_API=${YG_WINDOW_SDL})
 else()
     message( FATAL_ERROR "Unknow window" )
 endif()

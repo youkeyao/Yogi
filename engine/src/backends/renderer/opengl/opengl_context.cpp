@@ -1,6 +1,8 @@
 #include "backends/renderer/opengl/opengl_context.h"
 #if YG_WINDOW_API == YG_WINDOW_GLFW
     #include <GLFW/glfw3.h>
+#elif YG_WINDOW_API == YG_WINDOW_SDL
+    #include <SDL.h>
 #endif
 
 namespace Yogi {
@@ -47,6 +49,11 @@ namespace Yogi {
             glfwMakeContextCurrent((GLFWwindow*)m_window->get_native_window());
             int status = gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
             glfwSwapInterval(1);
+        #elif YG_WINDOW_API == YG_WINDOW_SDL
+            SDL_GLContext gl_context = SDL_GL_CreateContext((SDL_Window*)m_window->get_native_window());
+            SDL_GL_MakeCurrent((SDL_Window*)m_window->get_native_window(), gl_context);
+            int status = gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress);
+            SDL_GL_SetSwapInterval(1);
         #endif
         YG_CORE_ASSERT(status, "Could not initialize GLad!");
 
@@ -70,6 +77,8 @@ namespace Yogi {
     {        
         #if YG_WINDOW_API == YG_WINDOW_GLFW
             glfwSwapBuffers((GLFWwindow*)m_window->get_native_window());
+        #elif YG_WINDOW_API == YG_WINDOW_SDL
+            SDL_GL_SwapWindow((SDL_Window*)m_window->get_native_window());
         #endif
     }
 
