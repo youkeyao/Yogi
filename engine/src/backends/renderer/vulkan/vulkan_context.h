@@ -4,6 +4,7 @@
 #include "backends/renderer/vulkan/vulkan_pipeline.h"
 #include "backends/renderer/vulkan/vulkan_buffer.h"
 #include "backends/renderer/vulkan/vulkan_texture.h"
+#include "backends/renderer/vulkan/vulkan_frame_buffer.h"
 #include <glm/glm.hpp>
 #include <vulkan/vulkan.h>
 
@@ -32,16 +33,17 @@ namespace Yogi
         VulkanVertexBuffer* get_current_vertex_buffer() { return m_vertex_buffer; }
         VulkanIndexBuffer* get_current_index_buffer() { return m_index_buffer; }
         uint32_t get_current_frame() { return m_current_frame; }
-        VkFramebuffer get_current_frame_buffer() { return m_current_frame_buffer ? m_current_frame_buffer : m_swap_chain_frame_buffers[m_image_index]; }
+        VkFramebuffer get_current_frame_buffer() { return m_current_frame_buffer ? m_current_frame_buffer : m_swap_chain_frame_buffers[m_image_index]->get_vk_frame_buffer(); }
         uint32_t get_current_present_image_index() { return m_image_index; }
         void set_current_vertex_buffer(const VulkanVertexBuffer* vertex_buffer) { m_vertex_buffer = (VulkanVertexBuffer*)vertex_buffer; }
         void set_current_index_buffer(const VulkanIndexBuffer* index_buffer) { m_index_buffer = (VulkanIndexBuffer*)index_buffer; }
+        void set_default_frame_buffer(uint32_t index, Ref<VulkanFrameBuffer> frame_buffer) { m_swap_chain_frame_buffers[index] = frame_buffer; }
         void set_current_frame_buffer(VkFramebuffer frame_buffer) { m_current_frame_buffer = frame_buffer; }
         void set_current_pipeline(const VulkanPipeline* pipeline)
         {
             if (m_pipeline) {
-                for (auto framebuffer : m_swap_chain_frame_buffers) {
-                    vkDestroyFramebuffer(m_device, framebuffer, nullptr);
+                for (auto& framebuffer : m_swap_chain_frame_buffers) {
+                    framebuffer->cleanup_vk_frame_buffer();
                 }
             }
             m_pipeline = (VulkanPipeline*)pipeline;
@@ -79,7 +81,6 @@ namespace Yogi
         void create_swap_chain();
         void create_image_views();
         void create_command_pool();
-        void create_depth_resources();
         void create_frame_buffers();
         void create_command_buffer();
         void create_sync_objects();
@@ -101,7 +102,7 @@ namespace Yogi
         VkExtent2D m_swap_chain_extent;
         std::vector<VkImageView> m_swap_chain_image_views;
 
-        std::vector<VkFramebuffer> m_swap_chain_frame_buffers;
+        std::vector<Ref<VulkanFrameBuffer>> m_swap_chain_frame_buffers;
         VkFramebuffer m_current_frame_buffer = nullptr;
         VkCommandPool m_command_pool;
         std::vector<VkCommandBuffer> m_command_buffers;
@@ -109,10 +110,6 @@ namespace Yogi
         std::vector<VkSemaphore> m_image_available_semaphores;
         std::vector<VkSemaphore> m_render_finished_semaphores;
         std::vector<VkFence> m_render_command_fences;
-
-        VkImage m_depth_image;
-        VkDeviceMemory m_depth_image_memory;
-        VkImageView m_depth_image_view;
 
         uint32_t m_current_command_buffer_index = 0;
         uint32_t m_current_frame = 0;

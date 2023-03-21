@@ -23,7 +23,7 @@ endif()
 #------------------------------------------------
 
 set ( YG_WINDOW_API "SDL" )
-set ( YG_RENDERER_API "OpenGL" )
+set ( YG_RENDERER_API "Vulkan" )
 
 # ---window--------------------------------------------
 if ( YG_WINDOW_API STREQUAL "GLFW" )

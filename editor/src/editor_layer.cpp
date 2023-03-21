@@ -139,7 +139,6 @@ namespace Yogi {
             m_scene->on_event(e);
             m_editor_camera.on_event(e);
             RenderCommand::set_viewport(0.0f, 0.0f, m_viewport_size.x, m_viewport_size.y);
-            ImguiSetting::imgui_resize();
         }
         ImGui::Image(
             ImguiSetting::get_texture_id(m_frame_texture),

@@ -134,11 +134,6 @@ namespace Yogi {
         return ImGui_Renderer_Texture(t);
     }
 
-    void ImguiSetting::imgui_resize()
-    {
-        ImGui_Renderer_Resize();
-    }
-
     void ImguiSetting::imgui_on_event(Event& e)
     {
         ImGui_Window_OnEvent(e);

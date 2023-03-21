@@ -14,54 +14,76 @@ namespace Yogi {
     {
         YG_CORE_ASSERT(0 < color_attachments.size() && color_attachments.size() <= 4, "Wrong color attachments size!");
 
+        std::vector<VkImageView> attachments{};
         for (auto& attachment : color_attachments) {
             m_color_attachments[m_color_attachments_size] = attachment;
             m_color_attachments_size ++;
+            attachments.push_back(((VulkanTexture2D*)attachment.get())->get_vk_image_view());
         }
         
-        create_frame_buffer();
+        create_vk_frame_buffer(attachments);
+    }
+
+    VulkanFrameBuffer::VulkanFrameBuffer(VkRenderPass render_pass, bool has_depth_attachment) : m_render_pass(render_pass), has_depth_attachment(has_depth_attachment)
+    {
+        VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
+        m_width = context->get_swap_chain_extent().width;
+        m_height = context->get_swap_chain_extent().height;
     }
 
     VulkanFrameBuffer::~VulkanFrameBuffer()
     {
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
-
         vkDeviceWaitIdle(context->get_device());
-        vkDestroyImageView(context->get_device(), m_depth_image_view, nullptr);
-        vkDestroyImage(context->get_device(), m_depth_image, nullptr);
-        vkFreeMemory(context->get_device(), m_depth_image_memory, nullptr);
-        vkDestroyFramebuffer(context->get_device(), m_frame_buffer, nullptr);
+        cleanup_vk_frame_buffer();
+    }
+
+    void VulkanFrameBuffer::cleanup_vk_frame_buffer()
+    {
+        VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
+
+        if (has_depth_attachment) {
+            if (m_depth_image_view) vkDestroyImageView(context->get_device(), m_depth_image_view, nullptr);
+            m_depth_image_view = VK_NULL_HANDLE;
+            if (m_depth_image) vkDestroyImage(context->get_device(), m_depth_image, nullptr);
+            m_depth_image = VK_NULL_HANDLE;
+            if (m_depth_image_memory) vkFreeMemory(context->get_device(), m_depth_image_memory, nullptr);
+            m_depth_image_memory = VK_NULL_HANDLE;
+        }
+        if (m_frame_buffer) vkDestroyFramebuffer(context->get_device(), m_frame_buffer, nullptr);
+        m_frame_buffer = VK_NULL_HANDLE;
     }
     
-    void VulkanFrameBuffer::create_frame_buffer()
+    void VulkanFrameBuffer::create_vk_frame_buffer(const std::vector<VkImageView>& image_views)
     {
-        std::vector<VkImageView> attachments{};
-
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
-        for (auto& attachment : m_color_attachments) {
-            if (!attachment) continue;
-            attachments.push_back(((VulkanTexture2D*)attachment.get())->get_vk_image_view());
+        cleanup_vk_frame_buffer();
+        if (context->get_current_pipeline()) {
+            std::vector<VkImageView> attachments(image_views);
+            if (m_render_pass) attachments.resize(1);
+
+            if (has_depth_attachment) {
+                VkFormat depth_format = context->find_depth_format();
+                context->create_image(m_width, m_height, depth_format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_depth_image, m_depth_image_memory);
+                m_depth_image_view = context->create_image_view(m_depth_image, depth_format, VK_IMAGE_ASPECT_DEPTH_BIT);
+
+                context->transition_image_layout(m_depth_image, depth_format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
+
+                attachments.push_back(m_depth_image_view);
+            }
+
+            VkFramebufferCreateInfo framebufferInfo{};
+            framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+            framebufferInfo.renderPass = m_render_pass ? m_render_pass : context->get_current_pipeline()->get_vk_clear_render_pass();
+            framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+            framebufferInfo.pAttachments = attachments.data();
+            framebufferInfo.width = m_width;
+            framebufferInfo.height = m_height;
+            framebufferInfo.layers = 1;
+
+            VkResult result = vkCreateFramebuffer(context->get_device(), &framebufferInfo, nullptr, &m_frame_buffer);
+            YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to create framebuffer!");
         }
-
-        VkFormat depth_format = context->find_depth_format();
-        context->create_image(m_width, m_height, depth_format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_depth_image, m_depth_image_memory);
-        m_depth_image_view = context->create_image_view(m_depth_image, depth_format, VK_IMAGE_ASPECT_DEPTH_BIT);
-
-        context->transition_image_layout(m_depth_image, depth_format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
-
-        attachments.push_back(m_depth_image_view);
-
-        VkFramebufferCreateInfo framebufferInfo{};
-        framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        framebufferInfo.renderPass = context->get_current_pipeline()->get_vk_clear_render_pass();
-        framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
-        framebufferInfo.pAttachments = attachments.data();
-        framebufferInfo.width = m_width;
-        framebufferInfo.height = m_height;
-        framebufferInfo.layers = 1;
-
-        VkResult result = vkCreateFramebuffer(context->get_device(), &framebufferInfo, nullptr, &m_frame_buffer);
-        YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to create framebuffer!");
     }
 
     void VulkanFrameBuffer::bind() const
@@ -81,10 +103,13 @@ namespace Yogi {
         m_width = width;
         m_height = height;
 
-        VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
-        vkDestroyFramebuffer(context->get_device(), m_frame_buffer, nullptr);
+        std::vector<VkImageView> attachments{};
+        for (auto& attachment : m_color_attachments) {
+            if (!attachment) continue;
+            attachments.push_back(((VulkanTexture2D*)attachment.get())->get_vk_image_view());
+        }
 
-        create_frame_buffer();
+        create_vk_frame_buffer(attachments);
     }
 
     void VulkanFrameBuffer::add_color_attachment(uint32_t index, const Ref<Texture2D>& attachment)
@@ -94,10 +119,13 @@ namespace Yogi {
         m_color_attachments[index] = attachment;
         m_color_attachments_size ++;
 
-        VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
-        vkDestroyFramebuffer(context->get_device(), m_frame_buffer, nullptr);
+        std::vector<VkImageView> attachments{};
+        for (auto& attachment : m_color_attachments) {
+            if (!attachment) continue;
+            attachments.push_back(((VulkanTexture2D*)attachment.get())->get_vk_image_view());
+        }
 
-        create_frame_buffer();
+        create_vk_frame_buffer(attachments);
     }
 
     void VulkanFrameBuffer::remove_color_attachment(uint32_t index)

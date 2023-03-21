@@ -81,7 +81,6 @@ namespace Yogi {
                 transform *= glm::rotate(glm::mat4(1.0f), glm::radians(m_last_mouse_y - e.get_y()) / m_pixel_ratio * 40.0f, glm::vec3{1.0f, 0, 0});
                 transform *= glm::rotate(glm::mat4(1.0f), glm::radians(m_last_mouse_x - e.get_x()) / m_pixel_ratio * 40.0f, glm::inverse(glm::mat3(transform)) * glm::vec3{0, 1.0f, 0});
             }
-            YG_CORE_INFO("{0}", m_last_mouse_y - e.get_y());
             recalculate_view();
             m_last_mouse_x = e.get_x();
             m_last_mouse_y = e.get_y();

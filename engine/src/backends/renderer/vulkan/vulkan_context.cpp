@@ -221,8 +221,11 @@ namespace Yogi {
         create_logical_device();
         create_swap_chain();
         create_image_views();
+        m_swap_chain_frame_buffers.resize(m_swap_chain_image_views.size());
+        for (size_t i = 0; i < m_swap_chain_image_views.size(); i++) {
+            m_swap_chain_frame_buffers[i] = CreateRef<VulkanFrameBuffer>();
+        }
         create_command_pool();
-        create_depth_resources();
         create_command_buffer();
         create_sync_objects();
 
@@ -247,6 +250,7 @@ namespace Yogi {
         tmp_uniform_buffer.reset();
 
         cleanup_swap_chain();
+        for (auto& framebuffer : m_swap_chain_frame_buffers) framebuffer.reset();
 
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
             vkDestroySemaphore(m_device, m_render_finished_semaphores[i], nullptr);
@@ -767,27 +771,15 @@ namespace Yogi {
 
     void VulkanContext::create_frame_buffers()
     {
-        if (m_pipeline && m_pipeline->get_output_layout().get_elements().size() == 1) {
-            m_swap_chain_frame_buffers.resize(m_swap_chain_image_views.size());
-
+        std::vector<VkImageView> attachments{};
+        if (m_pipeline) {
+            for (int32_t i = 0; i < m_pipeline->get_output_layout().get_elements().size(); i ++) {
+                attachments.push_back(m_swap_chain_image_views[0]);
+            }
             for (size_t i = 0; i < m_swap_chain_image_views.size(); i++) {
-                std::vector<VkImageView> attachments;
-                for (int32_t i = 0; i < m_pipeline->get_output_layout().get_elements().size(); i ++) {
-                    attachments.push_back(m_swap_chain_image_views[i]);
-                }
-                attachments.push_back(m_depth_image_view);
-
-                VkFramebufferCreateInfo framebufferInfo{};
-                framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-                framebufferInfo.renderPass = m_pipeline->get_vk_clear_render_pass();
-                framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
-                framebufferInfo.pAttachments = attachments.data();
-                framebufferInfo.width = m_swap_chain_extent.width;
-                framebufferInfo.height = m_swap_chain_extent.height;
-                framebufferInfo.layers = 1;
-
-                VkResult result = vkCreateFramebuffer(m_device, &framebufferInfo, nullptr, &m_swap_chain_frame_buffers[i]);
-                YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to create framebuffer!");
+                attachments[0] = m_swap_chain_image_views[i];
+                m_swap_chain_frame_buffers[i]->set_vk_extent(m_swap_chain_extent);
+                m_swap_chain_frame_buffers[i]->create_vk_frame_buffer(attachments);
             }
         }
     }
@@ -803,15 +795,6 @@ namespace Yogi {
 
         VkResult result = vkCreateCommandPool(m_device, &poolInfo, nullptr, &m_command_pool);
         YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to create command pool!");
-    }
-
-    void VulkanContext::create_depth_resources()
-    {
-        VkFormat depth_format = find_depth_format();
-        create_image(m_swap_chain_extent.width, m_swap_chain_extent.height, depth_format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_depth_image, m_depth_image_memory);
-        m_depth_image_view = create_image_view(m_depth_image, depth_format, VK_IMAGE_ASPECT_DEPTH_BIT);
-
-        transition_image_layout(m_depth_image, depth_format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
     }
 
     void VulkanContext::create_command_buffer()
@@ -851,12 +834,6 @@ namespace Yogi {
 
     void VulkanContext::cleanup_swap_chain()
     {
-        vkDestroyImageView(m_device, m_depth_image_view, nullptr);
-        vkDestroyImage(m_device, m_depth_image, nullptr);
-        vkFreeMemory(m_device, m_depth_image_memory, nullptr);
-        for (auto framebuffer : m_swap_chain_frame_buffers) {
-            vkDestroyFramebuffer(m_device, framebuffer, nullptr);
-        }
         for (auto imageView : m_swap_chain_image_views) {
             vkDestroyImageView(m_device, imageView, nullptr);
         }
@@ -886,7 +863,6 @@ namespace Yogi {
 
         create_swap_chain();
         create_image_views();
-        create_depth_resources();
         create_frame_buffers();
     }
 
