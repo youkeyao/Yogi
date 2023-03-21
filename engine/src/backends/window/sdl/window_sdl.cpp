@@ -1,5 +1,6 @@
 #include "backends/window/sdl/window_sdl.h"
 #include "backends/window/sdl/sdl_to_yg_codes.h"
+#include <SDL_vulkan.h>
 
 namespace Yogi {
 
@@ -21,7 +22,7 @@ namespace Yogi {
 
     void WindowSDL::init()
     {
-        YG_CORE_INFO("Creating Window {0} ({1} {2})", m_data.title, m_data.width, m_data.height);
+        YG_CORE_INFO("Creating SDL Window {0} ({1} {2})", m_data.title, m_data.width, m_data.height);
 
         int success = SDL_Init(SDL_INIT_VIDEO);
         YG_CORE_ASSERT(success >= 0, "Could not initialize SDL!");
@@ -91,8 +92,54 @@ namespace Yogi {
                 MouseMovedEvent event(e.motion.x, e.motion.y, &e);
                 m_data.event_callback(event);
             }
+            else {
+                WindowFocusEvent event(&e);
+                m_data.event_callback(event);
+            }
         }
         m_context->swap_buffers();
+    }
+
+    void WindowSDL::get_size(int32_t* width, int32_t* height) const
+    {
+        SDL_GetWindowSize(m_window, width, height);
+    }
+
+    void WindowSDL::wait_events()
+    {
+        SDL_WaitEvent(nullptr);
+    }
+
+    // OpenGL
+    void WindowSDL::make_gl_context()
+    {
+        SDL_GLContext gl_context = SDL_GL_CreateContext(m_window);
+        SDL_GL_MakeCurrent(m_window, gl_context);
+    }
+    WindowSDL::GLLoadProc WindowSDL::gl_get_proc_address() const
+    {
+        return SDL_GL_GetProcAddress;
+    }
+    void WindowSDL::gl_set_swap_interval(int32_t interval)
+    {
+        SDL_GL_SetSwapInterval(interval);
+    }
+    void WindowSDL::gl_swap_buffers()
+    {
+        SDL_GL_SwapWindow(m_window);
+    }
+    // Vulkan
+    std::vector<const char*> WindowSDL::vk_get_instance_extensions(uint32_t* count) const
+    {
+        std::vector<const char*> extensions;
+        SDL_Vulkan_GetInstanceExtensions(m_window, count, nullptr);
+        extensions.resize(*count);
+        SDL_Vulkan_GetInstanceExtensions(m_window, count, extensions.data());
+        return extensions;
+    }
+    bool WindowSDL::vk_create_surface(void* instance, void* surface)
+    {
+        return SDL_Vulkan_CreateSurface(m_window, (VkInstance)instance, (VkSurfaceKHR*)surface);
     }
 
 }

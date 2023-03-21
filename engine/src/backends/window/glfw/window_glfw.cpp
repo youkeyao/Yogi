@@ -22,7 +22,7 @@ namespace Yogi {
 
     void WindowGLFW::init()
     {
-        YG_CORE_INFO("Creating Window {0} ({1} {2})", m_data.title, m_data.width, m_data.height);
+        YG_CORE_INFO("Creating GLFW Window {0} ({1} {2})", m_data.title, m_data.width, m_data.height);
 
         if (!s_glfw_initialized) {
             int success = glfwInit();
@@ -121,6 +121,48 @@ namespace Yogi {
     {
         glfwPollEvents();
         m_context->swap_buffers();
+    }
+
+    void WindowGLFW::get_size(int32_t* width, int32_t* height) const
+    {
+        glfwGetFramebufferSize(m_window, width, height);
+    }
+
+    void WindowGLFW::wait_events()
+    {
+        glfwPollEvents();
+    }
+
+    // OpenGL
+    void WindowGLFW::make_gl_context()
+    {
+        glfwMakeContextCurrent(m_window);
+    }
+    WindowGLFW::GLLoadProc WindowGLFW::gl_get_proc_address() const
+    {
+        return (GLLoadProc)glfwGetProcAddress;
+    }
+    void WindowGLFW::gl_set_swap_interval(int32_t interval)
+    {
+        glfwSwapInterval(interval);
+    }
+    void WindowGLFW::gl_swap_buffers()
+    {
+        glfwSwapBuffers(m_window);
+    }
+    // Vulkan
+    std::vector<const char*> WindowGLFW::vk_get_instance_extensions(uint32_t* count) const
+    {
+        const char** extensions = glfwGetRequiredInstanceExtensions(count);
+        return std::vector<const char*>{extensions, extensions + *count};
+    }
+    bool WindowGLFW::vk_create_surface(void* instance, void* surface)
+    {
+        bool status = false;
+        #if YG_RENDERER_API == YG_RENDERER_VULKAN
+            status = glfwCreateWindowSurface((VkInstance)instance, m_window, nullptr, (VkSurfaceKHR*)surface) == VK_SUCCESS;
+        #endif
+        return status;
     }
 
 }

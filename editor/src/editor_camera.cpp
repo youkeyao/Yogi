@@ -56,23 +56,25 @@ namespace Yogi {
     void EditorCamera::on_event(Event& e)
     {
         EventDispatcher dispatcher(e);
-        dispatcher.dispatch<MouseButtonPressedEvent>(YG_BIND_EVENT_FN(EditorCamera::on_mouse_button_pressed));
+        dispatcher.dispatch<MouseButtonReleasedEvent>(YG_BIND_EVENT_FN(EditorCamera::on_mouse_button_released));
         dispatcher.dispatch<MouseMovedEvent>(YG_BIND_EVENT_FN(EditorCamera::on_mouse_moved));
         dispatcher.dispatch<MouseScrolledEvent>(YG_BIND_EVENT_FN(EditorCamera::on_mouse_scrolled));
         dispatcher.dispatch<WindowResizeEvent>(YG_BIND_EVENT_FN(EditorCamera::on_window_resized));
     }
 
-    bool EditorCamera::on_mouse_button_pressed(MouseButtonPressedEvent& e)
+    bool EditorCamera::on_mouse_button_released(MouseButtonReleasedEvent& e)
     {
-        if (e.get_mouse_button() == YG_MOUSE_BUTTON_RIGHT) {
-            m_last_mouse_x = Input::get_mouse_x();
-            m_last_mouse_y = Input::get_mouse_y();
-        }
+        m_last_mouse_x = 0;
+        m_last_mouse_y = 0;
         return false;
     }
     bool EditorCamera::on_mouse_moved(MouseMovedEvent& e)
     {
         if (Input::is_mouse_button_pressed(YG_MOUSE_BUTTON_RIGHT)) {
+            if (m_last_mouse_x == 0 && m_last_mouse_y == 0) {
+                m_last_mouse_x = e.get_x();
+                m_last_mouse_y = e.get_y();
+            }
             glm::mat4& transform = (glm::mat4&)m_transform_component.transform;
             if (m_camera_component.is_ortho) {
                 transform = glm::translate(transform, {(m_last_mouse_x - e.get_x()) / m_pixel_ratio, (e.get_y() - m_last_mouse_y) / m_pixel_ratio, 0});

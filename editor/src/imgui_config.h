@@ -4,18 +4,23 @@
     #include <backends/imgui_impl_opengl3.h>
     #include <backends/imgui_impl_opengl3.cpp>
     #include "backends/renderer/opengl/opengl_texture.h"
-    #define ImGui_Renderer_Init(...) ImGui_ImplOpenGL3_Init("#version 330")
-    #define ImGui_Renderer_Shutdown(...) ImGui_ImplOpenGL3_Shutdown(__VA_ARGS__)
-    #define ImGui_Renderer_NewFrame(...) ImGui_ImplOpenGL3_NewFrame(__VA_ARGS__)
-    #define ImGui_Renderer_Draw(...) ImGui_ImplOpenGL3_RenderDrawData(__VA_ARGS__)
-    #define ImGui_Renderer_Texture(x) (void*)(uint64_t)((OpenGLTexture2D*)x.get())->get_renderer_id()
+    #define ImGui_Renderer_Init() ImGui_ImplOpenGL3_Init("#version 330")
+    #define ImGui_Renderer_Shutdown() ImGui_ImplOpenGL3_Shutdown()
+    #define ImGui_Renderer_NewFrame() ImGui_ImplOpenGL3_NewFrame()
+    #define ImGui_Renderer_Draw() ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData())
+    #define ImGui_Renderer_Texture(texture, viewport_x, viewport_y, tex_x, tex_y) ImGui::Image( \
+            (void*)(uint64_t)((OpenGLTexture2D*)texture.get())->get_renderer_id(), \
+            ImVec2( viewport_x, viewport_y ), \
+            ImVec2( 0, tex_y ), \
+            ImVec2( tex_x, 0 ) \
+        )
 
     #if YG_WINDOW_API == YG_WINDOW_GLFW
         #include <backends/imgui_impl_glfw.h>
         #include <backends/imgui_impl_glfw.cpp>
-        #define ImGui_Window_Init(window, install_callback) ImGui_ImplGlfw_InitForOpenGL(static_cast<GLFWwindow*>(window), install_callback)
-        #define ImGui_Window_Shutdown(...) ImGui_ImplGlfw_Shutdown(__VA_ARGS__)
-        #define ImGui_Window_NewFrame(...) ImGui_ImplGlfw_NewFrame(__VA_ARGS__)
+        #define ImGui_Window_Init(window) ImGui_ImplGlfw_InitForOpenGL(static_cast<GLFWwindow*>(window), true)
+        #define ImGui_Window_Shutdown() ImGui_ImplGlfw_Shutdown()
+        #define ImGui_Window_NewFrame() ImGui_ImplGlfw_NewFrame()
         #define ImGui_Window_OnEvent(e)
         #define ImGui_Window_Render() \
             if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) { \
@@ -27,9 +32,9 @@
     #elif YG_WINDOW_API == YG_WINDOW_SDL
         #include <backends/imgui_impl_sdl2.h>
         #include <backends/imgui_impl_sdl2.cpp>
-        #define ImGui_Window_Init(window, install_callback) ImGui_ImplSDL2_InitForOpenGL(static_cast<SDL_Window*>(window), SDL_GL_GetCurrentContext())
-        #define ImGui_Window_Shutdown(...) ImGui_ImplSDL2_Shutdown(__VA_ARGS__)
-        #define ImGui_Window_NewFrame(...) ImGui_ImplSDL2_NewFrame(__VA_ARGS__)
+        #define ImGui_Window_Init(window) ImGui_ImplSDL2_InitForOpenGL(static_cast<SDL_Window*>(window), SDL_GL_GetCurrentContext())
+        #define ImGui_Window_Shutdown() ImGui_ImplSDL2_Shutdown()
+        #define ImGui_Window_NewFrame() ImGui_ImplSDL2_NewFrame()
         #define ImGui_Window_OnEvent(e) ImGui_ImplSDL2_ProcessEvent((SDL_Event*)e.native_event)
         #define ImGui_Window_Render() \
             if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) { \
@@ -142,19 +147,28 @@
         vkDestroyRenderPass(context->get_device(), g_RenderPass, nullptr);
         vkDestroyDescriptorPool(context->get_device(), g_DescriptorPool, nullptr);
     }
+    ImTextureID imgui_vulkan_texture_id(Yogi::VulkanTexture2D* texture)
+    {
+        return ImGui_ImplVulkan_AddTexture(texture->get_vk_sampler(), texture->get_vk_image_view(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    }
 
-    #define ImGui_Renderer_Init(...) imgui_vulkan_init()
-    #define ImGui_Renderer_Shutdown(...) imgui_vulkan_shutdown()
-    #define ImGui_Renderer_NewFrame(...) ImGui_ImplVulkan_NewFrame(__VA_ARGS__)
-    #define ImGui_Renderer_Draw(...) imgui_vulkan_draw()
-    #define ImGui_Renderer_Texture(x) ImGui_ImplVulkan_AddTexture(((VulkanTexture2D*)x.get())->get_vk_sampler(), ((VulkanTexture2D*)x.get())->get_vk_image_view(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+    #define ImGui_Renderer_Init() imgui_vulkan_init()
+    #define ImGui_Renderer_Shutdown() imgui_vulkan_shutdown()
+    #define ImGui_Renderer_NewFrame() ImGui_ImplVulkan_NewFrame()
+    #define ImGui_Renderer_Draw() imgui_vulkan_draw()
+    #define ImGui_Renderer_Texture(texture, viewport_x, viewport_y, tex_x, tex_y) ImGui::Image( \
+            imgui_vulkan_texture_id((VulkanTexture2D*)texture.get()), \
+            ImVec2( viewport_x, viewport_y ), \
+            ImVec2( 0, 0 ), \
+            ImVec2( tex_x, tex_y ) \
+        )
 
     #if YG_WINDOW_API == YG_WINDOW_GLFW
         #include <backends/imgui_impl_glfw.h>
         #include <backends/imgui_impl_glfw.cpp>
-        #define ImGui_Window_Init(window, install_callback) ImGui_ImplGlfw_InitForVulkan(static_cast<GLFWwindow*>(window), install_callback)
-        #define ImGui_Window_Shutdown(...) ImGui_ImplGlfw_Shutdown(__VA_ARGS__)
-        #define ImGui_Window_NewFrame(...) ImGui_ImplGlfw_NewFrame(__VA_ARGS__)
+        #define ImGui_Window_Init(window) ImGui_ImplGlfw_InitForVulkan(static_cast<GLFWwindow*>(window), true)
+        #define ImGui_Window_Shutdown() ImGui_ImplGlfw_Shutdown()
+        #define ImGui_Window_NewFrame() ImGui_ImplGlfw_NewFrame()
         #define ImGui_Window_OnEvent(e)
         #define ImGui_Window_Render() \
             if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) { \
@@ -164,9 +178,9 @@
     #elif YG_WINDOW_API == YG_WINDOW_SDL
         #include <backends/imgui_impl_sdl2.h>
         #include <backends/imgui_impl_sdl2.cpp>
-        #define ImGui_Window_Init(window, install_callback) ImGui_ImplSDL2_InitForVulkan(static_cast<SDL_Window*>(window))
-        #define ImGui_Window_Shutdown(...) ImGui_ImplSDL2_Shutdown(__VA_ARGS__)
-        #define ImGui_Window_NewFrame(...) ImGui_ImplSDL2_NewFrame(__VA_ARGS__)
+        #define ImGui_Window_Init(window) ImGui_ImplSDL2_InitForVulkan(static_cast<SDL_Window*>(window))
+        #define ImGui_Window_Shutdown() ImGui_ImplSDL2_Shutdown()
+        #define ImGui_Window_NewFrame() ImGui_ImplSDL2_NewFrame()
         #define ImGui_Window_OnEvent(e) ImGui_ImplSDL2_ProcessEvent((SDL_Event*)e.native_event)
         #define ImGui_Window_Render() \
             if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) { \

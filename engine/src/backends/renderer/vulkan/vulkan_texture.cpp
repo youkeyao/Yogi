@@ -121,8 +121,9 @@ namespace Yogi {
         YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to create texture sampler!");
     }
 
-    void VulkanTexture2D::read_pixel(int32_t x, int32_t y, void* data) const
+    void VulkanTexture2D::read_pixel(int32_t width, int32_t height, int32_t x, int32_t y, void* data) const
     {
+        y = height - y;
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
 
         context->transition_image_layout(m_image, m_internal_format, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);

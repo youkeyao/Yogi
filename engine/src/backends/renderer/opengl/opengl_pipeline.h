@@ -18,6 +18,7 @@ namespace Yogi {
         std::vector<uint32_t> read_file(const std::string& filepath);
         void reflect_vertex(const spirv_cross::CompilerGLSL& compiler);
         void reflect_uniform_buffer(const spirv_cross::CompilerGLSL& compiler);
+        void reflect_output(const spirv_cross::CompilerGLSL& compiler);
     private:
         uint32_t m_renderer_id;
     };

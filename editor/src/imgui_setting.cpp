@@ -60,7 +60,7 @@ namespace Yogi {
         set_theme_color();
 
         Application& app = Application::get();
-        ImGui_Window_Init(app.get_window().get_native_window(), true);
+        ImGui_Window_Init(app.get_window().get_native_window());
         ImGui_Renderer_Init();
     }
 
@@ -122,16 +122,18 @@ namespace Yogi {
 
         ImGuiIO& io = ImGui::GetIO();
         Application& app = Application::get();
-        io.DisplaySize = ImVec2(app.get_window().get_width(), app.get_window().get_height());
+        int32_t width, height;
+        app.get_window().get_size(&width, &height);
+        io.DisplaySize = ImVec2(width, height);
 
         ImGui::Render();
-        ImGui_Renderer_Draw(ImGui::GetDrawData());
+        ImGui_Renderer_Draw();
         ImGui_Window_Render();
     }
 
-    ImTextureID ImguiSetting::get_texture_id(const Ref<Texture2D>& t)
+    void ImguiSetting::show_image(const Ref<Texture2D>& texture, ImVec2 viewport, ImVec2 texcoords)
     {
-        return ImGui_Renderer_Texture(t);
+        ImGui_Renderer_Texture(texture, viewport.x, viewport.y, texcoords.x, texcoords.y);
     }
 
     void ImguiSetting::imgui_on_event(Event& e)

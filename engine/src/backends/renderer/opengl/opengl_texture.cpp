@@ -85,7 +85,7 @@ namespace Yogi {
         glDeleteTextures(1, &m_renderer_id);
     }
 
-    void OpenGLTexture2D::read_pixel(int32_t x, int32_t y, void* data) const
+    void OpenGLTexture2D::read_pixel(int32_t width, int32_t height, int32_t x, int32_t y, void* data) const
     {
         uint32_t bpp = 0;
         GLenum type = GL_UNSIGNED_BYTE;

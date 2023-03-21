@@ -18,7 +18,7 @@ namespace Yogi {
     private:
         void recalculate_projection();
         void recalculate_view();
-        bool on_mouse_button_pressed(MouseButtonPressedEvent& e);
+        bool on_mouse_button_released(MouseButtonReleasedEvent& e);
         bool on_mouse_moved(MouseMovedEvent& e);
         bool on_mouse_scrolled(MouseScrolledEvent& e);
         bool on_window_resized(WindowResizeEvent& e);
@@ -29,8 +29,8 @@ namespace Yogi {
         glm::mat4 m_camera_projection_matrix = glm::mat4(1.0f);
         glm::mat4 m_camera_projection_view_matrix = glm::mat4(1.0f);
         float m_camera_translation_speed = 1.0f;
-        float m_last_mouse_x = 0.0f;
-        float m_last_mouse_y = 0.0f;
+        uint32_t m_last_mouse_x = 0;
+        uint32_t m_last_mouse_y = 0;
         float m_pixel_ratio = 1.0f;
     };
 

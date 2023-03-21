@@ -1,9 +1,4 @@
 #include "backends/renderer/opengl/opengl_context.h"
-#if YG_WINDOW_API == YG_WINDOW_GLFW
-    #include <GLFW/glfw3.h>
-#elif YG_WINDOW_API == YG_WINDOW_SDL
-    #include <SDL.h>
-#endif
 
 namespace Yogi {
 
@@ -40,21 +35,15 @@ namespace Yogi {
 
     OpenGLContext::~OpenGLContext()
     {
+        glBindVertexArray(0);
         glDeleteVertexArrays(1, &m_vertex_array);
     }
 
     void OpenGLContext::init()
     {
-        #if YG_WINDOW_API == YG_WINDOW_GLFW
-            glfwMakeContextCurrent((GLFWwindow*)m_window->get_native_window());
-            int status = gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
-            glfwSwapInterval(1);
-        #elif YG_WINDOW_API == YG_WINDOW_SDL
-            SDL_GLContext gl_context = SDL_GL_CreateContext((SDL_Window*)m_window->get_native_window());
-            SDL_GL_MakeCurrent((SDL_Window*)m_window->get_native_window(), gl_context);
-            int status = gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress);
-            SDL_GL_SetSwapInterval(1);
-        #endif
+        m_window->make_gl_context();
+        int status = gladLoadGLLoader((GLADloadproc)m_window->gl_get_proc_address());
+        m_window->gl_set_swap_interval(1);
         YG_CORE_ASSERT(status, "Could not initialize GLad!");
 
         glEnable(GL_BLEND);
@@ -74,12 +63,8 @@ namespace Yogi {
     }
 
     void OpenGLContext::swap_buffers()
-    {        
-        #if YG_WINDOW_API == YG_WINDOW_GLFW
-            glfwSwapBuffers((GLFWwindow*)m_window->get_native_window());
-        #elif YG_WINDOW_API == YG_WINDOW_SDL
-            SDL_GL_SwapWindow((SDL_Window*)m_window->get_native_window());
-        #endif
+    {
+        m_window->gl_swap_buffers();
     }
 
     void OpenGLContext::set_vertex_layout(const Pipeline* pipeline)

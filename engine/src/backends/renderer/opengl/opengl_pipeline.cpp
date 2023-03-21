@@ -55,6 +55,9 @@ namespace Yogi {
             if (type == "vert") {
                 reflect_vertex(glsl);
             }
+            else if (type == "frag") {
+                reflect_output(glsl);
+            }
             reflect_uniform_buffer(glsl);
             std::string shader_source = glsl.compile();
             GLuint shader_id = shader_ids.emplace_back(glCreateShader(shader_type_from_string(type)));
@@ -157,6 +160,22 @@ namespace Yogi {
                 uniform_layout.add_element({ spirv_type_to_shader_data_type(member_type), compiler.get_member_name(uniform_type.self, i) });
             }
             m_uniform_layouts[binding] = uniform_layout;
+        }
+    }
+
+    void OpenGLPipeline::reflect_output(const spirv_cross::CompilerGLSL& compiler)
+    {
+        spirv_cross::ShaderResources resources = compiler.get_shader_resources();
+
+        std::map<uint32_t, spirv_cross::Resource*> stage_outputs;
+        for (auto& stage_output : resources.stage_outputs) {
+            stage_outputs[compiler.get_decoration(stage_output.id, spv::DecorationLocation)] = &stage_output;
+        }
+        for (auto& [location, p_stage_output] : stage_outputs) {
+            auto& stage_output = *p_stage_output;
+            const auto& output_type = compiler.get_type(stage_output.base_type_id);
+
+            m_output_layout.add_element({ spirv_type_to_shader_data_type(output_type), stage_output.name });
         }
     }
 

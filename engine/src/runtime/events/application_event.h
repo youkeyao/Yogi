@@ -35,4 +35,13 @@ namespace Yogi {
         EVENT_CLASS_CATEGORY(EventCategoryApplication)
     };
 
+    class WindowFocusEvent : public Event
+    {
+    public:
+        WindowFocusEvent(void* event) : Event(event) {}
+
+        EVENT_CLASS_TYPE(WindowFocus)
+        EVENT_CLASS_CATEGORY(EventCategoryApplication)
+    };
+
 }

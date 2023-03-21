@@ -14,6 +14,7 @@ if ( YG_WINDOW_API STREQUAL "GLFW" )
     )
     set(yg_window glfw)
 elseif ( YG_WINDOW_API STREQUAL "SDL" )
+    set(SDL_ALSA off)
     set(SDL_TEST off)
     add_subdirectory( vendor/SDL )
     file(GLOB_RECURSE

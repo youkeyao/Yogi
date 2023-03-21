@@ -22,7 +22,7 @@ else()
 endif()
 #------------------------------------------------
 
-set ( YG_WINDOW_API "SDL" )
+set ( YG_WINDOW_API "GLFW" )
 set ( YG_RENDERER_API "Vulkan" )
 
 # ---window--------------------------------------------

@@ -140,11 +140,10 @@ namespace Yogi {
             m_editor_camera.on_event(e);
             RenderCommand::set_viewport(0.0f, 0.0f, m_viewport_size.x, m_viewport_size.y);
         }
-        ImGui::Image(
-            ImguiSetting::get_texture_id(m_frame_texture),
+        ImguiSetting::show_image(
+            m_frame_texture,
             ImVec2(m_viewport_size.x, m_viewport_size.y),
-            ImVec2( 0, m_viewport_size.y / m_frame_texture->get_height() ),
-            ImVec2( m_viewport_size.x / m_frame_texture->get_width(), 0 )
+            ImVec2( m_viewport_size.x / m_frame_texture->get_width(), m_viewport_size.y / m_frame_texture->get_height() )
         );
 
         // Gizmos
@@ -199,7 +198,7 @@ namespace Yogi {
             int32_t mouse_x = mouse_pos.x - m_viewport_bounds[0].x;
             int32_t mouse_y = mouse_pos.y - m_viewport_bounds[0].y;
             mouse_y = m_viewport_size.y - mouse_y;
-            m_entity_id_texture->read_pixel(mouse_x, mouse_y, &entity_id);
+            m_entity_id_texture->read_pixel((int32_t)m_viewport_size.x, (int32_t)m_viewport_size.y, mouse_x, mouse_y, &entity_id);
             if (entity_id & 0x20000000) {
                 m_hierarchy_panel->set_selected_entity(Entity{});
             }

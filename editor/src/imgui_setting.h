@@ -12,7 +12,7 @@ namespace Yogi {
         static void shutdown();
         static void imgui_begin();
         static void imgui_end();
-        static ImTextureID get_texture_id(const Ref<Texture2D>& t);
+        static void show_image(const Ref<Texture2D>& texture, ImVec2 viewport, ImVec2 texcoords);
         static void imgui_on_event(Event& e);
     };
 
