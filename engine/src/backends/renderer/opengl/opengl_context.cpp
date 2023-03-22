@@ -35,8 +35,6 @@ namespace Yogi {
 
     OpenGLContext::~OpenGLContext()
     {
-        glBindVertexArray(0);
-        glDeleteVertexArrays(1, &m_vertex_array);
     }
 
     void OpenGLContext::init()
@@ -49,9 +47,10 @@ namespace Yogi {
         glEnable(GL_BLEND);
         glEnable(GL_DEPTH_TEST);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
 
         glCreateVertexArrays(1, &m_vertex_array);
-        glBindVertexArray(m_vertex_array);
 
         std::string vendor = std::string(reinterpret_cast<const char*>(glGetString(GL_VENDOR)));
         std::string renderer = std::string(reinterpret_cast<const char*>(glGetString(GL_RENDERER)));
@@ -60,6 +59,11 @@ namespace Yogi {
         YG_CORE_INFO("    Vendor:   {0}", vendor);
         YG_CORE_INFO("    Renderer: {0}", renderer);
         YG_CORE_INFO("    Version:  {0}", version);
+    }
+
+    void OpenGLContext::shutdown()
+    {
+        glDeleteVertexArrays(1, &m_vertex_array);
     }
 
     void OpenGLContext::swap_buffers()

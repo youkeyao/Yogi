@@ -24,7 +24,7 @@ void Sandbox2D::on_attach()
     e.add_component<Yogi::SpriteRendererComponent>().texture = cherno_texture;
 
     e = m_scene->create_entity();
-    e.add_component<Yogi::TransformComponent>().transform = glm::rotate(glm::mat4(1.0f), 1.0f, {0, 1, 0}) * glm::translate(glm::mat4(1.0f), {1, 1, 5});
+    e.add_component<Yogi::TransformComponent>().transform = glm::inverse(glm::lookAt(glm::vec3{2, 2, 2}, glm::vec3{0, 0, 0}, glm::vec3{0, 1, 0}));
     auto& camera = e.add_component<Yogi::CameraComponent>();
     camera.aspect_ratio = 1280.0f / 720.0f;
     camera.is_ortho = false;
@@ -100,5 +100,4 @@ void Sandbox2D::on_update(Yogi::Timestep ts)
 void Sandbox2D::on_event(Yogi::Event& e)
 {
     m_scene->on_event(e);
-    // m_camera_controller.on_event(e);
 }

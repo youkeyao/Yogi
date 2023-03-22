@@ -234,6 +234,10 @@ namespace Yogi {
 
     VulkanContext::~VulkanContext()
     {
+    }
+
+    void VulkanContext::shutdown()
+    {
         vkDeviceWaitIdle(m_device);
 
         tmp_texture.reset();

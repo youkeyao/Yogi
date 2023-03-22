@@ -113,6 +113,7 @@ namespace Yogi {
 
     WindowGLFW::~WindowGLFW()
     {
+        m_context->shutdown();
         glfwDestroyWindow(m_window);
         glfwTerminate();
     }

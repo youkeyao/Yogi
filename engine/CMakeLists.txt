@@ -21,7 +21,7 @@ elseif ( YG_WINDOW_API STREQUAL "SDL" )
         YG_WINDOW_SOURCES CONFIGURE_DEPENDS
             src/backends/window/sdl/*.cpp
     )
-    set(yg_window SDL2-static)
+    set(yg_window SDL2::SDL2)
 else()
     message( FATAL_ERROR "Unknow window" )
 endif()
@@ -115,11 +115,9 @@ target_include_directories( engine
         vendor/glm
         vendor/entt/src
         vendor/VulkanSDK/include
-        vendor/glfw/include
-        vendor/stb_image
     PRIVATE
         vendor/SPIRV-Cross
         vendor/spdlog/include
-        
+        vendor/stb_image
 )
 add_dependencies(engine Shaders)

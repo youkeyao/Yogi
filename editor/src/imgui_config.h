@@ -141,9 +141,9 @@
     }
     void imgui_vulkan_shutdown()
     {
-        ImGui_ImplVulkan_Shutdown();
         Yogi::VulkanContext* context = (Yogi::VulkanContext*)Yogi::Application::get().get_window().get_context();
         vkDeviceWaitIdle(context->get_device());
+        ImGui_ImplVulkan_Shutdown();
         vkDestroyRenderPass(context->get_device(), g_RenderPass, nullptr);
         vkDestroyDescriptorPool(context->get_device(), g_DescriptorPool, nullptr);
     }

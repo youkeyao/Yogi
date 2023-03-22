@@ -26,10 +26,11 @@ namespace Yogi {
 
         int success = SDL_Init(SDL_INIT_VIDEO);
         YG_CORE_ASSERT(success >= 0, "Could not initialize SDL!");
+        
         #if YG_RENDERER_API == YG_RENDERER_OPENGL
-            m_window = SDL_CreateWindow(m_data.title.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, m_data.width, m_data.height, SDL_WINDOW_OPENGL );
+            m_window = SDL_CreateWindow(m_data.title.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, m_data.width, m_data.height, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
         #elif YG_RENDERER_API == YG_RENDERER_VULKAN
-            m_window = SDL_CreateWindow(m_data.title.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, m_data.width, m_data.height, SDL_WINDOW_VULKAN );
+            m_window = SDL_CreateWindow(m_data.title.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, m_data.width, m_data.height, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
         #endif
 
         m_context = GraphicsContext::create(this);
@@ -38,6 +39,7 @@ namespace Yogi {
 
     WindowSDL::~WindowSDL()
     {
+        m_context->shutdown();
         #if YG_RENDERER_API == YG_RENDERER_OPENGL
             SDL_GL_DeleteContext(SDL_GL_GetCurrentContext());
         #endif

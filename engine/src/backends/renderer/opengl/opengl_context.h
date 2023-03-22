@@ -14,6 +14,7 @@ namespace Yogi
         ~OpenGLContext();
 
         void init() override;
+        void shutdown() override;
         void swap_buffers() override;
 
         void set_vertex_layout(const Pipeline* pipeline);

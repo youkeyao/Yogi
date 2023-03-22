@@ -18,6 +18,7 @@ namespace Yogi
         ~VulkanContext();
 
         void init() override;
+        void shutdown() override;
         void swap_buffers() override;
 
         VkInstance get_instance() { return m_instance; }

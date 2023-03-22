@@ -38,7 +38,7 @@ namespace Yogi {
 
         struct SceneData
         {
-            glm::mat4 projection_view_matrix;
+            glm::mat4 projection_view_matrix = glm::mat4(1.0f);
         };
         SceneData scene_data;
     };
@@ -111,7 +111,7 @@ namespace Yogi {
         const Mesh& mesh = MeshManager::get_mesh(name);
         if (s_data->mesh_indices_cur - s_data->mesh_indices_base + mesh.indices.size() >= RendererData::max_indices || s_data->texture_slot_index >= RendererData::max_texture_slots) {
             flush();
-            s_data->texture_slot_index = 1;
+            s_data->texture_slot_index = 0;
         }
 
         int texture_index = -1;
