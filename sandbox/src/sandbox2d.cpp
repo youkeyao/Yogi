@@ -20,7 +20,7 @@ void Sandbox2D::on_attach()
     checker.add_component<Yogi::SpriteRendererComponent>().texture = m_checkerboard_texture;
 
     Yogi::Entity e = m_scene->create_entity();
-    e.add_component<Yogi::TransformComponent>().transform = glm::translate(glm::mat4(1.0f), {0, 0, 0.1});
+    e.add_component<Yogi::TransformComponent>().transform = glm::translate(glm::mat4(1.0f), {0, 0, 0.05});
     e.add_component<Yogi::SpriteRendererComponent>().texture = cherno_texture;
 
     e = m_scene->create_entity();
@@ -30,14 +30,16 @@ void Sandbox2D::on_attach()
     camera.is_ortho = false;
 
     e = m_scene->create_entity();
-    e.add_component<Yogi::TransformComponent>().transform = glm::translate(glm::mat4(1.0f), {0.4, 0, 0.11});
+    e.add_component<Yogi::TransformComponent>().transform = glm::translate(glm::mat4(1.0f), {0.4, 0, 0.1});
     e.add_component<Yogi::SpriteRendererComponent>().color = {0.8, 0.2, 0.3, 0.7};
 
-    // for (int32_t i = 0; i < 10000; i ++) {
-    //     Yogi::Entity e = m_scene->create_entity();
-    //     e.add_component<Yogi::TransformComponent>();
-    //     e.add_component<Yogi::SpriteRendererComponent>();
-    // }
+    for (int32_t i = 0; i < 200; i ++) {
+        for (int32_t j = 0; j < 200; j ++) {
+            Yogi::Entity e = m_scene->create_entity();
+            e.add_component<Yogi::TransformComponent>().transform = glm::translate(glm::mat4(1.0f), glm::vec3(0.02 * i - 2, 0.02 * j - 2, 0.11)) * glm::scale(glm::mat4(1.0f), glm::vec3(0.01, 0.01, 0.1));
+            e.add_component<Yogi::SpriteRendererComponent>().color = glm::vec4(i / 100.0f, j / 100.0f, 0, 1);
+        }
+    }
 }
 
 void Sandbox2D::on_detach()
@@ -48,7 +50,7 @@ void Sandbox2D::on_detach()
 void Sandbox2D::on_update(Yogi::Timestep ts)
 {
     YG_PROFILE_FUNCTION();
-    // YG_CORE_INFO("{0}", 1.0f / ts);
+    YG_CORE_INFO("{0}", 1.0f / ts);
 
     // m_camera_controller.on_update(ts);
 

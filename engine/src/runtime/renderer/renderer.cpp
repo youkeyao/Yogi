@@ -17,7 +17,7 @@ namespace Yogi {
 
     struct RendererData
     {
-        static const uint32_t max_triangles = 2;
+        static const uint32_t max_triangles = 10000;
         static const uint32_t max_vertices = max_triangles * 3;
         static const uint32_t max_indices = max_triangles * 3;
         static const uint32_t max_texture_slots = 32;
@@ -94,6 +94,8 @@ namespace Yogi {
 
     void Renderer::flush()
     {
+        YG_PROFILE_FUNCTION();
+
         if (s_data->mesh_indices_cur != s_data->mesh_indices_base) {
             uint32_t vertices_size = (uint32_t)((uint8_t*)(s_data->mesh_vertices_cur) - (uint8_t*)s_data->mesh_vertices_base);
             s_data->mesh_vertex_buffer->set_data(s_data->mesh_vertices_base, vertices_size);

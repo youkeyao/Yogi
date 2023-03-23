@@ -8,8 +8,9 @@ namespace Yogi {
     {
     }
 
-    void EditorCamera::on_update(Timestep ts, bool is_update)
+    void EditorCamera::on_update(Timestep ts, bool is_hovered)
     {
+        is_update = is_hovered;
         if (is_update && Input::is_mouse_button_pressed(YG_MOUSE_BUTTON_RIGHT)) {
             ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
             if (!m_camera_component.is_ortho) {
@@ -57,8 +58,10 @@ namespace Yogi {
     {
         EventDispatcher dispatcher(e);
         dispatcher.dispatch<MouseButtonReleasedEvent>(YG_BIND_EVENT_FN(EditorCamera::on_mouse_button_released));
-        dispatcher.dispatch<MouseMovedEvent>(YG_BIND_EVENT_FN(EditorCamera::on_mouse_moved));
-        dispatcher.dispatch<MouseScrolledEvent>(YG_BIND_EVENT_FN(EditorCamera::on_mouse_scrolled));
+        if (is_update) {
+            dispatcher.dispatch<MouseMovedEvent>(YG_BIND_EVENT_FN(EditorCamera::on_mouse_moved));
+            dispatcher.dispatch<MouseScrolledEvent>(YG_BIND_EVENT_FN(EditorCamera::on_mouse_scrolled));
+        }
         dispatcher.dispatch<WindowResizeEvent>(YG_BIND_EVENT_FN(EditorCamera::on_window_resized));
     }
 

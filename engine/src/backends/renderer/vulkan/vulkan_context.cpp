@@ -244,6 +244,7 @@ namespace Yogi {
         tmp_uniform_buffer.reset();
 
         cleanup_swap_chain();
+        for (auto& attachment : m_attachments) attachment.reset();
         for (auto& framebuffer : m_swap_chain_frame_buffers) framebuffer.reset();
 
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
@@ -751,10 +752,17 @@ namespace Yogi {
 
     void VulkanContext::create_frame_buffers()
     {
-        std::vector<VkImageView> attachments{};
+        std::vector<VkImageView> attachments;
+        m_attachments.clear();
         if (m_pipeline) {
-            for (int32_t i = 0; i < m_pipeline->get_output_layout().get_elements().size(); i ++) {
-                attachments.push_back(m_swap_chain_image_views[0]);
+            for (auto& element : m_pipeline->get_output_layout().get_elements()) {
+                if (element.type == ShaderDataType::Int) {
+                    m_attachments.push_back(Texture2D::create(m_swap_chain_extent.width, m_swap_chain_extent.height, TextureFormat::RED_INTEGER));
+                    attachments.push_back(((VulkanTexture2D*)m_attachments.back().get())->get_vk_image_view());
+                }
+                else {
+                    attachments.push_back(m_swap_chain_image_views[0]);
+                }
             }
             for (size_t i = 0; i < m_swap_chain_image_views.size(); i++) {
                 attachments[0] = m_swap_chain_image_views[i];

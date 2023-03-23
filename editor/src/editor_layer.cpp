@@ -178,8 +178,8 @@ namespace Yogi {
         ImguiSetting::imgui_on_event(e);
         if (e.get_event_type() != WindowResizeEvent::get_static_type()) {
             EventDispatcher dispatcher(e);
+            m_editor_camera.on_event(e);
             if (m_viewport_hovered) {
-                m_editor_camera.on_event(e);
                 dispatcher.dispatch<MouseButtonPressedEvent>(YG_BIND_EVENT_FN(EditorLayer::on_mouse_button_pressed));
             }
             m_scene->on_event(e);

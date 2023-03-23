@@ -42,11 +42,6 @@ namespace Yogi
         void set_current_frame_buffer(VkFramebuffer frame_buffer) { m_current_frame_buffer = frame_buffer; }
         void set_current_pipeline(const VulkanPipeline* pipeline)
         {
-            if (m_pipeline) {
-                for (auto& framebuffer : m_swap_chain_frame_buffers) {
-                    framebuffer->cleanup_vk_frame_buffer();
-                }
-            }
             m_pipeline = (VulkanPipeline*)pipeline;
             create_frame_buffers();
         }
@@ -104,6 +99,7 @@ namespace Yogi
         std::vector<VkImageView> m_swap_chain_image_views;
 
         std::vector<Ref<VulkanFrameBuffer>> m_swap_chain_frame_buffers;
+        std::vector<Ref<Texture2D>> m_attachments;
         VkFramebuffer m_current_frame_buffer = nullptr;
         VkCommandPool m_command_pool;
         std::vector<VkCommandBuffer> m_command_buffers;

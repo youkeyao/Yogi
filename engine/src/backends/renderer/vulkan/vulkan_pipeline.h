@@ -1,6 +1,7 @@
 #pragma once
 
 #include "runtime/renderer/pipeline.h"
+#include "runtime/renderer/texture.h"
 #include <vulkan/vulkan.h>
 #include <spirv_glsl.hpp>
 

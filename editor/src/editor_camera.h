@@ -8,7 +8,7 @@ namespace Yogi {
     {
     public:
         EditorCamera();
-        void on_update(Timestep ts, bool is_focused);
+        void on_update(Timestep ts, bool is_hovered);
         void on_event(Event& e);
 
         bool get_is_ortho() { return m_camera_component.is_ortho; }
@@ -32,6 +32,7 @@ namespace Yogi {
         uint32_t m_last_mouse_x = 0;
         uint32_t m_last_mouse_y = 0;
         float m_pixel_ratio = 1.0f;
+        bool is_update = false;
     };
 
 }
