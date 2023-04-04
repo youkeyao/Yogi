@@ -11,7 +11,6 @@ namespace Yogi {
         RenderCommand::clear();
         
         scene->view_components<TransformComponent, SpriteRendererComponent>([ts](Entity entity, TransformComponent& transform, SpriteRendererComponent& sprite){
-            // Renderer2D::draw_quad(transform.transform, sprite.texture, {sprite.tex_min, sprite.tex_max}, sprite.color, entity);
             Renderer::draw_mesh("quad", transform.transform, sprite.texture, sprite.color, entity);
         });
 

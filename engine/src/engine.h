@@ -28,3 +28,8 @@
 #include "runtime/renderer/pipeline.h"
 #include "runtime/renderer/texture.h"
 // ---------------------------------------------
+
+// ---resources-------------------------------
+#include "runtime/resources/mesh_manager.h"
+#include "runtime/resources/texture_manager.h"
+// -------------------------------------------

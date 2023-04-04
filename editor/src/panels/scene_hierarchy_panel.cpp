@@ -7,7 +7,7 @@
 
 namespace Yogi {
 
-    SceneHierarchyPanel::SceneHierarchyPanel(Ref<Scene> context) : m_context(context)
+    SceneHierarchyPanel::SceneHierarchyPanel(Ref<Scene> scene) : m_scene(scene)
     {}
 
     bool SceneHierarchyPanel::check_entity_parent(Entity entity, Entity parent)
@@ -22,18 +22,18 @@ namespace Yogi {
     void SceneHierarchyPanel::delete_entity_and_children(Entity entity, std::unordered_map<uint32_t, std::list<Entity>>& relations)
     {
         for (auto& child : relations[entity]) {
-            m_context->delete_entity(child);
+            m_scene->delete_entity(child);
         }
-        m_context->delete_entity(entity);
+        m_scene->delete_entity(entity);
     }
 
     void SceneHierarchyPanel::on_imgui_render()
     {
         ImGui::Begin("Hierarchy");
-        if (m_context) {
+        if (m_scene) {
             if (ImGui::BeginPopupContextWindow()) {
                 if (ImGui::MenuItem("Create Empty Entity")) {
-                    Entity entity = m_context->create_entity();
+                    Entity entity = m_scene->create_entity();
                     entity.add_component<TagComponent>("New Entity");
                     entity.add_component<TransformComponent>();
                 }
@@ -44,7 +44,7 @@ namespace Yogi {
             std::unordered_map<uint32_t, std::list<Entity>> relations;
             m_all_entities.clear();
             m_all_entities.push_back(Entity{});
-            m_context->each_entity([&relations, this](Entity entity){
+            m_scene->each_entity([&relations, this](Entity entity){
                 m_all_entities.push_back(entity);
                 Entity parent = entity.get_component<TransformComponent>().parent;
                 if (parent) {
@@ -98,14 +98,14 @@ namespace Yogi {
         ImGui::End();
 
         ImGui::Begin("Systems");
-        if (m_context) {
+        if (m_scene) {
             draw_systems();
             if (ImGui::Button("+", { ImGui::GetContentRegionAvail().x, 0.0f }))
                 ImGui::OpenPopup("AddSystem");
             if (ImGui::BeginPopup("AddSystem")) {
                 SystemManager::each_system_type([this](std::string system_name){
                     if (ImGui::MenuItem(system_name.c_str())) {
-                        SystemManager::add_system(m_context, system_name);
+                        SystemManager::add_system(m_scene, system_name);
                         ImGui::CloseCurrentPopup();
                     }
                 });
@@ -272,13 +272,13 @@ namespace Yogi {
     void SceneHierarchyPanel::draw_systems()
     {
         uint32_t index = 0;
-        m_context->each_system([this, &index](std::string system_name, int32_t update_pos, int32_t event_pos){
+        m_scene->each_system([this, &index](std::string system_name, int32_t update_pos, int32_t event_pos){
             ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed |
                 ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_FramePadding;
             bool is_opened = ImGui::TreeNodeEx(system_name.c_str(), flags);
             if (ImGui::BeginPopupContextItem()) {
                 if (ImGui::MenuItem("Delete System")) {
-                    SystemManager::remove_system(m_context, system_name);
+                    SystemManager::remove_system(m_scene, system_name);
                 }
                 ImGui::EndPopup();
             }
@@ -290,7 +290,7 @@ namespace Yogi {
             if (ImGui::BeginDragDropTarget()) {
                 if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("system")) {
                     uint32_t old_index = *(uint32_t*)payload->Data;
-                    m_context->change_system_order(old_index, index);
+                    m_scene->change_system_order(old_index, index);
                 }
                 ImGui::EndDragDropTarget();
             }

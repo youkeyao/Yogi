@@ -5,6 +5,7 @@
 #include <ImGuizmo.h>
 #include "editor_camera.h"
 #include "panels/scene_hierarchy_panel.h"
+#include "panels/content_browser_panel.h"
 
 namespace Yogi {
 
@@ -20,7 +21,8 @@ namespace Yogi {
         void on_event(Event& event) override;
 
         void imgui_update();
-        void open_scene();
+        void open_project();
+        void open_scene(const std::string& path);
         void save_scene();
     private:
         bool on_mouse_button_pressed(MouseButtonPressedEvent& e);
@@ -28,6 +30,8 @@ namespace Yogi {
     private:
         Ref<Scene> m_scene;
         Ref<SceneHierarchyPanel> m_hierarchy_panel;
+        Ref<ContentBrowserPanel> m_content_browser_panel;
+
         EditorCamera m_editor_camera;
 
         bool m_viewport_hovered = false;

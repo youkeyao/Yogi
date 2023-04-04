@@ -17,7 +17,5 @@ private:
     Yogi::Ref<Yogi::Scene> m_scene;
     Yogi::Entity checker;
 
-    Yogi::Ref<Yogi::Texture2D> m_checkerboard_texture;
-
     glm::vec4 m_square_color = { 0.2f, 0.3f, 0.8f, 1.0f };
 };

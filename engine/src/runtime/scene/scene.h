@@ -69,7 +69,11 @@ namespace Yogi {
         }
 
         Entity create_entity(uint32_t hint = 0);
-        Entity get_entity(uint32_t handle) { return Entity{(entt::entity)handle, &m_registry}; }
+        Entity get_entity(uint32_t handle)
+        {
+            if (m_registry.orphan((entt::entity)handle)) return Entity{};
+            return Entity{(entt::entity)handle, &m_registry};
+        }
         void delete_entity(Entity entity);
 
         void each_entity(std::function<void(Entity)> func);

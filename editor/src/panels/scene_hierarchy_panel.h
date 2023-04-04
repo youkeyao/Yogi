@@ -7,7 +7,8 @@ namespace Yogi {
     class SceneHierarchyPanel
     {
     public:
-        SceneHierarchyPanel(Ref<Scene> context);
+        SceneHierarchyPanel(Ref<Scene> scene);
+        ~SceneHierarchyPanel() = default;
 
         void on_imgui_render();
 
@@ -21,7 +22,7 @@ namespace Yogi {
         void draw_systems();
         void check_field(std::string component, std::string field, void* ptr);
     private:
-        Ref<Scene> m_context;
+        Ref<Scene> m_scene;
         Entity m_selected_entity;
         std::vector<Entity> m_all_entities;
     };

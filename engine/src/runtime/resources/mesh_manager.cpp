@@ -1,4 +1,4 @@
-#include "runtime/renderer/mesh_manager.h"
+#include "runtime/resources/mesh_manager.h"
 
 namespace Yogi {
 

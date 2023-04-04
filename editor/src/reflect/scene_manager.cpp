@@ -7,6 +7,13 @@
 
 namespace Yogi {
 
+    bool SceneManager::is_scene(std::string json)
+    {
+        rapidjson::Document document;
+        document.Parse(json.c_str());
+        return !document.HasParseError() && document.IsObject();
+    }
+
     std::string SceneManager::serialize_scene(Ref<Scene> scene)
     {
         rapidjson::StringBuffer buffer;

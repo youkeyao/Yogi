@@ -1,7 +1,8 @@
 #include "runtime/renderer/renderer.h"
-#include "runtime/renderer/mesh_manager.h"
 #include "runtime/renderer/render_command.h"
 #include "runtime/renderer/buffer.h"
+#include "runtime/resources/mesh_manager.h"
+#include "runtime/resources/texture_manager.h"
 #include "runtime/core/application.h"
 
 namespace Yogi {
@@ -72,6 +73,8 @@ namespace Yogi {
         delete[] s_data->mesh_vertices_base;
         delete[] s_data->mesh_indices_base;
         delete s_data;
+
+        TextureManager::clear();
     }
 
     void Renderer::on_window_resize(uint32_t width, uint32_t height)
@@ -108,27 +111,30 @@ namespace Yogi {
         }
     }
 
-    void Renderer::draw_mesh(const std::string& name, const glm::mat4& transform, const Ref<Texture2D>& texture, const glm::vec4& color, uint32_t entity_id)
+    void Renderer::draw_mesh(const std::string& mesh_name, const glm::mat4& transform, const std::string& texture_name, const glm::vec4& color, uint32_t entity_id)
     {
-        const Mesh& mesh = MeshManager::get_mesh(name);
+        const Mesh& mesh = MeshManager::get_mesh(mesh_name);
         if (s_data->mesh_indices_cur - s_data->mesh_indices_base + mesh.indices.size() >= RendererData::max_indices || s_data->texture_slot_index >= RendererData::max_texture_slots) {
             flush();
             s_data->texture_slot_index = 0;
         }
 
         int texture_index = -1;
-        if (texture) {
-            for (uint32_t i = 0; i < s_data->texture_slot_index; i ++) {
-                if (s_data->texture_slots[i] == texture) {
-                    texture_index = i;
-                    break;
+        if (!texture_name.empty()) {
+            Ref<Texture2D> texture = TextureManager::get_texture(texture_name);
+            if (texture) {
+                for (uint32_t i = 0; i < s_data->texture_slot_index; i ++) {
+                    if (s_data->texture_slots[i] == texture) {
+                        texture_index = i;
+                        break;
+                    }
                 }
-            }
-            if (texture_index == -1) {
-                texture_index = s_data->texture_slot_index;
-                s_data->texture_slots[texture_index] = texture;
-                texture->bind(1, texture_index);
-                s_data->texture_slot_index ++;
+                if (texture_index == -1) {
+                    texture_index = s_data->texture_slot_index;
+                    s_data->texture_slots[texture_index] = texture;
+                    texture->bind(1, texture_index);
+                    s_data->texture_slot_index ++;
+                }
             }
         }
 

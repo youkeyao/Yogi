@@ -24,8 +24,6 @@ namespace Yogi {
 
     void RenderCommand::clear()
     {
-        VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
-        context->begin_frame();
     }
 
     void RenderCommand::draw_indexed(uint32_t count)

@@ -36,7 +36,7 @@ namespace Yogi {
     struct SpriteRendererComponent
     {
         Color color;
-        Ref<Texture2D> texture = nullptr;
+        std::string texture = "";
         glm::vec2 tex_min = { 0.0f, 0.0f };
         glm::vec2 tex_max = { 1.0f, 1.0f };
     };

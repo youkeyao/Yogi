@@ -1,5 +1,6 @@
 #include "imgui_setting.h"
 #include "imgui_config.h"
+#include "panels/fontawesome4_header.h"
 
 namespace Yogi {
 
@@ -47,9 +48,14 @@ namespace Yogi {
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
         io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
-        float fontSize = 18.0f;
-        io.Fonts->AddFontFromFileTTF("../editor/assets/fonts/opensans/OpenSans-Bold.ttf", fontSize);
-        io.FontDefault = io.Fonts->AddFontFromFileTTF("../editor/assets/fonts/opensans/OpenSans-Regular.ttf", fontSize);
+        float font_size = 18.0f;
+        float icon_size = 64.0f;
+        io.Fonts->AddFontFromFileTTF(YG_EDITOR_ASSETS"fonts/opensans/OpenSans-Regular.ttf", font_size);
+        static const ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
+        ImFontConfig icons_config;
+        icons_config.MergeMode = true;
+        icons_config.PixelSnapH = true;
+        io.FontDefault = io.Fonts->AddFontFromFileTTF(YG_EDITOR_ASSETS"fonts/FontAwesome4/FontAwesome4.ttf", icon_size, &icons_config, icons_ranges);
 
         ImGui::StyleColorsDark();
         ImGuiStyle& style = ImGui::GetStyle();

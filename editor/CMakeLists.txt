@@ -33,6 +33,8 @@ target_include_directories( imguizmo
 )
 # -----------------------------------------------------------
 
+add_compile_definitions(YG_EDITOR_ASSETS=\"${CMAKE_CURRENT_SOURCE_DIR}/assets/\")
+add_compile_definitions(YG_PROJECT_TEMPLATE=\"${CMAKE_CURRENT_SOURCE_DIR}/template\")
 add_executable(editor ${YG_EDITOR_SOURCES})
 target_link_libraries( editor
     PRIVATE

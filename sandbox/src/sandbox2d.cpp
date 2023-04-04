@@ -8,8 +8,7 @@ void Sandbox2D::on_attach()
 {
     YG_PROFILE_FUNCTION();
 
-    m_checkerboard_texture = Yogi::Texture2D::create("../sandbox/assets/textures/checkerboard.png");
-    Yogi::Ref<Yogi::Texture2D> cherno_texture = Yogi::Texture2D::create("../sandbox/assets/textures/cherno_logo.png");
+    Yogi::TextureManager::init("../sandbox/assets/textures");
 
     m_scene = Yogi::CreateRef<Yogi::Scene>();
 
@@ -17,11 +16,11 @@ void Sandbox2D::on_attach()
     m_scene->add_system<Yogi::CameraSystem>();
     checker = m_scene->create_entity();
     checker.add_component<Yogi::TransformComponent>().transform = glm::translate(glm::mat4(1.0f), {0, -0.3, 0});
-    checker.add_component<Yogi::SpriteRendererComponent>().texture = m_checkerboard_texture;
+    checker.add_component<Yogi::SpriteRendererComponent>().texture = "checkerboard";
 
     Yogi::Entity e = m_scene->create_entity();
     e.add_component<Yogi::TransformComponent>().transform = glm::translate(glm::mat4(1.0f), {0, 0, 0.05});
-    e.add_component<Yogi::SpriteRendererComponent>().texture = cherno_texture;
+    e.add_component<Yogi::SpriteRendererComponent>().texture = "cherno_logo";
 
     e = m_scene->create_entity();
     e.add_component<Yogi::TransformComponent>().transform = glm::inverse(glm::lookAt(glm::vec3{2, 2, 2}, glm::vec3{0, 0, 0}, glm::vec3{0, 1, 0}));

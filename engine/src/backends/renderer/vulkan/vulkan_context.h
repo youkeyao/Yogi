@@ -34,7 +34,7 @@ namespace Yogi
         VulkanVertexBuffer* get_current_vertex_buffer() { return m_vertex_buffer; }
         VulkanIndexBuffer* get_current_index_buffer() { return m_index_buffer; }
         uint32_t get_current_frame() { return m_current_frame; }
-        VkFramebuffer get_current_frame_buffer() { return m_current_frame_buffer ? m_current_frame_buffer : m_swap_chain_frame_buffers[m_image_index]->get_vk_frame_buffer(); }
+        VkFramebuffer get_current_frame_buffer() { return m_current_frame_buffer ? m_current_frame_buffer : m_swap_chain_frame_buffers[0]->get_vk_frame_buffer(); }
         uint32_t get_current_present_image_index() { return m_image_index; }
         void set_current_vertex_buffer(const VulkanVertexBuffer* vertex_buffer) { m_vertex_buffer = (VulkanVertexBuffer*)vertex_buffer; }
         void set_current_index_buffer(const VulkanIndexBuffer* index_buffer) { m_index_buffer = (VulkanIndexBuffer*)index_buffer; }
@@ -110,7 +110,7 @@ namespace Yogi
 
         uint32_t m_current_command_buffer_index = 0;
         uint32_t m_current_frame = 0;
-        uint32_t m_image_index = 0;
+        int32_t m_image_index = -1;
         VulkanPipeline* m_pipeline = nullptr;
         VulkanVertexBuffer* m_vertex_buffer = nullptr;
         VulkanIndexBuffer* m_index_buffer = nullptr;
