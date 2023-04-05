@@ -194,14 +194,16 @@ namespace Yogi {
 
     bool EditorLayer::on_mouse_button_pressed(MouseButtonPressedEvent& e)
     {
-        if (e.get_mouse_button() == YG_MOUSE_BUTTON_LEFT && !ImGuizmo::IsOver()) {
+        if (e.get_mouse_button() == YG_MOUSE_BUTTON_LEFT && (!m_hierarchy_panel->get_selected_entity() || !ImGuizmo::IsOver())) {
             int entity_id;
             ImVec2 mouse_pos = ImGui::GetMousePos();
             int32_t mouse_x = mouse_pos.x - m_viewport_bounds[0].x;
             int32_t mouse_y = mouse_pos.y - m_viewport_bounds[0].y;
-            mouse_y = m_viewport_size.y - mouse_y;
-            m_entity_id_texture->read_pixel((int32_t)m_viewport_size.x, (int32_t)m_viewport_size.y, mouse_x, mouse_y, &entity_id);
-            m_hierarchy_panel->set_selected_entity(m_scene->get_entity((uint32_t)entity_id));
+            if (mouse_y >= 0 && mouse_x >= 0) {
+                mouse_y = m_viewport_size.y - mouse_y;
+                m_entity_id_texture->read_pixel((int32_t)m_viewport_size.x, (int32_t)m_viewport_size.y, mouse_x, mouse_y, &entity_id);
+                m_hierarchy_panel->set_selected_entity(m_scene->get_entity((uint32_t)entity_id));
+            }
         }
         return false;
     }

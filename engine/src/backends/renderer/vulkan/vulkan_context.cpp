@@ -147,7 +147,9 @@ bool isDeviceSuitable(VkPhysicalDevice device)
         SwapChainSupportDetails swapChainSupport = querySwapChainSupport(device);
         swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
     }
-    return indices.isComplete() && extensionsSupported && swapChainAdequate;
+    VkPhysicalDeviceFeatures supportedFeatures;
+    vkGetPhysicalDeviceFeatures(device, &supportedFeatures);
+    return indices.isComplete() && extensionsSupported && swapChainAdequate && supportedFeatures.independentBlend;
 }
 VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats)
 {
@@ -600,6 +602,7 @@ namespace Yogi {
         }
 
         VkPhysicalDeviceFeatures deviceFeatures{};
+        deviceFeatures.independentBlend = VK_TRUE;
 
         VkDeviceCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;

@@ -35,10 +35,10 @@ namespace Yogi {
             else now_x = padding;
             ImGui::Text("/");
             now_x += ImGui::GetItemRectSize().x + padding;
-            text_size = ImGui::CalcTextSize(p.filename().c_str()).x;
+            text_size = ImGui::CalcTextSize(p.filename().string().c_str()).x;
             if (now_x + text_size < panel_width) ImGui::SameLine();
             else now_x = padding;
-            ImGui::Button(p.filename().c_str());
+            ImGui::Button(p.filename().string().c_str());
             now_x += ImGui::GetItemRectSize().x + padding;
             if (ImGui::IsItemClicked()) {
                 m_current_directory = p;

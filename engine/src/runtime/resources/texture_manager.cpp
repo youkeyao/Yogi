@@ -19,7 +19,7 @@ namespace Yogi {
                     init(path.string());
                 }
                 else {
-                    add_texture(base_path + filename, path.c_str());
+                    add_texture(base_path + filename, path.string());
                 }
             }
         }

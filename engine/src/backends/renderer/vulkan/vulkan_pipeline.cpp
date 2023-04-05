@@ -233,7 +233,8 @@ namespace Yogi {
         color_blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
         color_blend_attachment.alphaBlendOp = VK_BLEND_OP_MAX;
         std::vector<VkPipelineColorBlendAttachmentState> color_blend_attachments;
-        for (int32_t i = 0; i < m_output_layout.get_elements().size(); i ++) {
+        for (auto& element : m_output_layout.get_elements()) {
+            color_blend_attachment.blendEnable = element.type == ShaderDataType::Float4 ? VK_TRUE : VK_FALSE;
             color_blend_attachments.push_back(color_blend_attachment);
         }
 
