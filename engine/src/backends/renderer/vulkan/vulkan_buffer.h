@@ -24,6 +24,7 @@ namespace Yogi {
     private:
         VkBuffer m_buffer;
         VkDeviceMemory m_buffer_memory;
+        void* m_buffer_mapped;
     };
 
     //
@@ -45,6 +46,7 @@ namespace Yogi {
     private:
         VkBuffer m_buffer;
         VkDeviceMemory m_buffer_memory;
+        void* m_buffer_mapped;
     };
 
     //

@@ -90,6 +90,7 @@ namespace Yogi
         VkDevice m_device;
 
         VkQueue m_graphics_queue;
+        VkQueue m_transfer_queue;
         VkQueue m_present_queue;
 
         VkSwapchainKHR m_swap_chain;

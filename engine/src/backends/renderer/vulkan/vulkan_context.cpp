@@ -474,8 +474,8 @@ namespace Yogi {
         submitInfo.commandBufferCount = 1;
         submitInfo.pCommandBuffers = &commandBuffer;
 
-        vkQueueSubmit(m_graphics_queue, 1, &submitInfo, VK_NULL_HANDLE);
-        vkQueueWaitIdle(m_graphics_queue);
+        vkQueueSubmit(m_transfer_queue, 1, &submitInfo, VK_NULL_HANDLE);
+        vkQueueWaitIdle(m_transfer_queue);
 
         vkFreeCommandBuffers(m_device, m_command_pool, 1, &commandBuffer);
     }
@@ -627,6 +627,7 @@ namespace Yogi {
         YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to create logical device!");
 
         vkGetDeviceQueue(m_device, indices.graphicsFamily.value(), 0, &m_graphics_queue);
+        vkGetDeviceQueue(m_device, indices.graphicsFamily.value(), 0, &m_transfer_queue);
         vkGetDeviceQueue(m_device, indices.presentFamily.value(), 0, &m_present_queue);
     }
 
