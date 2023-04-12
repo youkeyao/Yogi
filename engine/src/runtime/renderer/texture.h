@@ -32,6 +32,5 @@ namespace Yogi {
         static Ref<Texture2D> create(const std::string& path);
         static Ref<Texture2D> create(uint32_t width, uint32_t height, TextureFormat format = TextureFormat::RGBA8);
     };
-    
 
 }

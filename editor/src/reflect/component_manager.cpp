@@ -72,6 +72,7 @@ namespace Yogi {
         register_component<TransformComponent>({"parent", "transform"});
         register_component<SpriteRendererComponent>({"color", "texture", "tex_min", "tex_max"});
         register_component<CameraComponent>({"is_ortho", "is_primary", "fov", "aspect_ratio", "zoom_level"});
+        register_component<MeshRendererComponent>({"mesh", "material"});
     }
 
     template <typename Type>

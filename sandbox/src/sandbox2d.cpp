@@ -8,19 +8,19 @@ void Sandbox2D::on_attach()
 {
     YG_PROFILE_FUNCTION();
 
-    Yogi::TextureManager::init("../sandbox/assets/textures");
-
     m_scene = Yogi::CreateRef<Yogi::Scene>();
+    Yogi::Ref<Yogi::Mesh> quad = Yogi::MeshManager::get_mesh("quad");
+    Yogi::Ref<Yogi::Material> mat1 = Yogi::MaterialManager::get_material("checkerboard");
 
     m_scene->add_system<Yogi::RenderSystem>();
     m_scene->add_system<Yogi::CameraSystem>();
     checker = m_scene->create_entity();
     checker.add_component<Yogi::TransformComponent>().transform = glm::translate(glm::mat4(1.0f), {0, -0.3, 0});
-    checker.add_component<Yogi::SpriteRendererComponent>().texture = "checkerboard";
+    checker.add_component<Yogi::MeshRendererComponent>(quad, mat1);
 
     Yogi::Entity e = m_scene->create_entity();
     e.add_component<Yogi::TransformComponent>().transform = glm::translate(glm::mat4(1.0f), {0, 0, 0.05});
-    e.add_component<Yogi::SpriteRendererComponent>().texture = "cherno_logo";
+    e.add_component<Yogi::MeshRendererComponent>(quad, mat1);
 
     e = m_scene->create_entity();
     e.add_component<Yogi::TransformComponent>().transform = glm::inverse(glm::lookAt(glm::vec3{2, 2, 2}, glm::vec3{0, 0, 0}, glm::vec3{0, 1, 0}));
@@ -30,13 +30,13 @@ void Sandbox2D::on_attach()
 
     e = m_scene->create_entity();
     e.add_component<Yogi::TransformComponent>().transform = glm::translate(glm::mat4(1.0f), {0.4, 0, 0.1});
-    e.add_component<Yogi::SpriteRendererComponent>().color = {0.8, 0.2, 0.3, 0.7};
+    e.add_component<Yogi::MeshRendererComponent>(quad, mat1);
 
     for (int32_t i = 0; i < 200; i ++) {
         for (int32_t j = 0; j < 200; j ++) {
             Yogi::Entity e = m_scene->create_entity();
             e.add_component<Yogi::TransformComponent>().transform = glm::translate(glm::mat4(1.0f), glm::vec3(0.02 * i - 2, 0.02 * j - 2, 0.11)) * glm::scale(glm::mat4(1.0f), glm::vec3(0.01, 0.01, 0.1));
-            e.add_component<Yogi::SpriteRendererComponent>().color = glm::vec4(i / 100.0f, j / 100.0f, 0, 1);
+            e.add_component<Yogi::MeshRendererComponent>(quad, mat1);
         }
     }
 }

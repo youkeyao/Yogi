@@ -17,20 +17,19 @@ namespace Yogi {
         YG_PROFILE_FUNCTION();
 
         ImguiSetting::init();
-        Renderer::set_pipeline(Pipeline::create("Flat", {"vert", "frag"}, false));
 
         ComponentManager::init();
         SystemManager::init();
-        TextureManager::init(YG_PROJECT_TEMPLATE"/Textures");
 
         m_frame_texture = Texture2D::create(s_max_viewport_size, s_max_viewport_size, TextureFormat::ATTACHMENT);
         m_entity_id_texture = Texture2D::create(s_max_viewport_size, s_max_viewport_size, TextureFormat::RED_INTEGER);
-        m_frame_buffer = FrameBuffer::create(s_max_viewport_size, s_max_viewport_size, { m_frame_texture, m_entity_id_texture });
+        // m_frame_buffer = FrameBuffer::create(s_max_viewport_size, s_max_viewport_size, { m_frame_texture, m_entity_id_texture });
+        m_frame_buffer = FrameBuffer::create(s_max_viewport_size, s_max_viewport_size, { m_frame_texture });
 
         m_scene = CreateRef<Scene>();
         m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
         m_content_browser_panel = CreateRef<ContentBrowserPanel>(YG_PROJECT_TEMPLATE);
-        open_scene(YG_PROJECT_TEMPLATE"/main.yg");
+        // open_scene(YG_PROJECT_TEMPLATE"/main.yg");
     }
 
     void EditorLayer::on_detach()

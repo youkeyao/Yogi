@@ -8,12 +8,12 @@ namespace Yogi {
 
     VkClearColorValue clear_color = {{ 0.0f, 0.0f, 0.0f, 1.0f }};
     VkViewport viewport{ 0, 0, 0, 0, 0, 1};
-    uint32_t current_frame = -1;
+    bool is_clear = false;
 
     void RenderCommand::set_viewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height)
     {
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
-        context->recreate_swap_chain();
+        context->set_window_resized();
         viewport = { (float)x, (float)y, (float)width, (float)height, 0.0f, 1.0f };
     }
 
@@ -24,6 +24,7 @@ namespace Yogi {
 
     void RenderCommand::clear()
     {
+        is_clear = true;
     }
 
     void RenderCommand::draw_indexed(uint32_t count)
@@ -33,17 +34,18 @@ namespace Yogi {
         VulkanPipeline* pipeline = context->get_current_pipeline();
         if (pipeline) {
             VkCommandBuffer command_buffer = context->begin_render_command();
+            VulkanFrameBuffer* frame_buffer = context->get_current_frame_buffer();
 
             VkExtent2D extent = context->get_swap_chain_extent();
             VkRenderPassBeginInfo renderPassInfo{};
             renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-            if (current_frame != context->get_current_frame())
-                renderPassInfo.renderPass = pipeline->get_vk_clear_render_pass();
+            if (is_clear)
+                renderPassInfo.renderPass = frame_buffer->get_vk_clear_render_pass();
             else
-                renderPassInfo.renderPass = pipeline->get_vk_load_render_pass();
-            current_frame = context->get_current_frame();
+                renderPassInfo.renderPass = frame_buffer->get_vk_load_render_pass();
+            is_clear = false;
 
-            renderPassInfo.framebuffer = context->get_current_frame_buffer();
+            renderPassInfo.framebuffer = frame_buffer->get_vk_frame_buffer();
             renderPassInfo.renderArea.offset = {0, 0};
             renderPassInfo.renderArea.extent = extent;
             uint32_t color_attachments_size = pipeline->get_output_layout().get_elements().size();

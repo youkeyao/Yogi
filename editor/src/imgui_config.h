@@ -51,13 +51,19 @@
     #include <backends/imgui_impl_vulkan.h>
     #include <backends/imgui_impl_vulkan.cpp>
     VkDescriptorPool g_DescriptorPool;
-    VkRenderPass g_RenderPass;
     void imgui_vulkan_init()
     {
         ImGui_ImplVulkan_InitInfo init_info = {};
         Yogi::VulkanContext* context = (Yogi::VulkanContext*)Yogi::Application::get().get_window().get_context();
 
-        g_RenderPass = context->create_render_pass({context->get_swap_chain_image_format()}, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, false);
+        VkExtent2D extent = context->get_swap_chain_extent();
+        Yogi::Ref<Yogi::VulkanFrameBuffer> frame_buffer;
+        std::vector<Yogi::Ref<Yogi::Texture2D>> attachments;
+        for (int32_t i = 0; i < context->get_swap_chain_image_count(); i ++) {
+            frame_buffer = Yogi::CreateRef<Yogi::VulkanFrameBuffer>(extent.width, extent.height, attachments, false);
+            context->set_default_frame_buffer(i, frame_buffer);
+        }
+        context->create_frame_buffers();
 
         init_info.Instance = context->get_instance();
         init_info.PhysicalDevice = context->get_physical_device();
@@ -95,29 +101,26 @@
         init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
         init_info.Allocator = nullptr;
         init_info.CheckVkResultFn = nullptr;
-        ImGui_ImplVulkan_Init(&init_info, g_RenderPass);
+        ImGui_ImplVulkan_Init(&init_info, frame_buffer->get_vk_clear_render_pass());
 
         VkCommandBuffer command_buffer = context->begin_single_time_commands();
         ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
         context->end_single_time_commands(command_buffer);
         ImGui_ImplVulkan_DestroyFontUploadObjects();
-
-        for (int32_t i = 0; i < context->get_swap_chain_image_count(); i ++) {
-            context->set_default_frame_buffer(i, Yogi::CreateRef<Yogi::VulkanFrameBuffer>(g_RenderPass, false));
-        }
     }
     void imgui_vulkan_draw()
     {
         Yogi::VulkanContext* context = (Yogi::VulkanContext*)Yogi::Application::get().get_window().get_context();
 
         VkCommandBuffer command_buffer = context->begin_render_command();
+        Yogi::VulkanFrameBuffer* frame_buffer = context->get_current_frame_buffer();
 
         VkExtent2D extent = context->get_swap_chain_extent();
 
         VkRenderPassBeginInfo renderPassInfo{};
         renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        renderPassInfo.renderPass = g_RenderPass;
-        renderPassInfo.framebuffer = context->get_current_frame_buffer();
+        renderPassInfo.renderPass = frame_buffer->get_vk_clear_render_pass();
+        renderPassInfo.framebuffer = frame_buffer->get_vk_frame_buffer();
         renderPassInfo.renderArea.offset = {0, 0};
         renderPassInfo.renderArea.extent = extent;
         VkClearValue clear_value{{0, 0, 0, 1}};
@@ -144,7 +147,6 @@
         Yogi::VulkanContext* context = (Yogi::VulkanContext*)Yogi::Application::get().get_window().get_context();
         vkDeviceWaitIdle(context->get_device());
         ImGui_ImplVulkan_Shutdown();
-        vkDestroyRenderPass(context->get_device(), g_RenderPass, nullptr);
         vkDestroyDescriptorPool(context->get_device(), g_DescriptorPool, nullptr);
     }
     ImTextureID imgui_vulkan_texture_id(Yogi::VulkanTexture2D* texture)

@@ -248,6 +248,20 @@ namespace Yogi {
                                 glm::scale(glm::mat4(1.0f), scale);
                         }
                     }
+                    else if (value.type_hash == typeid(Ref<Mesh>).hash_code()) {
+                        Ref<Mesh>& mesh = *(Ref<Mesh>*)((uint8_t*)component + value.offset);
+                        if (ImGui::BeginCombo(key.c_str(), (mesh->name).c_str())) {
+                            MeshManager::each_mesh_name([&](std::string mesh_name){
+                                Ref<Mesh> each_mesh = MeshManager::get_mesh(mesh_name);
+                                bool is_selected = mesh == each_mesh;
+                                if (ImGui::Selectable(mesh_name.c_str(), is_selected)) {
+                                    mesh = each_mesh;
+                                }
+                                if (is_selected) ImGui::SetItemDefaultFocus();
+                            });
+                            ImGui::EndCombo();
+                        }
+                    }
                     else if (value.type_hash == typeid(Entity).hash_code()) {
                         Entity& entity = *(Entity*)((uint8_t*)component + value.offset);
                         if (ImGui::BeginCombo(key.c_str(), entity ? entity.get_component<TagComponent>().tag.c_str() : "None")) {

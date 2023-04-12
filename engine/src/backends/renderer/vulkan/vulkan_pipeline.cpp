@@ -64,13 +64,15 @@ namespace Yogi {
         return VK_FORMAT_UNDEFINED;
     }
 
-    Ref<Pipeline> Pipeline::create(const std::string& name, const std::vector<std::string>& types, bool is_last)
+    Ref<Pipeline> Pipeline::create(const std::string& name, const std::vector<std::string>& types)
     {
-        return CreateRef<VulkanPipeline>(name, types, is_last);
+        return CreateRef<VulkanPipeline>(name, types);
     }
 
-    VulkanPipeline::VulkanPipeline(const std::string& name, const std::vector<std::string>& types, bool is_last) : m_name(name)
+    VulkanPipeline::VulkanPipeline(const std::string& name, const std::vector<std::string>& types)
     {
+        m_name = name;
+    
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
         std::vector<VkPipelineShaderStageCreateInfo> shader_stages;
         std::vector<VkShaderModule> shader_modules;
@@ -79,6 +81,8 @@ namespace Yogi {
         std::vector<VkVertexInputAttributeDescription> attribute_descriptions{};
         std::vector<std::vector<VkDescriptorSetLayoutBinding>> layout_bindings{};
         uint32_t ubo_count = 0, sampler_count = 0;
+
+        std::vector<VkFormat> color_attachment_formats;
 
         for (auto type : types) {
             auto shader_code = read_file(YG_SHADER_DIR + name + "." + type);
@@ -96,7 +100,7 @@ namespace Yogi {
             }
             else if (type == "frag") {
                 shader_stage_info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-                reflect_output(compiler, is_last);
+                reflect_output(compiler, color_attachment_formats);
             }
             else {
                 YG_CORE_ASSERT(false, "Invalid shader stage!");
@@ -269,6 +273,7 @@ namespace Yogi {
         VkResult result = vkCreatePipelineLayout(context->get_device(), &pipeline_layout_info, nullptr, &m_pipeline_layout);
         YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to create pipeline layout!");
 
+        VkRenderPass render_pass = context->create_render_pass(color_attachment_formats, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
         VkGraphicsPipelineCreateInfo pipeline_info{};
         pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
         pipeline_info.stageCount = shader_stages.size();
@@ -281,7 +286,7 @@ namespace Yogi {
         pipeline_info.pColorBlendState = &color_blending;
         pipeline_info.pDynamicState = &dynamic_state;
         pipeline_info.layout = m_pipeline_layout;
-        pipeline_info.renderPass = m_clear_render_pass;
+        pipeline_info.renderPass = render_pass;
         pipeline_info.subpass = 0;
         pipeline_info.basePipelineHandle = VK_NULL_HANDLE;
         pipeline_info.pDepthStencilState = &depth_stencil;
@@ -292,6 +297,7 @@ namespace Yogi {
         for (auto shader_module : shader_modules) {
             vkDestroyShaderModule(context->get_device(), shader_module, nullptr);
         }
+        vkDestroyRenderPass(context->get_device(), render_pass, nullptr);
     }
 
     VulkanPipeline::~VulkanPipeline()
@@ -305,8 +311,6 @@ namespace Yogi {
         }
         vkDestroyPipeline(context->get_device(), m_graphics_pipeline, nullptr);
         vkDestroyPipelineLayout(context->get_device(), m_pipeline_layout, nullptr);
-        vkDestroyRenderPass(context->get_device(), m_clear_render_pass, nullptr);
-        vkDestroyRenderPass(context->get_device(), m_load_render_pass, nullptr);
     }
 
     std::vector<uint32_t> VulkanPipeline::read_file(const std::string& filepath)
@@ -429,7 +433,7 @@ namespace Yogi {
         }
     }
 
-    void VulkanPipeline::reflect_output(const spirv_cross::CompilerGLSL& compiler, bool is_last)
+    void VulkanPipeline::reflect_output(const spirv_cross::CompilerGLSL& compiler, std::vector<VkFormat>& color_attachment_formats)
     {
         spirv_cross::ShaderResources resources = compiler.get_shader_resources();
 
@@ -437,7 +441,6 @@ namespace Yogi {
         for (auto& stage_output : resources.stage_outputs) {
             stage_outputs[compiler.get_decoration(stage_output.id, spv::DecorationLocation)] = &stage_output;
         }
-        std::vector<VkFormat> color_attachment_formats;
         for (auto& [location, p_stage_output] : stage_outputs) {
             auto& stage_output = *p_stage_output;
             const auto& output_type = compiler.get_type(stage_output.base_type_id);
@@ -446,10 +449,6 @@ namespace Yogi {
 
             color_attachment_formats.push_back(spirv_type_to_vk_image_format(output_type));
         }
-        VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
-        VkImageLayout final_layout = is_last? VK_IMAGE_LAYOUT_PRESENT_SRC_KHR : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        m_clear_render_pass = context->create_render_pass(color_attachment_formats, VK_IMAGE_LAYOUT_UNDEFINED, final_layout);
-        m_load_render_pass = context->create_render_pass(color_attachment_formats, final_layout, final_layout);
     }
 
     void VulkanPipeline::bind() const

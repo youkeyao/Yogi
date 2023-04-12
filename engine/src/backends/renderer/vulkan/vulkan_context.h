@@ -27,24 +27,23 @@ namespace Yogi
         VkQueue get_graphics_queue() { return m_graphics_queue; }
         uint32_t get_swap_chain_image_count() { return m_swap_chain_images.size(); }
         VkFormat get_swap_chain_image_format() { return m_swap_chain_image_format; }
-        const std::vector<VkImageView>& get_swap_chain_image_views() { return m_swap_chain_image_views; }
         VkExtent2D get_swap_chain_extent() { return m_swap_chain_extent; }
-        VkCommandPool get_command_pool() { return m_command_pool; }
         VulkanPipeline* get_current_pipeline() { return m_pipeline; }
         VulkanVertexBuffer* get_current_vertex_buffer() { return m_vertex_buffer; }
         VulkanIndexBuffer* get_current_index_buffer() { return m_index_buffer; }
-        uint32_t get_current_frame() { return m_current_frame; }
-        VkFramebuffer get_current_frame_buffer() { return m_current_frame_buffer ? m_current_frame_buffer : (m_image_index >= 0 ? m_swap_chain_frame_buffers[m_image_index]->get_vk_frame_buffer() : VK_NULL_HANDLE); }
-        uint32_t get_current_present_image_index() { return m_image_index; }
+        VulkanFrameBuffer* get_current_frame_buffer() { return m_current_frame_buffer ? m_current_frame_buffer : (m_image_index >= 0 ? m_swap_chain_frame_buffers[m_image_index].get() : VK_NULL_HANDLE); }
         void set_current_vertex_buffer(const VulkanVertexBuffer* vertex_buffer) { m_vertex_buffer = (VulkanVertexBuffer*)vertex_buffer; }
         void set_current_index_buffer(const VulkanIndexBuffer* index_buffer) { m_index_buffer = (VulkanIndexBuffer*)index_buffer; }
         void set_default_frame_buffer(uint32_t index, Ref<VulkanFrameBuffer> frame_buffer) { m_swap_chain_frame_buffers[index] = frame_buffer; }
-        void set_current_frame_buffer(VkFramebuffer frame_buffer) { m_current_frame_buffer = frame_buffer; }
+        void set_current_frame_buffer(const VulkanFrameBuffer* frame_buffer) { m_current_frame_buffer = (VulkanFrameBuffer*)frame_buffer; }
         void set_current_pipeline(const VulkanPipeline* pipeline)
         {
-            m_pipeline = (VulkanPipeline*)pipeline;
-            create_frame_buffers();
+            if (pipeline != m_pipeline) {
+                m_pipeline = (VulkanPipeline*)pipeline;
+                if (!m_current_frame_buffer) create_frame_buffers();
+            }
         }
+        void set_window_resized() { m_window_resized = true; }
         
         uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties);
         VkFormat find_depth_format();
@@ -62,6 +61,8 @@ namespace Yogi
         void wait_render_command();
         void begin_frame();
 
+        void create_frame_buffers();
+
         #ifdef YG_DEBUG
             VulkanTexture2D* get_tmp_texture() { return (VulkanTexture2D*)tmp_texture.get(); }
             VulkanUniformBuffer* get_tmp_uniform_buffer() { return (VulkanUniformBuffer*)tmp_uniform_buffer.get(); }
@@ -77,7 +78,6 @@ namespace Yogi
         void create_swap_chain();
         void create_image_views();
         void create_command_pool();
-        void create_frame_buffers();
         void create_command_buffer();
         void create_sync_objects();
 
@@ -100,7 +100,6 @@ namespace Yogi
 
         std::vector<Ref<VulkanFrameBuffer>> m_swap_chain_frame_buffers;
         std::vector<Ref<Texture2D>> m_attachments;
-        VkFramebuffer m_current_frame_buffer = nullptr;
         VkCommandPool m_command_pool;
         std::vector<VkCommandBuffer> m_command_buffers;
 
@@ -108,12 +107,13 @@ namespace Yogi
         std::vector<VkSemaphore> m_render_finished_semaphores;
         std::vector<VkFence> m_render_command_fences;
 
-        uint32_t m_current_command_buffer_index = 0;
+        bool m_window_resized = false;
         uint32_t m_current_frame = 0;
         int32_t m_image_index = -1;
         VulkanPipeline* m_pipeline = nullptr;
         VulkanVertexBuffer* m_vertex_buffer = nullptr;
         VulkanIndexBuffer* m_index_buffer = nullptr;
+        VulkanFrameBuffer* m_current_frame_buffer = nullptr;
 
         #ifdef YG_DEBUG
             Ref<Texture2D> tmp_texture;

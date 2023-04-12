@@ -24,7 +24,7 @@ namespace Yogi {
         return ShaderDataType::None;
     }
 
-    Ref<Pipeline> Pipeline::create(const std::string& name, const std::vector<std::string>& types, bool is_last)
+    Ref<Pipeline> Pipeline::create(const std::string& name, const std::vector<std::string>& types)
     {
         return CreateRef<OpenGLPipeline>(name, types);
     }

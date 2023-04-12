@@ -213,11 +213,11 @@ namespace Yogi {
         create_logical_device();
         create_swap_chain();
         create_image_views();
+        create_command_pool();
         m_swap_chain_frame_buffers.resize(m_swap_chain_image_views.size());
         for (size_t i = 0; i < m_swap_chain_image_views.size(); i++) {
-            m_swap_chain_frame_buffers[i] = CreateRef<VulkanFrameBuffer>();
+            m_swap_chain_frame_buffers[i] = CreateRef<VulkanFrameBuffer>(m_swap_chain_extent.width, m_swap_chain_extent.height);
         }
-        create_command_pool();
         create_command_buffer();
         create_sync_objects();
 
@@ -494,8 +494,9 @@ namespace Yogi {
 
             VkResult result = vkQueuePresentKHR(m_present_queue, &presentInfo);
 
-            if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+            if (result == VK_ERROR_OUT_OF_DATE_KHR || m_window_resized) {
                 recreate_swap_chain();
+                m_window_resized = false;
             } else {
                 YG_CORE_ASSERT(result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR, "Failed to present swap chain image!");
             }
@@ -759,6 +760,7 @@ namespace Yogi {
     void VulkanContext::create_frame_buffers()
     {
         std::vector<VkImageView> attachments;
+        wait_render_command();
         m_attachments.clear();
         if (m_pipeline) {
             for (auto& element : m_pipeline->get_output_layout().get_elements()) {
@@ -770,11 +772,14 @@ namespace Yogi {
                     attachments.push_back(m_swap_chain_image_views[0]);
                 }
             }
-            for (size_t i = 0; i < m_swap_chain_image_views.size(); i++) {
-                attachments[0] = m_swap_chain_image_views[i];
-                m_swap_chain_frame_buffers[i]->set_vk_extent(m_swap_chain_extent);
-                m_swap_chain_frame_buffers[i]->create_vk_frame_buffer(attachments);
-            }
+        }
+        else {
+            attachments.resize(1);
+        }
+        for (size_t i = 0; i < m_swap_chain_image_views.size(); i++) {
+            attachments[0] = m_swap_chain_image_views[i];
+            m_swap_chain_frame_buffers[i]->set_vk_extent(m_swap_chain_extent);
+            m_swap_chain_frame_buffers[i]->create_vk_frame_buffer(attachments);
         }
     }
 
@@ -878,11 +883,12 @@ namespace Yogi {
     VkCommandBuffer VulkanContext::begin_render_command()
     {
         begin_frame();
-        VkCommandBuffer command_buffer = m_command_buffers[m_current_command_buffer_index];
+        VkCommandBuffer command_buffer = m_command_buffers[m_current_frame];
 
         VkCommandBufferBeginInfo beginInfo{};
         beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
+        vkWaitForFences(m_device, 1, &m_render_command_fences[m_current_frame], VK_TRUE, UINT64_MAX);
         vkResetCommandBuffer(command_buffer, 0);
         VkResult result = vkBeginCommandBuffer(command_buffer, &beginInfo);
         YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to begin recording render command buffer!");
@@ -892,7 +898,7 @@ namespace Yogi {
 
     void VulkanContext::end_render_command()
     {
-        VkCommandBuffer command_buffer = m_command_buffers[m_current_command_buffer_index];
+        VkCommandBuffer command_buffer = m_command_buffers[m_current_frame];
         VkResult result = vkEndCommandBuffer(command_buffer);
         YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to end recording render command buffer!");
 
@@ -909,11 +915,9 @@ namespace Yogi {
         submitInfo.signalSemaphoreCount = 1;
         submitInfo.pSignalSemaphores = waitSemaphores;
 
-        vkWaitForFences(m_device, 1, &m_render_command_fences[m_current_frame], VK_TRUE, UINT64_MAX);
         vkResetFences(m_device, 1, &m_render_command_fences[m_current_frame]);
         result = vkQueueSubmit(m_graphics_queue, 1, &submitInfo, m_render_command_fences[m_current_frame]);
         YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to submit render command buffer!");
-        m_current_command_buffer_index = (m_current_command_buffer_index + 1) % MAX_FRAMES_IN_FLIGHT;
     }
 
     void VulkanContext::wait_render_command()
@@ -929,7 +933,6 @@ namespace Yogi {
 
             if (result == VK_ERROR_OUT_OF_DATE_KHR) {
                 recreate_swap_chain();
-                return;
             } else {
                 YG_CORE_ASSERT(result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR, "Failed to present swap chain image!");
             }

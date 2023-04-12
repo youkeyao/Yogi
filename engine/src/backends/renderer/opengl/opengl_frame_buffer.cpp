@@ -4,30 +4,33 @@
 
 namespace Yogi {
 
-    Ref<FrameBuffer> FrameBuffer::create(uint32_t width, uint32_t height, const std::vector<Ref<Texture2D>>& color_attachments)
+    Ref<FrameBuffer> FrameBuffer::create(uint32_t width, uint32_t height, const std::vector<Ref<Texture2D>>& color_attachments, bool has_depth_attachment)
     {
-        return CreateRef<OpenGLFrameBuffer>(width, height, color_attachments);
+        return CreateRef<OpenGLFrameBuffer>(width, height, color_attachments, has_depth_attachment);
     }
 
-    OpenGLFrameBuffer::OpenGLFrameBuffer(uint32_t width, uint32_t height, const std::vector<Ref<Texture2D>>& color_attachments) : m_width(width), m_height(height)
+    OpenGLFrameBuffer::OpenGLFrameBuffer(uint32_t width, uint32_t height, const std::vector<Ref<Texture2D>>& color_attachments, bool has_depth_attachment)
+    : m_width(width), m_height(height), m_color_attachments(color_attachments)
     {
         YG_CORE_ASSERT(0 < color_attachments.size() && color_attachments.size() <= 4, "Wrong color attachments size!");
 
         glCreateFramebuffers(1, &m_renderer_id);
         glBindFramebuffer(GL_FRAMEBUFFER, m_renderer_id);
 
-        for (const auto& attachment : color_attachments) {
-            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + m_color_attachments_size, GL_TEXTURE_2D, ((OpenGLTexture2D*)attachment.get())->get_renderer_id(), 0);
-            m_color_attachments[m_color_attachments_size] = attachment;
-            m_color_attachments_size ++;
+        std::vector<GLenum> buffers(color_attachments.size());
+        for (int32_t i = 0; i < color_attachments.size(); i ++) {
+            auto& attachment = color_attachments[i];
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, ((OpenGLTexture2D*)attachment.get())->get_renderer_id(), 0);
+            buffers[i] = GL_COLOR_ATTACHMENT0 + i;
         }
-        GLenum buffers[4] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
-        glDrawBuffers(m_color_attachments_size, buffers);
+        glDrawBuffers(color_attachments.size(), buffers.data());
 
-        glCreateRenderbuffers(1, &m_render_buffer);
-        glBindRenderbuffer(GL_RENDERBUFFER, m_render_buffer);
-        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, m_width, m_height);
-        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, m_render_buffer);
+        if (has_depth_attachment) {
+            glCreateRenderbuffers(1, &m_render_buffer);
+            glBindRenderbuffer(GL_RENDERBUFFER, m_render_buffer);
+            glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, m_width, m_height);
+            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, m_render_buffer);
+        }
 
         YG_CORE_ASSERT(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE, "Framebuffer is incomplete!");
 
@@ -57,34 +60,5 @@ namespace Yogi {
         glBindRenderbuffer(GL_RENDERBUFFER, m_render_buffer);
         glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, m_width, m_height);
     }
-
-    void OpenGLFrameBuffer::add_color_attachment(uint32_t index, const Ref<Texture2D>& attachment)
-    {
-        YG_CORE_ASSERT(index < 4 && !m_color_attachments[index], "Invalid attachment index!");
-
-        glBindFramebuffer(GL_FRAMEBUFFER, m_renderer_id);
-
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + index, GL_TEXTURE_2D, ((OpenGLTexture2D*)attachment.get())->get_renderer_id(), 0);
-        m_color_attachments[index] = attachment;
-        m_color_attachments_size ++;
-
-        GLenum buffers[4] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
-        glDrawBuffers(m_color_attachments_size, buffers);
-
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    }
-
-    void OpenGLFrameBuffer::remove_color_attachment(uint32_t index)
-    {
-        YG_CORE_ASSERT(index < 4 && m_color_attachments[index], "Invalid attachment index!");
-        m_color_attachments[index] = nullptr;
-        m_color_attachments_size --;
-    }
-
-    const Ref<Texture2D>& OpenGLFrameBuffer::get_color_attachment(uint32_t index) const
-    {
-        YG_CORE_ASSERT(index < 4 && m_color_attachments[index], "Invalid attachment index!");
-        return m_color_attachments[index];
-    };
 
 }

@@ -8,7 +8,6 @@ namespace Yogi {
 
     Scene::~Scene()
     {
-        
     }
 
     Entity Scene::create_entity(uint32_t hint)

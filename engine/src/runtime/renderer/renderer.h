@@ -1,8 +1,10 @@
 #pragma once
 
 #include <glm/glm.hpp>
-#include "runtime/renderer/texture.h"
-#include "runtime/renderer/pipeline.h"
+#include "runtime/resources/mesh_manager.h"
+#include "runtime/resources/texture_manager.h"
+#include "runtime/resources/material_manager.h"
+#include "runtime/resources/pipeline_manager.h"
 
 namespace Yogi {
 
@@ -13,10 +15,13 @@ namespace Yogi {
         static void shutdown();
         static void on_window_resize(uint32_t width, uint32_t height);
 
-        static void set_pipeline(Ref<Pipeline> pipeline);
         static void set_projection_view_matrix(glm::mat4 projection_view_matrix);
+
         static void flush();
-        static void draw_mesh(const std::string& mesh_name, const glm::mat4& transform, const std::string& texture_name, const glm::vec4& color, uint32_t entity_id);
+        static void draw_mesh(const Ref<Mesh>& mesh, const Ref<Material>& material, const glm::mat4& transform);
+    private:
+        static void set_pipeline(const Ref<Pipeline>& pipeline);
+        static void flush_pipeline(const Ref<Pipeline>& pipeline);
     };
 
 }

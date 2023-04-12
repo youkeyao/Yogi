@@ -19,7 +19,7 @@ namespace Yogi {
                     init(path.string());
                 }
                 else {
-                    add_texture(base_path + filename, path.string());
+                    add_texture(base_path + filename, Texture2D::create(path.string()));
                 }
             }
         }
@@ -30,9 +30,16 @@ namespace Yogi {
         s_textures.clear();
     }
 
-    void TextureManager::add_texture(const std::string& name, const std::string& filepath)
+    void TextureManager::add_texture(const std::string& name, const Ref<Texture2D>& texture)
     {
-        s_textures[name] = Texture2D::create(filepath);
+        s_textures[name] = texture;
+    }
+
+    void TextureManager::each_texture_name(std::function<void(std::string)> func)
+    {
+        for (auto [texture_name, texture] : s_textures) {
+            func(texture_name);
+        }
     }
 
 }

@@ -1,5 +1,6 @@
 #include "runtime/core/application.h"
 #include "runtime/renderer/renderer.h"
+#include "runtime/resources/asset_manager.h"
 #include <glm/glm.hpp>
 
 namespace Yogi {
@@ -17,6 +18,7 @@ namespace Yogi {
         m_window->init();
         m_window->set_event_callback(YG_BIND_EVENT_FN(Application::on_event));
 
+        AssetManager::init();
         Renderer::init();
     }
 
@@ -27,6 +29,7 @@ namespace Yogi {
         for (Layer* layer : m_layerstack) {
             layer->on_detach();
         }
+        AssetManager::shutdown();
         Renderer::shutdown();
     }
 

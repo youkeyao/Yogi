@@ -3,7 +3,7 @@
 #define YG_WINDOW_SDL 2
 #define YG_RENDERER_OPENGL 1
 #define YG_RENDERER_VULKAN 2
-// #define YG_PROFILE
+#define YG_PROFILE
 
 #include <stdint.h>
 #include <stdlib.h>

@@ -32,4 +32,5 @@
 // ---resources-------------------------------
 #include "runtime/resources/mesh_manager.h"
 #include "runtime/resources/texture_manager.h"
+#include "runtime/resources/material_manager.h"
 // -------------------------------------------

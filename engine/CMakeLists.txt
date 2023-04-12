@@ -72,6 +72,7 @@ endif()
 #-------------------------------------------------------------
 set(YG_BUILD_SHADER_FOLDER "build")
 add_compile_definitions(YG_SHADER_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/src/shaders/${YG_BUILD_SHADER_FOLDER}/\")
+add_compile_definitions(YG_ASSET_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/assets/\")
 
 add_subdirectory( src/shaders )
 add_subdirectory( vendor/spdlog )
