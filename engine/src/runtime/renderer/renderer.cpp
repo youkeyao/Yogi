@@ -5,14 +5,6 @@
 
 namespace Yogi {
 
-    struct Vertex
-    {
-        glm::vec3 position;
-        glm::vec4 color;
-        glm::vec2 texcoord;
-        int texid;
-    };
-
     struct RendererData
     {
         static const uint32_t max_triangles = 10000;
@@ -25,6 +17,7 @@ namespace Yogi {
         Ref<IndexBuffer> mesh_index_buffer;
         Ref<UniformBuffer> scene_uniform_buffer;
         Ref<Pipeline> render_pipeline;
+        bool is_rebind_texture = false;
 
         Ref<Pipeline> now_pipeline;
         uint8_t** now_vertices_base;
@@ -58,7 +51,7 @@ namespace Yogi {
 
         s_data = new RendererData();
 
-        s_data->mesh_vertex_buffer = VertexBuffer::create(nullptr, RendererData::max_vertices * sizeof(Vertex), false);
+        s_data->mesh_vertex_buffer = VertexBuffer::create(nullptr, RendererData::max_vertices_size, false);
         s_data->mesh_vertex_buffer->bind();
         s_data->mesh_index_buffer = IndexBuffer::create(nullptr, RendererData::max_indices, false);
         s_data->mesh_index_buffer->bind();
@@ -90,10 +83,7 @@ namespace Yogi {
             s_data->render_pipeline = pipeline;
             s_data->render_pipeline->bind();
             s_data->scene_uniform_buffer->bind(0);
-            for (int32_t i = 0; i < *s_data->now_texture_slot_index; i ++) {
-                auto& texture = (*s_data->now_texture_slots)[i];
-                texture->bind(1, i);
-            }
+            s_data->is_rebind_texture = true;
         }
     }
 
@@ -115,6 +105,14 @@ namespace Yogi {
             s_data->now_vertices_cur = &(s_data->mesh_vertices_curs[pipeline]);
             s_data->now_texture_slot_index = &(s_data->mesh_texture_slot_indexs[pipeline]);
             s_data->now_texture_slots = &(s_data->mesh_texture_slots[pipeline]);
+
+            if (s_data->is_rebind_texture) {
+                for (int32_t i = 0; i < *s_data->now_texture_slot_index; i ++) {
+                    auto& texture = (*s_data->now_texture_slots)[i];
+                    texture->bind(1, i);
+                }
+                s_data->is_rebind_texture = false;
+            }
 
             uint32_t vertices_size = (uint32_t)(*(s_data->now_vertices_cur) - *(s_data->now_vertices_base));
             s_data->mesh_vertex_buffer->set_data(*(s_data->now_vertices_base), vertices_size);
@@ -162,9 +160,9 @@ namespace Yogi {
         auto& texture_slot_index = *s_data->now_texture_slot_index;
         auto& texture_slots = *s_data->now_texture_slots;
 
-        PipelineLayout vertex_layout = pipeline->get_vertex_layout();
+        uint32_t vertex_stride = pipeline->get_vertex_layout().get_stride();
 
-        if (vertices_cur - vertices_base + vertex_layout.get_stride() * mesh->vertices.size() >= RendererData::max_vertices_size ||
+        if (vertices_cur - vertices_base + vertex_stride * mesh->vertices.size() >= RendererData::max_vertices_size ||
             indices_cur - indices_base + mesh->indices.size() >= RendererData::max_indices ||
             texture_slot_index + textures.size() >= RendererData::max_texture_slots
         ) {
@@ -172,10 +170,29 @@ namespace Yogi {
             texture_slot_index = 0;
         }
 
-        uint32_t vertices_count = (vertices_cur - vertices_base) / vertex_layout.get_stride();
+        for (auto& [texture_offset, texture] : textures) {
+            int32_t texture_index = -1;
+            if (texture) {
+                for (uint32_t i = 0; i < texture_slot_index; i ++) {
+                    if (texture_slots[i] == texture) {
+                        texture_index = i;
+                        break;
+                    }
+                }
+                if (texture_index == -1) {
+                    texture_index = texture_slot_index;
+                    texture_slots[texture_index] = texture;
+                    texture_slot_index ++;
+                    s_data->is_rebind_texture = true;
+                }
+            }
+            memcpy(material->get_data() + texture_offset, &texture_index, 4);
+        }
+
+        uint32_t vertices_count = (vertices_cur - vertices_base) / vertex_stride;
 
         for (auto& [pos, texcoord] : mesh->vertices) {
-            memcpy(vertices_cur, material->get_data(), vertex_layout.get_stride());
+            memcpy(vertices_cur, material->get_data(), vertex_stride);
             int32_t position_offset = material->get_position_offset();
             int32_t texcoord_offset = material->get_texcoord_offset();
             if (position_offset >= 0) {
@@ -186,25 +203,7 @@ namespace Yogi {
             if (texcoord_offset >= 0) {
                 memcpy(vertices_cur + texcoord_offset, &texcoord, 8);
             }
-            for (auto& [texture_offset, texture] : textures) {
-                int32_t texture_index = -1;
-                if (texture) {
-                    for (uint32_t i = 0; i < texture_slot_index; i ++) {
-                        if (texture_slots[i] == texture) {
-                            texture_index = i;
-                            break;
-                        }
-                    }
-                    if (texture_index == -1) {
-                        texture_index = texture_slot_index;
-                        texture_slots[texture_index] = texture;
-                        texture_slot_index ++;
-                        s_data->render_pipeline = nullptr;
-                    }
-                }
-                memcpy(vertices_cur + texture_offset, &texture_index, 4);
-            }
-            vertices_cur += vertex_layout.get_stride();
+            vertices_cur += vertex_stride;
         }
         for (auto& index : mesh->indices) {
             *indices_cur = vertices_count + index;
