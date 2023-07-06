@@ -8,8 +8,9 @@ namespace Yogi {
     class VulkanTexture2D : public Texture2D
     {
     public:
-        VulkanTexture2D(uint32_t width, uint32_t height, TextureFormat format = TextureFormat::RGBA8);
-        VulkanTexture2D(const std::string& path);
+        VulkanTexture2D(const std::string& name, uint32_t width, uint32_t height, TextureFormat format = TextureFormat::RGBA8);
+        VulkanTexture2D(uint32_t width, uint32_t height, VkImage vk_image, VkFormat vk_format);
+        VulkanTexture2D(const std::string& name, const std::string& path);
         ~VulkanTexture2D();
 
         uint32_t get_width() const override { return m_width; }
@@ -25,14 +26,14 @@ namespace Yogi {
         VkFormat get_vk_format() const { return m_internal_format; }
         VkSampler get_vk_sampler() const { return m_sampler; }
     private:
-        void init_texture(bool is_attachment);
+        void init_texture(VkImageUsageFlags usage);
     private:
         uint32_t m_width, m_height;
         VkImage m_image;
-        VkDeviceMemory m_image_memory;
+        VkDeviceMemory m_image_memory = VK_NULL_HANDLE;
         VkFormat m_internal_format;
         VkImageView m_image_view;
-        VkSampler m_sampler;
+        VkSampler m_sampler = VK_NULL_HANDLE;
     };
 
 }

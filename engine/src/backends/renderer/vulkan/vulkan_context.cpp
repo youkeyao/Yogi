@@ -212,17 +212,13 @@ namespace Yogi {
         pick_physical_device();
         create_logical_device();
         create_swap_chain();
-        create_image_views();
         create_command_pool();
-        m_swap_chain_frame_buffers.resize(m_swap_chain_image_views.size());
-        for (size_t i = 0; i < m_swap_chain_image_views.size(); i++) {
-            m_swap_chain_frame_buffers[i] = CreateRef<VulkanFrameBuffer>(m_swap_chain_extent.width, m_swap_chain_extent.height);
-        }
+        create_frame_buffers();
         create_command_buffer();
         create_sync_objects();
 
         #ifdef YG_DEBUG
-            tmp_texture = Texture2D::create(1, 1, TextureFormat::RGBA8);
+            tmp_texture = Texture2D::create("tmp", 1, 1, TextureFormat::RGBA8);
             tmp_uniform_buffer = UniformBuffer::create(1);
         #endif
 
@@ -242,12 +238,13 @@ namespace Yogi {
     {
         vkDeviceWaitIdle(m_device);
 
-        tmp_texture.reset();
-        tmp_uniform_buffer.reset();
+        #ifdef YG_DEBUG
+            tmp_texture.reset();
+            tmp_uniform_buffer.reset();
+        #endif
 
         cleanup_swap_chain();
         for (auto& attachment : m_attachments) attachment.reset();
-        for (auto& framebuffer : m_swap_chain_frame_buffers) framebuffer.reset();
 
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
             vkDestroySemaphore(m_device, m_render_finished_semaphores[i], nullptr);
@@ -680,14 +677,10 @@ namespace Yogi {
 
         m_swap_chain_image_format = surfaceFormat.format;
         m_swap_chain_extent = extent;
-    }
 
-    void VulkanContext::create_image_views()
-    {
-        m_swap_chain_image_views.resize(m_swap_chain_images.size());
-
+        m_swap_chain_textures.resize(imageCount);
         for (size_t i = 0; i < m_swap_chain_images.size(); i++) {
-            m_swap_chain_image_views[i] = create_image_view(m_swap_chain_images[i], m_swap_chain_image_format, VK_IMAGE_ASPECT_COLOR_BIT);
+            m_swap_chain_textures[i] = CreateRef<VulkanTexture2D>(m_swap_chain_extent.width, m_swap_chain_extent.height, m_swap_chain_images[i], m_swap_chain_image_format);
         }
     }
 
@@ -760,27 +753,25 @@ namespace Yogi {
 
     void VulkanContext::create_frame_buffers()
     {
-        std::vector<VkImageView> attachments;
-        wait_render_command();
+        // wait_render_command();
         m_attachments.clear();
         if (m_pipeline) {
             for (auto& element : m_pipeline->get_output_layout().get_elements()) {
                 if (element.type == ShaderDataType::Int) {
-                    m_attachments.push_back(Texture2D::create(m_swap_chain_extent.width, m_swap_chain_extent.height, TextureFormat::RED_INTEGER));
-                    attachments.push_back(((VulkanTexture2D*)m_attachments.back().get())->get_vk_image_view());
+                    m_attachments.push_back(Texture2D::create("swap_chain", m_swap_chain_extent.width, m_swap_chain_extent.height, TextureFormat::RED_INTEGER));
                 }
                 else {
-                    attachments.push_back(m_swap_chain_image_views[0]);
+                    m_attachments.push_back(m_swap_chain_textures[0]);
                 }
             }
         }
         else {
-            attachments.resize(1);
+            m_attachments.resize(1);
         }
-        for (size_t i = 0; i < m_swap_chain_image_views.size(); i++) {
-            attachments[0] = m_swap_chain_image_views[i];
-            m_swap_chain_frame_buffers[i]->set_vk_extent(m_swap_chain_extent);
-            m_swap_chain_frame_buffers[i]->create_vk_frame_buffer(attachments);
+        m_swap_chain_frame_buffers.resize(m_swap_chain_images.size());
+        for (size_t i = 0; i < m_swap_chain_images.size(); i++) {
+            m_attachments[0] = m_swap_chain_textures[i];
+            m_swap_chain_frame_buffers[i] = CreateRef<VulkanFrameBuffer>(m_swap_chain_extent.width, m_swap_chain_extent.height, m_attachments, m_has_depth_attachment, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
         }
     }
 
@@ -834,8 +825,9 @@ namespace Yogi {
 
     void VulkanContext::cleanup_swap_chain()
     {
-        for (auto imageView : m_swap_chain_image_views) {
-            vkDestroyImageView(m_device, imageView, nullptr);
+        for (size_t i = 0; i < m_swap_chain_images.size(); i++) {
+            m_swap_chain_frame_buffers[i].reset();
+            m_swap_chain_textures[i].reset();
         }
         vkDestroySwapchainKHR(m_device, m_swap_chain, nullptr);
     }
@@ -850,11 +842,8 @@ namespace Yogi {
         }
 
         vkDeviceWaitIdle(m_device);
-
         cleanup_swap_chain();
-
         create_swap_chain();
-        create_image_views();
         create_frame_buffers();
     }
 

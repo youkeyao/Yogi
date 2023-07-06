@@ -14,7 +14,7 @@ namespace Yogi {
         return !document.HasParseError() && document.IsObject();
     }
 
-    std::string SceneManager::serialize_scene(Ref<Scene> scene)
+    std::string SceneManager::serialize_scene(const Ref<Scene>& scene)
     {
         rapidjson::StringBuffer buffer;
         rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
@@ -85,6 +85,14 @@ namespace Yogi {
                     }
                     else if (value.type_hash == typeid(Entity).hash_code()) {
                         writer.Int((uint32_t)*(Entity*)((uint8_t*)component + value.offset));
+                    }
+                    else if (value.type_hash == typeid(Ref<Mesh>).hash_code()) {
+                        Ref<Mesh>& mesh = *(Ref<Mesh>*)((uint8_t*)component + value.offset);
+                        writer.String(mesh->name.c_str());
+                    }
+                    else if (value.type_hash == typeid(Ref<Material>).hash_code()) {
+                        Ref<Material>& material = *(Ref<Material>*)((uint8_t*)component + value.offset);
+                        writer.String((MaterialManager::get_key(material)).c_str());
                     }
                     else {
                         writer.Bool(false);
@@ -175,6 +183,14 @@ namespace Yogi {
                         Entity& target = *(Entity*)((uint8_t*)component + value.offset);
                         int32_t handle = component_fields_value[key.c_str()].GetInt();
                         target = handle >= 0 ? scene->get_entity(handle) : Entity{};
+                    }
+                    else if (value.type_hash == typeid(Ref<Mesh>).hash_code()) {
+                        Ref<Mesh>& mesh = *(Ref<Mesh>*)((uint8_t*)component + value.offset);
+                        mesh = MeshManager::get_mesh(component_fields_value[key.c_str()].GetString());
+                    }
+                    else if (value.type_hash == typeid(Ref<Material>).hash_code()) {
+                        Ref<Material>& material = *(Ref<Material>*)((uint8_t*)component + value.offset);
+                        material = MaterialManager::get_material(component_fields_value[key.c_str()].GetString());
                     }
                 }
             }

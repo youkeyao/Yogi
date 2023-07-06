@@ -1,5 +1,7 @@
 #pragma once
 
+#include "runtime/utility/md5.h"
+
 namespace Yogi {
 
     enum class TextureFormat
@@ -22,6 +24,14 @@ namespace Yogi {
 
         virtual void set_data(void* data, size_t size) = 0;
         virtual void bind(uint32_t binding = 0, uint32_t slot = 0) const = 0;
+
+        void set_name(const std::string& name) { m_name = name; }
+        const std::string& get_name() const { return m_name; }
+
+        const std::string& get_digest() const { return m_digest; }
+    protected:
+        std::string m_name;
+        std::string m_digest;
     };
 
     class Texture2D : public Texture
@@ -29,8 +39,8 @@ namespace Yogi {
     public:
         ~Texture2D() = default;
 
-        static Ref<Texture2D> create(const std::string& path);
-        static Ref<Texture2D> create(uint32_t width, uint32_t height, TextureFormat format = TextureFormat::RGBA8);
+        static Ref<Texture2D> create(const std::string& name, const std::string& path);
+        static Ref<Texture2D> create(const std::string& name, uint32_t width, uint32_t height, TextureFormat format = TextureFormat::RGBA8);
     };
 
 }

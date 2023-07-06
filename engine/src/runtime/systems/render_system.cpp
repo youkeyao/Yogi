@@ -13,7 +13,7 @@ namespace Yogi {
         RenderCommand::clear();
 
         scene->view_components<TransformComponent, MeshRendererComponent>([&](Entity entity, TransformComponent& transform, MeshRendererComponent& mesh_renderer){
-            Renderer::draw_mesh(mesh_renderer.mesh, mesh_renderer.material, transform.transform);
+            Renderer::draw_mesh(mesh_renderer.mesh, mesh_renderer.material, transform.transform, entity);
         });
 
         Renderer::flush();

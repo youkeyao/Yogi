@@ -8,7 +8,7 @@ namespace Yogi {
     class VulkanFrameBuffer : public FrameBuffer
     {
     public:
-        VulkanFrameBuffer(uint32_t width, uint32_t height, const std::vector<Ref<Texture2D>>& color_attachments = {}, bool has_depth_attachment = true);
+        VulkanFrameBuffer(uint32_t width, uint32_t height, const std::vector<Ref<Texture2D>>& color_attachments, bool has_depth_attachment = true, VkImageLayout layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         ~VulkanFrameBuffer();
 
         void bind() const override;
@@ -25,7 +25,6 @@ namespace Yogi {
         VkRenderPass get_vk_load_render_pass() const { return m_load_render_pass; }
         void create_vk_frame_buffer(const std::vector<VkImageView>& image_views);
         void cleanup_vk_frame_buffer();
-        void set_vk_extent(VkExtent2D extent) { m_width = extent.width; m_height = extent.height; }
     private:
         VkFramebuffer m_frame_buffer = VK_NULL_HANDLE;
         uint32_t m_width, m_height;

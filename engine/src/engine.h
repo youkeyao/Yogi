@@ -27,10 +27,13 @@
 #include "runtime/renderer/frame_buffer.h"
 #include "runtime/renderer/pipeline.h"
 #include "runtime/renderer/texture.h"
+#include "runtime/renderer/material.h"
 // ---------------------------------------------
 
 // ---resources-------------------------------
-#include "runtime/resources/mesh_manager.h"
-#include "runtime/resources/texture_manager.h"
-#include "runtime/resources/material_manager.h"
+#include "runtime/resources/asset_manager.h"
+// -------------------------------------------
+
+// ---utility-------------------------------
+#include "runtime/utility/md5.h"
 // -------------------------------------------

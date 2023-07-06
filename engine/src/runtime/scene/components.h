@@ -49,7 +49,7 @@ namespace Yogi {
     struct MeshRendererComponent
     {
         Ref<Mesh> mesh = MeshManager::get_mesh("quad");
-        Ref<Material> material = MaterialManager::get_material("checkerboard");
+        Ref<Material> material = MaterialManager::get_material("");
     };
 
     struct CameraComponent

@@ -16,6 +16,7 @@
 #include <mutex>
 #include <fstream>
 #include <sstream>
+#include <filesystem>
 #include <functional>
 #include <vector>
 #include <list>

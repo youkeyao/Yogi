@@ -1,16 +1,19 @@
 #version 460 core
 
 layout(location = 0) out vec4 color;
+layout(location = 1) out int t;
 
 layout(location = 0) in vec4 v_Color;
 layout(location = 1) in vec2 v_TexCoord;
 layout(location = 2) flat in int v_TexID;
+layout(location = 3) flat in int v_EntityID;
 
 layout(binding = 1) uniform sampler2D u_Textures[32];
 
 void main()
 {
-    color = vec4(1, 1, 1, 1);
+    color = v_Color;
+    t = v_EntityID;
     switch (v_TexID) {
         case  0: color *= texture(u_Textures[ 0], v_TexCoord); break;
         case  1: color *= texture(u_Textures[ 1], v_TexCoord); break;

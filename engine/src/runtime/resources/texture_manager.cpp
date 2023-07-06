@@ -5,21 +5,19 @@ namespace Yogi {
 
     std::map<std::string, Ref<Texture2D>> TextureManager::s_textures{};
 
-    std::string base_path = "";
-
     void TextureManager::init(const std::string& dir_path)
     {
         if (std::filesystem::is_directory(dir_path)) {
             for (auto& directory_entry : std::filesystem::directory_iterator(dir_path)) {
                 const auto& path = directory_entry.path();
                 std::string filename = path.stem().string();
+                std::string extension = path.extension().string();
 
                 if (directory_entry.is_directory()) {
-                    base_path += filename + "/";
                     init(path.string());
                 }
-                else {
-                    add_texture(base_path + filename, Texture2D::create(path.string()));
+                else if (extension == ".png") {
+                    add_texture(Texture2D::create(filename, path.string()));
                 }
             }
         }
@@ -30,15 +28,23 @@ namespace Yogi {
         s_textures.clear();
     }
 
-    void TextureManager::add_texture(const std::string& name, const Ref<Texture2D>& texture)
+    void TextureManager::add_texture(const Ref<Texture2D>& texture)
     {
-        s_textures[name] = texture;
+        s_textures[texture->get_name() + ":" + texture->get_digest()] = texture;
     }
 
-    void TextureManager::each_texture_name(std::function<void(std::string)> func)
+    const Ref<Texture2D>& TextureManager::get_texture(const std::string& key)
+    {
+        if (s_textures.find(key) != s_textures.end()) {
+            return s_textures[key];
+        }
+        return s_textures["checkerboard:9dc354f091dee664ebe9efdc88a98da8"];
+    }
+
+    void TextureManager::each_texture(std::function<void(const Ref<Texture2D>&)> func)
     {
         for (auto [texture_name, texture] : s_textures) {
-            func(texture_name);
+            func(texture);
         }
     }
 

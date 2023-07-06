@@ -79,9 +79,9 @@ namespace Yogi {
 
     void Renderer::set_pipeline(const Ref<Pipeline>& pipeline)
     {
+        pipeline->bind();
         if (pipeline != s_data->render_pipeline) {
             s_data->render_pipeline = pipeline;
-            s_data->render_pipeline->bind();
             s_data->scene_uniform_buffer->bind(0);
             s_data->is_rebind_texture = true;
         }
@@ -134,7 +134,7 @@ namespace Yogi {
         }
     }
 
-    void Renderer::draw_mesh(const Ref<Mesh>& mesh, const Ref<Material>& material, const glm::mat4& transform)
+    void Renderer::draw_mesh(const Ref<Mesh>& mesh, const Ref<Material>& material, const glm::mat4& transform, uint32_t entity_id)
     {
         std::vector<std::pair<uint32_t, Ref<Texture2D>>> textures = material->get_textures();
         Ref<Pipeline> pipeline = material->get_pipeline();
@@ -195,6 +195,7 @@ namespace Yogi {
             memcpy(vertices_cur, material->get_data(), vertex_stride);
             int32_t position_offset = material->get_position_offset();
             int32_t texcoord_offset = material->get_texcoord_offset();
+            int32_t entity_offset = material->get_entity_offset();
             if (position_offset >= 0) {
                 glm::vec4 position{pos.x, pos.y, pos.z, 1.0f};
                 position = transform * position;
@@ -202,6 +203,9 @@ namespace Yogi {
             }
             if (texcoord_offset >= 0) {
                 memcpy(vertices_cur + texcoord_offset, &texcoord, 8);
+            }
+            if (entity_offset >= 0) {
+                memcpy(vertices_cur + entity_offset, &entity_id, 4);
             }
             vertices_cur += vertex_stride;
         }

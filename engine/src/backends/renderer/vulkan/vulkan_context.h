@@ -31,16 +31,16 @@ namespace Yogi
         VulkanPipeline* get_current_pipeline() { return m_pipeline; }
         VulkanVertexBuffer* get_current_vertex_buffer() { return m_vertex_buffer; }
         VulkanIndexBuffer* get_current_index_buffer() { return m_index_buffer; }
-        VulkanFrameBuffer* get_current_frame_buffer() { return m_current_frame_buffer ? m_current_frame_buffer : (m_image_index >= 0 ? m_swap_chain_frame_buffers[m_image_index].get() : VK_NULL_HANDLE); }
+        VulkanFrameBuffer* get_current_frame_buffer() { return m_current_frame_buffer ? m_current_frame_buffer : (m_image_index >= 0 ? m_swap_chain_frame_buffers[m_image_index].get() : m_swap_chain_frame_buffers[0].get()); }
+        void set_has_depth_attachment(bool has_depth_attachment) { m_has_depth_attachment = has_depth_attachment; }
         void set_current_vertex_buffer(const VulkanVertexBuffer* vertex_buffer) { m_vertex_buffer = (VulkanVertexBuffer*)vertex_buffer; }
         void set_current_index_buffer(const VulkanIndexBuffer* index_buffer) { m_index_buffer = (VulkanIndexBuffer*)index_buffer; }
-        void set_default_frame_buffer(uint32_t index, Ref<VulkanFrameBuffer> frame_buffer) { m_swap_chain_frame_buffers[index] = frame_buffer; }
         void set_current_frame_buffer(const VulkanFrameBuffer* frame_buffer) { m_current_frame_buffer = (VulkanFrameBuffer*)frame_buffer; }
         void set_current_pipeline(const VulkanPipeline* pipeline)
         {
             if (pipeline != m_pipeline) {
                 m_pipeline = (VulkanPipeline*)pipeline;
-                if (!m_current_frame_buffer) create_frame_buffers();
+                create_frame_buffers();
             }
         }
         void set_window_resized() { m_window_resized = true; }
@@ -76,7 +76,6 @@ namespace Yogi
         void pick_physical_device();
         void create_logical_device();
         void create_swap_chain();
-        void create_image_views();
         void create_command_pool();
         void create_command_buffer();
         void create_sync_objects();
@@ -97,8 +96,9 @@ namespace Yogi
         std::vector<VkImage> m_swap_chain_images;
         VkFormat m_swap_chain_image_format;
         VkExtent2D m_swap_chain_extent;
-        std::vector<VkImageView> m_swap_chain_image_views;
+        std::vector<Ref<VulkanTexture2D>> m_swap_chain_textures;
 
+        bool m_has_depth_attachment = true;
         std::vector<Ref<VulkanFrameBuffer>> m_swap_chain_frame_buffers;
         std::vector<Ref<Texture2D>> m_attachments;
         VkCommandPool m_command_pool;

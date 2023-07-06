@@ -6,6 +6,7 @@
 #include "editor_camera.h"
 #include "panels/scene_hierarchy_panel.h"
 #include "panels/content_browser_panel.h"
+#include "panels/material_editor_panel.h"
 
 namespace Yogi {
 
@@ -31,6 +32,7 @@ namespace Yogi {
         Ref<Scene> m_scene;
         Ref<SceneHierarchyPanel> m_hierarchy_panel;
         Ref<ContentBrowserPanel> m_content_browser_panel;
+        Ref<MaterialEditorPanel> m_material_editor_panel;
 
         EditorCamera m_editor_camera;
 

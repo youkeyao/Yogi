@@ -57,13 +57,9 @@
         Yogi::VulkanContext* context = (Yogi::VulkanContext*)Yogi::Application::get().get_window().get_context();
 
         VkExtent2D extent = context->get_swap_chain_extent();
-        Yogi::Ref<Yogi::VulkanFrameBuffer> frame_buffer;
-        std::vector<Yogi::Ref<Yogi::Texture2D>> attachments;
-        for (int32_t i = 0; i < context->get_swap_chain_image_count(); i ++) {
-            frame_buffer = Yogi::CreateRef<Yogi::VulkanFrameBuffer>(extent.width, extent.height, attachments, false);
-            context->set_default_frame_buffer(i, frame_buffer);
-        }
+        context->set_has_depth_attachment(false);
         context->create_frame_buffers();
+        Yogi::VulkanFrameBuffer* frame_buffer = context->get_current_frame_buffer();
 
         init_info.Instance = context->get_instance();
         init_info.PhysicalDevice = context->get_physical_device();
@@ -111,6 +107,8 @@
     void imgui_vulkan_draw()
     {
         Yogi::VulkanContext* context = (Yogi::VulkanContext*)Yogi::Application::get().get_window().get_context();
+
+        context->set_current_pipeline(nullptr);
 
         VkCommandBuffer command_buffer = context->begin_render_command();
         Yogi::VulkanFrameBuffer* frame_buffer = context->get_current_frame_buffer();

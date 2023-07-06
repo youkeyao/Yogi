@@ -10,11 +10,11 @@ namespace Yogi {
     class AssetManager
     {
     public:
-        static void init()
+        static void init(const std::string& dir)
         {
-            TextureManager::init(YG_ASSET_DIR"textures");
+            TextureManager::init(dir);
             PipelineManager::init();
-            MaterialManager::init();
+            MaterialManager::init(dir);
             MeshManager::init();
         }
         static void shutdown()

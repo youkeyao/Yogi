@@ -18,7 +18,7 @@ namespace Yogi {
         m_window->init();
         m_window->set_event_callback(YG_BIND_EVENT_FN(Application::on_event));
 
-        AssetManager::init();
+        AssetManager::init(YG_ASSET_DIR);
         Renderer::init();
     }
 

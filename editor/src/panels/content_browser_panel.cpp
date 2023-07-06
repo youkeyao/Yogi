@@ -16,6 +16,18 @@ namespace Yogi {
         float panel_width = ImGui::GetContentRegionAvail().x;
         static float padding = 8.0f;
 
+        // new content
+        if (ImGui::BeginPopupContextWindow()) {
+            if (ImGui::MenuItem("Create Material")) {
+                Ref<Material> material = CreateRef<Material>("new_material", PipelineManager::get_pipeline("Flat"));
+                while (std::filesystem::exists(m_current_directory.string() + "/" + material->get_name() + ".mat")) {
+                    material->set_name("_" + material->get_name());
+                }
+                MaterialManager::save_material(m_current_directory.string(), material);
+            }
+            ImGui::EndPopup();
+        }
+
         // path
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
         ImGui::Button("Assets");

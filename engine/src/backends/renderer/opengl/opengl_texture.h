@@ -7,8 +7,8 @@ namespace Yogi {
     class OpenGLTexture2D : public Texture2D
     {
     public:
-        OpenGLTexture2D(uint32_t width, uint32_t height, TextureFormat format = TextureFormat::RGBA8);
-        OpenGLTexture2D(const std::string& path);
+        OpenGLTexture2D(const std::string& name, uint32_t width, uint32_t height, TextureFormat format = TextureFormat::RGBA8);
+        OpenGLTexture2D(const std::string& name, const std::string& path);
         ~OpenGLTexture2D();
 
         uint32_t get_width() const override { return m_width; }

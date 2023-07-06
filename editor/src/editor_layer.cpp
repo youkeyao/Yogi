@@ -21,14 +21,16 @@ namespace Yogi {
         ComponentManager::init();
         SystemManager::init();
 
-        m_frame_texture = Texture2D::create(s_max_viewport_size, s_max_viewport_size, TextureFormat::ATTACHMENT);
-        m_entity_id_texture = Texture2D::create(s_max_viewport_size, s_max_viewport_size, TextureFormat::RED_INTEGER);
-        // m_frame_buffer = FrameBuffer::create(s_max_viewport_size, s_max_viewport_size, { m_frame_texture, m_entity_id_texture });
-        m_frame_buffer = FrameBuffer::create(s_max_viewport_size, s_max_viewport_size, { m_frame_texture });
+        m_frame_texture = Texture2D::create("frame_texture", s_max_viewport_size, s_max_viewport_size, TextureFormat::ATTACHMENT);
+        m_entity_id_texture = Texture2D::create("entity_id", s_max_viewport_size, s_max_viewport_size, TextureFormat::RED_INTEGER);
+        m_frame_buffer = FrameBuffer::create(s_max_viewport_size, s_max_viewport_size, { m_frame_texture, m_entity_id_texture });
+        // m_frame_buffer = FrameBuffer::create(s_max_viewport_size, s_max_viewport_size, { m_frame_texture });
 
         m_scene = CreateRef<Scene>();
         m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
         m_content_browser_panel = CreateRef<ContentBrowserPanel>(YG_PROJECT_TEMPLATE);
+        m_material_editor_panel = CreateRef<MaterialEditorPanel>();
+        AssetManager::init(YG_PROJECT_TEMPLATE);
         // open_scene(YG_PROJECT_TEMPLATE"/main.yg");
     }
 
@@ -44,10 +46,11 @@ namespace Yogi {
         YG_PROFILE_FUNCTION();
 
         ImguiSetting::imgui_begin();
-        
+
         imgui_update();
         m_hierarchy_panel->on_imgui_render();
         m_content_browser_panel->on_imgui_render();
+        m_material_editor_panel->on_imgui_render();
 
         m_frame_buffer->bind();
         m_editor_camera.on_update(ts, m_viewport_hovered);
@@ -227,6 +230,7 @@ namespace Yogi {
             m_scene = CreateRef<Scene>();
             m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
             m_content_browser_panel = CreateRef<ContentBrowserPanel>(f);
+            AssetManager::init(f);
             open_scene(f + "/main.yg");
         }
     }
@@ -259,7 +263,7 @@ namespace Yogi {
 
             std::ofstream out(f, std::ios::out);
             if (!out) {
-                YG_CORE_ERROR("Could not open file '{0}'!", "scene.yg");
+                YG_CORE_ERROR("Could not save scene!");
                 return;
             }
             out << json;

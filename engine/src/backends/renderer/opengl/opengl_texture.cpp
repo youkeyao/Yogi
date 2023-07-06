@@ -4,18 +4,19 @@
 
 namespace Yogi {
 
-    Ref<Texture2D> Texture2D::create(uint32_t width, uint32_t height, TextureFormat format)
+    Ref<Texture2D> Texture2D::create(const std::string& name, uint32_t width, uint32_t height, TextureFormat format)
     {
-        return CreateRef<OpenGLTexture2D>(width, height, format);
+        return CreateRef<OpenGLTexture2D>(name, width, height, format);
     }
 
-    Ref<Texture2D> Texture2D::create(const std::string& path)
+    Ref<Texture2D> Texture2D::create(const std::string& name, const std::string& path)
     {
-        return CreateRef<OpenGLTexture2D>(path);
+        return CreateRef<OpenGLTexture2D>(name, path);
     }
 
-    OpenGLTexture2D::OpenGLTexture2D(uint32_t width, uint32_t height, TextureFormat format) : m_width(width), m_height(height)
+    OpenGLTexture2D::OpenGLTexture2D(const std::string& name, uint32_t width, uint32_t height, TextureFormat format) : m_width(width), m_height(height)
     {
+        m_name = name;
         if (format == TextureFormat::RGBA8) {
             m_internal_format = GL_RGBA8;
             m_data_format = GL_RGBA;
@@ -42,8 +43,9 @@ namespace Yogi {
         glTextureParameteri(m_renderer_id, GL_TEXTURE_WRAP_T, GL_REPEAT);
     }
 
-    OpenGLTexture2D::OpenGLTexture2D(const std::string& path)
+    OpenGLTexture2D::OpenGLTexture2D(const std::string& name, const std::string& path)
     {
+        m_name = name;
         stbi_set_flip_vertically_on_load(1);
 
         int width, height, channels;
@@ -76,6 +78,7 @@ namespace Yogi {
         glTextureParameteri(m_renderer_id, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
         glTextureSubImage2D(m_renderer_id, 0, 0, 0, m_width, m_height, m_data_format, GL_UNSIGNED_BYTE, data);
+        m_digest = MD5(std::string{data, data + m_width * m_height * channels}).toStr();
 
         stbi_image_free(data);
     }

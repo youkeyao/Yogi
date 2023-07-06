@@ -10,7 +10,7 @@ namespace Yogi {
         return CreateRef<VulkanFrameBuffer>(width, height, color_attachments, has_depth_attachment);
     }
 
-    VulkanFrameBuffer::VulkanFrameBuffer(uint32_t width, uint32_t height, const std::vector<Ref<Texture2D>>& color_attachments, bool has_depth_attachment)
+    VulkanFrameBuffer::VulkanFrameBuffer(uint32_t width, uint32_t height, const std::vector<Ref<Texture2D>>& color_attachments, bool has_depth_attachment, VkImageLayout layout)
     : m_width(width), m_height(height), m_color_attachments(color_attachments), m_has_depth_attachment(has_depth_attachment)
     {
         std::vector<VkImageView> attachments(color_attachments.size());
@@ -22,16 +22,9 @@ namespace Yogi {
         }
         
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
-        if (attachments.empty()) {
-            attachment_formats.push_back(context->get_swap_chain_image_format());
-            m_clear_render_pass = context->create_render_pass(attachment_formats, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, has_depth_attachment);
-            m_load_render_pass = context->create_render_pass(attachment_formats, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, has_depth_attachment);
-        }
-        else {
-            m_clear_render_pass = context->create_render_pass(attachment_formats, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, has_depth_attachment);
-            m_load_render_pass = context->create_render_pass(attachment_formats, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, has_depth_attachment);
-            create_vk_frame_buffer(attachments);
-        }
+        m_clear_render_pass = context->create_render_pass(attachment_formats, VK_IMAGE_LAYOUT_UNDEFINED, layout, has_depth_attachment);
+        m_load_render_pass = context->create_render_pass(attachment_formats, layout, layout, has_depth_attachment);
+        create_vk_frame_buffer(attachments);
     }
 
     VulkanFrameBuffer::~VulkanFrameBuffer()

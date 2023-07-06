@@ -19,6 +19,14 @@ namespace Yogi {
         s_meshes[mesh.name] = CreateRef<Mesh>(mesh);
     }
 
+    const Ref<Mesh>& MeshManager::get_mesh(const std::string& name)
+    {
+        if (s_meshes.find(name) != s_meshes.end()) {
+            return s_meshes[name];
+        }
+        return s_meshes["quad"];
+    }
+
     void MeshManager::each_mesh_name(std::function<void(std::string)> func)
     {
         for (auto [mesh_name, mesh] : s_meshes) {

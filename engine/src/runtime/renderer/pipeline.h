@@ -115,7 +115,9 @@ namespace Yogi {
         virtual void bind() const = 0;
         virtual void unbind() const = 0;
 
+        void set_name(const std::string& name) { m_name = name; }
         const std::string& get_name() const { return m_name; }
+        
         const PipelineLayout& get_vertex_layout() const { return m_vertex_layout; }
         const std::map<uint32_t, PipelineLayout>& get_uniform_layout() const { return m_uniform_layouts; }
         const PipelineLayout& get_output_layout() const { return m_output_layout; }
