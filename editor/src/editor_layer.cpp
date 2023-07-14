@@ -5,6 +5,7 @@
 #include "reflect/scene_manager.h"
 #include <glm/gtc/type_ptr.hpp>
 #include <portable-file-dialogs.h>
+#include "panels/fontawesome4_header.h"
 
 namespace Yogi {
 
@@ -53,8 +54,15 @@ namespace Yogi {
         m_material_editor_panel->on_imgui_render();
 
         m_frame_buffer->bind();
-        m_editor_camera.on_update(ts, m_viewport_hovered);
-        m_scene->on_update(ts);
+        // Edit Mode
+        if (m_scene_state == SceneState::Edit) {
+            m_editor_camera.on_update(ts, m_viewport_hovered);
+            RenderSystem::on_update(ts, m_scene.get());
+        }
+        // Play Mode
+        else {
+            m_scene->on_update(ts);
+        }
         m_frame_buffer->unbind();
 
         ImguiSetting::imgui_end();
@@ -85,14 +93,12 @@ namespace Yogi {
             ImGui::EndMenuBar();
         }
 
-        // Renderer2D::Statistics stats = Renderer2D::get_stats();
-        // ImGui::Begin("Stats");
-        // ImGui::Text("Renderer2D Stats:");
-        // ImGui::Text("Draw Calls: %d", stats.draw_calls);
-        // ImGui::Text("Quads: %d", stats.quad_count);
-        // ImGui::Text("Vertices: %d", stats.get_total_vertex_count());
-        // ImGui::Text("Indices: %d", stats.get_total_index_count());
-        // ImGui::End();
+        Renderer::Statistics stats = Renderer::get_stats();
+        ImGui::Begin("Stats");
+        ImGui::Text("Draw Calls: %d", stats.draw_calls);
+        ImGui::Text("Vertices: %d", stats.vertices_count);
+        ImGui::Text("Indices: %d", stats.indices_count);
+        ImGui::End();
 
         ImGui::Begin("Settings");
         ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed |
@@ -123,8 +129,10 @@ namespace Yogi {
         else if (new_viewport_size.x != m_viewport_size.x || new_viewport_size.y != m_viewport_size.y) {
             m_viewport_size = new_viewport_size;
             WindowResizeEvent e((uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y, nullptr);
-            m_scene->on_event(e);
-            m_editor_camera.on_event(e);
+            if (m_scene_state == SceneState::Edit)
+                m_editor_camera.on_event(e);
+            else
+                m_scene->on_event(e);
             RenderCommand::set_viewport(0.0f, 0.0f, m_viewport_size.x, m_viewport_size.y);
         }
         ImguiSetting::show_image(
@@ -152,7 +160,7 @@ namespace Yogi {
 
         // Gizmos
         Entity selected_entity = m_hierarchy_panel->get_selected_entity();
-        if (selected_entity) {
+        if (selected_entity && m_scene_state == SceneState::Edit) {
             ImGuizmo::SetOrthographic(m_editor_camera.get_is_ortho());
             ImGuizmo::SetDrawlist();
             ImGuizmo::SetRect(m_viewport_bounds[0].x, m_viewport_bounds[0].y, m_viewport_size.x, m_viewport_size.y);
@@ -170,9 +178,47 @@ namespace Yogi {
             ImGuizmo::Manipulate(glm::value_ptr(camera_view), glm::value_ptr(camera_projection), m_gizmo_type,
                 ImGuizmo::LOCAL, glm::value_ptr((glm::mat4&)tc.transform), nullptr, snap ? snap_values : nullptr);
         }
+        ImGui::End();
+
+        toolbar_update();
+
+        ImGui::PopStyleVar();
+    }
+
+    void EditorLayer::toolbar_update()
+    {
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 2));
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, ImVec2(0, 0));
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+
+        ImGui::Begin("Toolbar", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+        float size = ImGui::GetWindowHeight() - 4;
+        ImGui::SetWindowFontScale(size / 96);
+
+        const char* icon = m_scene_state == SceneState::Edit ? ICON_FA_PLAY : ICON_FA_STOP;
+        ImGui::SetCursorPosX((ImGui::GetWindowContentRegionMax().x * 0.5f) - (size * 0.5f));
+        if (ImGui::Button("##playbutton", ImVec2(size, size))) {
+            if (m_scene_state == SceneState::Edit) {
+                Renderer::set_projection_view_matrix(glm::mat4(0.0f));
+                WindowResizeEvent e((uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y, nullptr);
+                m_scene->on_event(e);
+                m_scene_state = SceneState::Play;
+            }
+            else {
+                WindowResizeEvent e((uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y, nullptr);
+                m_editor_camera.on_event(e);
+                m_scene_state = SceneState::Edit;
+            }
+        }
+        auto old_pos = ImGui::GetCursorPos();
+        auto icon_size = ImGui::CalcTextSize(icon);
+        ImGui::SetCursorPosX((ImGui::GetWindowContentRegionMax().x * 0.5f) - icon_size.x / 2 + 1);
+        ImGui::SetCursorPosY(old_pos.y - size / 2 + icon_size.y / 2);
+        ImGui::Text("%s", icon);
+        ImGui::SetCursorPos(old_pos);
 
         ImGui::End();
-        ImGui::PopStyleVar();
+        ImGui::PopStyleVar(3);
     }
 
     void EditorLayer::on_event(Event& e)
@@ -182,12 +228,14 @@ namespace Yogi {
         ImguiSetting::imgui_on_event(e);
         if (e.get_event_type() != WindowResizeEvent::get_static_type()) {
             EventDispatcher dispatcher(e);
-            m_editor_camera.on_event(e);
-            if (m_viewport_hovered) {
+            if (m_viewport_hovered && m_scene_state == SceneState::Edit) {
                 dispatcher.dispatch<MouseButtonPressedEvent>(YG_BIND_EVENT_FN(EditorLayer::on_mouse_button_pressed));
                 dispatcher.dispatch<KeyPressedEvent>(YG_BIND_EVENT_FN(EditorLayer::on_key_pressed));
             }
-            m_scene->on_event(e);
+            if (m_scene_state == SceneState::Edit)
+                m_editor_camera.on_event(e);
+            else
+                m_scene->on_event(e);
         }
         else {
             e.m_handled = true;

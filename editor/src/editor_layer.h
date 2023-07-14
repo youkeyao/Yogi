@@ -26,6 +26,7 @@ namespace Yogi {
         void open_scene(const std::string& path);
         void save_scene();
     private:
+        void toolbar_update();
         bool on_mouse_button_pressed(MouseButtonPressedEvent& e);
         bool on_key_pressed(KeyPressedEvent& e);
     private:
@@ -44,6 +45,12 @@ namespace Yogi {
         Ref<Texture2D> m_frame_texture;
         Ref<Texture2D> m_entity_id_texture;
         Ref<FrameBuffer> m_frame_buffer;
+
+        enum class SceneState
+		{
+			Edit = 0, Play = 1
+		};
+		SceneState m_scene_state = SceneState::Edit;
     };
 
 }

@@ -29,6 +29,7 @@ namespace Yogi {
                 recalculate_view();
             }
         }
+        Renderer::set_projection_view_matrix(m_camera_projection_view_matrix);
     }
 
     void EditorCamera::recalculate_projection()
@@ -38,7 +39,6 @@ namespace Yogi {
         else
             m_camera_projection_matrix = glm::perspective(m_camera_component.fov, m_camera_component.aspect_ratio, 0.1f, 100.0f);
         m_camera_projection_view_matrix = m_camera_projection_matrix * m_camera_view_matrix;
-        Renderer::set_projection_view_matrix(m_camera_projection_view_matrix);
     }
 
     void EditorCamera::recalculate_view()
@@ -51,7 +51,6 @@ namespace Yogi {
             m_camera_view_matrix = glm::inverse(transform);
         }
         m_camera_projection_view_matrix = m_camera_projection_matrix * m_camera_view_matrix;
-        Renderer::set_projection_view_matrix(m_camera_projection_view_matrix);
     }
 
     void EditorCamera::on_event(Event& e)

@@ -13,7 +13,6 @@ namespace Yogi {
         static void init(const std::string& dir)
         {
             TextureManager::init(dir);
-            PipelineManager::init();
             MaterialManager::init(dir);
             MeshManager::init();
         }

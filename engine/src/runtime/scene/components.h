@@ -1,6 +1,7 @@
 #pragma once
 
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include "runtime/scene/entity.h"
 #include "runtime/resources/material_manager.h"
 #include "runtime/resources/mesh_manager.h"

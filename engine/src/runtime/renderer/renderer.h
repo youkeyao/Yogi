@@ -11,11 +11,20 @@ namespace Yogi {
     class Renderer
     {
     public:
+        struct Statistics
+        {
+            int draw_calls = 0;
+            int vertices_count = 0;
+            int indices_count = 0;
+        };
+        
         static void init();
         static void shutdown();
         static void on_window_resize(uint32_t width, uint32_t height);
 
         static void set_projection_view_matrix(glm::mat4 projection_view_matrix);
+        static void reset_stats();
+        static Statistics get_stats();
 
         static void flush();
         static void draw_mesh(const Ref<Mesh>& mesh, const Ref<Material>& material, const glm::mat4& transform, uint32_t entity_id);

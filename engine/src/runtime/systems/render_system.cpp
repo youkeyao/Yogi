@@ -9,6 +9,8 @@ namespace Yogi {
 
     void RenderSystem::on_update(Timestep ts, Scene* scene)
     {
+        Renderer::reset_stats();
+        
         RenderCommand::set_clear_color({ 0.1f, 0.1f, 0.1f, 1.0f });
         RenderCommand::clear();
 

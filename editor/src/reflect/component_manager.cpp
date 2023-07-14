@@ -38,7 +38,7 @@ namespace Yogi {
     {
         T object{};
         constexpr auto Count = member_count<T>(0);
-        YG_CORE_ASSERT(Count == field_names.size(), "Component reflect error!");
+        YG_CORE_ASSERT(Count == field_names.size() && Count <= 5, "Component reflect error!");
         if constexpr (Count == 1) {
             auto &&[a1] = object;
             add_fields(type, field_names, (std::size_t)&object, a1);

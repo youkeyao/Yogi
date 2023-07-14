@@ -41,6 +41,8 @@ namespace Yogi {
             glm::mat4 projection_view_matrix = glm::mat4(1.0f);
         };
         SceneData scene_data;
+
+        Renderer::Statistics statistics;
     };
 
     static RendererData* s_data;
@@ -89,8 +91,20 @@ namespace Yogi {
 
     void Renderer::set_projection_view_matrix(glm::mat4 projection_view_matrix)
     {
-        s_data->scene_data.projection_view_matrix = projection_view_matrix;
-        s_data->scene_uniform_buffer->set_data(&s_data->scene_data, sizeof(RendererData::SceneData));
+        if (projection_view_matrix != s_data->scene_data.projection_view_matrix) {
+            s_data->scene_data.projection_view_matrix = projection_view_matrix;
+            s_data->scene_uniform_buffer->set_data(&s_data->scene_data, sizeof(RendererData::SceneData));
+        }
+    }
+
+    void Renderer::reset_stats()
+    {
+        s_data->statistics = Statistics();
+    }
+
+    Renderer::Statistics Renderer::get_stats()
+    {
+        return s_data->statistics;
     }
 
     void Renderer::flush_pipeline(const Ref<Pipeline>& pipeline)
@@ -122,6 +136,11 @@ namespace Yogi {
 
             *(s_data->now_vertices_cur) = *(s_data->now_vertices_base);
             *(s_data->now_indices_cur) = *(s_data->now_indices_base);
+
+            uint32_t vertex_stride = pipeline->get_vertex_layout().get_stride();
+            s_data->statistics.draw_calls ++;
+            s_data->statistics.vertices_count += vertices_size / vertex_stride;
+            s_data->statistics.indices_count += indices_size / sizeof(uint32_t);
         }
     }
 
