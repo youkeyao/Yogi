@@ -5,20 +5,22 @@
 
 namespace Yogi {
 
-    Ref<FrameBuffer> FrameBuffer::create(uint32_t width, uint32_t height, const std::vector<Ref<Texture2D>>& color_attachments, bool has_depth_attachment)
+    Ref<FrameBuffer> FrameBuffer::create(uint32_t width, uint32_t height, const std::vector<Ref<RenderTexture>>& color_attachments, bool has_depth_attachment)
     {
         return CreateRef<VulkanFrameBuffer>(width, height, color_attachments, has_depth_attachment);
     }
 
-    VulkanFrameBuffer::VulkanFrameBuffer(uint32_t width, uint32_t height, const std::vector<Ref<Texture2D>>& color_attachments, bool has_depth_attachment, VkImageLayout layout)
+    VulkanFrameBuffer::VulkanFrameBuffer(uint32_t width, uint32_t height, const std::vector<Ref<RenderTexture>>& color_attachments, bool has_depth_attachment, VkImageLayout layout)
     : m_width(width), m_height(height), m_color_attachments(color_attachments), m_has_depth_attachment(has_depth_attachment)
     {
         std::vector<VkImageView> attachments(color_attachments.size());
         std::vector<VkFormat> attachment_formats(color_attachments.size());
         for (int32_t i = 0; i < color_attachments.size(); i ++) {
             auto& attachment = color_attachments[i];
-            attachments[i] = ((VulkanTexture2D*)attachment.get())->get_vk_image_view();
-            attachment_formats[i] = ((VulkanTexture2D*)attachment.get())->get_vk_format();
+            if (attachment->get_width() != width || attachment->get_height() != height)
+                attachment->resize(width, height);
+            attachments[i] = ((VulkanRenderTexture*)attachment.get())->get_vk_image_view();
+            attachment_formats[i] = ((VulkanRenderTexture*)attachment.get())->get_vk_format();
         }
         
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
@@ -101,7 +103,9 @@ namespace Yogi {
         std::vector<VkImageView> attachments{};
         for (auto& attachment : m_color_attachments) {
             if (!attachment) continue;
-            attachments.push_back(((VulkanTexture2D*)attachment.get())->get_vk_image_view());
+            if (attachment->get_width() != width || attachment->get_height() != height)
+                attachment->resize(width, height);
+            attachments.push_back(((VulkanRenderTexture*)attachment.get())->get_vk_image_view());
         }
 
         create_vk_frame_buffer(attachments);

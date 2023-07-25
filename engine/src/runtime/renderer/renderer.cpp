@@ -25,7 +25,7 @@ namespace Yogi {
         uint32_t** now_indices_base;
         uint32_t** now_indices_cur;
         uint32_t* now_texture_slot_index;
-        std::array<Ref<Texture2D>, max_texture_slots>* now_texture_slots;
+        std::array<Ref<Texture>, max_texture_slots>* now_texture_slots;
 
         std::map<Ref<Pipeline>, uint8_t*> mesh_vertices_bases;
         std::map<Ref<Pipeline>, uint8_t*> mesh_vertices_curs;
@@ -34,7 +34,7 @@ namespace Yogi {
         std::map<Ref<Pipeline>, uint32_t*> mesh_indices_curs;
 
         std::map<Ref<Pipeline>, uint32_t> mesh_texture_slot_indexs;
-        std::map<Ref<Pipeline>, std::array<Ref<Texture2D>, max_texture_slots>> mesh_texture_slots;
+        std::map<Ref<Pipeline>, std::array<Ref<Texture>, max_texture_slots>> mesh_texture_slots;
 
         struct SceneData
         {
@@ -72,11 +72,6 @@ namespace Yogi {
         }
 
         delete s_data;
-    }
-
-    void Renderer::on_window_resize(uint32_t width, uint32_t height)
-    {
-        RenderCommand::set_viewport(0, 0, width, height);
     }
 
     void Renderer::set_pipeline(const Ref<Pipeline>& pipeline)
@@ -144,18 +139,20 @@ namespace Yogi {
         }
     }
 
-    void Renderer::flush()
+    void Renderer::each_pipeline(std::function<void(const Ref<Pipeline>&)> func)
     {
         YG_PROFILE_FUNCTION();
 
         for (auto& [pipeline, texture_slot_index] : s_data->mesh_texture_slot_indexs) {
-            flush_pipeline(pipeline);
+            if (pipeline && s_data->mesh_indices_bases[pipeline] != s_data->mesh_indices_curs[pipeline]) {
+                func(pipeline);
+            }
         }
     }
 
     void Renderer::draw_mesh(const Ref<Mesh>& mesh, const Ref<Material>& material, const glm::mat4& transform, uint32_t entity_id)
     {
-        std::vector<std::pair<uint32_t, Ref<Texture2D>>> textures = material->get_textures();
+        std::vector<std::pair<uint32_t, Ref<Texture>>> textures = material->get_textures();
         Ref<Pipeline> pipeline = material->get_pipeline();
         if (s_data->now_pipeline != pipeline) {
             if (s_data->mesh_vertices_bases.find(pipeline) == s_data->mesh_vertices_bases.end()) {

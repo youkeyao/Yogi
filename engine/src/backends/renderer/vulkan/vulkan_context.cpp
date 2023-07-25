@@ -218,7 +218,7 @@ namespace Yogi {
         create_sync_objects();
 
         #ifdef YG_DEBUG
-            tmp_texture = Texture2D::create("tmp", 1, 1, TextureFormat::RGBA8);
+            tmp_texture = RenderTexture::create("tmp", 1, 1, TextureFormat::RGBA8);
             tmp_uniform_buffer = UniformBuffer::create(1);
         #endif
 
@@ -498,9 +498,9 @@ namespace Yogi {
                 YG_CORE_ASSERT(result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR, "Failed to present swap chain image!");
             }
 
-            m_current_frame = (m_current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
             m_image_index = -1;
         }
+        m_current_frame = (m_current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
     }
 
     void VulkanContext::create_instance()
@@ -680,7 +680,7 @@ namespace Yogi {
 
         m_swap_chain_textures.resize(imageCount);
         for (size_t i = 0; i < m_swap_chain_images.size(); i++) {
-            m_swap_chain_textures[i] = CreateRef<VulkanTexture2D>(m_swap_chain_extent.width, m_swap_chain_extent.height, m_swap_chain_images[i], m_swap_chain_image_format);
+            m_swap_chain_textures[i] = CreateRef<VulkanRenderTexture>(m_swap_chain_extent.width, m_swap_chain_extent.height, m_swap_chain_images[i], m_swap_chain_image_format);
         }
     }
 
@@ -758,7 +758,7 @@ namespace Yogi {
         if (m_pipeline) {
             for (auto& element : m_pipeline->get_output_layout().get_elements()) {
                 if (element.type == ShaderDataType::Int) {
-                    m_attachments.push_back(Texture2D::create("swap_chain", m_swap_chain_extent.width, m_swap_chain_extent.height, TextureFormat::RED_INTEGER));
+                    m_attachments.push_back(RenderTexture::create("swap_chain", m_swap_chain_extent.width, m_swap_chain_extent.height, TextureFormat::RED_INTEGER));
                 }
                 else {
                     m_attachments.push_back(m_swap_chain_textures[0]);
@@ -878,7 +878,6 @@ namespace Yogi {
         VkCommandBufferBeginInfo beginInfo{};
         beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
-        vkWaitForFences(m_device, 1, &m_render_command_fences[m_current_frame], VK_TRUE, UINT64_MAX);
         vkResetCommandBuffer(command_buffer, 0);
         VkResult result = vkBeginCommandBuffer(command_buffer, &beginInfo);
         YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to begin recording render command buffer!");
@@ -897,15 +896,6 @@ namespace Yogi {
         submitInfo.commandBufferCount = 1;
         submitInfo.pCommandBuffers = &command_buffer;
 
-        VkSemaphore waitSemaphores[] = {m_image_available_semaphores[m_current_frame]};
-        VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-        submitInfo.waitSemaphoreCount = 1;
-        submitInfo.pWaitSemaphores = waitSemaphores;
-        submitInfo.pWaitDstStageMask = waitStages;
-        submitInfo.signalSemaphoreCount = 1;
-        submitInfo.pSignalSemaphores = waitSemaphores;
-
-        vkResetFences(m_device, 1, &m_render_command_fences[m_current_frame]);
         result = vkQueueSubmit(m_graphics_queue, 1, &submitInfo, m_render_command_fences[m_current_frame]);
         YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to submit render command buffer!");
     }
@@ -917,8 +907,9 @@ namespace Yogi {
 
     void VulkanContext::begin_frame()
     {
-        if (m_image_index < 0) {
-            vkWaitForFences(m_device, 1, &m_render_command_fences[m_current_frame], VK_TRUE, UINT64_MAX);
+        vkWaitForFences(m_device, 1, &m_render_command_fences[m_current_frame], VK_TRUE, UINT64_MAX);
+        vkResetFences(m_device, 1, &m_render_command_fences[m_current_frame]);
+        if (!m_current_frame_buffer && m_image_index < 0) {
             VkResult result = vkAcquireNextImageKHR(m_device, m_swap_chain, UINT64_MAX, m_image_available_semaphores[m_current_frame], VK_NULL_HANDLE, (uint32_t*)&m_image_index);
 
             if (result == VK_ERROR_OUT_OF_DATE_KHR) {

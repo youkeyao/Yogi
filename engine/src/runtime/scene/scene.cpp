@@ -80,6 +80,27 @@ namespace Yogi {
         m_systems.insert(m_systems.begin() + new_index, system);
     }
 
+    void Scene::add_render_pass(const Ref<Material>& material, const std::vector<Ref<RenderTexture>>& attachments)
+    {
+        Ref<FrameBuffer> frame_buffer = nullptr;
+        if (attachments.size() > 0)
+            frame_buffer = FrameBuffer::create(1, 1, attachments);
+        m_render_passes.push_back({material, frame_buffer});
+    }
+    void Scene::set_render_pass(uint32_t index, const Ref<Material>& material, const std::vector<Ref<RenderTexture>>& attachments)
+    {
+        YG_CORE_ASSERT(index < m_render_passes.size(), "Invalid Render Pass index!");
+        Ref<FrameBuffer> frame_buffer = nullptr;
+        if (attachments.size() > 0)
+            frame_buffer = FrameBuffer::create(1, 1, attachments);
+        m_render_passes[index] = {material, frame_buffer};
+    }
+    void Scene::set_frame_buffer(uint32_t index, const Ref<FrameBuffer>& frame_buffer)
+    {
+        YG_CORE_ASSERT(index < m_render_passes.size(), "Invalid Render Pass index!");
+        m_render_passes[index].second = frame_buffer;
+    }
+
     void Scene::on_update(Timestep ts)
     {
         YG_PROFILE_FUNCTION();

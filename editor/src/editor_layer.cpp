@@ -9,8 +9,6 @@
 
 namespace Yogi {
 
-    static uint32_t s_max_viewport_size = 2048;
-
     EditorLayer::EditorLayer() : Layer("EditorLayer") {}
 
     void EditorLayer::on_attach()
@@ -22,12 +20,14 @@ namespace Yogi {
         ComponentManager::init();
         SystemManager::init();
 
-        m_frame_texture = Texture2D::create("frame_texture", s_max_viewport_size, s_max_viewport_size, TextureFormat::ATTACHMENT);
-        m_entity_id_texture = Texture2D::create("entity_id", s_max_viewport_size, s_max_viewport_size, TextureFormat::RED_INTEGER);
-        m_frame_buffer = FrameBuffer::create(s_max_viewport_size, s_max_viewport_size, { m_frame_texture, m_entity_id_texture });
-        // m_frame_buffer = FrameBuffer::create(s_max_viewport_size, s_max_viewport_size, { m_frame_texture });
+        m_frame_texture = RenderTexture::create("frame_texture", 1, 1, TextureFormat::ATTACHMENT);
+        m_entity_id_texture = RenderTexture::create("entity_id", 1, 1, TextureFormat::RED_INTEGER);
+        m_frame_buffer = FrameBuffer::create(1, 1, { m_frame_texture });
+        m_entity_frame_buffer = FrameBuffer::create(1, 1, { m_entity_id_texture });
+        m_entity_id_mat = CreateRef<Material>("entity_id", PipelineManager::get_pipeline("Entity"));
 
         m_scene = CreateRef<Scene>();
+        m_scene->set_frame_buffer(0, m_frame_buffer);
         m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
         m_content_browser_panel = CreateRef<ContentBrowserPanel>(YG_PROJECT_TEMPLATE);
         m_material_editor_panel = CreateRef<MaterialEditorPanel>();
@@ -53,17 +53,23 @@ namespace Yogi {
         m_content_browser_panel->on_imgui_render();
         m_material_editor_panel->on_imgui_render();
 
-        m_frame_buffer->bind();
         // Edit Mode
         if (m_scene_state == SceneState::Edit) {
             m_editor_camera.on_update(ts, m_viewport_hovered);
             RenderSystem::on_update(ts, m_scene.get());
+            // Entity id
+            m_entity_frame_buffer->bind();
+            RenderCommand::clear();
+            m_scene->view_components<TransformComponent, MeshRendererComponent>([&](Entity entity, TransformComponent& transform, MeshRendererComponent& mesh_renderer){
+                Renderer::draw_mesh(mesh_renderer.mesh, m_entity_id_mat, transform.transform, entity);
+            });
+            Renderer::flush_pipeline(m_entity_id_mat->get_pipeline());
+            m_entity_frame_buffer->unbind();
         }
         // Play Mode
         else {
             m_scene->on_update(ts);
         }
-        m_frame_buffer->unbind();
 
         ImguiSetting::imgui_end();
     }
@@ -76,6 +82,7 @@ namespace Yogi {
             if (ImGui::BeginMenu("File")) {
                 if (ImGui::MenuItem("New")) {
                     m_scene = CreateRef<Scene>();
+                    m_scene->set_frame_buffer(0, m_frame_buffer);
                     m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
                     m_editor_camera = EditorCamera{};
                 }
@@ -100,18 +107,6 @@ namespace Yogi {
         ImGui::Text("Indices: %d", stats.indices_count);
         ImGui::End();
 
-        ImGui::Begin("Settings");
-        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed |
-            ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_FramePadding;
-        if (ImGui::TreeNodeEx("Editor Camera", flags)) {
-            bool is_ortho = m_editor_camera.get_is_ortho();
-            if (ImGui::Checkbox("is ortho", &is_ortho)) {
-                m_editor_camera.set_is_ortho(is_ortho);
-            }
-            ImGui::TreePop();
-        }
-        ImGui::End();
-
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
         ImGui::Begin("Viewport");
         m_viewport_hovered = ImGui::IsWindowHovered();
@@ -121,24 +116,18 @@ namespace Yogi {
         m_viewport_bounds[0] = { viewport_region_min.x + viewport_offset.x, viewport_region_min.y + viewport_offset.y };
         m_viewport_bounds[1] = { viewport_region_max.x + viewport_offset.x, viewport_region_max.y + viewport_offset.y };
         glm::vec2 new_viewport_size = { viewport_region_max.x - viewport_region_min.x, viewport_region_max.y - viewport_region_min.y };
-        if ((uint32_t)new_viewport_size.x < 0 || (uint32_t)new_viewport_size.y < 0 ||
-            (uint32_t)new_viewport_size.x > s_max_viewport_size || (uint32_t)new_viewport_size.y > s_max_viewport_size
-        ) {
+        if ((uint32_t)new_viewport_size.x < 0 || (uint32_t)new_viewport_size.y < 0) {
             YG_CORE_WARN("Invalid viewport size!");
         }
         else if (new_viewport_size.x != m_viewport_size.x || new_viewport_size.y != m_viewport_size.y) {
             m_viewport_size = new_viewport_size;
             WindowResizeEvent e((uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y, nullptr);
-            if (m_scene_state == SceneState::Edit)
-                m_editor_camera.on_event(e);
-            else
-                m_scene->on_event(e);
-            RenderCommand::set_viewport(0.0f, 0.0f, m_viewport_size.x, m_viewport_size.y);
+            on_window_resized(e);
         }
         ImguiSetting::show_image(
             m_frame_texture,
             ImVec2(m_viewport_size.x, m_viewport_size.y),
-            ImVec2( m_viewport_size.x / m_frame_texture->get_width(), m_viewport_size.y / m_frame_texture->get_height() )
+            ImVec2(1, 1)
         );
 
         // Drop scene
@@ -181,8 +170,28 @@ namespace Yogi {
         ImGui::End();
 
         toolbar_update();
-
         ImGui::PopStyleVar();
+
+        scene_info_update();
+    }
+
+    void EditorLayer::scene_info_update()
+    {
+        ImGui::Begin("Settings");
+        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed |
+            ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_FramePadding;
+        if (ImGui::TreeNodeEx("Editor Camera", flags)) {
+            bool is_ortho = m_editor_camera.get_is_ortho();
+            if (ImGui::Checkbox("is ortho", &is_ortho)) {
+                m_editor_camera.set_is_ortho(is_ortho);
+            }
+            ImGui::TreePop();
+        }
+        if (ImGui::TreeNodeEx("Render Textures", flags)) {
+            
+            ImGui::TreePop();
+        }
+        ImGui::End();
     }
 
     void EditorLayer::toolbar_update()
@@ -232,14 +241,30 @@ namespace Yogi {
                 dispatcher.dispatch<MouseButtonPressedEvent>(YG_BIND_EVENT_FN(EditorLayer::on_mouse_button_pressed));
                 dispatcher.dispatch<KeyPressedEvent>(YG_BIND_EVENT_FN(EditorLayer::on_key_pressed));
             }
-            if (m_scene_state == SceneState::Edit)
+            if (m_scene_state == SceneState::Edit) {
                 m_editor_camera.on_event(e);
-            else
+                RenderSystem::on_event(e, m_scene.get());
+            }
+            else {
                 m_scene->on_event(e);
+            }
         }
         else {
             e.m_handled = true;
         }
+    }
+
+    void EditorLayer::on_window_resized(WindowResizeEvent& e)
+    {
+        if (m_scene_state == SceneState::Edit) {
+            m_editor_camera.on_event(e);
+            RenderSystem::on_event(e, m_scene.get());
+        }
+        else {
+            m_scene->on_event(e);
+        }
+        m_frame_buffer->resize(e.get_width(), e.get_height());
+        m_entity_frame_buffer->resize(e.get_width(), e.get_height());
     }
 
     bool EditorLayer::on_mouse_button_pressed(MouseButtonPressedEvent& e)
@@ -276,6 +301,7 @@ namespace Yogi {
             TextureManager::init(f + "/Textures");
 
             m_scene = CreateRef<Scene>();
+            m_scene->set_frame_buffer(0, m_frame_buffer);
             m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
             m_content_browser_panel = CreateRef<ContentBrowserPanel>(f);
             AssetManager::init(f);
@@ -299,6 +325,8 @@ namespace Yogi {
 
         if (SceneManager::is_scene(json)) {
             m_scene = SceneManager::deserialize_scene(json);
+            auto& render_passes = m_scene->get_render_passes();
+            m_scene->set_frame_buffer(render_passes.size() - 1, m_frame_buffer);
             m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
         }
     }

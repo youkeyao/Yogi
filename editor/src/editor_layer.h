@@ -26,7 +26,9 @@ namespace Yogi {
         void open_scene(const std::string& path);
         void save_scene();
     private:
+        void scene_info_update();
         void toolbar_update();
+        void on_window_resized(WindowResizeEvent& e);
         bool on_mouse_button_pressed(MouseButtonPressedEvent& e);
         bool on_key_pressed(KeyPressedEvent& e);
     private:
@@ -42,9 +44,11 @@ namespace Yogi {
         glm::vec2 m_viewport_bounds[2];
         ImGuizmo::OPERATION m_gizmo_type = ImGuizmo::OPERATION::TRANSLATE;
 
-        Ref<Texture2D> m_frame_texture;
-        Ref<Texture2D> m_entity_id_texture;
+        Ref<RenderTexture> m_frame_texture;
+        Ref<RenderTexture> m_entity_id_texture;
         Ref<FrameBuffer> m_frame_buffer;
+        Ref<FrameBuffer> m_entity_frame_buffer;
+        Ref<Material> m_entity_id_mat;
 
         enum class SceneState
 		{

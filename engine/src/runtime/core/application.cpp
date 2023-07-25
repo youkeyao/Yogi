@@ -114,7 +114,6 @@ namespace Yogi {
         }
 
         m_minimized = false;
-        Renderer::on_window_resize(e.get_width(), e.get_height());
         return false;
     }
 

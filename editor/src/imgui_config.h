@@ -9,7 +9,7 @@
     #define ImGui_Renderer_NewFrame() ImGui_ImplOpenGL3_NewFrame()
     #define ImGui_Renderer_Draw() ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData())
     #define ImGui_Renderer_Texture(texture, viewport_x, viewport_y, tex_x, tex_y) ImGui::Image( \
-            (void*)(uint64_t)((OpenGLTexture2D*)texture.get())->get_renderer_id(), \
+            (void*)(uint64_t)((OpenGLRenderTexture*)texture.get())->get_renderer_id(), \
             ImVec2( viewport_x, viewport_y ), \
             ImVec2( 0, tex_y ), \
             ImVec2( tex_x, 0 ) \
@@ -147,7 +147,7 @@
         ImGui_ImplVulkan_Shutdown();
         vkDestroyDescriptorPool(context->get_device(), g_DescriptorPool, nullptr);
     }
-    ImTextureID imgui_vulkan_texture_id(Yogi::VulkanTexture2D* texture)
+    ImTextureID imgui_vulkan_texture_id(Yogi::VulkanRenderTexture* texture)
     {
         return ImGui_ImplVulkan_AddTexture(texture->get_vk_sampler(), texture->get_vk_image_view(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     }
@@ -157,7 +157,7 @@
     #define ImGui_Renderer_NewFrame() ImGui_ImplVulkan_NewFrame()
     #define ImGui_Renderer_Draw() imgui_vulkan_draw()
     #define ImGui_Renderer_Texture(texture, viewport_x, viewport_y, tex_x, tex_y) ImGui::Image( \
-            imgui_vulkan_texture_id((VulkanTexture2D*)texture.get()), \
+            imgui_vulkan_texture_id((VulkanRenderTexture*)texture.get()), \
             ImVec2( viewport_x, viewport_y ), \
             ImVec2( 0, 0 ), \
             ImVec2( tex_x, tex_y ) \

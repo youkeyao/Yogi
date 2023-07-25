@@ -43,7 +43,7 @@ namespace Yogi {
         });
     }
 
-    bool on_window_resized(WindowResizeEvent& e, Scene* scene)
+    bool on_camera_system_window_resized(WindowResizeEvent& e, Scene* scene)
     {
         scene->view_components<TransformComponent, CameraComponent>([e](Entity entity, TransformComponent& transform, CameraComponent& camera){
             if (camera.is_primary) {
@@ -56,7 +56,7 @@ namespace Yogi {
     void CameraSystem::on_event(Event& e, Scene* scene)
     {
         EventDispatcher dispatcher(e);
-        dispatcher.dispatch<WindowResizeEvent>(on_window_resized, scene);
+        dispatcher.dispatch<WindowResizeEvent>(on_camera_system_window_resized, scene);
     }
 
 }

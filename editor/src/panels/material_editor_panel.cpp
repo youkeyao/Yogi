@@ -19,14 +19,14 @@ namespace Yogi {
             ImGui::Separator();
             PipelineLayout vertex_layout = m_material->get_pipeline()->get_vertex_layout();
             uint8_t* data = m_material->get_data();
-            std::vector<std::pair<uint32_t, Ref<Texture2D>>> textures = m_material->get_textures();
+            std::vector<std::pair<uint32_t, Ref<Texture>>> textures = m_material->get_textures();
             uint32_t texture_index = 0;
             for (auto& element : vertex_layout.get_elements()) {
                 if (element.name == "a_Position" || element.name == "a_TexCoord" || element.name == "a_EntityID") {
                     continue;
                 }
                 else if (element.name.substr(0, 4) == "TEX_") {
-                    Ref<Texture2D> texture = textures[texture_index].second;
+                    Ref<Texture> texture = textures[texture_index].second;
                     if (ImGui::BeginCombo(element.name.c_str(), texture ? texture->get_name().c_str() : "")) {
                         TextureManager::each_texture([&](const Ref<Texture2D>& each_texture){
                             bool is_selected = texture == each_texture;

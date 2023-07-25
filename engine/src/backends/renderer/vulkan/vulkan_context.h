@@ -40,7 +40,8 @@ namespace Yogi
         {
             if (pipeline != m_pipeline) {
                 m_pipeline = (VulkanPipeline*)pipeline;
-                create_frame_buffers();
+                if (!m_current_frame_buffer)
+                    create_frame_buffers();
             }
         }
         void set_window_resized() { m_window_resized = true; }
@@ -64,7 +65,7 @@ namespace Yogi
         void create_frame_buffers();
 
         #ifdef YG_DEBUG
-            VulkanTexture2D* get_tmp_texture() { return (VulkanTexture2D*)tmp_texture.get(); }
+            VulkanRenderTexture* get_tmp_texture() { return (VulkanRenderTexture*)tmp_texture.get(); }
             VulkanUniformBuffer* get_tmp_uniform_buffer() { return (VulkanUniformBuffer*)tmp_uniform_buffer.get(); }
         #endif
 
@@ -96,11 +97,11 @@ namespace Yogi
         std::vector<VkImage> m_swap_chain_images;
         VkFormat m_swap_chain_image_format;
         VkExtent2D m_swap_chain_extent;
-        std::vector<Ref<VulkanTexture2D>> m_swap_chain_textures;
+        std::vector<Ref<RenderTexture>> m_swap_chain_textures;
 
         bool m_has_depth_attachment = true;
         std::vector<Ref<VulkanFrameBuffer>> m_swap_chain_frame_buffers;
-        std::vector<Ref<Texture2D>> m_attachments;
+        std::vector<Ref<RenderTexture>> m_attachments;
         VkCommandPool m_command_pool;
         std::vector<VkCommandBuffer> m_command_buffers;
 
@@ -117,7 +118,7 @@ namespace Yogi
         VulkanFrameBuffer* m_current_frame_buffer = nullptr;
 
         #ifdef YG_DEBUG
-            Ref<Texture2D> tmp_texture;
+            Ref<RenderTexture> tmp_texture;
             Ref<UniformBuffer> tmp_uniform_buffer;
         #endif
     };

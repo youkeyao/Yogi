@@ -47,7 +47,7 @@ namespace Yogi {
 
             renderPassInfo.framebuffer = frame_buffer->get_vk_frame_buffer();
             renderPassInfo.renderArea.offset = {0, 0};
-            renderPassInfo.renderArea.extent = extent;
+            renderPassInfo.renderArea.extent = {frame_buffer->get_width(), frame_buffer->get_height()};
             uint32_t color_attachments_size = pipeline->get_output_layout().get_elements().size();
             std::vector<VkClearValue> clear_values;
             for (int32_t i = 0; i < color_attachments_size; i ++) {

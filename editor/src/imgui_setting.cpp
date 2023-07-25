@@ -137,7 +137,7 @@ namespace Yogi {
         ImGui_Window_Render();
     }
 
-    void ImguiSetting::show_image(const Ref<Texture2D>& texture, ImVec2 viewport, ImVec2 texcoords)
+    void ImguiSetting::show_image(const Ref<RenderTexture>& texture, ImVec2 viewport, ImVec2 texcoords)
     {
         ImGui_Renderer_Texture(texture, viewport.x, viewport.y, texcoords.x, texcoords.y);
     }

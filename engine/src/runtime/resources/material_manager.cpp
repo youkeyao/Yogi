@@ -136,11 +136,12 @@ namespace Yogi {
         uint32_t stride = pipeline->get_vertex_layout().get_stride();
 
         ss << pipeline->get_name() << std::endl;
-        std::vector<std::pair<uint32_t, Ref<Texture2D>>> textures = material->get_textures();
+        std::vector<std::pair<uint32_t, Ref<Texture>>> textures = material->get_textures();
         ss << textures.size();
         for (auto& [offset, texture] : textures) {
-            if (texture) {
-                ss << " " << texture->get_name() + ":" + texture->get_digest();
+            Texture2D* texture2d_ptr = dynamic_cast<Texture2D*>(texture.get());
+            if (texture2d_ptr) {
+                ss << " " << texture2d_ptr->get_name() + ":" + texture2d_ptr->get_digest();
             }
             else {
                 ss << " ";

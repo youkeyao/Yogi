@@ -7,6 +7,8 @@ namespace Yogi {
     void PipelineManager::init()
     {
         s_pipelines["Flat"] = Pipeline::create("Flat");
+        s_pipelines["Post"] = Pipeline::create("Post");
+        s_pipelines["Entity"] = Pipeline::create("Entity");
     }
 
     void PipelineManager::clear()

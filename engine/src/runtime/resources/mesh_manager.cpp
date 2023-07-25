@@ -12,6 +12,21 @@ namespace Yogi {
             {{ 0.5f, 0.5f, 0.0f }, { 1.0f, 1.0f }},
             {{ -0.5f, 0.5f, 0.0f }, { 0.0f, 1.0f }}},
         { 0, 1, 2, 2, 3, 0 }});
+        #if YG_RENDERER_API == YG_RENDERER_OPENGL
+            add_mesh({"render_quad", {
+                {{ -1.0f, -1.0f, 0.0f }, { 0.0f, 0.0f }},
+                {{ 1.0f, -1.0f, 0.0f }, { 1.0f, 0.0f }},
+                {{ 1.0f, 1.0f, 0.0f }, { 1.0f, 1.0f }},
+                {{ -1.0f, 1.0f, 0.0f }, { 0.0f, 1.0f }}},
+            { 0, 1, 2, 2, 3, 0 }});
+        #elif YG_RENDERER_API == YG_RENDERER_VULKAN
+            add_mesh({"render_quad", {
+                {{ -1.0f, -1.0f, 0.0f }, { 0.0f, 1.0f }},
+                {{ 1.0f, -1.0f, 0.0f }, { 1.0f, 1.0f }},
+                {{ 1.0f, 1.0f, 0.0f }, { 1.0f, 0.0f }},
+                {{ -1.0f, 1.0f, 0.0f }, { 0.0f, 0.0f }}},
+            { 0, 1, 2, 2, 3, 0 }});
+        #endif
     }
 
     void MeshManager::add_mesh(Mesh mesh)
