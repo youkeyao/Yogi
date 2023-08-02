@@ -25,11 +25,11 @@ namespace Yogi {
         static void reset_stats();
         static Statistics get_stats();
 
-        static void each_pipeline(std::function<void(const Ref<Pipeline>&)> func);
-        static void flush_pipeline(const Ref<Pipeline>& pipeline);
+        static void flush();
         static void draw_mesh(const Ref<Mesh>& mesh, const Ref<Material>& material, const glm::mat4& transform, uint32_t entity_id);
     private:
         static void set_pipeline(const Ref<Pipeline>& pipeline);
+        static void flush_pipeline(const Ref<Pipeline>& pipeline);
     };
 
 }

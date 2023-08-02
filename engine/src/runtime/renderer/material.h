@@ -8,8 +8,11 @@ namespace Yogi {
     class Material
     {
     public:
+        static Ref<Material> create(const std::string& name, const Ref<Pipeline>& pipeline);
         Material(const std::string& name, const Ref<Pipeline>& pipeline);
         ~Material();
+
+        void set_pipeline(const Ref<Pipeline>& pipeline);
 
         void set_name(const std::string& name) { m_name = name; }
         const std::string& get_name() const { return m_name; }

@@ -108,6 +108,7 @@ namespace Yogi {
     OpenGLRenderTexture::OpenGLRenderTexture(const std::string& name, uint32_t width, uint32_t height, TextureFormat format) : m_width(width), m_height(height)
     {
         m_name = name;
+        m_format = format;
         if (format == TextureFormat::RGBA8) {
             m_internal_format = GL_RGBA8;
             m_data_format = GL_RGBA;

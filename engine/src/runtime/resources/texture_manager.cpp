@@ -20,6 +20,19 @@ namespace Yogi {
                 else if (extension == ".png") {
                     add_texture(Texture2D::create(filename, path.string()));
                 }
+                else if (extension == ".rt") {
+                    uint8_t format;
+                    std::ifstream in(path, std::ios::in);
+                    if (in) {
+                        in >> format;
+                        format -= '0';
+                        add_render_texture(RenderTexture::create(filename, 1, 1, (TextureFormat)format));
+                    }
+                    else {
+                        YG_CORE_WARN("Could not open file '{0}'!", path);
+                    }
+                    in.close();
+                }
             }
         }
     }
@@ -35,17 +48,10 @@ namespace Yogi {
         s_textures[texture->get_name() + ":" + texture->get_digest()] = texture;
     }
 
-    void TextureManager::add_render_texture(const Ref<Pipeline>& pipeline, uint32_t index)
+    void TextureManager::add_render_texture(const Ref<RenderTexture>& texture)
     {
-        auto& elements = pipeline->get_output_layout().get_elements();
-        if (index < elements.size()) {
-            auto& element = elements[index];
-            if (element.type == ShaderDataType::Int) {
-                s_render_textures[pipeline->get_name() + "|" + element.name] = RenderTexture::create(pipeline->get_name() + "|" + element.name, 1, 1, TextureFormat::RED_INTEGER);
-            }
-            else if (element.type == ShaderDataType::Float4) {
-                s_render_textures[pipeline->get_name() + "|" + element.name] = RenderTexture::create(pipeline->get_name() + "|" + element.name, 1, 1, TextureFormat::ATTACHMENT);
-            }
+        if (s_render_textures.find(texture->get_name()) == s_render_textures.end()) {
+            s_render_textures[texture->get_name()] = texture;
         }
     }
 
@@ -56,6 +62,13 @@ namespace Yogi {
         }
         return s_textures["checkerboard:9dc354f091dee664ebe9efdc88a98da8"];
     }
+    const Ref<RenderTexture>& TextureManager::get_render_texture(const std::string& key)
+    {
+        if (s_render_textures.find(key) != s_render_textures.end()) {
+            return s_render_textures[key];
+        }
+        return s_render_textures["attachment"];
+    }
 
     void TextureManager::each_texture(std::function<void(const Ref<Texture2D>&)> func)
     {
@@ -63,7 +76,6 @@ namespace Yogi {
             func(texture);
         }
     }
-
     void TextureManager::each_render_texture(std::function<void(const Ref<RenderTexture>&)> func)
     {
         for (auto [texture_name, texture] : s_render_textures) {

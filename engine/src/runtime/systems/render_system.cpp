@@ -8,66 +8,60 @@
 
 namespace Yogi {
 
-    uint32_t s_width = 1280;
-    uint32_t s_height = 720;
-
-    Ref<FrameBuffer> get_frame_buffer(const Ref<FrameBuffer>& frame_buffer)
-    {
-        if (frame_buffer) {
-            if (frame_buffer->get_width() != s_width || frame_buffer->get_height() != s_height) {
-                frame_buffer->resize(s_width, s_height);
-            }
-            return frame_buffer;
-        }
-        else {
-            return nullptr;
-        }
-    }
+    static glm::mat4 last_camera_transform = glm::mat4(1.0f);
+    static glm::mat4 last_camera_transform_inverse = glm::mat4(1.0f);
+    static bool last_camera_ortho = false;
+    static float last_camera_fov = 1.0f;
+    static float last_camera_aspect_ratio = 1.0f;
+    static float last_camera_zoom_level = 1.0f;
+    static glm::mat4 last_camera_projection = glm::mat4(1.0f);
+    static glm::mat4 last_camera_projection_view = glm::mat4(1.0f);
 
     void RenderSystem::on_update(Timestep ts, Scene* scene)
     {
         Renderer::reset_stats();
 
-        std::vector<std::pair<Ref<Material>, Ref<FrameBuffer>>> render_passes = scene->get_render_passes();
-
-        Ref<FrameBuffer> frame_buffer = get_frame_buffer(render_passes[0].second);
-        if (frame_buffer) {
-            frame_buffer->bind();
-        }
-
         RenderCommand::set_clear_color({ 0.1f, 0.1f, 0.1f, 1.0f });
-        RenderCommand::clear();
-        scene->view_components<TransformComponent, MeshRendererComponent>([&](Entity entity, TransformComponent& transform, MeshRendererComponent& mesh_renderer){
-            Renderer::draw_mesh(mesh_renderer.mesh, mesh_renderer.material, transform.transform, entity);
-        });
-        Renderer::each_pipeline([&](const Ref<Pipeline>& pipeline){
-            Renderer::flush_pipeline(pipeline);
-        });
 
-        if (frame_buffer) {
-            frame_buffer->unbind();
-        }
-
-        for (int32_t i = 1; i < render_passes.size(); i ++) {
-            auto& [material, framebuffer] = render_passes[i];
-            Ref<FrameBuffer> frame_buffer = get_frame_buffer(framebuffer);
-            if (frame_buffer) {
-                frame_buffer->bind();
+        scene->view_components<TransformComponent, CameraComponent>([&](Entity entity, TransformComponent& transform, CameraComponent& camera){
+            if ((glm::mat4)transform.transform != last_camera_transform) {
+                last_camera_transform = transform.transform;
+                last_camera_transform_inverse = glm::inverse(last_camera_transform);
+                last_camera_projection_view = last_camera_projection * last_camera_transform_inverse;
             }
+            if (camera.is_ortho != last_camera_ortho || camera.fov != last_camera_fov ||
+                camera.aspect_ratio != last_camera_aspect_ratio || camera.zoom_level != last_camera_zoom_level
+            ) {
+                camera.zoom_level = std::max(camera.zoom_level, 0.25f);
+                last_camera_ortho = camera.is_ortho;
+                last_camera_fov = camera.fov;
+                last_camera_aspect_ratio = camera.aspect_ratio;
+                last_camera_zoom_level = camera.zoom_level;
+                if (camera.is_ortho)
+                    last_camera_projection = glm::ortho(-camera.aspect_ratio * camera.zoom_level, camera.aspect_ratio * camera.zoom_level, -camera.zoom_level, camera.zoom_level, -1.0f, 1.0f);
+                else
+                    last_camera_projection = glm::perspective(camera.fov, camera.aspect_ratio, camera.zoom_level, 100.0f);
+                last_camera_projection_view = last_camera_projection * last_camera_transform_inverse;
+            }
+            Renderer::set_projection_view_matrix(last_camera_projection_view);
+
+            auto frame_buffer = scene->get_frame_buffer();
+            if (frame_buffer) frame_buffer->bind();
             RenderCommand::clear();
-            Renderer::draw_mesh(MeshManager::get_mesh("render_quad"), material, glm::mat4(1.0f), 0);
-            Renderer::flush_pipeline(material->get_pipeline());
-            if (frame_buffer) {
-                frame_buffer->unbind();
-            }
-        }
+            scene->view_components<TransformComponent, MeshRendererComponent>([&](Entity entity, TransformComponent& transform, MeshRendererComponent& mesh_renderer){
+                Renderer::draw_mesh(mesh_renderer.mesh, mesh_renderer.material, transform.transform, entity);
+            });
+            Renderer::flush();
+            if (frame_buffer) frame_buffer->unbind();
+        });
     }
 
     bool on_render_system_window_resized(WindowResizeEvent& e, Scene* scene)
     {
-        s_width = e.get_width();
-        s_height = e.get_height();
         RenderCommand::set_viewport(0, 0, e.get_width(), e.get_height());
+        scene->view_components<TransformComponent, CameraComponent>([e](Entity entity, TransformComponent& transform, CameraComponent& camera){
+            camera.aspect_ratio = (float)e.get_width() / e.get_height();
+        });
         return false;
     }
 

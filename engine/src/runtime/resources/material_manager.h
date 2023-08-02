@@ -14,8 +14,6 @@ namespace Yogi {
         static const Ref<Material>& get_material(const std::string& key);
         static void each_material(std::function<void(const Ref<Material>&)> func);
 
-        static std::string get_key(const Ref<Material>& material);
-
         static void save_material(const std::string& path, const Ref<Material>& material);
         static Ref<Material> load_material(const std::string& path);
     private:

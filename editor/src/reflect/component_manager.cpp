@@ -38,7 +38,7 @@ namespace Yogi {
     {
         T object{};
         constexpr auto Count = member_count<T>(0);
-        YG_CORE_ASSERT(Count == field_names.size() && Count <= 5, "Component reflect error!");
+        YG_CORE_ASSERT(Count == field_names.size() && Count <= 6, "Component reflect error!");
         if constexpr (Count == 1) {
             auto &&[a1] = object;
             add_fields(type, field_names, (std::size_t)&object, a1);
@@ -59,6 +59,10 @@ namespace Yogi {
             auto &&[a1, a2, a3, a4, a5] = object;
             add_fields(type, field_names, (std::size_t)&object, a1, a2, a3, a4, a5);
         }
+        else if constexpr (Count == 6) {
+            auto &&[a1, a2, a3, a4, a5, a6] = object;
+            add_fields(type, field_names, (std::size_t)&object, a1, a2, a3, a4, a5, a6);
+        }
     }
 
     //--------------------------------------------------------------------------
@@ -70,8 +74,7 @@ namespace Yogi {
     {
         register_component<TagComponent>({"tag"});
         register_component<TransformComponent>({"parent", "transform"});
-        register_component<SpriteRendererComponent>({"color", "texture", "tex_min", "tex_max"});
-        register_component<CameraComponent>({"is_ortho", "is_primary", "fov", "aspect_ratio", "zoom_level"});
+        register_component<CameraComponent>({"is_ortho", "fov", "aspect_ratio", "zoom_level", "render_target"});
         register_component<MeshRendererComponent>({"mesh", "material"});
     }
 

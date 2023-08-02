@@ -11,9 +11,10 @@ namespace Yogi {
         static void init(const std::string& dir_path);
         static void clear();
         static void add_texture(const Ref<Texture2D>& texture);
-        static void add_render_texture(const Ref<Pipeline>& pipeline, uint32_t index);
+        static void add_render_texture(const Ref<RenderTexture>& texture);
 
         static const Ref<Texture2D>& get_texture(const std::string& key);
+        static const Ref<RenderTexture>& get_render_texture(const std::string& key);
 
         static void each_texture(std::function<void(const Ref<Texture2D>&)> func);
         static void each_render_texture(std::function<void(const Ref<RenderTexture>&)> func);

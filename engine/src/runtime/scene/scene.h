@@ -3,7 +3,6 @@
 #include "runtime/scene/entity.h"
 #include "runtime/core/timestep.h"
 #include "runtime/events/event.h"
-#include "runtime/renderer/material.h"
 #include "runtime/renderer/frame_buffer.h"
 #include <entt/entity/registry.hpp>
 
@@ -82,10 +81,8 @@ namespace Yogi {
         void each_system(std::function<void(std::string, int32_t, int32_t)> func);
         void change_system_order(uint32_t old_index, uint32_t new_index);
 
-        void add_render_pass(const Ref<Material>& material, const std::vector<Ref<RenderTexture>>& attachments);
-        void set_render_pass(uint32_t index, const Ref<Material>& material, const std::vector<Ref<RenderTexture>>& attachments);
-        void set_frame_buffer(uint32_t index, const Ref<FrameBuffer>& frame_buffer);
-        const std::vector<std::pair<Ref<Material>, Ref<FrameBuffer>>>& get_render_passes() { return m_render_passes; }
+        void set_frame_buffer(const Ref<FrameBuffer>& frame_buffer) { m_frame_buffer = frame_buffer; }
+        const Ref<FrameBuffer>& get_frame_buffer() { return m_frame_buffer; }
 
         void on_update(Timestep ts);
         void on_event(Event& e);
@@ -95,7 +92,7 @@ namespace Yogi {
         std::vector<SystemUpdateFunc> m_system_update_funcs;
         std::vector<SystemEventFunc> m_system_event_funcs;
 
-        std::vector<std::pair<Ref<Material>, Ref<FrameBuffer>>> m_render_passes{{nullptr, nullptr}};
+        Ref<FrameBuffer> m_frame_buffer;
         
         template<typename T>
         constexpr auto add_on_update(std::string system_name) -> decltype(T::on_update, void())

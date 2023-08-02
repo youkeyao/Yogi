@@ -39,14 +39,6 @@ namespace Yogi {
         Transform transform = glm::mat4(1.0f);
     };
 
-    struct SpriteRendererComponent
-    {
-        Color color = glm::vec4(1.0f);
-        std::string texture = "";
-        glm::vec2 tex_min = { 0.0f, 0.0f };
-        glm::vec2 tex_max = { 1.0f, 1.0f };
-    };
-
     struct MeshRendererComponent
     {
         Ref<Mesh> mesh = MeshManager::get_mesh("quad");
@@ -56,10 +48,10 @@ namespace Yogi {
     struct CameraComponent
     {
         bool is_ortho = true;
-        bool is_primary = true;
         float fov = glm::radians(45.0f);
         float aspect_ratio = 1.0f;
         float zoom_level = 1.0f;
+        Ref<Texture> render_target = nullptr;
     };
 
 }

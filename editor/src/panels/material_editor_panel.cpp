@@ -12,10 +12,17 @@ namespace Yogi {
         float cursor_y = ImGui::GetCursorPosY();
 
         if (m_material) {
-            char buffer[256];
-            memset(buffer, 0, sizeof(buffer));
-            strcpy(buffer, m_material->get_name().c_str());
             ImGui::LabelText("", "%s", m_material->get_name().c_str());
+            if (ImGui::BeginCombo("pipeline", m_material->get_pipeline()->get_name().c_str())) {
+                PipelineManager::each_pipeline([&](const Ref<Pipeline>& each_pipeline){
+                    bool is_selected = m_material->get_pipeline() == each_pipeline;
+                    if (ImGui::Selectable(each_pipeline->get_name().c_str(), is_selected)) {
+                        m_material->set_pipeline(each_pipeline);
+                        MaterialManager::save_material(m_parent_path, m_material);
+                    }
+                });
+                ImGui::EndCombo();
+            }
             ImGui::Separator();
             PipelineLayout vertex_layout = m_material->get_pipeline()->get_vertex_layout();
             uint8_t* data = m_material->get_data();
@@ -32,13 +39,18 @@ namespace Yogi {
                             bool is_selected = texture == each_texture;
                             if (ImGui::Selectable(each_texture->get_name().c_str(), is_selected)) {
                                 m_material->set_texture(texture_index, each_texture);
-                                MaterialManager::remove_material(m_material);
+                                MaterialManager::save_material(m_parent_path, m_material);
+                            }
+                        });
+                        TextureManager::each_render_texture([&](const Ref<RenderTexture>& each_texture){
+                            bool is_selected = texture == each_texture;
+                            if (ImGui::Selectable(each_texture->get_name().c_str(), is_selected)) {
+                                m_material->set_texture(texture_index, each_texture);
                                 MaterialManager::save_material(m_parent_path, m_material);
                             }
                         });
                         if (ImGui::Selectable("none", texture == nullptr)) {
                             m_material->set_texture(texture_index, nullptr);
-                            MaterialManager::remove_material(m_material);
                             MaterialManager::save_material(m_parent_path, m_material);
                         }
                         ImGui::EndCombo();
@@ -46,7 +58,6 @@ namespace Yogi {
                 }
                 else if (element.type == ShaderDataType::Float4) {
                     if (ImGui::ColorEdit4(element.name.c_str(), (float*)(data + element.offset))) {
-                        MaterialManager::remove_material(m_material);
                         MaterialManager::save_material(m_parent_path, m_material);
                     }
                 }
@@ -61,7 +72,7 @@ namespace Yogi {
         if (ImGui::BeginDragDropTarget()) {
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("content_browser_item")) {
                 const char* path = (const char*)payload->Data;
-                m_material = MaterialManager::load_material(path);
+                m_material = MaterialManager::get_material(std::filesystem::path{path}.stem().string());
                 m_parent_path = std::filesystem::path{path}.parent_path().string();
             }
             ImGui::EndDragDropTarget();

@@ -19,7 +19,7 @@ namespace Yogi {
         // new content
         if (ImGui::BeginPopupContextWindow()) {
             if (ImGui::MenuItem("Create Material")) {
-                Ref<Material> material = CreateRef<Material>("new_material", PipelineManager::get_pipeline("Flat"));
+                Ref<Material> material = Material::create("new_material", PipelineManager::get_pipeline("Flat"));
                 while (std::filesystem::exists(m_current_directory.string() + "/" + material->get_name() + ".mat")) {
                     material->set_name("_" + material->get_name());
                 }

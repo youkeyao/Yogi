@@ -49,8 +49,11 @@ namespace Yogi {
         ~RenderTexture() = default;
 
         virtual void resize(uint32_t width, uint32_t height) = 0;
+        TextureFormat get_format() const { return m_format; }
 
         static Ref<RenderTexture> create(const std::string& name, uint32_t width, uint32_t height, TextureFormat format = TextureFormat::RGBA8);
+    protected:
+        TextureFormat m_format;
     };
 
 }

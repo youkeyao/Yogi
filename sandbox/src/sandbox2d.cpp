@@ -13,7 +13,6 @@ void Sandbox2D::on_attach()
     Yogi::Ref<Yogi::Material> mat1 = Yogi::MaterialManager::get_material("checkerboard");
 
     m_scene->add_system<Yogi::RenderSystem>();
-    m_scene->add_system<Yogi::CameraSystem>();
     checker = m_scene->create_entity();
     checker.add_component<Yogi::TransformComponent>().transform = glm::translate(glm::mat4(1.0f), {0, -0.3, 0});
     checker.add_component<Yogi::MeshRendererComponent>(quad, mat1);
@@ -39,15 +38,6 @@ void Sandbox2D::on_attach()
             e.add_component<Yogi::MeshRendererComponent>(quad, mat1);
         }
     }
-
-    auto m_frame_texture = Yogi::RenderTexture::create("frame_texture", 1, 1, Yogi::TextureFormat::ATTACHMENT);
-
-    m_scene->set_render_pass(0, nullptr, { m_frame_texture });
-
-    auto material = Yogi::CreateRef<Yogi::Material>("test", Yogi::PipelineManager::get_pipeline("Post"));
-    material->set_texture(0, m_frame_texture);
-
-    m_scene->add_render_pass(material, {});
 }
 
 void Sandbox2D::on_detach()

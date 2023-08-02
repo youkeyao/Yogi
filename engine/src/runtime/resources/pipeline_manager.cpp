@@ -16,7 +16,7 @@ namespace Yogi {
         s_pipelines.clear();
     }
 
-    void PipelineManager::add_material(const std::string& key, const Ref<Pipeline>& pipeline)
+    void PipelineManager::add_pipeline(const std::string& key, const Ref<Pipeline>& pipeline)
     {
         s_pipelines[key] = pipeline;
     }
@@ -27,6 +27,13 @@ namespace Yogi {
             return s_pipelines[name];
         else
             return s_pipelines["Flat"];
+    }
+
+    void PipelineManager::each_pipeline(std::function<void(const Ref<Pipeline>&)> func)
+    {
+        for (auto [key, pipeline] : s_pipelines) {
+            func(pipeline);
+        }
     }
 
 }

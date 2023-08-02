@@ -1,7 +1,6 @@
 #include "runtime/resources/material_manager.h"
 #include "runtime/resources/pipeline_manager.h"
 #include "runtime/resources/texture_manager.h"
-#include "runtime/utility/md5.h"
 
 namespace Yogi {
 
@@ -50,7 +49,7 @@ namespace Yogi {
         if (s_materials.find(key) != s_materials.end()) {
             return s_materials[key];
         }
-        return s_materials["undefined:277b765c80aebee40ae3e157ec7ab21c"];
+        return s_materials["undefined"];
     }
 
     void MaterialManager::each_material(std::function<void(const Ref<Material>&)> func)
@@ -70,8 +69,6 @@ namespace Yogi {
         std::string data = serialize_material(material);
         out << data;
         out.close();
-
-        add_material(material->get_name() + ":" + MD5(data).toStr(), material);
     }
 
     Ref<Material> MaterialManager::load_material(const std::string& path)
@@ -84,49 +81,31 @@ namespace Yogi {
             return nullptr;
         }
 
-        in.seekg(0, std::ios::end);
-        uint32_t size = in.tellg();
-        in.seekg(0, std::ios::beg);
-        std::string file_data;
-        file_data.resize(size);
-        in.read(file_data.data(), size);
-        in.close();
-
-        // if exists, return
-        std::string digest = MD5(file_data).toStr();
-        if (s_materials.find(name + ":" + digest) != s_materials.end()) {
-            return s_materials[name + ":" + digest];
-        }
-
         // load
-        std::stringstream ss(file_data);
         std::string pipeline_name;
         std::string data;
-        ss >> pipeline_name;
+        in >> pipeline_name;
         Ref<Pipeline> pipeline = PipelineManager::get_pipeline(pipeline_name);
-        Ref<Material> material = CreateRef<Material>(name, pipeline);
+        Ref<Material> material = Material::create(name, pipeline);
         int32_t textures_size;
-        ss >> textures_size;
+        in >> textures_size;
         char c;
         for (int32_t i = 0; i < textures_size; i ++) {
-            c = ss.get();
-            c = ss.peek();
+            c = in.get();
+            c = in.peek();
             if (c != ' ' && c != '\n') {
                 std::string texture_name;
-                ss >> texture_name;
+                in >> texture_name;
                 material->set_texture(i, TextureManager::get_texture(texture_name));
             }
         }
-        ss >> data;
+        in >> data;
+        in.close();
 
         memcpy(material->get_data(), data.data(), pipeline->get_vertex_layout().get_stride());
-        add_material(name + ":" + digest, material);
+        std::string test(material->get_data(), material->get_data() + pipeline->get_vertex_layout().get_stride());
+        add_material(name, material);
         return material;
-    }
-
-    std::string MaterialManager::get_key(const Ref<Material>& material)
-    {
-        return material->get_name() + ":" + MD5(serialize_material(material)).toStr();
     }
 
     std::string MaterialManager::serialize_material(const Ref<Material>& material)
@@ -150,7 +129,7 @@ namespace Yogi {
         ss << std::endl;
         std::string data(material->get_data(), material->get_data() + stride);
         ss << data;
-
+        
         return ss.str();
     }
 

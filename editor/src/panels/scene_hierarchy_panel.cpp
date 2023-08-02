@@ -287,6 +287,18 @@ namespace Yogi {
                             ImGui::EndCombo();
                         }
                     }
+                    else if (value.type_hash == typeid(Ref<Texture>).hash_code()) {
+                        Ref<Texture>& texture = *(Ref<Texture>*)((uint8_t*)component + value.offset);
+                        if (ImGui::BeginCombo(key.c_str(), texture ? (texture->get_name()).c_str() : "None")) {
+                            TextureManager::each_render_texture([&](const Ref<RenderTexture>& each_texture){
+                                bool is_selected = texture == each_texture;
+                                if (ImGui::Selectable(each_texture->get_name().c_str(), is_selected)) {
+                                    texture = each_texture;
+                                }
+                            });
+                            ImGui::EndCombo();
+                        }
+                    }
                 }
                 ImGui::TreePop();
             }

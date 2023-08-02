@@ -17,7 +17,6 @@
 #include "runtime/scene/components.h"
 
 #include "runtime/systems/render_system.h"
-#include "runtime/systems/camera_system.h"
 
 // ---renderer----------------------------------
 #include "runtime/renderer/renderer.h"

@@ -106,10 +106,10 @@ namespace Yogi {
     {
         YG_PROFILE_FUNCTION();
 
-        s_data->now_indices_base = &(s_data->mesh_indices_bases[pipeline]);
-        s_data->now_indices_cur = &(s_data->mesh_indices_curs[pipeline]);
-        if (pipeline && *s_data->now_indices_base != *s_data->now_indices_cur) {
+        if (pipeline && s_data->mesh_indices_bases[pipeline] != s_data->mesh_indices_curs[pipeline]) {
             set_pipeline(pipeline);
+            s_data->now_indices_base = &(s_data->mesh_indices_bases[pipeline]);
+            s_data->now_indices_cur = &(s_data->mesh_indices_curs[pipeline]);
             s_data->now_vertices_base = &(s_data->mesh_vertices_bases[pipeline]);
             s_data->now_vertices_cur = &(s_data->mesh_vertices_curs[pipeline]);
             s_data->now_texture_slot_index = &(s_data->mesh_texture_slot_indexs[pipeline]);
@@ -139,14 +139,12 @@ namespace Yogi {
         }
     }
 
-    void Renderer::each_pipeline(std::function<void(const Ref<Pipeline>&)> func)
+    void Renderer::flush()
     {
         YG_PROFILE_FUNCTION();
 
         for (auto& [pipeline, texture_slot_index] : s_data->mesh_texture_slot_indexs) {
-            if (pipeline && s_data->mesh_indices_bases[pipeline] != s_data->mesh_indices_curs[pipeline]) {
-                func(pipeline);
-            }
+            flush_pipeline(pipeline);
         }
     }
 
