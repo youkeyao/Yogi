@@ -86,6 +86,10 @@ set(SPIRV_CROSS_ENABLE_REFLECT OFF)
 set(SPIRV_CROSS_ENABLE_C_API OFF)
 set(SPIRV_CROSS_ENABLE_UTIL OFF)
 add_subdirectory( vendor/SPIRV-Cross )
+set(ASSIMP_INSTALL OFF)
+set(BUILD_SHARED_LIBS OFF)
+set(ASSIMP_BUILD_TESTS OFF)
+add_subdirectory( vendor/assimp )
 
 file(GLOB_RECURSE
     YG_ENGINE_SOURCES CONFIGURE_DEPENDS
@@ -103,6 +107,7 @@ target_link_libraries( engine
         spdlog
         stb_image
         spirv-cross-glsl
+        assimp
         ${yg_window}
         ${yg_renderer}
 )
@@ -120,5 +125,6 @@ target_include_directories( engine
         vendor/SPIRV-Cross
         vendor/spdlog/include
         vendor/stb_image
+        vendor/assimp/include
 )
 add_dependencies(engine Shaders)

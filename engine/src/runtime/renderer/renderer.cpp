@@ -205,18 +205,18 @@ namespace Yogi {
 
         uint32_t vertices_count = (vertices_cur - vertices_base) / vertex_stride;
 
-        for (auto& [pos, texcoord] : mesh->vertices) {
+        for (auto& vertex : mesh->vertices) {
             memcpy(vertices_cur, material->get_data(), vertex_stride);
             int32_t position_offset = material->get_position_offset();
             int32_t texcoord_offset = material->get_texcoord_offset();
             int32_t entity_offset = material->get_entity_offset();
             if (position_offset >= 0) {
-                glm::vec4 position{pos.x, pos.y, pos.z, 1.0f};
+                glm::vec4 position{vertex.position.x, vertex.position.y, vertex.position.z, 1.0f};
                 position = transform * position;
                 memcpy(vertices_cur + position_offset, &position, 12);
             }
             if (texcoord_offset >= 0) {
-                memcpy(vertices_cur + texcoord_offset, &texcoord, 8);
+                memcpy(vertices_cur + texcoord_offset, &vertex.texcoord, 8);
             }
             if (entity_offset >= 0) {
                 memcpy(vertices_cur + entity_offset, &entity_id, 4);

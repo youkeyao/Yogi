@@ -6,15 +6,22 @@ namespace Yogi {
 
     struct Mesh
     {
+        struct Vertex
+        {
+            glm::vec3 position;
+            glm::vec3 normal;
+            glm::vec2 texcoord;
+        };
+        
         std::string name;
-        std::vector<std::pair<glm::vec3, glm::vec2>> vertices;
+        std::vector<Vertex> vertices;
         std::vector<uint32_t> indices;
     };
 
     class MeshManager
     {
     public:
-        static void init();
+        static void init(const std::string& dir_path);
         static void load_mesh(const std::string& filepath);
         static void add_mesh(Mesh mesh);
         static const Ref<Mesh>& get_mesh(const std::string& name);

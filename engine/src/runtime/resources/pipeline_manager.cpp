@@ -6,9 +6,24 @@ namespace Yogi {
 
     void PipelineManager::init()
     {
-        s_pipelines["Flat"] = Pipeline::create("Flat");
-        s_pipelines["Post"] = Pipeline::create("Post");
-        s_pipelines["Entity"] = Pipeline::create("Entity");
+        std::map<std::string, std::vector<std::string>> pipelines;
+        if (std::filesystem::is_directory(YG_SHADER_DIR)) {
+            for (auto& directory_entry : std::filesystem::directory_iterator(YG_SHADER_DIR)) {
+                const auto& path = directory_entry.path();
+                std::string filename = path.stem().string();
+                std::string extension = path.extension().string().erase(0, 1);
+
+                if (directory_entry.is_directory()) {
+                    continue;
+                }
+                else {
+                    pipelines[filename].push_back(extension);
+                }
+            }
+        }
+        for (auto& [name, types] : pipelines) {
+            add_pipeline(name, Pipeline::create(name, types));
+        }
     }
 
     void PipelineManager::clear()

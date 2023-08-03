@@ -14,7 +14,13 @@ namespace Yogi {
         {
             TextureManager::init(dir);
             MaterialManager::init(dir);
-            MeshManager::init();
+            MeshManager::init(dir);
+        }
+        static void init_project(const std::string& dir)
+        {
+            shutdown();
+            init(YG_ASSET_DIR);
+            init(dir);
         }
         static void shutdown()
         {

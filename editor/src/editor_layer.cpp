@@ -31,7 +31,7 @@ namespace Yogi {
         m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
         m_content_browser_panel = CreateRef<ContentBrowserPanel>(YG_PROJECT_TEMPLATE);
         m_material_editor_panel = CreateRef<MaterialEditorPanel>();
-        AssetManager::init(YG_PROJECT_TEMPLATE);
+        AssetManager::init_project(YG_PROJECT_TEMPLATE);
         // open_scene(YG_PROJECT_TEMPLATE"/main.yg");
     }
 
@@ -305,7 +305,7 @@ namespace Yogi {
             m_scene->set_frame_buffer(m_frame_buffer);
             m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
             m_content_browser_panel = CreateRef<ContentBrowserPanel>(f);
-            AssetManager::init(f);
+            AssetManager::init_project(f);
             open_scene(f + "/main.yg");
         }
     }

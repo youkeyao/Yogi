@@ -16,6 +16,9 @@
 [submodule "engine/vendor/SDL"]
 	path = engine/vendor/SDL
 	url = https://github.com/libsdl-org/SDL.git
+[submodule "engine/vendor/assimp"]
+	path = engine/vendor/assimp
+	url = https://github.com/assimp/assimp.git
 [submodule "editor/vendor/imgui"]
 	path = editor/vendor/imgui
 	url = https://github.com/ocornut/imgui.git
