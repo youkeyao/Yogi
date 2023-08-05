@@ -27,7 +27,7 @@ namespace Yogi {
         if (!s_glfw_initialized) {
             int success = glfwInit();
             YG_CORE_ASSERT(success, "Could not initialize GLFW!");
-            #if YG_RENDERER_API == YG_RENDERER_VULKAN
+            #if YG_RENDERER_VULKAN
                 glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
             #endif
             glfwSetErrorCallback(glfw_error_callback);
@@ -160,7 +160,7 @@ namespace Yogi {
     bool WindowGLFW::vk_create_surface(void* instance, void* surface)
     {
         bool status = false;
-        #if YG_RENDERER_API == YG_RENDERER_VULKAN
+        #if YG_RENDERER_VULKAN
             status = glfwCreateWindowSurface((VkInstance)instance, m_window, nullptr, (VkSurfaceKHR*)surface) == VK_SUCCESS;
         #endif
         return status;

@@ -31,6 +31,7 @@ namespace Yogi {
             layer->on_detach();
         }
         AssetManager::shutdown();
+        PipelineManager::clear();
         Renderer::shutdown();
     }
 

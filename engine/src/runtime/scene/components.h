@@ -51,7 +51,24 @@ namespace Yogi {
         float fov = glm::radians(45.0f);
         float aspect_ratio = 1.0f;
         float zoom_level = 1.0f;
-        Ref<Texture> render_target = nullptr;
+        Ref<RenderTexture> render_target = nullptr;
+    };
+
+    struct DirectionalLightComponent
+    {
+        Color color = glm::vec4(1.0f);
+    };
+
+    struct SpotLightComponent
+    {
+        float cutoff = glm::cos(glm::radians(12.5f));
+        Color color = glm::vec4(1.0f);
+    };
+
+    struct PointLightComponent
+    {
+        float attenuation_parm = 1.0f;
+        Color color = glm::vec4(1.0f);
     };
 
 }

@@ -29,7 +29,7 @@ namespace Yogi {
             std::vector<std::pair<uint32_t, Ref<Texture>>> textures = m_material->get_textures();
             uint32_t texture_index = 0;
             for (auto& element : vertex_layout.get_elements()) {
-                if (element.name == "a_Position" || element.name == "a_TexCoord" || element.name == "a_EntityID") {
+                if (element.name == "a_Position" || element.name == "a_Normal" || element.name == "a_TexCoord" || element.name == "a_EntityID") {
                     continue;
                 }
                 else if (element.name.substr(0, 4) == "TEX_") {
@@ -54,6 +54,21 @@ namespace Yogi {
                             MaterialManager::save_material(m_parent_path, m_material);
                         }
                         ImGui::EndCombo();
+                    }
+                }
+                else if (element.type == ShaderDataType::Float) {
+                    if (ImGui::InputFloat(element.name.c_str(), (float*)(data + element.offset))) {
+                        MaterialManager::save_material(m_parent_path, m_material);
+                    }
+                }
+                else if (element.type == ShaderDataType::Float2) {
+                    if (ImGui::InputFloat2(element.name.c_str(), (float*)(data + element.offset))) {
+                        MaterialManager::save_material(m_parent_path, m_material);
+                    }
+                }
+                else if (element.type == ShaderDataType::Float3) {
+                    if (ImGui::InputFloat3(element.name.c_str(), (float*)(data + element.offset))) {
+                        MaterialManager::save_material(m_parent_path, m_material);
                     }
                 }
                 else if (element.type == ShaderDataType::Float4) {

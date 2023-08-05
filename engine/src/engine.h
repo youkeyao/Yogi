@@ -16,18 +16,19 @@
 #include "runtime/scene/entity.h"
 #include "runtime/scene/components.h"
 
-#include "runtime/systems/render_system.h"
-
 // ---renderer----------------------------------
 #include "runtime/renderer/renderer.h"
 #include "runtime/renderer/render_command.h"
-
 #include "runtime/renderer/buffer.h"
 #include "runtime/renderer/frame_buffer.h"
 #include "runtime/renderer/pipeline.h"
 #include "runtime/renderer/texture.h"
 #include "runtime/renderer/material.h"
 // ---------------------------------------------
+
+// --systems-----------------------------------
+#include "runtime/systems/render_system.h"
+// ----------------------------------------------
 
 // ---resources-------------------------------
 #include "runtime/resources/asset_manager.h"

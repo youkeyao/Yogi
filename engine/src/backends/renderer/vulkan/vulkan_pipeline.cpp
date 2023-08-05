@@ -105,7 +105,7 @@ namespace Yogi {
             else {
                 YG_CORE_ASSERT(false, "Invalid shader stage!");
             }
-            reflect_uniform_buffer(compiler, layout_bindings, shader_stage_info.stage, ubo_count);
+            reflect_uniform_buffer(compiler, layout_bindings, (VkShaderStageFlagBits)(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT), ubo_count);
             reflect_sampler(compiler, layout_bindings, shader_stage_info.stage, sampler_count);
 
             shader_stages.push_back(shader_stage_info);
@@ -395,13 +395,6 @@ namespace Yogi {
             ubo_layout_binding.pImmutableSamplers = nullptr;
 
             ubo_layout_bindings[set].push_back(ubo_layout_binding);
-
-            PipelineLayout uniform_layout;
-            for (int32_t i = 0; i < uniform_type.member_types.size(); i ++) {
-                const auto& member_type = compiler.get_type(uniform_type.member_types[i]);
-                uniform_layout.add_element({ spirv_type_to_shader_data_type(member_type), compiler.get_member_name(uniform_type.self, i) });
-            }
-            m_uniform_layouts[binding] = uniform_layout;
 
             ubo_count += array_count;
         }

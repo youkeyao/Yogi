@@ -1,6 +1,6 @@
 #pragma once
 
-#if YG_RENDERER_API == YG_RENDERER_OPENGL
+#if YG_RENDERER_OPENGL
     #include <backends/imgui_impl_opengl3.h>
     #include <backends/imgui_impl_opengl3.cpp>
     #include "backends/renderer/opengl/opengl_texture.h"
@@ -15,7 +15,7 @@
             ImVec2( tex_x, 0 ) \
         )
 
-    #if YG_WINDOW_API == YG_WINDOW_GLFW
+    #if YG_WINDOW_GLFW
         #include <backends/imgui_impl_glfw.h>
         #include <backends/imgui_impl_glfw.cpp>
         #define ImGui_Window_Init(window) ImGui_ImplGlfw_InitForOpenGL(static_cast<GLFWwindow*>(window), true)
@@ -29,7 +29,7 @@
                 ImGui::RenderPlatformWindowsDefault(); \
                 glfwMakeContextCurrent(backup_current_context); \
             }
-    #elif YG_WINDOW_API == YG_WINDOW_SDL
+    #elif YG_WINDOW_SDL
         #include <backends/imgui_impl_sdl2.h>
         #include <backends/imgui_impl_sdl2.cpp>
         #define ImGui_Window_Init(window) ImGui_ImplSDL2_InitForOpenGL(static_cast<SDL_Window*>(window), SDL_GL_GetCurrentContext())
@@ -45,7 +45,7 @@
                 SDL_GL_MakeCurrent(backup_current_window, backup_current_context); \
             }
     #endif
-#elif YG_RENDERER_API == YG_RENDERER_VULKAN
+#elif YG_RENDERER_VULKAN
     #include "runtime/core/application.h"
     #include "backends/renderer/vulkan/vulkan_context.h"
     #include <backends/imgui_impl_vulkan.h>
@@ -163,7 +163,7 @@
             ImVec2( tex_x, tex_y ) \
         )
 
-    #if YG_WINDOW_API == YG_WINDOW_GLFW
+    #if YG_WINDOW_GLFW
         #include <backends/imgui_impl_glfw.h>
         #include <backends/imgui_impl_glfw.cpp>
         #define ImGui_Window_Init(window) ImGui_ImplGlfw_InitForVulkan(static_cast<GLFWwindow*>(window), true)
@@ -175,7 +175,7 @@
                 ImGui::UpdatePlatformWindows(); \
                 ImGui::RenderPlatformWindowsDefault(); \
             }
-    #elif YG_WINDOW_API == YG_WINDOW_SDL
+    #elif YG_WINDOW_SDL
         #include <backends/imgui_impl_sdl2.h>
         #include <backends/imgui_impl_sdl2.cpp>
         #define ImGui_Window_Init(window) ImGui_ImplSDL2_InitForVulkan(static_cast<SDL_Window*>(window))

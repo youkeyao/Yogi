@@ -94,8 +94,8 @@ namespace Yogi {
                         Ref<Material>& material = *(Ref<Material>*)((uint8_t*)component + value.offset);
                         writer.String(material->get_name().c_str());
                     }
-                    else if (value.type_hash == typeid(Ref<Texture>).hash_code()) {
-                        Ref<Texture>& texture = *(Ref<Texture>*)((uint8_t*)component + value.offset);
+                    else if (value.type_hash == typeid(Ref<RenderTexture>).hash_code()) {
+                        Ref<RenderTexture>& texture = *(Ref<RenderTexture>*)((uint8_t*)component + value.offset);
                         writer.String(texture ? (texture->get_name()).c_str() : "");
                     }
                     else {
@@ -196,8 +196,8 @@ namespace Yogi {
                         Ref<Material>& material = *(Ref<Material>*)((uint8_t*)component + value.offset);
                         material = MaterialManager::get_material(component_fields_value[key.c_str()].GetString());
                     }
-                    else if (value.type_hash == typeid(Ref<Texture>).hash_code()) {
-                        Ref<Texture>& texture = *(Ref<Texture>*)((uint8_t*)component + value.offset);
+                    else if (value.type_hash == typeid(Ref<RenderTexture>).hash_code()) {
+                        Ref<RenderTexture>& texture = *(Ref<RenderTexture>*)((uint8_t*)component + value.offset);
                         std::string texture_name = component_fields_value[key.c_str()].GetString();
                         texture = texture_name == "" ? TextureManager::get_render_texture(texture_name) : nullptr;
                     }

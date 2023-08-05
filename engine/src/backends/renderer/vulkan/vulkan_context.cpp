@@ -903,6 +903,7 @@ namespace Yogi {
     void VulkanContext::wait_render_command()
     {
         vkWaitForFences(m_device, 1, &m_render_command_fences[m_current_frame], VK_TRUE, UINT64_MAX);
+        // vkDeviceWaitIdle(m_device);
     }
 
     void VulkanContext::begin_frame()

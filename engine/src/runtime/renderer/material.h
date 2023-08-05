@@ -19,6 +19,7 @@ namespace Yogi {
 
         const Ref<Pipeline>& get_pipeline() const { return m_pipeline; }
         int32_t get_position_offset() const { return m_position_offset; }
+        int32_t get_normal_offset() const { return m_normal_offset; }
         int32_t get_texcoord_offset() const { return m_texcoord_offset; }
         int32_t get_entity_offset() const { return m_entity_offset; }
 
@@ -29,6 +30,7 @@ namespace Yogi {
         std::string m_name;
         Ref<Pipeline> m_pipeline;
         int32_t m_position_offset = -1;
+        int32_t m_normal_offset = -1;
         int32_t m_texcoord_offset = -1;
         int32_t m_entity_offset = -1;
         std::vector<std::pair<uint32_t, Ref<Texture>>> m_textures;

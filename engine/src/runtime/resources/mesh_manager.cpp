@@ -9,7 +9,7 @@ namespace Yogi {
     {
         Mesh yg_mesh;
         yg_mesh.name = mesh->mName.C_Str();
-        
+
         for (uint32_t i = 0; i < mesh->mNumVertices; i ++) {
             Mesh::Vertex vertex;
             vertex.position = glm::vec3{mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z};
@@ -57,11 +57,15 @@ namespace Yogi {
             }
         }
     }
+    void MeshManager::clear()
+    {
+        s_meshes.clear();
+    }
 
     void MeshManager::load_mesh(const std::string& filepath)
     {
         Assimp::Importer importer;
-        const aiScene* scene = importer.ReadFile(filepath, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_CalcTangentSpace | aiProcess_FlipUVs);
+        const aiScene* scene = importer.ReadFile(filepath, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_CalcTangentSpace);
         // check for errors
         if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) { // if is Not Zero 
             YG_CORE_ERROR("ERROR::ASSIMP:: {0}", importer.GetErrorString());

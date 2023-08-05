@@ -15,6 +15,9 @@ namespace Yogi {
             if (element.name == "a_Position") {
                 m_position_offset = element.offset;
             }
+            else if (element.name == "a_Normal") {
+                m_normal_offset = element.offset;
+            }
             else if (element.name == "a_TexCoord") {
                 m_texcoord_offset = element.offset;
             }

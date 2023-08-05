@@ -30,6 +30,7 @@ namespace Yogi {
             }
         }
         Renderer::set_projection_view_matrix(m_camera_projection_view_matrix);
+        Renderer::set_view_pos(glm::vec3{(glm::mat4)m_transform_component.transform * glm::vec4(0, 0, 0, 1)});
     }
 
     void EditorCamera::recalculate_projection()

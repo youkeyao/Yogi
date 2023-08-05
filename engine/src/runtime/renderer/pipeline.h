@@ -119,14 +119,12 @@ namespace Yogi {
         const std::string& get_name() const { return m_name; }
         
         const PipelineLayout& get_vertex_layout() const { return m_vertex_layout; }
-        const std::map<uint32_t, PipelineLayout>& get_uniform_layout() const { return m_uniform_layouts; }
         const PipelineLayout& get_output_layout() const { return m_output_layout; }
 
         static Ref<Pipeline> create(const std::string& name, const std::vector<std::string>& types = { "vert", "frag" });
     protected:
         PipelineLayout m_vertex_layout;
         PipelineLayout m_output_layout;
-        std::map<uint32_t, PipelineLayout> m_uniform_layouts;
         std::string m_name;
     };
 

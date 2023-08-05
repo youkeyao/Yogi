@@ -26,12 +26,12 @@ namespace Yogi {
         m_entity_frame_buffer = FrameBuffer::create(1, 1, { m_entity_id_texture });
         m_entity_id_mat = Material::create("entity_id", PipelineManager::get_pipeline("Entity"));
 
+        AssetManager::init_project(YG_PROJECT_TEMPLATE);
         m_scene = CreateRef<Scene>();
         m_scene->set_frame_buffer(m_frame_buffer);
         m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
         m_content_browser_panel = CreateRef<ContentBrowserPanel>(YG_PROJECT_TEMPLATE);
         m_material_editor_panel = CreateRef<MaterialEditorPanel>();
-        AssetManager::init_project(YG_PROJECT_TEMPLATE);
         // open_scene(YG_PROJECT_TEMPLATE"/main.yg");
     }
 
@@ -60,6 +60,16 @@ namespace Yogi {
             RenderCommand::set_clear_color({ 0.1f, 0.1f, 0.1f, 1.0f });
             m_frame_buffer->bind();
             RenderCommand::clear();
+            Renderer::reset_lights();
+            m_scene->view_components<TransformComponent, DirectionalLightComponent>([&](Entity entity, TransformComponent& transform, DirectionalLightComponent& light){
+                Renderer::set_directional_light(light.color, glm::vec3{((glm::mat4)transform.transform * glm::vec4(0, 0, 1, 0))});
+            });
+            m_scene->view_components<TransformComponent, SpotLightComponent>([&](Entity entity, TransformComponent& transform, SpotLightComponent& light){
+                Renderer::add_spot_light({light.color, glm::vec3{(glm::mat4)transform.transform * glm::vec4(0, 0, 0, 1)}, light.cutoff});
+            });
+            m_scene->view_components<TransformComponent, PointLightComponent>([&](Entity entity, TransformComponent& transform, PointLightComponent& light){
+                Renderer::add_point_light({glm::vec3{(glm::mat4)transform.transform * glm::vec4(0, 0, 0, 1)}, light.attenuation_parm, light.color});
+            });
             m_scene->view_components<TransformComponent, MeshRendererComponent>([&](Entity entity, TransformComponent& transform, MeshRendererComponent& mesh_renderer){
                 Renderer::draw_mesh(mesh_renderer.mesh, mesh_renderer.material, transform.transform, entity);
             });
@@ -212,7 +222,6 @@ namespace Yogi {
         ImGui::SetCursorPosX((ImGui::GetWindowContentRegionMax().x * 0.5f) - (size * 0.5f));
         if (ImGui::Button("##playbutton", ImVec2(size, size))) {
             if (m_scene_state == SceneState::Edit) {
-                Renderer::set_projection_view_matrix(glm::mat4(0.0f));
                 WindowResizeEvent e((uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y, nullptr);
                 m_scene->on_event(e);
                 m_scene_state = SceneState::Play;
@@ -301,11 +310,11 @@ namespace Yogi {
     {
         auto f = pfd::select_folder("Open project").result();
         if (!f.empty()) {
+            AssetManager::init_project(f);
             m_scene = CreateRef<Scene>();
             m_scene->set_frame_buffer(m_frame_buffer);
             m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
             m_content_browser_panel = CreateRef<ContentBrowserPanel>(f);
-            AssetManager::init_project(f);
             open_scene(f + "/main.yg");
         }
     }

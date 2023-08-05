@@ -22,6 +22,8 @@ namespace Yogi {
     {
     public:
         static void init(const std::string& dir_path);
+        static void clear();
+        
         static void load_mesh(const std::string& filepath);
         static void add_mesh(Mesh mesh);
         static const Ref<Mesh>& get_mesh(const std::string& name);

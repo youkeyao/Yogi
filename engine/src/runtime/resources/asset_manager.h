@@ -16,17 +16,12 @@ namespace Yogi {
             MaterialManager::init(dir);
             MeshManager::init(dir);
         }
-        static void init_project(const std::string& dir)
-        {
-            shutdown();
-            init(YG_ASSET_DIR);
-            init(dir);
-        }
+        static void init_project(const std::string& dir);
         static void shutdown()
         {
             TextureManager::clear();
             MaterialManager::clear();
-            PipelineManager::clear();
+            MeshManager::clear();
         }
     };
 

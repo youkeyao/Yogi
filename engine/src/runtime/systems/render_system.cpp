@@ -8,15 +8,6 @@
 
 namespace Yogi {
 
-    static glm::mat4 last_camera_transform = glm::mat4(1.0f);
-    static glm::mat4 last_camera_transform_inverse = glm::mat4(1.0f);
-    static bool last_camera_ortho = false;
-    static float last_camera_fov = 1.0f;
-    static float last_camera_aspect_ratio = 1.0f;
-    static float last_camera_zoom_level = 1.0f;
-    static glm::mat4 last_camera_projection = glm::mat4(1.0f);
-    static glm::mat4 last_camera_projection_view = glm::mat4(1.0f);
-
     void RenderSystem::on_update(Timestep ts, Scene* scene)
     {
         Renderer::reset_stats();
@@ -24,34 +15,32 @@ namespace Yogi {
         RenderCommand::set_clear_color({ 0.1f, 0.1f, 0.1f, 1.0f });
 
         scene->view_components<TransformComponent, CameraComponent>([&](Entity entity, TransformComponent& transform, CameraComponent& camera){
-            if ((glm::mat4)transform.transform != last_camera_transform) {
-                last_camera_transform = transform.transform;
-                last_camera_transform_inverse = glm::inverse(last_camera_transform);
-                last_camera_projection_view = last_camera_projection * last_camera_transform_inverse;
-            }
-            if (camera.is_ortho != last_camera_ortho || camera.fov != last_camera_fov ||
-                camera.aspect_ratio != last_camera_aspect_ratio || camera.zoom_level != last_camera_zoom_level
-            ) {
-                camera.zoom_level = std::max(camera.zoom_level, 0.25f);
-                last_camera_ortho = camera.is_ortho;
-                last_camera_fov = camera.fov;
-                last_camera_aspect_ratio = camera.aspect_ratio;
-                last_camera_zoom_level = camera.zoom_level;
-                if (camera.is_ortho)
-                    last_camera_projection = glm::ortho(-camera.aspect_ratio * camera.zoom_level, camera.aspect_ratio * camera.zoom_level, -camera.zoom_level, camera.zoom_level, -1.0f, 1.0f);
-                else
-                    last_camera_projection = glm::perspective(camera.fov, camera.aspect_ratio, camera.zoom_level, 100.0f);
-                last_camera_projection_view = last_camera_projection * last_camera_transform_inverse;
-            }
-            Renderer::set_projection_view_matrix(last_camera_projection_view);
+            camera.zoom_level = std::max(camera.zoom_level, 0.25f);
+            Renderer::set_view_pos(glm::vec3{(glm::mat4)transform.transform * glm::vec4(0, 0, 0, 1)});
+            if (camera.is_ortho)
+                Renderer::set_projection_view_matrix(glm::ortho(-camera.aspect_ratio * camera.zoom_level, camera.aspect_ratio * camera.zoom_level, -camera.zoom_level, camera.zoom_level, -1.0f, 1.0f) * glm::inverse((glm::mat4)transform.transform));
+            else
+                Renderer::set_projection_view_matrix(glm::perspective(camera.fov, camera.aspect_ratio, camera.zoom_level, 100.0f) * glm::inverse((glm::mat4)transform.transform));
 
             auto frame_buffer = scene->get_frame_buffer();
             if (frame_buffer) frame_buffer->bind();
             RenderCommand::clear();
+
+            Renderer::reset_lights();
+            scene->view_components<TransformComponent, DirectionalLightComponent>([&](Entity entity, TransformComponent& transform, DirectionalLightComponent& light){
+                Renderer::set_directional_light(light.color, glm::vec3{((glm::mat4)transform.transform * glm::vec4(0, 0, 1, 0))});
+            });
+            scene->view_components<TransformComponent, SpotLightComponent>([&](Entity entity, TransformComponent& transform, SpotLightComponent& light){
+                Renderer::add_spot_light({light.color, glm::vec3{(glm::mat4)transform.transform * glm::vec4(0, 0, 0, 1)}, light.cutoff});
+            });
+            scene->view_components<TransformComponent, PointLightComponent>([&](Entity entity, TransformComponent& transform, PointLightComponent& light){
+                Renderer::add_point_light({glm::vec3{(glm::mat4)transform.transform * glm::vec4(0, 0, 0, 1)}, light.attenuation_parm, light.color});
+            });
             scene->view_components<TransformComponent, MeshRendererComponent>([&](Entity entity, TransformComponent& transform, MeshRendererComponent& mesh_renderer){
                 Renderer::draw_mesh(mesh_renderer.mesh, mesh_renderer.material, transform.transform, entity);
             });
             Renderer::flush();
+
             if (frame_buffer) frame_buffer->unbind();
         });
     }

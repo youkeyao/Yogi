@@ -1,6 +1,6 @@
 #pragma once
 
-#if YG_RENDERER_API == YG_RENDERER_VULKAN
+#if YG_RENDERER_VULKAN
     #include <vulkan/vulkan.h>
 #endif
 #include <GLFW/glfw3.h>

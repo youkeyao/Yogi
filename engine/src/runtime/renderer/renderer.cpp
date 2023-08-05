@@ -36,11 +36,7 @@ namespace Yogi {
         std::map<Ref<Pipeline>, uint32_t> mesh_texture_slot_indexs;
         std::map<Ref<Pipeline>, std::array<Ref<Texture>, max_texture_slots>> mesh_texture_slots;
 
-        struct SceneData
-        {
-            glm::mat4 projection_view_matrix = glm::mat4(1.0f);
-        };
-        SceneData scene_data;
+        Renderer::SceneData scene_data;
 
         Renderer::Statistics statistics;
     };
@@ -57,7 +53,7 @@ namespace Yogi {
         s_data->mesh_vertex_buffer->bind();
         s_data->mesh_index_buffer = IndexBuffer::create(nullptr, RendererData::max_indices, false);
         s_data->mesh_index_buffer->bind();
-        s_data->scene_uniform_buffer = UniformBuffer::create(sizeof(RendererData::SceneData));
+        s_data->scene_uniform_buffer = UniformBuffer::create(sizeof(Renderer::SceneData));
     }
 
     void Renderer::shutdown()
@@ -76,20 +72,53 @@ namespace Yogi {
 
     void Renderer::set_pipeline(const Ref<Pipeline>& pipeline)
     {
-        pipeline->bind();
+        s_data->scene_uniform_buffer->set_data(&s_data->scene_data, sizeof(Renderer::SceneData));
         if (pipeline != s_data->render_pipeline) {
+            pipeline->bind();
             s_data->render_pipeline = pipeline;
             s_data->scene_uniform_buffer->bind(0);
             s_data->is_rebind_texture = true;
         }
+
+        s_data->now_pipeline = pipeline;
+        s_data->now_indices_base = &(s_data->mesh_indices_bases[pipeline]);
+        s_data->now_indices_cur = &(s_data->mesh_indices_curs[pipeline]);
+        s_data->now_vertices_base = &(s_data->mesh_vertices_bases[pipeline]);
+        s_data->now_vertices_cur = &(s_data->mesh_vertices_curs[pipeline]);
+        s_data->now_texture_slot_index = &(s_data->mesh_texture_slot_indexs[pipeline]);
+        s_data->now_texture_slots = &(s_data->mesh_texture_slots[pipeline]);
     }
 
     void Renderer::set_projection_view_matrix(glm::mat4 projection_view_matrix)
     {
-        if (projection_view_matrix != s_data->scene_data.projection_view_matrix) {
-            s_data->scene_data.projection_view_matrix = projection_view_matrix;
-            s_data->scene_uniform_buffer->set_data(&s_data->scene_data, sizeof(RendererData::SceneData));
-        }
+        s_data->scene_data.projection_view_matrix = projection_view_matrix;
+    }
+    void Renderer::set_view_pos(glm::vec3 view_pos)
+    {
+        s_data->scene_data.view_pos = view_pos;
+    }
+    void Renderer::reset_lights()
+    {
+        s_data->scene_data.direction_light_num = 0;
+        s_data->scene_data.spot_light_num = 0;
+        s_data->scene_data.point_light_num = 0;
+    }
+    void Renderer::set_directional_light(glm::vec4 color, glm::vec3 direction)
+    {
+        YG_CORE_ASSERT(s_data->scene_data.direction_light_num < 1, "Too many lights!");
+        s_data->scene_data.directional_light_color = color;
+        s_data->scene_data.directional_light_direction = direction;
+        s_data->scene_data.direction_light_num ++;
+    }
+    void Renderer::add_spot_light(SceneData::SpotLight light)
+    {
+        YG_CORE_ASSERT(s_data->scene_data.spot_light_num < 4, "Too many lights!");
+        s_data->scene_data.spot_lights[s_data->scene_data.spot_light_num++] = light;
+    }
+    void Renderer::add_point_light(SceneData::PointLight light)
+    {
+        YG_CORE_ASSERT(s_data->scene_data.point_light_num < 4, "Too many lights!");
+        s_data->scene_data.point_lights[s_data->scene_data.point_light_num++] = light;
     }
 
     void Renderer::reset_stats()
@@ -108,12 +137,6 @@ namespace Yogi {
 
         if (pipeline && s_data->mesh_indices_bases[pipeline] != s_data->mesh_indices_curs[pipeline]) {
             set_pipeline(pipeline);
-            s_data->now_indices_base = &(s_data->mesh_indices_bases[pipeline]);
-            s_data->now_indices_cur = &(s_data->mesh_indices_curs[pipeline]);
-            s_data->now_vertices_base = &(s_data->mesh_vertices_bases[pipeline]);
-            s_data->now_vertices_cur = &(s_data->mesh_vertices_curs[pipeline]);
-            s_data->now_texture_slot_index = &(s_data->mesh_texture_slot_indexs[pipeline]);
-            s_data->now_texture_slots = &(s_data->mesh_texture_slots[pipeline]);
 
             if (s_data->is_rebind_texture) {
                 for (int32_t i = 0; i < *s_data->now_texture_slot_index; i ++) {
@@ -208,12 +231,18 @@ namespace Yogi {
         for (auto& vertex : mesh->vertices) {
             memcpy(vertices_cur, material->get_data(), vertex_stride);
             int32_t position_offset = material->get_position_offset();
+            int32_t normal_offset = material->get_normal_offset();
             int32_t texcoord_offset = material->get_texcoord_offset();
             int32_t entity_offset = material->get_entity_offset();
             if (position_offset >= 0) {
                 glm::vec4 position{vertex.position.x, vertex.position.y, vertex.position.z, 1.0f};
                 position = transform * position;
                 memcpy(vertices_cur + position_offset, &position, 12);
+            }
+            if (normal_offset >= 0) {
+                glm::vec4 normal{vertex.normal.x, vertex.normal.y, vertex.normal.z, 0.0f};
+                normal = transform * normal;
+                memcpy(vertices_cur + normal_offset, &normal, 12);
             }
             if (texcoord_offset >= 0) {
                 memcpy(vertices_cur + texcoord_offset, &vertex.texcoord, 8);
