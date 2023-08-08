@@ -39,12 +39,19 @@ namespace Yogi {
     {
         delete m_data;
         m_textures.clear();
+        m_position_offset = -1;
+        m_normal_offset = -1;
+        m_texcoord_offset = -1;
+        m_entity_offset = -1;
         m_pipeline = pipeline;
         PipelineLayout vertex_layout = m_pipeline->get_vertex_layout();
         m_data = new uint8_t[vertex_layout.get_stride()];
         for (auto& element : vertex_layout.get_elements()) {
             if (element.name == "a_Position") {
                 m_position_offset = element.offset;
+            }
+            else if (element.name == "a_Normal") {
+                m_normal_offset = element.offset;
             }
             else if (element.name == "a_TexCoord") {
                 m_texcoord_offset = element.offset;

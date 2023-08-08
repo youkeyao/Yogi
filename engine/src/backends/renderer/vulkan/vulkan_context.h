@@ -40,8 +40,6 @@ namespace Yogi
         {
             if (pipeline != m_pipeline) {
                 m_pipeline = (VulkanPipeline*)pipeline;
-                if (!m_current_frame_buffer)
-                    create_frame_buffers();
             }
         }
         void set_window_resized() { m_window_resized = true; }
@@ -101,7 +99,6 @@ namespace Yogi
 
         bool m_has_depth_attachment = true;
         std::vector<Ref<VulkanFrameBuffer>> m_swap_chain_frame_buffers;
-        std::vector<Ref<RenderTexture>> m_attachments;
         VkCommandPool m_command_pool;
         std::vector<VkCommandBuffer> m_command_buffers;
 

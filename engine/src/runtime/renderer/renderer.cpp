@@ -2,6 +2,7 @@
 #include "runtime/renderer/render_command.h"
 #include "runtime/renderer/buffer.h"
 #include "runtime/core/application.h"
+#include <glm/gtc/matrix_transform.hpp>
 
 namespace Yogi {
 
@@ -17,15 +18,12 @@ namespace Yogi {
         Ref<IndexBuffer> mesh_index_buffer;
         Ref<UniformBuffer> scene_uniform_buffer;
         Ref<Pipeline> render_pipeline;
-        bool is_rebind_texture = false;
 
         Ref<Pipeline> now_pipeline;
         uint8_t** now_vertices_base;
         uint8_t** now_vertices_cur;
         uint32_t** now_indices_base;
         uint32_t** now_indices_cur;
-        uint32_t* now_texture_slot_index;
-        std::array<Ref<Texture>, max_texture_slots>* now_texture_slots;
 
         std::map<Ref<Pipeline>, uint8_t*> mesh_vertices_bases;
         std::map<Ref<Pipeline>, uint8_t*> mesh_vertices_curs;
@@ -33,8 +31,9 @@ namespace Yogi {
         std::map<Ref<Pipeline>, uint32_t*> mesh_indices_bases;
         std::map<Ref<Pipeline>, uint32_t*> mesh_indices_curs;
 
-        std::map<Ref<Pipeline>, uint32_t> mesh_texture_slot_indexs;
-        std::map<Ref<Pipeline>, std::array<Ref<Texture>, max_texture_slots>> mesh_texture_slots;
+        // texture_slots[0] is sky box, left, right, top, bottom, front, back
+        uint32_t texture_slot_index = 1;
+        std::array<Ref<Texture>, max_texture_slots> texture_slots;
 
         Renderer::SceneData scene_data;
 
@@ -54,6 +53,7 @@ namespace Yogi {
         s_data->mesh_index_buffer = IndexBuffer::create(nullptr, RendererData::max_indices, false);
         s_data->mesh_index_buffer->bind();
         s_data->scene_uniform_buffer = UniformBuffer::create(sizeof(Renderer::SceneData));
+        s_data->texture_slots[0] = TextureManager::get_texture("black:d2a70550489de356a2cd6bfc40711204");
     }
 
     void Renderer::shutdown()
@@ -77,7 +77,6 @@ namespace Yogi {
             pipeline->bind();
             s_data->render_pipeline = pipeline;
             s_data->scene_uniform_buffer->bind(0);
-            s_data->is_rebind_texture = true;
         }
 
         s_data->now_pipeline = pipeline;
@@ -85,8 +84,6 @@ namespace Yogi {
         s_data->now_indices_cur = &(s_data->mesh_indices_curs[pipeline]);
         s_data->now_vertices_base = &(s_data->mesh_vertices_bases[pipeline]);
         s_data->now_vertices_cur = &(s_data->mesh_vertices_curs[pipeline]);
-        s_data->now_texture_slot_index = &(s_data->mesh_texture_slot_indexs[pipeline]);
-        s_data->now_texture_slots = &(s_data->mesh_texture_slots[pipeline]);
     }
 
     void Renderer::set_projection_view_matrix(glm::mat4 projection_view_matrix)
@@ -96,6 +93,15 @@ namespace Yogi {
     void Renderer::set_view_pos(glm::vec3 view_pos)
     {
         s_data->scene_data.view_pos = view_pos;
+    }
+    void Renderer::set_sky_box(const Ref<Texture>& texture)
+    {
+        if (texture) {
+            s_data->texture_slots[0] = texture;
+        }
+        else {
+            s_data->texture_slots[0] = TextureManager::get_texture("black:d2a70550489de356a2cd6bfc40711204");
+        }
     }
     void Renderer::reset_lights()
     {
@@ -138,12 +144,9 @@ namespace Yogi {
         if (pipeline && s_data->mesh_indices_bases[pipeline] != s_data->mesh_indices_curs[pipeline]) {
             set_pipeline(pipeline);
 
-            if (s_data->is_rebind_texture) {
-                for (int32_t i = 0; i < *s_data->now_texture_slot_index; i ++) {
-                    auto& texture = (*s_data->now_texture_slots)[i];
-                    texture->bind(1, i);
-                }
-                s_data->is_rebind_texture = false;
+            for (int32_t i = 0; i < s_data->texture_slot_index; i ++) {
+                auto& texture = s_data->texture_slots[i];
+                if (texture) texture->bind(1, i);
             }
 
             uint32_t vertices_size = (uint32_t)(*(s_data->now_vertices_cur) - *(s_data->now_vertices_base));
@@ -166,7 +169,7 @@ namespace Yogi {
     {
         YG_PROFILE_FUNCTION();
 
-        for (auto& [pipeline, texture_slot_index] : s_data->mesh_texture_slot_indexs) {
+        for (auto& [pipeline, vertices] : s_data->mesh_vertices_bases) {
             flush_pipeline(pipeline);
         }
     }
@@ -179,48 +182,44 @@ namespace Yogi {
             if (s_data->mesh_vertices_bases.find(pipeline) == s_data->mesh_vertices_bases.end()) {
                 s_data->mesh_vertices_curs[pipeline] = s_data->mesh_vertices_bases[pipeline] = new uint8_t[RendererData::max_vertices_size];
                 s_data->mesh_indices_curs[pipeline] = s_data->mesh_indices_bases[pipeline] = new uint32_t[RendererData::max_indices];
-                s_data->mesh_texture_slot_indexs[pipeline] = 0;
             }
             s_data->now_pipeline = pipeline;
             s_data->now_vertices_base = &(s_data->mesh_vertices_bases[pipeline]);
             s_data->now_vertices_cur = &(s_data->mesh_vertices_curs[pipeline]);
             s_data->now_indices_base = &(s_data->mesh_indices_bases[pipeline]);
             s_data->now_indices_cur = &(s_data->mesh_indices_curs[pipeline]);
-            s_data->now_texture_slot_index = &(s_data->mesh_texture_slot_indexs[pipeline]);
-            s_data->now_texture_slots = &(s_data->mesh_texture_slots[pipeline]);
         }
 
         auto& vertices_cur = *s_data->now_vertices_cur;
         auto& indices_cur = *s_data->now_indices_cur;
         auto& vertices_base = *s_data->now_vertices_base;
         auto& indices_base = *s_data->now_indices_base;
-        auto& texture_slot_index = *s_data->now_texture_slot_index;
-        auto& texture_slots = *s_data->now_texture_slots;
 
         uint32_t vertex_stride = pipeline->get_vertex_layout().get_stride();
 
+        if (s_data->texture_slot_index + textures.size() >= RendererData::max_texture_slots) {
+            flush();
+            s_data->texture_slot_index = 1;
+        }
         if (vertices_cur - vertices_base + vertex_stride * mesh->vertices.size() >= RendererData::max_vertices_size ||
-            indices_cur - indices_base + mesh->indices.size() >= RendererData::max_indices ||
-            texture_slot_index + textures.size() >= RendererData::max_texture_slots
+            indices_cur - indices_base + mesh->indices.size() >= RendererData::max_indices
         ) {
             flush_pipeline(pipeline);
-            texture_slot_index = 0;
         }
 
         for (auto& [texture_offset, texture] : textures) {
             int32_t texture_index = -1;
             if (texture) {
-                for (uint32_t i = 0; i < texture_slot_index; i ++) {
-                    if (texture_slots[i] == texture) {
+                for (uint32_t i = 0; i < s_data->texture_slot_index; i ++) {
+                    if (s_data->texture_slots[i] == texture) {
                         texture_index = i;
                         break;
                     }
                 }
                 if (texture_index == -1) {
-                    texture_index = texture_slot_index;
-                    texture_slots[texture_index] = texture;
-                    texture_slot_index ++;
-                    s_data->is_rebind_texture = true;
+                    texture_index = s_data->texture_slot_index;
+                    s_data->texture_slots[texture_index] = texture;
+                    s_data->texture_slot_index ++;
                 }
             }
             memcpy(material->get_data() + texture_offset, &texture_index, 4);
@@ -256,6 +255,11 @@ namespace Yogi {
             *indices_cur = vertices_count + index;
             indices_cur ++;
         }
+    }
+
+    void Renderer::draw_skybox(const glm::mat4& camera_transform)
+    {
+        draw_mesh(MeshManager::get_mesh("skybox"), MaterialManager::get_material("skybox"), glm::translate(glm::mat4(1.0f), glm::vec3(camera_transform * glm::vec4(0, 0, 0, 1))), 0);
     }
 
 }

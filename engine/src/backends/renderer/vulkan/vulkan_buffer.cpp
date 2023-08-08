@@ -38,6 +38,7 @@ namespace Yogi {
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
 
         vkDeviceWaitIdle(context->get_device());
+        vkUnmapMemory(context->get_device(), m_buffer_memory);
         vkDestroyBuffer(context->get_device(), m_buffer, nullptr);
         vkFreeMemory(context->get_device(), m_buffer_memory, nullptr);
     }
@@ -79,6 +80,7 @@ namespace Yogi {
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
 
         vkDeviceWaitIdle(context->get_device());
+        vkUnmapMemory(context->get_device(), m_buffer_memory);
         vkDestroyBuffer(context->get_device(), m_buffer, nullptr);
         vkFreeMemory(context->get_device(), m_buffer_memory, nullptr);
     }
@@ -116,6 +118,7 @@ namespace Yogi {
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
 
         vkDeviceWaitIdle(context->get_device());
+        vkUnmapMemory(context->get_device(), m_buffer_memory);
         vkDestroyBuffer(context->get_device(), m_buffer, nullptr);
         vkFreeMemory(context->get_device(), m_buffer_memory, nullptr);
     }

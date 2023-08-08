@@ -7,6 +7,7 @@ namespace Yogi {
     void SystemManager::init()
     {
         register_system<RenderSystem>();
+        register_system<LightSystem>();
     }
 
     template <typename Type>

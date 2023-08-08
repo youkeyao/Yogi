@@ -60,7 +60,7 @@ namespace Yogi {
         if (s_textures.find(key) != s_textures.end()) {
             return s_textures[key];
         }
-        return s_textures["checkerboard:9dc354f091dee664ebe9efdc88a98da8"];
+        return s_textures["black:d2a70550489de356a2cd6bfc40711204"];
     }
     const Ref<RenderTexture>& TextureManager::get_render_texture(const std::string& key)
     {

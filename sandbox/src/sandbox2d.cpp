@@ -10,9 +10,10 @@ void Sandbox2D::on_attach()
 
     m_scene = Yogi::CreateRef<Yogi::Scene>();
     Yogi::Ref<Yogi::Mesh> quad = Yogi::MeshManager::get_mesh("quad");
-    Yogi::Ref<Yogi::Material> mat1 = Yogi::MaterialManager::get_material("checkerboard");
+    Yogi::Ref<Yogi::Material> mat1 = Yogi::MaterialManager::get_material("default");
 
     m_scene->add_system<Yogi::RenderSystem>();
+    m_scene->add_system<Yogi::LightSystem>();
     checker = m_scene->create_entity();
     checker.add_component<Yogi::TransformComponent>().transform = glm::translate(glm::mat4(1.0f), {0, -0.3, 0});
     checker.add_component<Yogi::MeshRendererComponent>(quad, mat1);
@@ -22,7 +23,7 @@ void Sandbox2D::on_attach()
     e.add_component<Yogi::MeshRendererComponent>(quad, mat1);
 
     e = m_scene->create_entity();
-    e.add_component<Yogi::TransformComponent>().transform = glm::inverse(glm::lookAt(glm::vec3{2, 2, 2}, glm::vec3{0, 0, 0}, glm::vec3{0, 1, 0}));
+    e.add_component<Yogi::TransformComponent>().transform = glm::inverse(glm::lookAt(glm::vec3{2, -1, 2}, glm::vec3{0, 0, 0}, glm::vec3{0, 1, 0}));
     auto& camera = e.add_component<Yogi::CameraComponent>();
     camera.aspect_ratio = 1280.0f / 720.0f;
     camera.is_ortho = false;
@@ -33,11 +34,17 @@ void Sandbox2D::on_attach()
 
     for (int32_t i = 0; i < 200; i ++) {
         for (int32_t j = 0; j < 200; j ++) {
-            Yogi::Entity e = m_scene->create_entity();
+            e = m_scene->create_entity();
             e.add_component<Yogi::TransformComponent>().transform = glm::translate(glm::mat4(1.0f), glm::vec3(0.02 * i - 2, 0.02 * j - 2, 0.11)) * glm::scale(glm::mat4(1.0f), glm::vec3(0.01, 0.01, 0.1));
             e.add_component<Yogi::MeshRendererComponent>(quad, mat1);
         }
     }
+
+    e = m_scene->create_entity();
+    e.add_component<Yogi::TransformComponent>().transform = glm::translate(glm::mat4(1.0f), glm::vec3(0, 0, 1));
+    e.add_component<Yogi::PointLightComponent>();
+
+    Yogi::Renderer::set_sky_box(Yogi::TextureManager::get_texture("skybox:4f161edce2f12584dcb740ee6b3cdff3"));
 }
 
 void Sandbox2D::on_detach()

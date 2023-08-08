@@ -53,7 +53,7 @@ namespace Yogi {
             for (int32_t i = 0; i < color_attachments_size; i ++) {
                 clear_values.push_back({clear_color});
             }
-            clear_values.push_back({1.0f, 0});
+            clear_values.push_back({1.0f, -1.0f});
             renderPassInfo.clearValueCount = static_cast<uint32_t>(clear_values.size());
             renderPassInfo.pClearValues = clear_values.data();
 

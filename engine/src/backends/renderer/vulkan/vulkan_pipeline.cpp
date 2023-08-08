@@ -259,7 +259,7 @@ namespace Yogi {
         depth_stencil.depthWriteEnable = VK_TRUE;
         depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS;
         depth_stencil.depthBoundsTestEnable = VK_FALSE;
-        depth_stencil.minDepthBounds = 0.0f;
+        depth_stencil.minDepthBounds = -1.0f;
         depth_stencil.maxDepthBounds = 1.0f;
         depth_stencil.stencilTestEnable = VK_FALSE;
 
@@ -394,7 +394,8 @@ namespace Yogi {
             ubo_layout_binding.stageFlags = stage_flag;
             ubo_layout_binding.pImmutableSamplers = nullptr;
 
-            ubo_layout_bindings[set].push_back(ubo_layout_binding);
+            while (ubo_layout_bindings[set].size() < binding + 1) ubo_layout_bindings[set].push_back(ubo_layout_binding);
+            ubo_layout_bindings[set][binding] = ubo_layout_binding;
 
             ubo_count += array_count;
         }
@@ -420,7 +421,8 @@ namespace Yogi {
             sampler_layout_binding.stageFlags = stage_flag;
             sampler_layout_binding.pImmutableSamplers = nullptr;
 
-            sampler_layout_bindings[set].push_back(sampler_layout_binding);
+            while (sampler_layout_bindings[set].size() < binding + 1) sampler_layout_bindings[set].push_back(sampler_layout_binding);
+            sampler_layout_bindings[set][binding] = sampler_layout_binding;
 
             sampler_count += array_count;
         }

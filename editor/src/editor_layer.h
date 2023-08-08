@@ -46,6 +46,7 @@ namespace Yogi {
 
         Ref<RenderTexture> m_frame_texture;
         Ref<RenderTexture> m_entity_id_texture;
+        Ref<Texture2D> m_sky_box = nullptr;
         Ref<FrameBuffer> m_frame_buffer;
         Ref<FrameBuffer> m_entity_frame_buffer;
         Ref<Material> m_entity_id_mat;

@@ -20,25 +20,15 @@ namespace Yogi {
             if (camera.is_ortho)
                 Renderer::set_projection_view_matrix(glm::ortho(-camera.aspect_ratio * camera.zoom_level, camera.aspect_ratio * camera.zoom_level, -camera.zoom_level, camera.zoom_level, -1.0f, 1.0f) * glm::inverse((glm::mat4)transform.transform));
             else
-                Renderer::set_projection_view_matrix(glm::perspective(camera.fov, camera.aspect_ratio, camera.zoom_level, 100.0f) * glm::inverse((glm::mat4)transform.transform));
+                Renderer::set_projection_view_matrix(glm::perspective(camera.fov, camera.aspect_ratio, 0.1f, 100.0f) * glm::inverse((glm::mat4)transform.transform));
 
             auto frame_buffer = scene->get_frame_buffer();
             if (frame_buffer) frame_buffer->bind();
             RenderCommand::clear();
-
-            Renderer::reset_lights();
-            scene->view_components<TransformComponent, DirectionalLightComponent>([&](Entity entity, TransformComponent& transform, DirectionalLightComponent& light){
-                Renderer::set_directional_light(light.color, glm::vec3{((glm::mat4)transform.transform * glm::vec4(0, 0, 1, 0))});
-            });
-            scene->view_components<TransformComponent, SpotLightComponent>([&](Entity entity, TransformComponent& transform, SpotLightComponent& light){
-                Renderer::add_spot_light({light.color, glm::vec3{(glm::mat4)transform.transform * glm::vec4(0, 0, 0, 1)}, light.cutoff});
-            });
-            scene->view_components<TransformComponent, PointLightComponent>([&](Entity entity, TransformComponent& transform, PointLightComponent& light){
-                Renderer::add_point_light({glm::vec3{(glm::mat4)transform.transform * glm::vec4(0, 0, 0, 1)}, light.attenuation_parm, light.color});
-            });
             scene->view_components<TransformComponent, MeshRendererComponent>([&](Entity entity, TransformComponent& transform, MeshRendererComponent& mesh_renderer){
                 Renderer::draw_mesh(mesh_renderer.mesh, mesh_renderer.material, transform.transform, entity);
             });
+            Renderer::draw_skybox(transform.transform);
             Renderer::flush();
 
             if (frame_buffer) frame_buffer->unbind();

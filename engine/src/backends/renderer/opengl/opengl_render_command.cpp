@@ -21,7 +21,6 @@ namespace Yogi {
     void RenderCommand::draw_indexed(uint32_t count)
     {
         glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, nullptr);
-        glBindTexture(GL_TEXTURE_2D, 0);
     }
 
 }

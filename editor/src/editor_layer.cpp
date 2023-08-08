@@ -56,23 +56,16 @@ namespace Yogi {
         // Edit Mode
         if (m_scene_state == SceneState::Edit) {
             m_editor_camera.on_update(ts, m_viewport_hovered);
+            LightSystem::on_update(ts, m_scene.get());
             Renderer::reset_stats();
             RenderCommand::set_clear_color({ 0.1f, 0.1f, 0.1f, 1.0f });
+            Renderer::set_view_pos(glm::vec3{(glm::mat4)m_editor_camera.get_transform_component().transform * glm::vec4(0, 0, 0, 1)});
             m_frame_buffer->bind();
             RenderCommand::clear();
-            Renderer::reset_lights();
-            m_scene->view_components<TransformComponent, DirectionalLightComponent>([&](Entity entity, TransformComponent& transform, DirectionalLightComponent& light){
-                Renderer::set_directional_light(light.color, glm::vec3{((glm::mat4)transform.transform * glm::vec4(0, 0, 1, 0))});
-            });
-            m_scene->view_components<TransformComponent, SpotLightComponent>([&](Entity entity, TransformComponent& transform, SpotLightComponent& light){
-                Renderer::add_spot_light({light.color, glm::vec3{(glm::mat4)transform.transform * glm::vec4(0, 0, 0, 1)}, light.cutoff});
-            });
-            m_scene->view_components<TransformComponent, PointLightComponent>([&](Entity entity, TransformComponent& transform, PointLightComponent& light){
-                Renderer::add_point_light({glm::vec3{(glm::mat4)transform.transform * glm::vec4(0, 0, 0, 1)}, light.attenuation_parm, light.color});
-            });
             m_scene->view_components<TransformComponent, MeshRendererComponent>([&](Entity entity, TransformComponent& transform, MeshRendererComponent& mesh_renderer){
                 Renderer::draw_mesh(mesh_renderer.mesh, mesh_renderer.material, transform.transform, entity);
             });
+            Renderer::draw_skybox(m_editor_camera.get_transform_component().transform);
             Renderer::flush();
             m_frame_buffer->unbind();
             // Entity id
@@ -202,6 +195,22 @@ namespace Yogi {
             bool is_ortho = m_editor_camera.get_is_ortho();
             if (ImGui::Checkbox("is ortho", &is_ortho)) {
                 m_editor_camera.set_is_ortho(is_ortho);
+            }
+            ImGui::TreePop();
+        }
+        if (ImGui::TreeNodeEx("Sky box", flags)) {
+            if (ImGui::BeginCombo("texture", m_sky_box ? m_sky_box->get_name().c_str() : "")) {
+                TextureManager::each_texture([&](const Ref<Texture2D>& each_texture){
+                    bool is_selected = m_sky_box == each_texture;
+                    if (ImGui::Selectable(each_texture->get_name().c_str(), is_selected)) {
+                        m_sky_box = each_texture;
+                    }
+                });
+                if (ImGui::Selectable("none", m_sky_box == nullptr)) {
+                    m_sky_box = nullptr;
+                }
+                Renderer::set_sky_box(m_sky_box);
+                ImGui::EndCombo();
             }
             ImGui::TreePop();
         }

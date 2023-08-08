@@ -244,7 +244,6 @@ namespace Yogi {
         #endif
 
         cleanup_swap_chain();
-        for (auto& attachment : m_attachments) attachment.reset();
 
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
             vkDestroySemaphore(m_device, m_render_finished_semaphores[i], nullptr);
@@ -489,6 +488,7 @@ namespace Yogi {
             presentInfo.waitSemaphoreCount = 1;
             presentInfo.pWaitSemaphores = &m_image_available_semaphores[m_current_frame];
 
+            wait_render_command();
             VkResult result = vkQueuePresentKHR(m_present_queue, &presentInfo);
 
             if (result == VK_ERROR_OUT_OF_DATE_KHR || m_window_resized) {
@@ -753,25 +753,9 @@ namespace Yogi {
 
     void VulkanContext::create_frame_buffers()
     {
-        // wait_render_command();
-        m_attachments.clear();
-        if (m_pipeline) {
-            for (auto& element : m_pipeline->get_output_layout().get_elements()) {
-                if (element.type == ShaderDataType::Int) {
-                    m_attachments.push_back(RenderTexture::create("swap_chain", m_swap_chain_extent.width, m_swap_chain_extent.height, TextureFormat::RED_INTEGER));
-                }
-                else {
-                    m_attachments.push_back(m_swap_chain_textures[0]);
-                }
-            }
-        }
-        else {
-            m_attachments.resize(1);
-        }
         m_swap_chain_frame_buffers.resize(m_swap_chain_images.size());
         for (size_t i = 0; i < m_swap_chain_images.size(); i++) {
-            m_attachments[0] = m_swap_chain_textures[i];
-            m_swap_chain_frame_buffers[i] = CreateRef<VulkanFrameBuffer>(m_swap_chain_extent.width, m_swap_chain_extent.height, m_attachments, m_has_depth_attachment, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+            m_swap_chain_frame_buffers[i] = CreateRef<VulkanFrameBuffer>(m_swap_chain_extent.width, m_swap_chain_extent.height, std::vector<Ref<RenderTexture>>{m_swap_chain_textures[i]}, m_has_depth_attachment, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
         }
     }
 
@@ -904,6 +888,7 @@ namespace Yogi {
     {
         vkWaitForFences(m_device, 1, &m_render_command_fences[m_current_frame], VK_TRUE, UINT64_MAX);
         // vkDeviceWaitIdle(m_device);
+        // vkQueueWaitIdle(m_graphics_queue);
     }
 
     void VulkanContext::begin_frame()
