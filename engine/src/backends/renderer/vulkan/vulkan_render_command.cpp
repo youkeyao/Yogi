@@ -9,6 +9,7 @@ namespace Yogi {
     VkClearColorValue clear_color = {{ 0.0f, 0.0f, 0.0f, 1.0f }};
     VkViewport viewport{ 0, 0, 0, 0, 0, 1};
     bool is_clear = false;
+    PFN_vkCmdSetCullModeEXT load_vkCmdSetCullMode = nullptr;
 
     void RenderCommand::set_viewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height)
     {
@@ -53,20 +54,28 @@ namespace Yogi {
             for (int32_t i = 0; i < color_attachments_size; i ++) {
                 clear_values.push_back({clear_color});
             }
-            clear_values.push_back({1.0f, -1.0f});
+            clear_values.push_back({1.0f, 0.0f});
             renderPassInfo.clearValueCount = static_cast<uint32_t>(clear_values.size());
             renderPassInfo.pClearValues = clear_values.data();
 
             vkCmdBeginRenderPass(command_buffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
             VkViewport vp{viewport.x, viewport.y, 0, 0, 0, 1};
             vp.width = viewport.width != 0 ? viewport.width : (float)extent.width;
-            vp.height = viewport.height != 0 ? -viewport.height : -(float)extent.height;
-            vp.y -= vp.height;
+            if (!load_vkCmdSetCullMode) load_vkCmdSetCullMode = (PFN_vkCmdSetCullModeEXT) vkGetInstanceProcAddr(context->get_instance(), "vkCmdSetCullModeEXT");
+            if (context->is_render_to_screen()) {
+                vp.height = viewport.height != 0 ? -viewport.height : -(float)extent.height;
+                vp.y -= vp.height;
+                load_vkCmdSetCullMode(command_buffer, VK_CULL_MODE_BACK_BIT);
+            }
+            else {
+                vp.height = viewport.height != 0 ? viewport.height : (float)extent.height;
+                load_vkCmdSetCullMode(command_buffer, VK_CULL_MODE_FRONT_BIT);
+            }
             vkCmdSetViewport(command_buffer, 0, 1, &vp);
 
             VkRect2D scissor{};
             scissor.offset = {0, 0};
-            scissor.extent = extent;
+            scissor.extent = {viewport.width != 0 ? (int)viewport.width : extent.width, viewport.height != 0 ? (int)viewport.height : extent.height};
             vkCmdSetScissor(command_buffer, 0, 1, &scissor);
 
             const PipelineLayout& vertex_layout = pipeline->get_vertex_layout();

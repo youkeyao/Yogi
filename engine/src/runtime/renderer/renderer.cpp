@@ -12,12 +12,12 @@ namespace Yogi {
         static const uint32_t max_vertices = max_triangles * 3;
         static const uint32_t max_vertices_size = max_vertices * 40;
         static const uint32_t max_indices = max_triangles * 3;
+        static const uint32_t texture_slot_init_index = 2;
         static const uint32_t max_texture_slots = 32;
 
         Ref<VertexBuffer> mesh_vertex_buffer;
         Ref<IndexBuffer> mesh_index_buffer;
         Ref<UniformBuffer> scene_uniform_buffer;
-        Ref<Pipeline> render_pipeline;
 
         Ref<Pipeline> now_pipeline;
         uint8_t** now_vertices_base;
@@ -32,7 +32,8 @@ namespace Yogi {
         std::map<Ref<Pipeline>, uint32_t*> mesh_indices_curs;
 
         // texture_slots[0] is sky box, left, right, top, bottom, front, back
-        uint32_t texture_slot_index = 1;
+        // texture_slots[1] is shadow map
+        uint32_t texture_slot_index = RendererData::texture_slot_init_index;
         std::array<Ref<Texture>, max_texture_slots> texture_slots;
 
         Renderer::SceneData scene_data;
@@ -54,6 +55,7 @@ namespace Yogi {
         s_data->mesh_index_buffer->bind();
         s_data->scene_uniform_buffer = UniformBuffer::create(sizeof(Renderer::SceneData));
         s_data->texture_slots[0] = TextureManager::get_texture("black:d2a70550489de356a2cd6bfc40711204");
+        s_data->texture_slots[1] = RenderTexture::create("shadow map", 2048, 2048, TextureFormat::ATTACHMENT);
     }
 
     void Renderer::shutdown()
@@ -72,12 +74,9 @@ namespace Yogi {
 
     void Renderer::set_pipeline(const Ref<Pipeline>& pipeline)
     {
+        pipeline->bind();
+        s_data->scene_uniform_buffer->bind(0);
         s_data->scene_uniform_buffer->set_data(&s_data->scene_data, sizeof(Renderer::SceneData));
-        if (pipeline != s_data->render_pipeline) {
-            pipeline->bind();
-            s_data->render_pipeline = pipeline;
-            s_data->scene_uniform_buffer->bind(0);
-        }
 
         s_data->now_pipeline = pipeline;
         s_data->now_indices_base = &(s_data->mesh_indices_bases[pipeline]);
@@ -89,6 +88,10 @@ namespace Yogi {
     void Renderer::set_projection_view_matrix(glm::mat4 projection_view_matrix)
     {
         s_data->scene_data.projection_view_matrix = projection_view_matrix;
+    }
+    void Renderer::set_light_space_matrix(glm::mat4 light_space_matrix)
+    {
+        s_data->scene_data.light_space_matrix = light_space_matrix;
     }
     void Renderer::set_view_pos(glm::vec3 view_pos)
     {
@@ -125,6 +128,11 @@ namespace Yogi {
     {
         YG_CORE_ASSERT(s_data->scene_data.point_light_num < 4, "Too many lights!");
         s_data->scene_data.point_lights[s_data->scene_data.point_light_num++] = light;
+    }
+
+    Ref<RenderTexture> Renderer::get_shadow_map()
+    {
+        return std::reinterpret_pointer_cast<RenderTexture>(s_data->texture_slots[1]);
     }
 
     void Renderer::reset_stats()
@@ -199,7 +207,7 @@ namespace Yogi {
 
         if (s_data->texture_slot_index + textures.size() >= RendererData::max_texture_slots) {
             flush();
-            s_data->texture_slot_index = 1;
+            s_data->texture_slot_index = RendererData::texture_slot_init_index;
         }
         if (vertices_cur - vertices_base + vertex_stride * mesh->vertices.size() >= RendererData::max_vertices_size ||
             indices_cur - indices_base + mesh->indices.size() >= RendererData::max_indices

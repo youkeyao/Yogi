@@ -31,6 +31,7 @@ namespace Yogi
         VulkanPipeline* get_current_pipeline() { return m_pipeline; }
         VulkanVertexBuffer* get_current_vertex_buffer() { return m_vertex_buffer; }
         VulkanIndexBuffer* get_current_index_buffer() { return m_index_buffer; }
+        bool is_render_to_screen() { return m_current_frame_buffer == nullptr; }
         VulkanFrameBuffer* get_current_frame_buffer() { return m_current_frame_buffer ? m_current_frame_buffer : (m_image_index >= 0 ? m_swap_chain_frame_buffers[m_image_index].get() : m_swap_chain_frame_buffers[0].get()); }
         void set_has_depth_attachment(bool has_depth_attachment) { m_has_depth_attachment = has_depth_attachment; }
         void set_current_vertex_buffer(const VulkanVertexBuffer* vertex_buffer) { m_vertex_buffer = (VulkanVertexBuffer*)vertex_buffer; }
@@ -66,8 +67,6 @@ namespace Yogi
             VulkanRenderTexture* get_tmp_texture() { return (VulkanRenderTexture*)tmp_texture.get(); }
             VulkanUniformBuffer* get_tmp_uniform_buffer() { return (VulkanUniformBuffer*)tmp_uniform_buffer.get(); }
         #endif
-
-        std::vector<VkDynamicState> get_dynamic_states() { return std::vector<VkDynamicState>{ VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR }; }
     private:
         void create_instance();
         void setup_debug_messenger();

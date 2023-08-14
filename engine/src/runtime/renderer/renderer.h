@@ -20,6 +20,7 @@ namespace Yogi {
         struct SceneData
         {
             glm::mat4 projection_view_matrix = glm::mat4(1.0f);
+            glm::mat4 light_space_matrix = glm::mat4(1.0f);
             glm::vec3 view_pos = glm::vec3(0.0f);
             int direction_light_num = 0;
             glm::vec4 directional_light_color = glm::vec4(0.0f);
@@ -42,12 +43,15 @@ namespace Yogi {
         static void shutdown();
 
         static void set_projection_view_matrix(glm::mat4 projection_view_matrix);
+        static void set_light_space_matrix(glm::mat4 light_space_matrix);
         static void set_view_pos(glm::vec3 view_pos);
         static void set_sky_box(const Ref<Texture>& texture);
         static void reset_lights();
         static void set_directional_light(glm::vec4 color, glm::vec3 direction);
         static void add_spot_light(SceneData::SpotLight light);
         static void add_point_light(SceneData::PointLight light);
+
+        static Ref<RenderTexture> get_shadow_map();
 
         static void reset_stats();
         static Statistics get_stats();

@@ -23,7 +23,7 @@ void Sandbox2D::on_attach()
     e.add_component<Yogi::MeshRendererComponent>(quad, mat1);
 
     e = m_scene->create_entity();
-    e.add_component<Yogi::TransformComponent>().transform = glm::inverse(glm::lookAt(glm::vec3{2, -1, 2}, glm::vec3{0, 0, 0}, glm::vec3{0, 1, 0}));
+    e.add_component<Yogi::TransformComponent>().transform = glm::inverse(glm::lookAt(glm::vec3{2, 1, 2}, glm::vec3{0, 0, 0}, glm::vec3{0, 1, 0}));
     auto& camera = e.add_component<Yogi::CameraComponent>();
     camera.aspect_ratio = 1280.0f / 720.0f;
     camera.is_ortho = false;
@@ -43,6 +43,10 @@ void Sandbox2D::on_attach()
     e = m_scene->create_entity();
     e.add_component<Yogi::TransformComponent>().transform = glm::translate(glm::mat4(1.0f), glm::vec3(0, 0, 1));
     e.add_component<Yogi::PointLightComponent>();
+
+    e = m_scene->create_entity();
+    e.add_component<Yogi::TransformComponent>().transform = glm::translate(glm::mat4(1.0f), glm::vec3(0, 0, 2));
+    e.add_component<Yogi::DirectionalLightComponent>();
 
     Yogi::Renderer::set_sky_box(Yogi::TextureManager::get_texture("skybox:4f161edce2f12584dcb740ee6b3cdff3"));
 }

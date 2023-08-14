@@ -15,6 +15,7 @@ struct PointLight {
 
 layout(binding = 0) uniform SceneData {
     mat4 proj_view;
+    mat4 light_space_matrix;
     vec3 view_pos;
     int direction_light_num;
     vec4 directional_light_color;
@@ -34,6 +35,7 @@ layout(location = 3) in vec4 v_Color;
 layout(location = 4) in float v_Metallic;
 layout(location = 5) in float v_Roughness;
 layout(location = 6) flat in int v_TexAlbedo;
+layout(location = 7) in vec4 v_PosLightSpace;
 
 layout(binding = 1) uniform sampler2D u_Textures[32];
 
@@ -99,6 +101,33 @@ vec3 PBR(vec3 L, vec3 N, vec3 V, vec3 albedo, vec3 radiance, float metallic, flo
     return (kD * albedo / PI + specular) * radiance * NdotL;
 }
 
+float ShadowCalculation(vec4 fragPosLightSpace)
+{
+    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+    projCoords.xy = projCoords.xy * 0.5 + 0.5;
+    float closestDepth = texture(u_Textures[1], projCoords.xy).r; 
+    float currentDepth = projCoords.z;
+    vec3 normal = normalize(v_Normal);
+    vec3 lightDir = -normalize(scene_data.directional_light_direction);
+    float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);
+
+    // PCF
+    float shadow = 0.0;
+    vec2 texelSize = 1.0 / textureSize(u_Textures[1], 0);
+    for (int x = -1; x <= 1; x++) {
+        for (int y = -1; y <= 1; y++) {
+            float pcfDepth = texture(u_Textures[1], projCoords.xy + vec2(x, y) * texelSize).r; 
+            shadow += currentDepth - bias > pcfDepth  ? 1.0 : 0.0;        
+        }    
+    }
+    shadow /= 9.0;
+    
+    // Keep the shadow at 0.0 when outside the far_plane region of the light's frustum.
+    if (projCoords.z > 1.0) shadow = 0.0;
+        
+    return shadow;
+}
+
 void main()
 {
     vec4 albedo = v_Color;
@@ -154,6 +183,9 @@ void main()
         vec3 radiance = scene_data.point_lights[i].color.xyz * attenuation;
         Lo += PBR(L, N, V, albedo.xyz, radiance, v_Metallic, v_Roughness);
     }
+
+    // shadow
+    Lo *= 1 - ShadowCalculation(v_PosLightSpace);
 
     Lo += vec3(0.03) * albedo.xyz;
 

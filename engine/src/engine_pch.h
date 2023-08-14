@@ -1,4 +1,5 @@
 #define GLFW_INCLUDE_NONE
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 // #define YG_PROFILE
 
 #include <stdint.h>

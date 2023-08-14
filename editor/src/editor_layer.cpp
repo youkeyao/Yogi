@@ -22,13 +22,13 @@ namespace Yogi {
 
         m_frame_texture = RenderTexture::create("frame_texture", 1, 1, TextureFormat::ATTACHMENT);
         m_entity_id_texture = RenderTexture::create("entity_id", 1, 1, TextureFormat::RED_INTEGER);
-        m_frame_buffer = FrameBuffer::create(1, 1, { m_frame_texture });
         m_entity_frame_buffer = FrameBuffer::create(1, 1, { m_entity_id_texture });
         m_entity_id_mat = Material::create("entity_id", PipelineManager::get_pipeline("Entity"));
 
+        RenderSystem::set_default_frame_texture(m_frame_texture);
+
         AssetManager::init_project(YG_PROJECT_TEMPLATE);
         m_scene = CreateRef<Scene>();
-        m_scene->set_frame_buffer(m_frame_buffer);
         m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
         m_content_browser_panel = CreateRef<ContentBrowserPanel>(YG_PROJECT_TEMPLATE);
         m_material_editor_panel = CreateRef<MaterialEditorPanel>();
@@ -55,19 +55,10 @@ namespace Yogi {
 
         // Edit Mode
         if (m_scene_state == SceneState::Edit) {
-            m_editor_camera.on_update(ts, m_viewport_hovered);
             LightSystem::on_update(ts, m_scene.get());
-            Renderer::reset_stats();
-            RenderCommand::set_clear_color({ 0.1f, 0.1f, 0.1f, 1.0f });
-            Renderer::set_view_pos(glm::vec3{(glm::mat4)m_editor_camera.get_transform_component().transform * glm::vec4(0, 0, 0, 1)});
-            m_frame_buffer->bind();
-            RenderCommand::clear();
-            m_scene->view_components<TransformComponent, MeshRendererComponent>([&](Entity entity, TransformComponent& transform, MeshRendererComponent& mesh_renderer){
-                Renderer::draw_mesh(mesh_renderer.mesh, mesh_renderer.material, transform.transform, entity);
-            });
-            Renderer::draw_skybox(m_editor_camera.get_transform_component().transform);
-            Renderer::flush();
-            m_frame_buffer->unbind();
+            m_editor_camera.on_update(ts, m_viewport_hovered);
+            RenderCommand::set_viewport(0, 0, m_viewport_size.x, m_viewport_size.y);
+            RenderSystem::render_camera(m_editor_camera.get_camera_component(), m_editor_camera.get_transform_component(), m_scene.get());
             // Entity id
             m_entity_frame_buffer->bind();
             RenderCommand::clear();
@@ -93,7 +84,6 @@ namespace Yogi {
             if (ImGui::BeginMenu("File")) {
                 if (ImGui::MenuItem("New")) {
                     m_scene = CreateRef<Scene>();
-                    m_scene->set_frame_buffer(m_frame_buffer);
                     m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
                     m_editor_camera = EditorCamera{};
                 }
@@ -265,6 +255,7 @@ namespace Yogi {
             }
             if (m_scene_state == SceneState::Edit) {
                 m_editor_camera.on_event(e);
+                LightSystem::on_event(e, m_scene.get());
                 RenderSystem::on_event(e, m_scene.get());
             }
             else {
@@ -280,12 +271,11 @@ namespace Yogi {
     {
         if (m_scene_state == SceneState::Edit) {
             m_editor_camera.on_event(e);
-            RenderCommand::set_viewport(0, 0, e.get_width(), e.get_height());
+            RenderSystem::on_event(e, m_scene.get());
         }
         else {
             m_scene->on_event(e);
         }
-        m_frame_buffer->resize(e.get_width(), e.get_height());
         m_entity_frame_buffer->resize(e.get_width(), e.get_height());
     }
 
@@ -321,7 +311,6 @@ namespace Yogi {
         if (!f.empty()) {
             AssetManager::init_project(f);
             m_scene = CreateRef<Scene>();
-            m_scene->set_frame_buffer(m_frame_buffer);
             m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
             m_content_browser_panel = CreateRef<ContentBrowserPanel>(f);
             open_scene(f + "/main.yg");
@@ -344,7 +333,6 @@ namespace Yogi {
 
         if (SceneManager::is_scene(json)) {
             m_scene = SceneManager::deserialize_scene(json);
-            m_scene->set_frame_buffer(m_frame_buffer);
             m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
         }
     }

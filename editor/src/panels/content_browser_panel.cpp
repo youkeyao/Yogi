@@ -23,6 +23,7 @@ namespace Yogi {
                 while (std::filesystem::exists(m_current_directory.string() + "/" + material->get_name() + ".mat")) {
                     material->set_name("_" + material->get_name());
                 }
+                MaterialManager::add_material(material->get_name(), material);
                 MaterialManager::save_material(m_current_directory.string(), material);
             }
             ImGui::EndPopup();

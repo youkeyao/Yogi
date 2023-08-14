@@ -13,6 +13,7 @@ struct PointLight {
 
 layout(binding = 0) uniform SceneData {
     mat4 proj_view;
+    mat4 light_space_matrix;
     vec3 view_pos;
     int direction_light_num;
     vec4 directional_light_color;
@@ -38,6 +39,7 @@ layout(location = 3) out vec4 v_Color;
 layout(location = 4) out float v_Metallic;
 layout(location = 5) out float v_Roughness;
 layout(location = 6) flat out int v_TexAlbedo;
+layout(location = 7) out vec4 v_PosLightSpace;
 
 void main()
 {
@@ -48,5 +50,7 @@ void main()
     v_Metallic = a_Metallic;
     v_Roughness = a_Roughness;
     v_TexAlbedo = TEX_Albedo;
+
+    v_PosLightSpace = scene_data.light_space_matrix * vec4(a_Position, 1.0);
     gl_Position = scene_data.proj_view * vec4(a_Position, 1.0);
 }

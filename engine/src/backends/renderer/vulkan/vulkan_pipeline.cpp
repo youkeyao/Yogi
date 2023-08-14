@@ -185,7 +185,7 @@ namespace Yogi {
             #endif
         }
 
-        std::vector<VkDynamicState> dynamic_states = context->get_dynamic_states();
+        std::vector<VkDynamicState> dynamic_states = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR, VK_DYNAMIC_STATE_CULL_MODE };
         VkPipelineDynamicStateCreateInfo dynamic_state{};
         dynamic_state.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
         dynamic_state.dynamicStateCount = static_cast<uint32_t>(dynamic_states.size());
@@ -259,7 +259,7 @@ namespace Yogi {
         depth_stencil.depthWriteEnable = VK_TRUE;
         depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS;
         depth_stencil.depthBoundsTestEnable = VK_FALSE;
-        depth_stencil.minDepthBounds = -1.0f;
+        depth_stencil.minDepthBounds = 0.0f;
         depth_stencil.maxDepthBounds = 1.0f;
         depth_stencil.stencilTestEnable = VK_FALSE;
 

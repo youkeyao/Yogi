@@ -159,8 +159,8 @@
     #define ImGui_Renderer_Texture(texture, viewport_x, viewport_y, tex_x, tex_y) ImGui::Image( \
             imgui_vulkan_texture_id((VulkanRenderTexture*)texture.get()), \
             ImVec2( viewport_x, viewport_y ), \
-            ImVec2( 0, 0 ), \
-            ImVec2( tex_x, tex_y ) \
+            ImVec2( 0, tex_y ), \
+            ImVec2( tex_x, 0 ) \
         )
 
     #if YG_WINDOW_GLFW
