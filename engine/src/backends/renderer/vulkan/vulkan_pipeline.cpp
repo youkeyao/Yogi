@@ -72,7 +72,7 @@ namespace Yogi {
     VulkanPipeline::VulkanPipeline(const std::string& name, const std::vector<std::string>& types)
     {
         m_name = name;
-    
+
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
         std::vector<VkPipelineShaderStageCreateInfo> shader_stages;
         std::vector<VkShaderModule> shader_modules;
@@ -105,7 +105,7 @@ namespace Yogi {
             else {
                 YG_CORE_ASSERT(false, "Invalid shader stage!");
             }
-            reflect_uniform_buffer(compiler, layout_bindings, (VkShaderStageFlagBits)(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT), ubo_count);
+            reflect_uniform_buffer(compiler, layout_bindings, shader_stage_info.stage, ubo_count);
             reflect_sampler(compiler, layout_bindings, shader_stage_info.stage, sampler_count);
 
             shader_stages.push_back(shader_stage_info);
@@ -185,7 +185,7 @@ namespace Yogi {
             #endif
         }
 
-        std::vector<VkDynamicState> dynamic_states = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR, VK_DYNAMIC_STATE_CULL_MODE };
+        std::vector<VkDynamicState> dynamic_states = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR, VK_DYNAMIC_STATE_CULL_MODE_EXT };
         VkPipelineDynamicStateCreateInfo dynamic_state{};
         dynamic_state.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
         dynamic_state.dynamicStateCount = static_cast<uint32_t>(dynamic_states.size());
@@ -383,7 +383,8 @@ namespace Yogi {
 
             uint32_t set = compiler.get_decoration(uniform_buffer.id, spv::DecorationDescriptorSet);
             uint32_t binding = compiler.get_decoration(uniform_buffer.id, spv::DecorationBinding);
-            while (ubo_layout_bindings.size() < set + 1) ubo_layout_bindings.push_back(std::vector<VkDescriptorSetLayoutBinding>{});
+            while (ubo_layout_bindings.size() <= set) ubo_layout_bindings.push_back(std::vector<VkDescriptorSetLayoutBinding>{});
+            while (ubo_layout_bindings[set].size() <= binding) ubo_layout_bindings[set].push_back(VkDescriptorSetLayoutBinding{});
 
             uint32_t array_count = uniform_type.array_size_literal[0] ? uniform_type.array[0] : 1;
 
@@ -391,10 +392,9 @@ namespace Yogi {
             ubo_layout_binding.binding = binding;
             ubo_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
             ubo_layout_binding.descriptorCount = array_count;
-            ubo_layout_binding.stageFlags = stage_flag;
+            ubo_layout_binding.stageFlags = ubo_layout_bindings[set][binding].stageFlags | stage_flag;
             ubo_layout_binding.pImmutableSamplers = nullptr;
 
-            while (ubo_layout_bindings[set].size() < binding + 1) ubo_layout_bindings[set].push_back(ubo_layout_binding);
             ubo_layout_bindings[set][binding] = ubo_layout_binding;
 
             ubo_count += array_count;
@@ -410,7 +410,8 @@ namespace Yogi {
 
             uint32_t set = compiler.get_decoration(sampled_image.id, spv::DecorationDescriptorSet);
             uint32_t binding = compiler.get_decoration(sampled_image.id, spv::DecorationBinding);
-            while (sampler_layout_bindings.size() < set + 1) sampler_layout_bindings.push_back(std::vector<VkDescriptorSetLayoutBinding>{});
+            while (sampler_layout_bindings.size() <= set) sampler_layout_bindings.push_back(std::vector<VkDescriptorSetLayoutBinding>{});
+            while (sampler_layout_bindings[set].size() <= binding) sampler_layout_bindings[set].push_back(VkDescriptorSetLayoutBinding{});
 
             uint32_t array_count = sampler_type.array_size_literal[0] ? sampler_type.array[0] : 1;
 
@@ -418,10 +419,9 @@ namespace Yogi {
             sampler_layout_binding.binding = binding;
             sampler_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
             sampler_layout_binding.descriptorCount = array_count;
-            sampler_layout_binding.stageFlags = stage_flag;
+            sampler_layout_binding.stageFlags = sampler_layout_bindings[set][binding].stageFlags | stage_flag;
             sampler_layout_binding.pImmutableSamplers = nullptr;
 
-            while (sampler_layout_bindings[set].size() < binding + 1) sampler_layout_bindings[set].push_back(sampler_layout_binding);
             sampler_layout_bindings[set][binding] = sampler_layout_binding;
 
             sampler_count += array_count;

@@ -288,7 +288,7 @@ namespace Yogi {
             int32_t mouse_y = mouse_pos.y - m_viewport_bounds[0].y;
             if (mouse_y >= 0 && mouse_x >= 0) {
                 mouse_y = m_viewport_size.y - mouse_y;
-                m_entity_id_texture->read_pixel((int32_t)m_viewport_size.x, (int32_t)m_viewport_size.y, mouse_x, mouse_y, &entity_id);
+                m_entity_id_texture->read_pixel(mouse_x, mouse_y, &entity_id);
                 m_hierarchy_panel->set_selected_entity(m_scene->get_entity((uint32_t)entity_id));
             }
         }

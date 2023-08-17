@@ -492,11 +492,14 @@ namespace Yogi {
             wait_render_command();
             VkResult result = vkQueuePresentKHR(m_present_queue, &presentInfo);
 
+            {
+                YG_PROFILE_SCOPE("Present");
             if (result == VK_ERROR_OUT_OF_DATE_KHR || m_window_resized) {
                 recreate_swap_chain();
                 m_window_resized = false;
             } else {
                 YG_CORE_ASSERT(result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR, "Failed to present swap chain image!");
+            }
             }
 
             m_image_index = -1;
@@ -512,7 +515,7 @@ namespace Yogi {
         appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
         appInfo.pEngineName = "No Engine";
         appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-        appInfo.apiVersion = VK_API_VERSION_1_3;
+        appInfo.apiVersion = VK_API_VERSION_1_2;
 
         VkInstanceCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -891,6 +894,8 @@ namespace Yogi {
 
     void VulkanContext::wait_render_command()
     {
+        YG_PROFILE_FUNCTION();
+
         vkWaitForFences(m_device, 1, &m_render_command_fences[m_current_frame], VK_TRUE, UINT64_MAX);
         // vkDeviceWaitIdle(m_device);
         // vkQueueWaitIdle(m_graphics_queue);

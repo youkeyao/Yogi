@@ -8,14 +8,20 @@ namespace Yogi {
 
     VkClearColorValue clear_color = {{ 0.0f, 0.0f, 0.0f, 1.0f }};
     VkViewport viewport{ 0, 0, 0, 0, 0, 1};
+    VkViewport window_viewport{ 0, 0, 0, 0, 0, 1};
     bool is_clear = false;
     PFN_vkCmdSetCullModeEXT load_vkCmdSetCullMode = nullptr;
 
     void RenderCommand::set_viewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height)
     {
+        viewport = {(float)x, (float)y, (float)width, (float)height, 0, 1};
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
-        context->set_window_resized();
-        viewport = { (float)x, (float)y, (float)width, (float)height, 0.0f, 1.0f };
+        if (context->is_render_to_screen()) {
+            if (window_viewport.x != x || window_viewport.y != y || window_viewport.width != width || window_viewport.height != height) {
+                context->set_window_resized();
+                window_viewport = viewport;
+            }
+        }
     }
 
     void RenderCommand::set_clear_color(const glm::vec4& color)

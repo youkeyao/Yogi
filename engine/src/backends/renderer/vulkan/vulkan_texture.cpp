@@ -50,9 +50,8 @@ namespace Yogi {
         YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to create texture sampler!");
     }
 
-    void read_pixel_impl(int32_t region_width, int32_t region_height, int32_t x, int32_t y, void* data, uint32_t width, uint32_t height, VkFormat internal_format, VkImage image)
+    void read_pixel_impl(int32_t x, int32_t y, void* data, uint32_t width, uint32_t height, VkFormat internal_format, VkImage image)
     {
-        y = region_height - y;
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
 
         context->transition_image_layout(image, internal_format, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
@@ -227,9 +226,9 @@ namespace Yogi {
         vkFreeMemory(context->get_device(), m_image_memory, nullptr);
     }
 
-    void VulkanTexture2D::read_pixel(int32_t width, int32_t height, int32_t x, int32_t y, void* data) const
+    void VulkanTexture2D::read_pixel(int32_t x, int32_t y, void* data) const
     {
-        read_pixel_impl(width, height, x, y, data, m_width, m_height, m_internal_format, m_image);
+        read_pixel_impl(x, y, data, m_width, m_height, m_internal_format, m_image);
     }
 
     void VulkanTexture2D::set_data(void* data, size_t size)
@@ -292,9 +291,9 @@ namespace Yogi {
         }
     }
 
-    void VulkanRenderTexture::read_pixel(int32_t width, int32_t height, int32_t x, int32_t y, void* data) const
+    void VulkanRenderTexture::read_pixel(int32_t x, int32_t y, void* data) const
     {
-        read_pixel_impl(width, height, x, y, data, m_width, m_height, m_internal_format, m_image);
+        read_pixel_impl(x, y, data, m_width, m_height, m_internal_format, m_image);
     }
 
     void VulkanRenderTexture::set_data(void* data, size_t size)

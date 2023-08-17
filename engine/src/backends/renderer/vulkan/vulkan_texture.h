@@ -13,7 +13,7 @@ namespace Yogi {
 
         uint32_t get_width() const override { return m_width; }
         uint32_t get_height() const override{ return m_height; }
-        void read_pixel(int32_t width, int32_t height, int32_t x, int32_t y, void* data) const override;
+        void read_pixel(int32_t x, int32_t y, void* data) const override;
 
         void set_data(void* data, size_t size) override;
         void bind(uint32_t binding = 0, uint32_t slot = 0) const override;
@@ -35,7 +35,7 @@ namespace Yogi {
 
         uint32_t get_width() const override { return m_width; }
         uint32_t get_height() const override{ return m_height; }
-        void read_pixel(int32_t width, int32_t height, int32_t x, int32_t y, void* data) const override;
+        void read_pixel(int32_t x, int32_t y, void* data) const override;
 
         void set_data(void* data, size_t size) override;
         void bind(uint32_t binding = 0, uint32_t slot = 0) const override;
