@@ -105,6 +105,7 @@ add_library( engine
 target_link_libraries( engine
     PUBLIC
         spdlog
+    PRIVATE
         stb_image
         spirv-cross-glsl
         assimp
@@ -120,8 +121,8 @@ target_include_directories( engine
         src
         vendor/glm
         vendor/entt/src
-        vendor/VulkanSDK/include
     PRIVATE
+        vendor/VulkanSDK/include
         vendor/SPIRV-Cross
         vendor/spdlog/include
         vendor/stb_image

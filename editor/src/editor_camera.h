@@ -15,7 +15,7 @@ namespace Yogi {
         void set_is_ortho(bool is_ortho) { m_camera_component.is_ortho = is_ortho; recalculate_projection(); recalculate_view(); }
         void set_render_target(const Ref<RenderTexture>& texture) { m_camera_component.render_target = texture; }
         
-        const TransformComponent& get_transform_component() { return m_transform_component; }
+        const TransformComponent& get_transform_component() { return m_camera_component.is_ortho ? m_ortho_transform_component : m_perspective_transform_component; }
         const CameraComponent& get_camera_component() { return m_camera_component; }
         glm::mat4 get_view() { return m_camera_view_matrix; }
         glm::mat4 get_projection() { return m_camera_projection_matrix; }
@@ -27,7 +27,8 @@ namespace Yogi {
         bool on_mouse_scrolled(MouseScrolledEvent& e);
         bool on_window_resized(WindowResizeEvent& e);
     private:
-        TransformComponent m_transform_component;
+        TransformComponent m_ortho_transform_component;
+        TransformComponent m_perspective_transform_component;
         CameraComponent m_camera_component;
         glm::mat4 m_camera_view_matrix = glm::mat4(1.0f);
         glm::mat4 m_camera_projection_matrix = glm::mat4(1.0f);

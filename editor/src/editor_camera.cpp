@@ -14,7 +14,7 @@ namespace Yogi {
         if (is_update && Input::is_mouse_button_pressed(YG_MOUSE_BUTTON_RIGHT)) {
             ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
             if (!m_camera_component.is_ortho) {
-                glm::mat4& transform = (glm::mat4&)m_transform_component.transform;
+                glm::mat4& transform = (glm::mat4&)m_perspective_transform_component.transform;
                 if (Input::is_key_pressed(YG_KEY_A)) {
                     transform *= glm::translate(glm::mat4(1.0f), {-m_camera_translation_speed * ts, 0, 0});
                 } else if (Input::is_key_pressed(YG_KEY_D)) {
@@ -42,8 +42,9 @@ namespace Yogi {
 
     void EditorCamera::recalculate_view()
     {
-        glm::mat4& transform = (glm::mat4&)m_transform_component.transform;
+        glm::mat4& transform = (glm::mat4&)m_perspective_transform_component.transform;
         if (m_camera_component.is_ortho) {
+            m_ortho_transform_component.transform = glm::translate(glm::mat4(1.0f), glm::vec3{ transform[3][0], transform[3][1], 0 });
             m_camera_view_matrix = glm::translate(glm::mat4(1.0f), glm::vec3{ -transform[3][0], -transform[3][1], 0 });
         }
         else {
@@ -76,7 +77,7 @@ namespace Yogi {
                 m_last_mouse_x = e.get_x();
                 m_last_mouse_y = e.get_y();
             }
-            glm::mat4& transform = (glm::mat4&)m_transform_component.transform;
+            glm::mat4& transform = (glm::mat4&)m_perspective_transform_component.transform;
             if (m_camera_component.is_ortho) {
                 transform = glm::translate(transform, {(m_last_mouse_x - e.get_x()) / m_pixel_ratio, (e.get_y() - m_last_mouse_y) / m_pixel_ratio, 0});
             }
@@ -103,7 +104,7 @@ namespace Yogi {
             recalculate_projection();
         }
         else {
-            glm::mat4& transform = (glm::mat4&)m_transform_component.transform;
+            glm::mat4& transform = (glm::mat4&)m_perspective_transform_component.transform;
             transform *= glm::translate(glm::mat4(1.0f), {0, 0, -e.get_y_offset()});
             recalculate_view();
         }

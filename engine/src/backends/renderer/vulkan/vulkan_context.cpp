@@ -492,14 +492,11 @@ namespace Yogi {
             wait_render_command();
             VkResult result = vkQueuePresentKHR(m_present_queue, &presentInfo);
 
-            {
-                YG_PROFILE_SCOPE("Present");
             if (result == VK_ERROR_OUT_OF_DATE_KHR || m_window_resized) {
                 recreate_swap_chain();
                 m_window_resized = false;
             } else {
                 YG_CORE_ASSERT(result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR, "Failed to present swap chain image!");
-            }
             }
 
             m_image_index = -1;

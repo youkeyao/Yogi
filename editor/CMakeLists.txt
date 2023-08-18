@@ -50,4 +50,8 @@ target_include_directories( editor
         vendor/portable-file-dialogs
         vendor/ImGuizmo
         ../engine/src
+        ../engine/vendor/SPIRV-Cross
+        ../engine/vendor/glfw/include
+        ../engine/vendor/SDL/include
+        ../engine/vendor/VulkanSDK/include
 )
