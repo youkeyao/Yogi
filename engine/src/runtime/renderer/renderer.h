@@ -45,7 +45,6 @@ namespace Yogi {
         static void set_projection_view_matrix(glm::mat4 projection_view_matrix);
         static void set_light_space_matrix(glm::mat4 light_space_matrix);
         static void set_view_pos(glm::vec3 view_pos);
-        static void set_sky_box(const Ref<Texture>& texture);
         static void reset_lights();
         static void set_directional_light(glm::vec4 color, glm::vec3 direction);
         static void add_spot_light(SceneData::SpotLight light);
@@ -58,7 +57,6 @@ namespace Yogi {
 
         static void flush();
         static void draw_mesh(const Ref<Mesh>& mesh, const Ref<Material>& material, const glm::mat4& transform, uint32_t entity_id);
-        static void draw_skybox(const glm::mat4& camera_transform);
     private:
         static void set_pipeline(const Ref<Pipeline>& pipeline);
         static void flush_pipeline(const Ref<Pipeline>& pipeline);

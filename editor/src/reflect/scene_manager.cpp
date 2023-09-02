@@ -111,7 +111,7 @@ namespace Yogi {
 
         writer.Key("systems");
         writer.StartArray();
-        scene->each_system([&writer](std::string system_name, int32_t, int32_t){
+        scene->each_system([&writer](std::string system_name){
             writer.String(system_name.c_str());
         });
         writer.EndArray();
@@ -199,7 +199,7 @@ namespace Yogi {
                     else if (value.type_hash == typeid(Ref<RenderTexture>).hash_code()) {
                         Ref<RenderTexture>& texture = *(Ref<RenderTexture>*)((uint8_t*)component + value.offset);
                         std::string texture_name = component_fields_value[key.c_str()].GetString();
-                        texture = texture_name == "" ? TextureManager::get_render_texture(texture_name) : nullptr;
+                        texture = texture_name == "" ? nullptr : TextureManager::get_render_texture(texture_name);
                     }
                 }
             }

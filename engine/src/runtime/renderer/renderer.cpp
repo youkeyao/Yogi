@@ -12,7 +12,7 @@ namespace Yogi {
         static const uint32_t max_vertices = max_triangles * 3;
         static const uint32_t max_vertices_size = max_vertices * 40;
         static const uint32_t max_indices = max_triangles * 3;
-        static const uint32_t texture_slot_init_index = 2;
+        static const uint32_t texture_slot_init_index = 1;
         static const uint32_t max_texture_slots = 32;
 
         Ref<VertexBuffer> mesh_vertex_buffer;
@@ -31,8 +31,7 @@ namespace Yogi {
         std::map<Ref<Pipeline>, uint32_t*> mesh_indices_bases;
         std::map<Ref<Pipeline>, uint32_t*> mesh_indices_curs;
 
-        // texture_slots[0] is sky box, left, right, top, bottom, front, back
-        // texture_slots[1] is shadow map
+        // texture_slots[0] is shadow map
         uint32_t texture_slot_index = RendererData::texture_slot_init_index;
         std::array<Ref<Texture>, max_texture_slots> texture_slots;
 
@@ -54,8 +53,7 @@ namespace Yogi {
         s_data->mesh_index_buffer = IndexBuffer::create(nullptr, RendererData::max_indices, false);
         s_data->mesh_index_buffer->bind();
         s_data->scene_uniform_buffer = UniformBuffer::create(sizeof(Renderer::SceneData));
-        s_data->texture_slots[0] = TextureManager::get_texture("black:d2a70550489de356a2cd6bfc40711204");
-        s_data->texture_slots[1] = RenderTexture::create("shadow map", 2048, 2048, TextureFormat::ATTACHMENT);
+        s_data->texture_slots[0] = RenderTexture::create("shadow map", 2048, 2048, TextureFormat::ATTACHMENT);
     }
 
     void Renderer::shutdown()
@@ -97,15 +95,6 @@ namespace Yogi {
     {
         s_data->scene_data.view_pos = view_pos;
     }
-    void Renderer::set_sky_box(const Ref<Texture>& texture)
-    {
-        if (texture) {
-            s_data->texture_slots[0] = texture;
-        }
-        else {
-            s_data->texture_slots[0] = TextureManager::get_texture("black:d2a70550489de356a2cd6bfc40711204");
-        }
-    }
     void Renderer::reset_lights()
     {
         s_data->scene_data.direction_light_num = 0;
@@ -132,7 +121,7 @@ namespace Yogi {
 
     Ref<RenderTexture> Renderer::get_shadow_map()
     {
-        return std::reinterpret_pointer_cast<RenderTexture>(s_data->texture_slots[1]);
+        return std::reinterpret_pointer_cast<RenderTexture>(s_data->texture_slots[0]);
     }
 
     void Renderer::reset_stats()
@@ -263,11 +252,6 @@ namespace Yogi {
             *indices_cur = vertices_count + index;
             indices_cur ++;
         }
-    }
-
-    void Renderer::draw_skybox(const glm::mat4& camera_transform)
-    {
-        draw_mesh(MeshManager::get_mesh("skybox"), MaterialManager::get_material("skybox"), glm::translate(glm::mat4(1.0f), glm::vec3(camera_transform * glm::vec4(0, 0, 0, 1))), 0);
     }
 
 }

@@ -48,7 +48,9 @@ void Sandbox2D::on_attach()
     e.add_component<Yogi::TransformComponent>().transform = glm::translate(glm::mat4(1.0f), glm::vec3(0, 0, 2));
     e.add_component<Yogi::DirectionalLightComponent>();
 
-    Yogi::Renderer::set_sky_box(Yogi::TextureManager::get_texture("skybox:4f161edce2f12584dcb740ee6b3cdff3"));
+    e = m_scene->create_entity();
+    e.add_component<Yogi::TransformComponent>();
+    e.add_component<Yogi::MeshRendererComponent>(Yogi::MeshManager::get_mesh("skybox"), Yogi::MaterialManager::get_material("skybox"));
 }
 
 void Sandbox2D::on_detach()

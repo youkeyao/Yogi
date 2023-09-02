@@ -49,7 +49,7 @@ namespace Yogi {
                                 MaterialManager::save_material(m_parent_path, m_material);
                             }
                         });
-                        if (ImGui::Selectable("none", texture == nullptr)) {
+                        if (ImGui::Selectable("None", texture == nullptr)) {
                             m_material->set_texture(texture_index, nullptr);
                             MaterialManager::save_material(m_parent_path, m_material);
                         }

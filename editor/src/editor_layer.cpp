@@ -22,10 +22,13 @@ namespace Yogi {
 
         m_frame_texture = RenderTexture::create("frame_texture", 1, 1, TextureFormat::ATTACHMENT);
         m_entity_id_texture = RenderTexture::create("entity_id", 1, 1, TextureFormat::RED_INTEGER);
+        m_frame_buffer = FrameBuffer::create(1, 1, { m_frame_texture });
         m_entity_frame_buffer = FrameBuffer::create(1, 1, { m_entity_id_texture });
         m_entity_id_mat = Material::create("entity_id", PipelineManager::get_pipeline("Entity"));
 
-        RenderSystem::set_default_frame_texture(m_frame_texture);
+        m_editor_render_system = CreateRef<RenderSystem>();
+        m_editor_light_system = CreateRef<LightSystem>();
+        RenderSystem::set_default_frame_buffer(m_frame_buffer);
 
         AssetManager::init_project(YG_PROJECT_TEMPLATE);
         m_scene = CreateRef<Scene>();
@@ -55,15 +58,20 @@ namespace Yogi {
 
         // Edit Mode
         if (m_scene_state == SceneState::Edit) {
-            LightSystem::on_update(ts, m_scene.get());
+            m_editor_light_system->on_update(ts, m_scene.get());
             m_editor_camera.on_update(ts, m_viewport_hovered);
-            RenderCommand::set_viewport(0, 0, m_viewport_size.x, m_viewport_size.y);
-            RenderSystem::render_camera(m_editor_camera.get_camera_component(), m_editor_camera.get_transform_component(), m_scene.get());
+            m_editor_render_system->render_camera(m_editor_camera.get_camera_component(), m_editor_camera.get_transform_component(), m_scene.get());
             // Entity id
             m_entity_frame_buffer->bind();
             RenderCommand::clear();
             m_scene->view_components<TransformComponent, MeshRendererComponent>([&](Entity entity, TransformComponent& transform, MeshRendererComponent& mesh_renderer){
-                Renderer::draw_mesh(mesh_renderer.mesh, m_entity_id_mat, transform.transform, entity);
+                TransformComponent tmp_transform = transform;
+                glm::mat4 transform_mat = transform.transform;
+                if (tmp_transform.parent) {
+                    tmp_transform = tmp_transform.parent.get_component<TransformComponent>();
+                    transform_mat = (glm::mat4)tmp_transform.transform * transform_mat;
+                }
+                Renderer::draw_mesh(mesh_renderer.mesh, m_entity_id_mat, transform_mat, entity);
             });
             Renderer::flush();
             m_entity_frame_buffer->unbind();
@@ -188,22 +196,6 @@ namespace Yogi {
             }
             ImGui::TreePop();
         }
-        if (ImGui::TreeNodeEx("Sky box", flags)) {
-            if (ImGui::BeginCombo("texture", m_sky_box ? m_sky_box->get_name().c_str() : "")) {
-                TextureManager::each_texture([&](const Ref<Texture2D>& each_texture){
-                    bool is_selected = m_sky_box == each_texture;
-                    if (ImGui::Selectable(each_texture->get_name().c_str(), is_selected)) {
-                        m_sky_box = each_texture;
-                    }
-                });
-                if (ImGui::Selectable("none", m_sky_box == nullptr)) {
-                    m_sky_box = nullptr;
-                }
-                Renderer::set_sky_box(m_sky_box);
-                ImGui::EndCombo();
-            }
-            ImGui::TreePop();
-        }
         ImGui::End();
     }
 
@@ -255,8 +247,8 @@ namespace Yogi {
             }
             if (m_scene_state == SceneState::Edit) {
                 m_editor_camera.on_event(e);
-                LightSystem::on_event(e, m_scene.get());
-                RenderSystem::on_event(e, m_scene.get());
+                m_editor_render_system->on_event(e, m_scene.get());
+                m_editor_light_system->on_event(e, m_scene.get());
             }
             else {
                 m_scene->on_event(e);
@@ -271,7 +263,7 @@ namespace Yogi {
     {
         if (m_scene_state == SceneState::Edit) {
             m_editor_camera.on_event(e);
-            RenderSystem::on_event(e, m_scene.get());
+            m_editor_render_system->on_event(e, m_scene.get());
         }
         else {
             m_scene->on_event(e);

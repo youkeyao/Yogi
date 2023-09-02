@@ -90,6 +90,13 @@ set(ASSIMP_INSTALL OFF)
 set(BUILD_SHARED_LIBS OFF)
 set(ASSIMP_BUILD_TESTS OFF)
 add_subdirectory( vendor/assimp )
+set(GENERATE_DEBUG_SYMBOLS OFF)
+set(TARGET_UNIT_TESTS OFF)
+set(TARGET_HELLO_WORLD OFF)
+set(TARGET_PERFORMANCE_TEST OFF)
+set(TARGET_SAMPLES OFF)
+set(TARGET_VIEWER OFF)
+add_subdirectory( vendor/JoltPhysics/Build )
 
 file(GLOB_RECURSE
     YG_ENGINE_SOURCES CONFIGURE_DEPENDS
@@ -127,5 +134,6 @@ target_include_directories( engine
         vendor/spdlog/include
         vendor/stb_image
         vendor/assimp/include
+        vendor/JoltPhysics
 )
 add_dependencies(engine Shaders)

@@ -19,6 +19,9 @@
 [submodule "engine/vendor/assimp"]
 	path = engine/vendor/assimp
 	url = https://github.com/assimp/assimp.git
+[submodule "engine/vendor/JoltPhysics"]
+	path = engine/vendor/JoltPhysics
+	url = https://github.com/jrouwe/JoltPhysics.git
 [submodule "editor/vendor/imgui"]
 	path = editor/vendor/imgui
 	url = https://github.com/ocornut/imgui.git

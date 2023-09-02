@@ -296,6 +296,9 @@ namespace Yogi {
                                     texture = each_texture;
                                 }
                             });
+                            if (ImGui::Selectable("None", texture == nullptr)) {
+                                texture = nullptr;
+                            }
                             ImGui::EndCombo();
                         }
                     }
@@ -308,7 +311,7 @@ namespace Yogi {
     void SceneHierarchyPanel::draw_systems()
     {
         uint32_t index = 0;
-        m_scene->each_system([this, &index](std::string system_name, int32_t update_pos, int32_t event_pos){
+        m_scene->each_system([this, &index](std::string system_name){
             ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed |
                 ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_FramePadding;
             bool is_opened = ImGui::TreeNodeEx(system_name.c_str(), flags);
@@ -332,12 +335,6 @@ namespace Yogi {
             }
 
             if (is_opened) {
-                if (update_pos >= 0) {
-                    ImGui::Text("%s::on_update", system_name.c_str());
-                }
-                if (event_pos >= 0) {
-                    ImGui::Text("%s::on_event", system_name.c_str());
-                }
                 ImGui::TreePop();
             }
 

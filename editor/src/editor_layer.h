@@ -37,6 +37,8 @@ namespace Yogi {
         Ref<ContentBrowserPanel> m_content_browser_panel;
         Ref<MaterialEditorPanel> m_material_editor_panel;
 
+        Ref<RenderSystem> m_editor_render_system;
+        Ref<LightSystem> m_editor_light_system;
         EditorCamera m_editor_camera;
 
         bool m_viewport_hovered = false;
@@ -46,15 +48,15 @@ namespace Yogi {
 
         Ref<RenderTexture> m_frame_texture;
         Ref<RenderTexture> m_entity_id_texture;
-        Ref<Texture2D> m_sky_box = nullptr;
+        Ref<FrameBuffer> m_frame_buffer;
         Ref<FrameBuffer> m_entity_frame_buffer;
         Ref<Material> m_entity_id_mat;
 
         enum class SceneState
-		{
-			Edit = 0, Play = 1
-		};
-		SceneState m_scene_state = SceneState::Edit;
+        {
+            Edit = 0, Play = 1
+        };
+        SceneState m_scene_state = SceneState::Edit;
     };
 
 }
