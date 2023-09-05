@@ -8,6 +8,7 @@ namespace Yogi {
     {
         register_system<RenderSystem>();
         register_system<LightSystem>();
+        register_system<PhysicsSystem>();
     }
 
     template <typename Type>

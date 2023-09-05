@@ -302,6 +302,18 @@ namespace Yogi {
                             ImGui::EndCombo();
                         }
                     }
+                    else if (value.type_hash == typeid(ColliderType).hash_code()) {
+                        ColliderType& type = *(ColliderType*)((uint8_t*)component + value.offset);
+                        std::vector<std::string> type_names = {"box", "sphere", "capsule"};
+                        if (ImGui::BeginCombo(key.c_str(), type_names[(int)type].c_str())) {
+                            for (int i = 0; i < type_names.size(); i ++) {
+                                if (ImGui::Selectable(type_names[i].c_str(), type == i)) {
+                                    type = (ColliderType)i;
+                                }
+                            }
+                            ImGui::EndCombo();
+                        }
+                    }
                 }
                 ImGui::TreePop();
             }

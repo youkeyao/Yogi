@@ -90,12 +90,6 @@ set(ASSIMP_INSTALL OFF)
 set(BUILD_SHARED_LIBS OFF)
 set(ASSIMP_BUILD_TESTS OFF)
 add_subdirectory( vendor/assimp )
-set(GENERATE_DEBUG_SYMBOLS OFF)
-set(TARGET_UNIT_TESTS OFF)
-set(TARGET_HELLO_WORLD OFF)
-set(TARGET_PERFORMANCE_TEST OFF)
-set(TARGET_SAMPLES OFF)
-set(TARGET_VIEWER OFF)
 add_subdirectory( vendor/JoltPhysics/Build )
 
 file(GLOB_RECURSE
@@ -112,6 +106,8 @@ add_library( engine
 target_link_libraries( engine
     PUBLIC
         spdlog
+        Jolt
+        pthread
     PRIVATE
         stb_image
         spirv-cross-glsl
@@ -128,12 +124,12 @@ target_include_directories( engine
         src
         vendor/glm
         vendor/entt/src
+        vendor/JoltPhysics
     PRIVATE
         vendor/VulkanSDK/include
         vendor/SPIRV-Cross
         vendor/spdlog/include
         vendor/stb_image
         vendor/assimp/include
-        vendor/JoltPhysics
 )
 add_dependencies(engine Shaders)

@@ -26,6 +26,13 @@ namespace Yogi {
     private:
         glm::vec4 m_color = glm::vec4(1.0f);
     };
+
+    enum ColliderType
+    {
+        BOX = 0,
+        SPHERE,
+        CAPSULE
+    };
     //---------------------------------------------------------------------------------------
 
     struct TagComponent
@@ -70,6 +77,13 @@ namespace Yogi {
     {
         float attenuation_parm = 1.0f;
         Color color = glm::vec4(1.0f);
+    };
+
+    struct RigidBodyComponent
+    {
+        bool is_static = false;
+        glm::vec3 scale = glm::vec3(1.0f);
+        ColliderType type = ColliderType::BOX;
     };
 
 }

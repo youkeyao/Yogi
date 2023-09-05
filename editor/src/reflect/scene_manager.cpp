@@ -98,6 +98,10 @@ namespace Yogi {
                         Ref<RenderTexture>& texture = *(Ref<RenderTexture>*)((uint8_t*)component + value.offset);
                         writer.String(texture ? (texture->get_name()).c_str() : "");
                     }
+                    else if (value.type_hash == typeid(ColliderType).hash_code()) {
+                        ColliderType& type = *(ColliderType*)((uint8_t*)component + value.offset);
+                        writer.Int((int)type);
+                    }
                     else {
                         writer.Bool(false);
                     }
@@ -200,6 +204,11 @@ namespace Yogi {
                         Ref<RenderTexture>& texture = *(Ref<RenderTexture>*)((uint8_t*)component + value.offset);
                         std::string texture_name = component_fields_value[key.c_str()].GetString();
                         texture = texture_name == "" ? nullptr : TextureManager::get_render_texture(texture_name);
+                    }
+                    else if (value.type_hash == typeid(ColliderType).hash_code()) {
+                        ColliderType& type = *(ColliderType*)((uint8_t*)component + value.offset);
+                        int32_t type_id = component_fields_value[key.c_str()].GetInt();
+                        type = (ColliderType)type_id;
                     }
                 }
             }

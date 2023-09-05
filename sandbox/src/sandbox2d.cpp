@@ -14,6 +14,8 @@ void Sandbox2D::on_attach()
 
     m_scene->add_system<Yogi::RenderSystem>();
     m_scene->add_system<Yogi::LightSystem>();
+    m_scene->add_system<Yogi::PhysicsSystem>();
+
     checker = m_scene->create_entity();
     checker.add_component<Yogi::TransformComponent>().transform = glm::translate(glm::mat4(1.0f), {0, -0.3, 0});
     checker.add_component<Yogi::MeshRendererComponent>(quad, mat1);
@@ -51,6 +53,16 @@ void Sandbox2D::on_attach()
     e = m_scene->create_entity();
     e.add_component<Yogi::TransformComponent>();
     e.add_component<Yogi::MeshRendererComponent>(Yogi::MeshManager::get_mesh("skybox"), Yogi::MaterialManager::get_material("skybox"));
+
+    e = m_scene->create_entity();
+    e.add_component<Yogi::TransformComponent>().transform = glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(0, 0.5, 1)), glm::vec3(0.5f));
+    e.add_component<Yogi::MeshRendererComponent>(Yogi::MeshManager::get_mesh("cube"), mat1);
+    e.add_component<Yogi::RigidBodyComponent>();
+
+    e = m_scene->create_entity();
+    e.add_component<Yogi::TransformComponent>().transform = glm::scale(glm::rotate(glm::translate(glm::mat4(1.0f), glm::vec3(0, -1.0f, 0)), glm::radians(-10.0f), glm::vec3(1, 0, 0)), glm::vec3(4.0f, 1.0f, 4.0f));
+    e.add_component<Yogi::MeshRendererComponent>(Yogi::MeshManager::get_mesh("cube"), mat1);
+    e.add_component<Yogi::RigidBodyComponent>().is_static = true;
 }
 
 void Sandbox2D::on_detach()

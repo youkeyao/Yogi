@@ -35,7 +35,7 @@ namespace Yogi {
         if (camera.is_ortho)
             Renderer::set_projection_view_matrix(glm::ortho(-camera.aspect_ratio * camera.zoom_level, camera.aspect_ratio * camera.zoom_level, -camera.zoom_level, camera.zoom_level, -1.0f, 1.0f) * glm::inverse((glm::mat4)transform.transform));
         else
-            Renderer::set_projection_view_matrix(glm::perspective(camera.fov, camera.aspect_ratio, 0.1f, 100.0f) * glm::inverse((glm::mat4)transform.transform));
+            Renderer::set_projection_view_matrix(glm::perspective(camera.fov, camera.aspect_ratio, 0.1f, 500.0f) * glm::inverse((glm::mat4)transform.transform));
 
         // scene draw
         RenderCommand::set_viewport(0, 0, s_width, s_height);
