@@ -33,8 +33,17 @@ namespace Yogi {
             m_internal_format = GL_RGBA8;
             m_data_format = GL_RGBA;
         } else if (channels == 3) {
-            m_internal_format = GL_RGB8;
-            m_data_format = GL_RGB;
+            m_internal_format = GL_RGBA8;
+            m_data_format = GL_RGBA;
+            stbi_uc* rgbaData = (stbi_uc*)malloc(m_width * m_height * 4);
+            for (int i = 0; i < m_width * m_height; i++) {
+                rgbaData[i * 4 + 0] = data[i * 3 + 0]; // R
+                rgbaData[i * 4 + 1] = data[i * 3 + 1]; // G
+                rgbaData[i * 4 + 2] = data[i * 3 + 2]; // B
+                rgbaData[i * 4 + 3] = 255;             // A
+            }
+            stbi_image_free(data);
+            data = rgbaData;
         }
 
         YG_CORE_ASSERT(m_internal_format & m_data_format, "format not supported");
@@ -49,7 +58,7 @@ namespace Yogi {
         glTextureParameteri(m_renderer_id, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
         glTextureSubImage2D(m_renderer_id, 0, 0, 0, m_width, m_height, m_data_format, GL_UNSIGNED_BYTE, data);
-        m_digest = MD5(std::string{data, data + m_width * m_height * channels}).toStr();
+        m_digest = MD5(std::string{data, data + m_width * m_height * 4}).toStr();
 
         stbi_image_free(data);
     }

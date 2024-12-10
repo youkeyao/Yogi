@@ -51,6 +51,7 @@
     #include <backends/imgui_impl_vulkan.h>
     #include <backends/imgui_impl_vulkan.cpp>
     VkDescriptorPool g_DescriptorPool;
+    std::map<Yogi::VulkanRenderTexture*, ImTextureID> g_TextureMap;
     void imgui_vulkan_init()
     {
         ImGui_ImplVulkan_InitInfo init_info = {};
@@ -149,7 +150,11 @@
     }
     ImTextureID imgui_vulkan_texture_id(Yogi::VulkanRenderTexture* texture)
     {
-        return ImGui_ImplVulkan_AddTexture(texture->get_vk_sampler(), texture->get_vk_image_view(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        if (g_TextureMap.find(texture) != g_TextureMap.end()) {
+            ImGui_ImplVulkan_RemoveTexture((VkDescriptorSet)g_TextureMap[texture]);
+        }
+        g_TextureMap[texture] = ImGui_ImplVulkan_AddTexture(texture->get_vk_sampler(), texture->get_vk_image_view(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        return g_TextureMap[texture];
     }
 
     #define ImGui_Renderer_Init() imgui_vulkan_init()

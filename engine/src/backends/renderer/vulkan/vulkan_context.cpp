@@ -894,8 +894,8 @@ namespace Yogi {
         YG_PROFILE_FUNCTION();
 
         vkWaitForFences(m_device, 1, &m_render_command_fences[m_current_frame], VK_TRUE, UINT64_MAX);
-        // vkDeviceWaitIdle(m_device);
-        // vkQueueWaitIdle(m_graphics_queue);
+        vkDeviceWaitIdle(m_device);
+        vkQueueWaitIdle(m_graphics_queue);
     }
 
     void VulkanContext::begin_frame()

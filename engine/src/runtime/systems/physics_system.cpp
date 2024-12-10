@@ -11,10 +11,10 @@
 
 namespace Yogi {
 
-    const uint cMaxBodies = 65536;
-	const uint cNumBodyMutexes = 0;
-	const uint cMaxBodyPairs = 1024;
-    const uint cMaxContactConstraints = 1024;
+    const uint32_t cMaxBodies = 65536;
+	const uint32_t cNumBodyMutexes = 0;
+	const uint32_t cMaxBodyPairs = 1024;
+    const uint32_t cMaxContactConstraints = 1024;
 
     namespace Layers
     {
@@ -26,7 +26,7 @@ namespace Yogi {
     {
         static constexpr JPH::BroadPhaseLayer NON_MOVING(0);
         static constexpr JPH::BroadPhaseLayer MOVING(1);
-        static constexpr uint NUM_LAYERS(2);
+        static constexpr uint32_t NUM_LAYERS(2);
     };
     class BPLayerInterfaceImpl final : public JPH::BroadPhaseLayerInterface
     {
@@ -37,7 +37,7 @@ namespace Yogi {
             mObjectToBroadPhase[Layers::MOVING] = BroadPhaseLayers::MOVING;
         }
 
-        virtual uint GetNumBroadPhaseLayers() const override
+        virtual uint32_t GetNumBroadPhaseLayers() const override
         {
             return BroadPhaseLayers::NUM_LAYERS;
         }

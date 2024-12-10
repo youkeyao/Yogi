@@ -22,6 +22,8 @@
 #include <array>
 #include <algorithm>
 #include <utility>
+#include <optional>
+#include <cxxabi.h>
 
 #include "runtime/core/log.h"
 #include "runtime/debug/instrumentor.h"
@@ -46,9 +48,16 @@ namespace Yogi {
     template <typename Type>
     auto get_type_name()
     {
-        std::string pretty_function{__PRETTY_FUNCTION__};
-        auto first = pretty_function.find_first_not_of(' ', pretty_function.find_first_of('=') + 1);
-        auto value = pretty_function.substr(first, pretty_function.find_last_of(']') - first);
-        return value;
+        int status = -1;
+        char* demangled = nullptr;
+        demangled = abi::__cxa_demangle(typeid(Type).name(), nullptr, nullptr, &status);
+        if (status == 0) {
+            std::string className = demangled;
+            free(demangled);
+            return className;
+        } else {
+            free(demangled);
+            return std::string(typeid(Type).name());
+        }
     }
 }

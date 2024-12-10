@@ -107,7 +107,6 @@ target_link_libraries( engine
     PUBLIC
         spdlog
         Jolt
-        pthread
     PRIVATE
         stb_image
         spirv-cross-glsl

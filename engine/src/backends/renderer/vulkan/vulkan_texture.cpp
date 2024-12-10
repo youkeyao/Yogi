@@ -59,9 +59,6 @@ namespace Yogi {
         if (internal_format == VK_FORMAT_R8G8B8A8_UNORM) {
             bpp = 4;
         }
-        else if (internal_format == VK_FORMAT_R8G8B8_UNORM) {
-            bpp = 3;
-        }
         else if (internal_format == VK_FORMAT_R32_SINT) {
             bpp = 4;
         }
@@ -201,8 +198,17 @@ namespace Yogi {
             image_size = m_width * m_height * 4;
         }
         else if (channels == 3) {
-            m_internal_format = VK_FORMAT_R8G8B8_UNORM;
-            image_size = m_width * m_height * 3;
+            m_internal_format = VK_FORMAT_R8G8B8A8_UNORM;
+            image_size = m_width * m_height * 4;
+            stbi_uc* rgbaData = (stbi_uc*)malloc(m_width * m_height * 4);
+            for (int i = 0; i < m_width * m_height; i++) {
+                rgbaData[i * 4 + 0] = data[i * 3 + 0]; // R
+                rgbaData[i * 4 + 1] = data[i * 3 + 1]; // G
+                rgbaData[i * 4 + 2] = data[i * 3 + 2]; // B
+                rgbaData[i * 4 + 3] = 255;             // A
+            }
+            stbi_image_free(data);
+            data = rgbaData;
         }
         else {
             YG_CORE_ERROR("Invalid texture format!");
