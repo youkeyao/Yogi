@@ -28,7 +28,6 @@
 
 // --systems-----------------------------------
 #include "runtime/systems/render_system.h"
-#include "runtime/systems/light_system.h"
 #include "runtime/systems/physics_system.h"
 // ----------------------------------------------
 

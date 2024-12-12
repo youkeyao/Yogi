@@ -12,9 +12,11 @@ namespace Yogi {
 
     RenderSystem::RenderSystem()
     {
+        m_shadow_frame_buffer = FrameBuffer::create(m_shadow_map_size, m_shadow_map_size, { Renderer::get_shadow_map() });
     }
     RenderSystem::~RenderSystem()
     {
+        m_shadow_frame_buffer.reset();
     }
 
     void RenderSystem::on_update(Timestep ts, Scene* scene)
@@ -23,9 +25,39 @@ namespace Yogi {
 
         RenderCommand::set_clear_color({ 0.1f, 0.1f, 0.1f, 1.0f });
 
+        // light
+        set_light(scene);
+
+        // render camera
         scene->view_components<TransformComponent, CameraComponent>([&](Entity entity, TransformComponent& transform, CameraComponent& camera){
             camera.zoom_level = std::max(camera.zoom_level, 0.25f);
             render_camera(camera, transform, scene);
+        });
+    }
+
+    void RenderSystem::set_light(Scene* scene)
+    {
+        Renderer::reset_lights();
+        scene->view_components<TransformComponent, DirectionalLightComponent>([&](Entity entity, TransformComponent& transform, DirectionalLightComponent& light){
+            Renderer::set_directional_light(light.color, glm::vec3{((glm::mat4)transform.transform * glm::vec4(0, 0, -1, 0))});
+            glm::mat4 light_space_matrix = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, -100.0f, 100.0f) * glm::inverse((glm::mat4)transform.transform);
+            Renderer::set_light_space_matrix(light_space_matrix);
+            m_shadow_frame_buffer->bind();
+            RenderCommand::set_viewport(0, 0, m_shadow_map_size, m_shadow_map_size);
+            RenderCommand::clear();
+            scene->view_components<TransformComponent, MeshRendererComponent>([&](Entity entity, TransformComponent& transform, MeshRendererComponent& mesh_renderer){
+                if (mesh_renderer.cast_shadow) {
+                    Renderer::draw_mesh(mesh_renderer.mesh, MaterialManager::get_material("shadow"), transform.transform, entity);
+                }
+            });
+            Renderer::flush();
+            m_shadow_frame_buffer->unbind();
+        });
+        scene->view_components<TransformComponent, SpotLightComponent>([&](Entity entity, TransformComponent& transform, SpotLightComponent& light){
+            Renderer::add_spot_light({light.color, glm::vec3{(glm::mat4)transform.transform * glm::vec4(0, 0, 0, 1)}, light.cutoff});
+        });
+        scene->view_components<TransformComponent, PointLightComponent>([&](Entity entity, TransformComponent& transform, PointLightComponent& light){
+            Renderer::add_point_light({glm::vec3{(glm::mat4)transform.transform * glm::vec4(0, 0, 0, 1)}, light.attenuation_parm, light.color});
         });
     }
 
@@ -53,7 +85,7 @@ namespace Yogi {
         scene->view_components<TransformComponent, MeshRendererComponent>([&](Entity entity, TransformComponent& transform, MeshRendererComponent& mesh_renderer){
             TransformComponent tmp_transform = transform;
             glm::mat4 transform_mat = transform.transform;
-            if (tmp_transform.parent) {
+            while (tmp_transform.parent) {
                 tmp_transform = tmp_transform.parent.get_component<TransformComponent>();
                 transform_mat = (glm::mat4)tmp_transform.transform * transform_mat;
             }

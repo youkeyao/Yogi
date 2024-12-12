@@ -17,7 +17,7 @@ namespace Yogi {
                 if (directory_entry.is_directory()) {
                     init(path.string());
                 }
-                else if (extension == ".png") {
+                else if (extension == ".png" || extension == ".hdr") {
                     add_texture(Texture2D::create(filename, path.string()));
                 }
                 else if (extension == ".rt") {

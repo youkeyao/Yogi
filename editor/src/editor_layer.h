@@ -38,7 +38,6 @@ namespace Yogi {
         Ref<MaterialEditorPanel> m_material_editor_panel;
 
         Ref<RenderSystem> m_editor_render_system;
-        Ref<LightSystem> m_editor_light_system;
         EditorCamera m_editor_camera;
 
         bool m_viewport_hovered = false;

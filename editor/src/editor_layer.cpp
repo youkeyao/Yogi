@@ -27,7 +27,6 @@ namespace Yogi {
         m_entity_id_mat = Material::create("entity_id", PipelineManager::get_pipeline("Entity"));
 
         m_editor_render_system = CreateRef<RenderSystem>();
-        m_editor_light_system = CreateRef<LightSystem>();
         RenderSystem::set_default_frame_buffer(m_frame_buffer);
 
         AssetManager::init_project(YG_PROJECT_TEMPLATE);
@@ -35,7 +34,6 @@ namespace Yogi {
         m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
         m_content_browser_panel = CreateRef<ContentBrowserPanel>(YG_PROJECT_TEMPLATE);
         m_material_editor_panel = CreateRef<MaterialEditorPanel>();
-        // open_scene(YG_PROJECT_TEMPLATE"/main.yg");
     }
 
     void EditorLayer::on_detach()
@@ -58,8 +56,8 @@ namespace Yogi {
 
         // Edit Mode
         if (m_scene_state == SceneState::Edit) {
-            m_editor_light_system->on_update(ts, m_scene.get());
             m_editor_camera.on_update(ts, m_viewport_hovered);
+            m_editor_render_system->set_light(m_scene.get());
             m_editor_render_system->render_camera(m_editor_camera.get_camera_component(), m_editor_camera.get_transform_component(), m_scene.get());
             // Entity id
             m_entity_frame_buffer->bind();
@@ -67,7 +65,7 @@ namespace Yogi {
             m_scene->view_components<TransformComponent, MeshRendererComponent>([&](Entity entity, TransformComponent& transform, MeshRendererComponent& mesh_renderer){
                 TransformComponent tmp_transform = transform;
                 glm::mat4 transform_mat = transform.transform;
-                if (tmp_transform.parent) {
+                while (tmp_transform.parent) {
                     tmp_transform = tmp_transform.parent.get_component<TransformComponent>();
                     transform_mat = (glm::mat4)tmp_transform.transform * transform_mat;
                 }
@@ -248,7 +246,6 @@ namespace Yogi {
             if (m_scene_state == SceneState::Edit) {
                 m_editor_camera.on_event(e);
                 m_editor_render_system->on_event(e, m_scene.get());
-                m_editor_light_system->on_event(e, m_scene.get());
             }
             else {
                 m_scene->on_event(e);

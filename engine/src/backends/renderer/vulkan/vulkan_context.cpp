@@ -722,7 +722,7 @@ namespace Yogi {
             depthAttachment.format = find_depth_format();
             depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
             depthAttachment.loadOp = init_layout == VK_IMAGE_LAYOUT_UNDEFINED ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
-            depthAttachment.storeOp = init_layout == VK_IMAGE_LAYOUT_UNDEFINED ? VK_ATTACHMENT_STORE_OP_DONT_CARE : VK_ATTACHMENT_STORE_OP_STORE;
+            depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
             depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
             depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
             depthAttachment.initialLayout = init_layout == VK_IMAGE_LAYOUT_UNDEFINED ? VK_IMAGE_LAYOUT_UNDEFINED : VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
@@ -892,10 +892,7 @@ namespace Yogi {
     void VulkanContext::wait_render_command()
     {
         YG_PROFILE_FUNCTION();
-
         vkWaitForFences(m_device, 1, &m_render_command_fences[m_current_frame], VK_TRUE, UINT64_MAX);
-        vkDeviceWaitIdle(m_device);
-        vkQueueWaitIdle(m_graphics_queue);
     }
 
     void VulkanContext::begin_frame()

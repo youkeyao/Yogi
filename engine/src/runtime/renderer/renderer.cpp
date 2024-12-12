@@ -8,7 +8,7 @@ namespace Yogi {
 
     struct RendererData
     {
-        static const uint32_t max_triangles = 10000;
+        static const uint32_t max_triangles = 100000;
         static const uint32_t max_vertices = max_triangles * 3;
         static const uint32_t max_vertices_size = max_vertices * 40;
         static const uint32_t max_indices = max_triangles * 3;

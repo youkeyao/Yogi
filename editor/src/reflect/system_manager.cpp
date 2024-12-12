@@ -7,7 +7,6 @@ namespace Yogi {
     void SystemManager::init()
     {
         register_system<RenderSystem>();
-        register_system<LightSystem>();
         register_system<PhysicsSystem>();
     }
 

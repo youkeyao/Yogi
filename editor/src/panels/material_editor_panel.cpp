@@ -87,8 +87,11 @@ namespace Yogi {
         if (ImGui::BeginDragDropTarget()) {
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("content_browser_item")) {
                 const char* path = (const char*)payload->Data;
-                m_material = MaterialManager::get_material(std::filesystem::path{path}.stem().string());
-                m_parent_path = std::filesystem::path{path}.parent_path().string();
+                std::filesystem::path fpath = path;
+                if (fpath.extension().string() == ".mat") {
+                    m_material = MaterialManager::get_material(fpath.stem().string());
+                    m_parent_path = fpath.parent_path().string();
+                }
             }
             ImGui::EndDragDropTarget();
         }

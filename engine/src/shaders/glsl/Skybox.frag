@@ -13,32 +13,20 @@ layout(location = 1) flat in int v_TexSkybox;
 
 layout(binding = 1) uniform sampler2D u_Textures[32];
 
+#define PI 3.14159265359
+
+vec2 sampleSphericalMap(vec3 v) {
+    vec2 uv = vec2(atan(v.z, v.x), asin(v.y));
+    uv /= vec2(2.0 * PI, PI);
+    uv += 0.5;
+    uv.y = 1.0 - uv.y;
+    return uv;
+}
+
 void main()
 {
-    vec2 texcoord = vec2(0, 0);
+    vec2 texcoord = sampleSphericalMap(normalize(-v_TexCoord));
     color = vec4(v_TexCoord, 1);
-
-    float mag=max(max(abs(v_TexCoord.x), abs(v_TexCoord.y)), abs(v_TexCoord.z));
-    if (mag == abs(v_TexCoord.x)) {
-        if (v_TexCoord.x > 0) {
-            texcoord = vec2((1-(v_TexCoord.z+1)/2)/6, (v_TexCoord.y+1)/2);
-        }
-        else if (v_TexCoord.x < 0) {
-            texcoord = vec2((v_TexCoord.z+1)/2/6 + 1.0/6,(v_TexCoord.y+1)/2);
-        }
-    }
-    else if (mag == abs(v_TexCoord.y)) {
-        if (v_TexCoord.y > 0)
-            texcoord = vec2((v_TexCoord.x+1)/2/6 + 2.0/6,1-(v_TexCoord.z+1)/2);
-        else if (v_TexCoord.y < 0)
-            texcoord = vec2((v_TexCoord.x+1)/2/6 + 3.0/6,(v_TexCoord.z+1)/2);
-    }
-    else if (mag == abs(v_TexCoord.z)) {
-        if (v_TexCoord.z > 0)
-            texcoord = vec2((v_TexCoord.x+1)/2/6 + 4.0/6,(v_TexCoord.y+1)/2);
-        else if (v_TexCoord.z < 0)
-            texcoord = vec2((1-(v_TexCoord.x+1)/2)/6 + 5.0/6,(v_TexCoord.y+1)/2);
-    }
 
     switch (v_TexSkybox) {
         case  0: color = texture(u_Textures[ 0], texcoord); break;

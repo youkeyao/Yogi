@@ -13,7 +13,6 @@ void Sandbox2D::on_attach()
     Yogi::Ref<Yogi::Material> mat1 = Yogi::MaterialManager::get_material("default");
 
     m_scene->add_system<Yogi::RenderSystem>();
-    m_scene->add_system<Yogi::LightSystem>();
     m_scene->add_system<Yogi::PhysicsSystem>();
 
     checker = m_scene->create_entity();

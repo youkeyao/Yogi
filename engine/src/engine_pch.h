@@ -1,5 +1,7 @@
 #define GLFW_INCLUDE_NONE
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#if YG_RENDERER_VULKAN
+    #define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#endif
 // #define YG_PROFILE
 
 #include <stdint.h>
