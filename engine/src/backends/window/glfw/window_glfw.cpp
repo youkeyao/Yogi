@@ -30,6 +30,7 @@ namespace Yogi {
             #if YG_RENDERER_VULKAN
                 glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
             #endif
+            glfwWindowHint(GLFW_SAMPLES, 4);
             glfwSetErrorCallback(glfw_error_callback);
             s_glfw_initialized = true;
         }

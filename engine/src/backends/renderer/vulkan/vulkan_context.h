@@ -21,6 +21,7 @@ namespace Yogi
         void shutdown() override;
         void swap_buffers() override;
 
+        VkSampleCountFlagBits get_msaa_samples() { return msaaSamples; }
         VkInstance get_instance() { return m_instance; }
         VkPhysicalDevice get_physical_device() { return m_physical_device; }
         VkDevice get_device() { return m_device; }
@@ -48,7 +49,7 @@ namespace Yogi
         uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties);
         VkFormat find_depth_format();
         void create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& buffer_memory);
-        void create_image(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& image_memory);
+        void create_image(uint32_t width, uint32_t height, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& image_memory);
         VkImageView create_image_view(VkImage image, VkFormat format, VkImageAspectFlags aspect_flags);
         VkRenderPass create_render_pass(const std::vector<VkFormat>& color_attachment_formats, VkImageLayout init_layout, VkImageLayout final_layout, bool has_depth_attachment = true);
         void copy_buffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size);
@@ -85,6 +86,7 @@ namespace Yogi
         VkInstance m_instance;
         VkPhysicalDevice m_physical_device = VK_NULL_HANDLE;
         VkDevice m_device;
+        VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT;
 
         VkQueue m_graphics_queue;
         VkQueue m_transfer_queue;

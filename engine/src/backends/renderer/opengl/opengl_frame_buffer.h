@@ -16,10 +16,14 @@ namespace Yogi {
         void resize(uint32_t width, uint32_t height) override;
         uint32_t get_width() const override { return m_width; }
         uint32_t get_height() const override { return m_height; }
+        uint32_t get_renderer_id() const { return m_renderer_id; }
+        uint32_t get_msaa_renderer_id() const { return m_msaa_renderer_id; }
 
         const Ref<RenderTexture>& get_color_attachment(uint32_t index) const override { return m_color_attachments[index]; }
     private:
         uint32_t m_renderer_id = 0;
+        uint32_t m_msaa_renderer_id = 0;
+        std::vector<uint32_t> m_msaa_color_attachments;
         uint32_t m_width, m_height;
 
         std::vector<Ref<RenderTexture>> m_color_attachments;

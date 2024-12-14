@@ -30,6 +30,8 @@ namespace Yogi {
                 glm::vec4 color = glm::vec4(0.0f);
                 glm::vec3 pos = glm::vec3(0.0f);
                 float cutoff = 0.0f;
+                glm::vec3 direction = glm::vec3(0.0f);
+                float attenuation_parm = 1.0f;
             } spot_lights[4];
             struct PointLight {
                 glm::vec3 pos = glm::vec3(0.0f);

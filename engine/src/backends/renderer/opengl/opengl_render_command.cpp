@@ -1,4 +1,6 @@
 #include "runtime/renderer/render_command.h"
+#include "runtime/core/application.h"
+#include "backends/renderer/opengl/opengl_context.h"
 #include <glad/glad.h>
 
 namespace Yogi {

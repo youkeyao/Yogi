@@ -56,6 +56,7 @@ namespace Yogi {
 
         // Edit Mode
         if (m_scene_state == SceneState::Edit) {
+            Renderer::reset_stats();
             m_editor_camera.on_update(ts, m_viewport_hovered);
             m_editor_render_system->set_light(m_scene.get());
             m_editor_render_system->render_camera(m_editor_camera.get_camera_component(), m_editor_camera.get_transform_component(), m_scene.get());

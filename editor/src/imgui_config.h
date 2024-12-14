@@ -95,7 +95,7 @@
         init_info.Subpass = 0;
         init_info.MinImageCount = context->get_swap_chain_image_count();
         init_info.ImageCount = context->get_swap_chain_image_count();
-        init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+        init_info.MSAASamples = context->get_msaa_samples();
         init_info.Allocator = nullptr;
         init_info.CheckVkResultFn = nullptr;
         ImGui_ImplVulkan_Init(&init_info, frame_buffer->get_vk_clear_render_pass());
@@ -122,9 +122,9 @@
         renderPassInfo.framebuffer = frame_buffer->get_vk_frame_buffer();
         renderPassInfo.renderArea.offset = {0, 0};
         renderPassInfo.renderArea.extent = extent;
-        VkClearValue clear_value{{0, 0, 0, 1}};
-        renderPassInfo.clearValueCount = 1;
-        renderPassInfo.pClearValues = &clear_value;
+        std::vector<VkClearValue> clear_value{{{0, 0, 0, 1}}, {{0, 0, 0, 1}}};
+        renderPassInfo.clearValueCount = 2;
+        renderPassInfo.pClearValues = clear_value.data();
 
         vkCmdBeginRenderPass(command_buffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
         VkViewport viewport{0, 0, (float)extent.width, (float)extent.height, 0, 1};

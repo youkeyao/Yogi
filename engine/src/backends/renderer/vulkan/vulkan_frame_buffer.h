@@ -31,6 +31,9 @@ namespace Yogi {
         uint32_t m_width, m_height;
 
         std::vector<Ref<RenderTexture>> m_color_attachments;
+        std::vector<VkImage> m_msaa_images;
+        std::vector<VkDeviceMemory> m_msaa_image_memories;
+        std::vector<VkImageView> m_msaa_image_views;
 
         VkImage m_depth_image = VK_NULL_HANDLE;
         VkDeviceMemory m_depth_image_memory = VK_NULL_HANDLE;

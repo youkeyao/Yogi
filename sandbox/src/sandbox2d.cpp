@@ -46,7 +46,7 @@ void Sandbox2D::on_attach()
     e.add_component<Yogi::PointLightComponent>();
 
     e = m_scene->create_entity();
-    e.add_component<Yogi::TransformComponent>().transform = glm::translate(glm::mat4(1.0f), glm::vec3(0, 0, 2));
+    e.add_component<Yogi::TransformComponent>().transform = glm::translate(glm::mat4(1.0f), glm::vec3(0, 0, 5));
     e.add_component<Yogi::DirectionalLightComponent>();
 
     e = m_scene->create_entity();

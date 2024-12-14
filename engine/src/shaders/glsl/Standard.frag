@@ -6,6 +6,8 @@ struct SpotLight {
     vec4 color;
     vec3 pos;
     float cutoff;
+    vec3 direction;
+    float attenuation_parm;
 };
 struct PointLight {
     vec3 pos;
@@ -105,7 +107,7 @@ float ShadowCalculation(vec4 fragPosLightSpace)
 {
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
     projCoords.xy = projCoords.xy * 0.5 + 0.5;
-    float closestDepth = texture(u_Textures[0], projCoords.xy).r; 
+    float closestDepth = texture(u_Textures[0], projCoords.xy).r;
     float currentDepth = projCoords.z;
     vec3 normal = normalize(v_Normal);
     vec3 lightDir = -normalize(scene_data.directional_light_direction);
@@ -116,12 +118,12 @@ float ShadowCalculation(vec4 fragPosLightSpace)
     vec2 texelSize = 1.0 / textureSize(u_Textures[0], 0);
     for (int x = -1; x <= 1; x++) {
         for (int y = -1; y <= 1; y++) {
-            float pcfDepth = texture(u_Textures[0], projCoords.xy + vec2(x, y) * texelSize).r; 
-            shadow += currentDepth - bias > pcfDepth  ? 1.0 : 0.0;        
-        }    
+            float pcfDepth = texture(u_Textures[0], projCoords.xy + vec2(x, y) * texelSize).r;
+            shadow += currentDepth - bias > pcfDepth  ? 1.0 : 0.0;
+        }
     }
     shadow /= 9.0;
-    
+
     // Keep the shadow at 0.0 when outside the far_plane region of the light's frustum.
     if (projCoords.z > 1.0) shadow = 0.0;
         

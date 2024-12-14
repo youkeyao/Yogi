@@ -189,6 +189,20 @@ VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, Yogi::
 bool hasStencilComponent(VkFormat format) {
     return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
 }
+VkSampleCountFlagBits getMaxUsableSampleCount(VkPhysicalDevice device) {
+    VkPhysicalDeviceProperties physicalDeviceProperties;
+    vkGetPhysicalDeviceProperties(device, &physicalDeviceProperties);
+
+    VkSampleCountFlags counts = physicalDeviceProperties.limits.framebufferColorSampleCounts & physicalDeviceProperties.limits.framebufferDepthSampleCounts;
+    if (counts & VK_SAMPLE_COUNT_64_BIT) { return VK_SAMPLE_COUNT_64_BIT; }
+    if (counts & VK_SAMPLE_COUNT_32_BIT) { return VK_SAMPLE_COUNT_32_BIT; }
+    if (counts & VK_SAMPLE_COUNT_16_BIT) { return VK_SAMPLE_COUNT_16_BIT; }
+    if (counts & VK_SAMPLE_COUNT_8_BIT) { return VK_SAMPLE_COUNT_8_BIT; }
+    if (counts & VK_SAMPLE_COUNT_4_BIT) { return VK_SAMPLE_COUNT_4_BIT; }
+    if (counts & VK_SAMPLE_COUNT_2_BIT) { return VK_SAMPLE_COUNT_2_BIT; }
+
+    return VK_SAMPLE_COUNT_1_BIT;
+}
 
 namespace Yogi {
     Scope<GraphicsContext> GraphicsContext::create(Window* window)
@@ -305,7 +319,7 @@ namespace Yogi {
         vkBindBufferMemory(m_device, buffer, buffer_memory, 0);
     }
 
-    void VulkanContext::create_image(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& image_memory)
+    void VulkanContext::create_image(uint32_t width, uint32_t height, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& image_memory)
     {
         VkImageCreateInfo imageInfo{};
         imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -319,7 +333,7 @@ namespace Yogi {
         imageInfo.tiling = tiling;
         imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         imageInfo.usage = usage;
-        imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+        imageInfo.samples = numSamples;
         imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
         VkResult result = vkCreateImage(m_device, &imageInfo, nullptr, &image);
@@ -574,6 +588,7 @@ namespace Yogi {
         for (const auto& device : devices) {
             if (isDeviceSuitable(device)) {
                 m_physical_device = device;
+                msaaSamples = getMaxUsableSampleCount(m_physical_device);
                 break;
             }
         }
@@ -693,10 +708,11 @@ namespace Yogi {
     {
         std::vector<VkAttachmentDescription> all_attachments;
         std::vector<VkAttachmentReference> color_attachments;
+        std::vector<VkAttachmentReference> color_attachments_resolve;
         for (auto& format : color_attachment_formats) {
             VkAttachmentDescription colorAttachment{};
             colorAttachment.format = format;
-            colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+            colorAttachment.samples = msaaSamples;
             colorAttachment.loadOp = init_layout == VK_IMAGE_LAYOUT_UNDEFINED ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
             colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
             colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -705,11 +721,29 @@ namespace Yogi {
             colorAttachment.finalLayout = final_layout;
 
             VkAttachmentReference colorAttachmentRef{};
-            colorAttachmentRef.attachment = static_cast<uint32_t>(color_attachments.size());
+            colorAttachmentRef.attachment = static_cast<uint32_t>(all_attachments.size());
             colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
             all_attachments.push_back(colorAttachment);
             color_attachments.push_back(colorAttachmentRef);
+        }
+        for (auto& format : color_attachment_formats) {
+            VkAttachmentDescription colorAttachmentResolve{};
+            colorAttachmentResolve.format = format;
+            colorAttachmentResolve.samples = VK_SAMPLE_COUNT_1_BIT;
+            colorAttachmentResolve.loadOp = init_layout == VK_IMAGE_LAYOUT_UNDEFINED ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
+            colorAttachmentResolve.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+            colorAttachmentResolve.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+            colorAttachmentResolve.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+            colorAttachmentResolve.initialLayout = init_layout;
+            colorAttachmentResolve.finalLayout = final_layout;
+
+            VkAttachmentReference colorAttachmentResolveRef{};
+            colorAttachmentResolveRef.attachment = static_cast<uint32_t>(all_attachments.size());
+            colorAttachmentResolveRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+            all_attachments.push_back(colorAttachmentResolve);
+            color_attachments_resolve.push_back(colorAttachmentResolveRef);
         }
         VkAttachmentDescription depthAttachment{};
         VkAttachmentReference depthAttachmentRef{};
@@ -717,20 +751,21 @@ namespace Yogi {
         subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
         subpass.colorAttachmentCount = static_cast<uint32_t>(color_attachments.size());
         subpass.pColorAttachments = color_attachments.data();
+        subpass.pResolveAttachments = color_attachments_resolve.data();
         subpass.pDepthStencilAttachment = nullptr;
         if (has_depth_attachment) {
             depthAttachment.format = find_depth_format();
-            depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+            depthAttachment.samples = msaaSamples;
             depthAttachment.loadOp = init_layout == VK_IMAGE_LAYOUT_UNDEFINED ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
             depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
             depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
             depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
             depthAttachment.initialLayout = init_layout == VK_IMAGE_LAYOUT_UNDEFINED ? VK_IMAGE_LAYOUT_UNDEFINED : VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
             depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-            all_attachments.push_back(depthAttachment);
-            depthAttachmentRef.attachment = static_cast<uint32_t>(color_attachments.size());
+            depthAttachmentRef.attachment = static_cast<uint32_t>(all_attachments.size());
             depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
             subpass.pDepthStencilAttachment = &depthAttachmentRef;
+            all_attachments.push_back(depthAttachment);
         }
         VkSubpassDependency dependency{};
         dependency.srcSubpass = VK_SUBPASS_EXTERNAL;

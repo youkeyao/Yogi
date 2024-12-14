@@ -34,6 +34,7 @@ namespace Yogi {
         uint32_t get_width() const override { return m_width; }
         uint32_t get_height() const override{ return m_height; }
         uint32_t get_renderer_id() const { return m_renderer_id; }
+        uint32_t get_internal_format() const { return m_internal_format; }
         void read_pixel(int32_t x, int32_t y, void* data) const override;
 
         void set_data(void* data, size_t size) override;

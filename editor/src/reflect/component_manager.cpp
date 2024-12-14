@@ -77,7 +77,7 @@ namespace Yogi {
         register_component<MeshRendererComponent>({"mesh", "material", "cast_shadow"});
         register_component<CameraComponent>({"is_ortho", "fov", "aspect_ratio", "zoom_level", "render_target"});
         register_component<DirectionalLightComponent>({"color"});
-        register_component<SpotLightComponent>({"cutoff", "color"});
+        register_component<SpotLightComponent>({"cutoff", "attenuation_parms", "color"});
         register_component<PointLightComponent>({"attenuation_parms", "color"});
         register_component<RigidBodyComponent>({"is_static", "scale", "type"});
     }

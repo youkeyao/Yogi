@@ -4,6 +4,8 @@ struct SpotLight {
     vec4 color;
     vec3 pos;
     float cutoff;
+    vec3 direction;
+    float attenuation_parm;
 };
 struct PointLight {
     vec3 pos;

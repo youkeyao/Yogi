@@ -70,6 +70,7 @@ namespace Yogi {
     struct SpotLightComponent
     {
         float cutoff = glm::cos(glm::radians(12.5f));
+        float attenuation_parm = 1.0f;
         Color color = glm::vec4(1.0f);
     };
 
