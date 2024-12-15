@@ -19,7 +19,7 @@ namespace Yogi {
         void on_update(Timestep ts, Scene* scene) override;
         void on_event(Event& e, Scene* scene) override;
     private:
-        JPH::PhysicsSystem m_physics_system;
+        JPH::PhysicsSystem* m_physics_system = nullptr;
         JPH::TempAllocatorImpl* m_temp_allocator = nullptr;
         JPH::JobSystemThreadPool* m_job_system = nullptr;
         JPH::BroadPhaseLayerInterface* m_broad_phase_layer_interface = nullptr;

@@ -45,6 +45,10 @@ if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
     add_compile_definitions(YG_DEBUG)
 endif()
 
+if ( MSVC )
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
 add_subdirectory( engine )
 add_subdirectory( sandbox )
 add_subdirectory( editor )

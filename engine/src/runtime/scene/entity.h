@@ -40,7 +40,12 @@ namespace Yogi {
             for (auto [id, storage] : m_registry->storage()) {
                 if (storage.contains(m_entity_handle)) {
                     entt::type_info type = storage.type();
-                    func(type.name(), storage.value(m_entity_handle));
+                    std::string_view name = type.name();
+                    size_t pos = name.find(' ');
+                    if (pos != std::string_view::npos) {
+                        name = name.substr(pos + 1);
+                    }
+                    func(name, storage.value(m_entity_handle));
                 }
             }
         }

@@ -4,7 +4,10 @@
 #include "reflect/system_manager.h"
 #include "reflect/scene_manager.h"
 #include <glm/gtc/type_ptr.hpp>
-#include <portable-file-dialogs.h>
+#pragma warning(push)
+#pragma warning(disable : 4819)
+    #include <portable-file-dialogs.h>
+#pragma warning(pop)
 #include "panels/fontawesome4_header.h"
 
 namespace Yogi {

@@ -107,13 +107,14 @@ namespace Yogi {
         m_broad_phase_layer_interface = new BPLayerInterfaceImpl();
         m_object_vs_broadphase_layer_filter = new ObjectVsBroadPhaseLayerFilterImpl();
         m_object_vs_object_layer_filter = new ObjectLayerPairFilterImpl();
-        m_physics_system.Init(cMaxBodies, cNumBodyMutexes, cMaxBodyPairs, cMaxContactConstraints, *m_broad_phase_layer_interface, *m_object_vs_broadphase_layer_filter, *m_object_vs_object_layer_filter);
+        m_physics_system = new JPH::PhysicsSystem();
+        m_physics_system->Init(cMaxBodies, cNumBodyMutexes, cMaxBodyPairs, cMaxContactConstraints, *m_broad_phase_layer_interface, *m_object_vs_broadphase_layer_filter, *m_object_vs_object_layer_filter);
     }
     PhysicsSystem::~PhysicsSystem()
     {
         if (!m_bodies.empty()) {
-            m_physics_system.GetBodyInterface().RemoveBodies(m_bodies.data(), m_bodies.size());
-            m_physics_system.GetBodyInterface().DestroyBodies(m_bodies.data(), m_bodies.size());
+            m_physics_system->GetBodyInterface().RemoveBodies(m_bodies.data(), m_bodies.size());
+            m_physics_system->GetBodyInterface().DestroyBodies(m_bodies.data(), m_bodies.size());
         }
 
         delete m_broad_phase_layer_interface;
@@ -122,6 +123,7 @@ namespace Yogi {
 
         delete m_temp_allocator;
         delete m_job_system;
+        delete m_physics_system;
 
         JPH::UnregisterTypes();
 
@@ -131,7 +133,7 @@ namespace Yogi {
 
     void PhysicsSystem::on_update(Timestep ts, Scene* scene)
     {
-        JPH::BodyInterface& body_interface = m_physics_system.GetBodyInterface();
+        JPH::BodyInterface& body_interface = m_physics_system->GetBodyInterface();
 
         // add body || update body transform
         scene->view_components<TransformComponent, RigidBodyComponent>([&](Entity entity, TransformComponent& transform, RigidBodyComponent& rigid_body){
@@ -182,7 +184,7 @@ namespace Yogi {
             }
         });
 
-        m_physics_system.Update(ts, (int)(ts * 60) + 1, m_temp_allocator, m_job_system);
+        m_physics_system->Update(ts, (int)(ts * 60) + 1, m_temp_allocator, m_job_system);
 
         // update entity transform
         scene->view_components<TransformComponent, RigidBodyComponent>([&](Entity entity, TransformComponent& transform, RigidBodyComponent& rigid_body){

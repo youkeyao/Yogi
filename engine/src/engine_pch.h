@@ -23,7 +23,9 @@
 #include <algorithm>
 #include <utility>
 #include <optional>
-#include <cxxabi.h>
+#ifdef __GNUG__
+    #include <cxxabi.h>
+#endif
 
 #include "runtime/core/log.h"
 #include "runtime/debug/instrumentor.h"
@@ -49,15 +51,23 @@ namespace Yogi {
     auto get_type_name()
     {
         int status = -1;
-        char* demangled = nullptr;
-        demangled = abi::__cxa_demangle(typeid(Type).name(), nullptr, nullptr, &status);
-        if (status == 0) {
-            std::string className = demangled;
-            free(demangled);
-            return className;
-        } else {
-            free(demangled);
-            return std::string(typeid(Type).name());
-        }
+        #ifdef __GNUG__
+            char* demangled = abi::__cxa_demangle(typeid(Type).name(), nullptr, nullptr, &status);
+            if (status == 0) {
+                std::string className = demangled;
+                free(demangled);
+                return className;
+            } else {
+                free(demangled);
+                return std::string(typeid(Type).name());
+            }
+        #elif defined(_MSC_VER)
+            std::string name = typeid(Type).name();
+            size_t pos = name.find(' ');
+            if (pos != std::string::npos) {
+                return name.substr(pos + 1);
+            }
+            return name;
+        #endif
     }
 }
