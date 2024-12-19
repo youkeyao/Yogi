@@ -67,13 +67,7 @@ namespace Yogi {
             m_entity_frame_buffer->bind();
             RenderCommand::clear();
             m_scene->view_components<TransformComponent, MeshRendererComponent>([&](Entity entity, TransformComponent& transform, MeshRendererComponent& mesh_renderer){
-                TransformComponent tmp_transform = transform;
-                glm::mat4 transform_mat = transform.transform;
-                while (tmp_transform.parent) {
-                    tmp_transform = tmp_transform.parent.get_component<TransformComponent>();
-                    transform_mat = (glm::mat4)tmp_transform.transform * transform_mat;
-                }
-                Renderer::draw_mesh(mesh_renderer.mesh, m_entity_id_mat, transform_mat, entity);
+                Renderer::draw_mesh(mesh_renderer.mesh, m_entity_id_mat, transform.get_world_transform(), entity);
             });
             Renderer::flush();
             m_entity_frame_buffer->unbind();

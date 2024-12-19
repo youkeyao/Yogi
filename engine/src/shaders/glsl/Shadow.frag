@@ -8,5 +8,5 @@ layout(binding = 1) uniform sampler2D u_Textures[32];
 
 void main()
 {
-    color = vec4(v_Pos.z, 0, 0, 1);
+    color = vec4(v_Pos.z / v_Pos.w, 0, 0, 1);
 }

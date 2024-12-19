@@ -138,7 +138,7 @@ namespace Yogi {
         // add body || update body transform
         scene->view_components<TransformComponent, RigidBodyComponent>([&](Entity entity, TransformComponent& transform, RigidBodyComponent& rigid_body){
             JPH::BodyID body_id(entity);
-            glm::mat4 transform_mat = transform.transform;
+            glm::mat4 transform_mat = transform.get_world_transform();
             JPH::Mat44 transform_matrix(
                 JPH::Vec4(transform_mat[0][0], transform_mat[0][1], transform_mat[0][2], transform_mat[0][3]),
                 JPH::Vec4(transform_mat[1][0], transform_mat[1][1], transform_mat[1][2], transform_mat[1][3]),
@@ -190,16 +190,16 @@ namespace Yogi {
         scene->view_components<TransformComponent, RigidBodyComponent>([&](Entity entity, TransformComponent& transform, RigidBodyComponent& rigid_body){
             JPH::Mat44 transform_matrix = body_interface.GetWorldTransform(JPH::BodyID(entity));
             glm::vec3 scale;
-            glm::mat4 tf = transform.transform;
+            glm::mat4 tf = transform.get_world_transform();
             scale.x = glm::length(glm::vec3{tf[0][0], tf[0][1], tf[0][2]});
             scale.y = glm::length(glm::vec3{tf[1][0], tf[1][1], tf[1][2]});
             scale.z = glm::length(glm::vec3{tf[2][0], tf[2][1], tf[2][2]});
-            transform.transform = glm::mat4(
+            transform.set_world_transform(glm::mat4(
                 transform_matrix(0, 0) * scale.x, transform_matrix(1, 0) * scale.x, transform_matrix(2, 0) * scale.x, transform_matrix(3, 0),
                 transform_matrix(0, 1) * scale.y, transform_matrix(1, 1) * scale.y, transform_matrix(2, 1) * scale.y, transform_matrix(3, 1),
                 transform_matrix(0, 2) * scale.z, transform_matrix(1, 2) * scale.z, transform_matrix(2, 2) * scale.z, transform_matrix(3, 2),
                 transform_matrix(0, 3), transform_matrix(1, 3), transform_matrix(2, 3), transform_matrix(3, 3)
-            );
+            ));
         });
     }
 

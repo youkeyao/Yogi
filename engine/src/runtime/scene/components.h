@@ -13,6 +13,9 @@ namespace Yogi {
     {
         Transform(const glm::mat4& transform) : m_transform(transform) {}
         operator glm::mat4() const { return m_transform; }
+        Transform operator*(const Transform& other) const {
+            return Transform(m_transform * other.m_transform);
+        }
         Transform& operator=(const glm::mat4& transform) { m_transform = transform; return *this; }
     private:
         glm::mat4 m_transform = glm::mat4(1.0f);
@@ -44,6 +47,29 @@ namespace Yogi {
     {
         Entity parent = {};
         Transform transform = glm::mat4(1.0f);
+
+        Transform get_world_transform() const
+        {
+            Transform world_transform = transform;
+            Entity tmp_parent = parent;
+            while (tmp_parent) {
+                TransformComponent& parent_transform = tmp_parent.get_component<TransformComponent>();
+                world_transform = parent_transform.transform * world_transform;
+                tmp_parent = parent_transform.parent;
+            }
+            return world_transform;
+        }
+        void set_world_transform(const Transform& world_transform)
+        {
+            glm::mat4 parent_world_transform = glm::mat4(1.0f);
+            if (parent) {
+                glm::mat4 parent_world_transform = parent.get_component<TransformComponent>().get_world_transform();
+                transform = glm::inverse(parent_world_transform) * (glm::mat4)world_transform;
+            }
+            else {
+                transform = (glm::mat4)world_transform;
+            }
+        }
     };
 
     struct MeshRendererComponent
@@ -59,7 +85,6 @@ namespace Yogi {
         float fov = glm::radians(45.0f);
         float aspect_ratio = 1.0f;
         float zoom_level = 1.0f;
-        Ref<RenderTexture> render_target = nullptr;
     };
 
     struct DirectionalLightComponent
@@ -69,8 +94,8 @@ namespace Yogi {
 
     struct SpotLightComponent
     {
-        float cutoff = glm::cos(glm::radians(12.5f));
-        float attenuation_parm = 1.0f;
+        float inner_angle = 12.5f;
+        float outer_angle = 17.5f;
         Color color = glm::vec4(1.0f);
     };
 
@@ -78,6 +103,11 @@ namespace Yogi {
     {
         float attenuation_parm = 1.0f;
         Color color = glm::vec4(1.0f);
+    };
+
+    struct SkyboxComponent
+    {
+        Ref<Material> material = MaterialManager::get_material("skybox");
     };
 
     struct RigidBodyComponent

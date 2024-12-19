@@ -23,6 +23,15 @@ namespace Yogi {
     void RenderCommand::draw_indexed(uint32_t count)
     {
         glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, nullptr);
+
+        OpenGLContext* context = (OpenGLContext*)Application::get().get_window().get_context();
+        OpenGLFrameBuffer* frame_buffer = context->get_frame_buffer();
+        if (frame_buffer) {
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, frame_buffer->get_msaa_renderer_id());
+            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, frame_buffer->get_renderer_id());
+            glBlitFramebuffer(0, 0, frame_buffer->get_width(), frame_buffer->get_height(), 0, 0, frame_buffer->get_width(), frame_buffer->get_height(), GL_COLOR_BUFFER_BIT, GL_NEAREST);
+            glBindFramebuffer(GL_FRAMEBUFFER, frame_buffer->get_msaa_renderer_id());
+        }
     }
 
 }

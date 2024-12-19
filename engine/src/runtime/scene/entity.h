@@ -60,6 +60,10 @@ namespace Yogi {
         {
             return m_entity_handle != other.m_entity_handle || m_registry != other.m_registry;
         }
+        bool operator<(const Entity& other) const
+        {
+            return m_entity_handle < other.m_entity_handle;
+        }
     private:
         Entity(entt::entity handle, entt::registry* registry);
         entt::entity m_entity_handle{ entt::null };

@@ -2,7 +2,6 @@
 
 layout(binding = 0) uniform SceneData {
     mat4 proj_view;
-    mat4 light_space_matrix;
     vec3 view_pos;
 } scene_data;
 

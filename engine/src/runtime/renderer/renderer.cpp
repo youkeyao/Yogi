@@ -12,7 +12,6 @@ namespace Yogi {
         static const uint32_t max_vertices = max_triangles * 3;
         static const uint32_t max_vertices_size = max_vertices * 40;
         static const uint32_t max_indices = max_triangles * 3;
-        static const uint32_t texture_slot_init_index = 1;
         static const uint32_t max_texture_slots = 32;
 
         Ref<VertexBuffer> mesh_vertex_buffer;
@@ -31,8 +30,8 @@ namespace Yogi {
         std::map<Ref<Pipeline>, uint32_t*> mesh_indices_bases;
         std::map<Ref<Pipeline>, uint32_t*> mesh_indices_curs;
 
-        // texture_slots[0] is shadow map
-        uint32_t texture_slot_index = RendererData::texture_slot_init_index;
+        uint32_t texture_init_slot_index = 0;
+        uint32_t texture_slot_index = 0;
         std::array<Ref<Texture>, max_texture_slots> texture_slots;
 
         Renderer::SceneData scene_data;
@@ -53,7 +52,6 @@ namespace Yogi {
         s_data->mesh_index_buffer = IndexBuffer::create(nullptr, RendererData::max_indices, false);
         s_data->mesh_index_buffer->bind();
         s_data->scene_uniform_buffer = UniformBuffer::create(sizeof(Renderer::SceneData));
-        s_data->texture_slots[0] = RenderTexture::create("shadow map", 2048, 2048, TextureFormat::ATTACHMENT);
     }
 
     void Renderer::shutdown()
@@ -87,41 +85,33 @@ namespace Yogi {
     {
         s_data->scene_data.projection_view_matrix = projection_view_matrix;
     }
-    void Renderer::set_light_space_matrix(glm::mat4 light_space_matrix)
-    {
-        s_data->scene_data.light_space_matrix = light_space_matrix;
-    }
     void Renderer::set_view_pos(glm::vec3 view_pos)
     {
         s_data->scene_data.view_pos = view_pos;
     }
     void Renderer::reset_lights()
     {
-        s_data->scene_data.direction_light_num = 0;
+        s_data->scene_data.directional_light_color = glm::vec4(0.0f);
         s_data->scene_data.spot_light_num = 0;
         s_data->scene_data.point_light_num = 0;
     }
-    void Renderer::set_directional_light(glm::vec4 color, glm::vec3 direction)
+    void Renderer::set_directional_light(glm::vec4 color, glm::vec3 direction, glm::mat4 light_space_matrix)
     {
-        YG_CORE_ASSERT(s_data->scene_data.direction_light_num < 1, "Too many lights!");
         s_data->scene_data.directional_light_color = color;
         s_data->scene_data.directional_light_direction = direction;
-        s_data->scene_data.direction_light_num ++;
+        s_data->scene_data.directional_light_space_matrix = light_space_matrix;
     }
-    void Renderer::add_spot_light(SceneData::SpotLight light)
+    bool Renderer::add_spot_light(SceneData::SpotLight light)
     {
-        YG_CORE_ASSERT(s_data->scene_data.spot_light_num < 4, "Too many lights!");
+        if (s_data->scene_data.spot_light_num >= 4) return false;
         s_data->scene_data.spot_lights[s_data->scene_data.spot_light_num++] = light;
+        return true;
     }
-    void Renderer::add_point_light(SceneData::PointLight light)
+    bool Renderer::add_point_light(SceneData::PointLight light)
     {
-        YG_CORE_ASSERT(s_data->scene_data.point_light_num < 4, "Too many lights!");
+        if (s_data->scene_data.point_light_num >= 4) return false;
         s_data->scene_data.point_lights[s_data->scene_data.point_light_num++] = light;
-    }
-
-    Ref<RenderTexture> Renderer::get_shadow_map()
-    {
-        return std::reinterpret_pointer_cast<RenderTexture>(s_data->texture_slots[0]);
+        return true;
     }
 
     void Renderer::reset_stats()
@@ -132,6 +122,38 @@ namespace Yogi {
     Renderer::Statistics Renderer::get_stats()
     {
         return s_data->statistics;
+    }
+
+    void Renderer::set_texture_init_slot(uint32_t index)
+    {
+        s_data->texture_init_slot_index = index;
+    }
+
+    void Renderer::set_current_texture_slot(uint32_t index)
+    {
+        s_data->texture_slot_index = index;
+    }
+
+    uint32_t Renderer::get_current_texture_slot()
+    {
+        return s_data->texture_slot_index;
+    }
+
+    int32_t Renderer::add_texture(const Ref<Texture>& texture)
+    {
+        int32_t texture_index = -1;
+        if (texture) {
+            for (uint32_t i = 0; i < s_data->texture_slot_index; i ++) {
+                if (s_data->texture_slots[i] == texture) {
+                    texture_index = i;
+                    return texture_index;
+                }
+            }
+            texture_index = s_data->texture_slot_index;
+            s_data->texture_slots[texture_index] = texture;
+            s_data->texture_slot_index ++;
+        }
+        return texture_index;
     }
 
     void Renderer::flush_pipeline(const Ref<Pipeline>& pipeline)
@@ -173,8 +195,8 @@ namespace Yogi {
 
     void Renderer::draw_mesh(const Ref<Mesh>& mesh, const Ref<Material>& material, const glm::mat4& transform, uint32_t entity_id)
     {
-        std::vector<std::pair<uint32_t, Ref<Texture>>> textures = material->get_textures();
-        Ref<Pipeline> pipeline = material->get_pipeline();
+        const std::vector<std::pair<uint32_t, Ref<Texture>>>& textures = material->get_textures();
+        const Ref<Pipeline>& pipeline = material->get_pipeline();
         if (s_data->now_pipeline != pipeline) {
             if (s_data->mesh_vertices_bases.find(pipeline) == s_data->mesh_vertices_bases.end()) {
                 s_data->mesh_vertices_curs[pipeline] = s_data->mesh_vertices_bases[pipeline] = new uint8_t[RendererData::max_vertices_size];
@@ -196,7 +218,7 @@ namespace Yogi {
 
         if (s_data->texture_slot_index + textures.size() >= RendererData::max_texture_slots) {
             flush();
-            s_data->texture_slot_index = RendererData::texture_slot_init_index;
+            s_data->texture_slot_index = s_data->texture_init_slot_index;
         }
         if (vertices_cur - vertices_base + vertex_stride * mesh->vertices.size() >= RendererData::max_vertices_size ||
             indices_cur - indices_base + mesh->indices.size() >= RendererData::max_indices
@@ -205,20 +227,7 @@ namespace Yogi {
         }
 
         for (auto& [texture_offset, texture] : textures) {
-            int32_t texture_index = -1;
-            if (texture) {
-                for (uint32_t i = 0; i < s_data->texture_slot_index; i ++) {
-                    if (s_data->texture_slots[i] == texture) {
-                        texture_index = i;
-                        break;
-                    }
-                }
-                if (texture_index == -1) {
-                    texture_index = s_data->texture_slot_index;
-                    s_data->texture_slots[texture_index] = texture;
-                    s_data->texture_slot_index ++;
-                }
-            }
+            int32_t texture_index = add_texture(texture);
             memcpy(material->get_data() + texture_offset, &texture_index, 4);
         }
 
