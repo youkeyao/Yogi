@@ -55,3 +55,10 @@ target_include_directories( editor
         ../engine/vendor/SDL/include
         ../engine/vendor/VulkanSDK/include
 )
+
+add_custom_command(
+    TARGET editor POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_CURRENT_SOURCE_DIR}/imgui.ini
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/imgui.ini
+)

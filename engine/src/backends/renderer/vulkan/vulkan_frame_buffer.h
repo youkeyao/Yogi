@@ -8,7 +8,7 @@ namespace Yogi {
     class VulkanFrameBuffer : public FrameBuffer
     {
     public:
-        VulkanFrameBuffer(uint32_t width, uint32_t height, const std::vector<Ref<RenderTexture>>& color_attachments, bool has_depth_attachment = true, VkImageLayout layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        VulkanFrameBuffer(uint32_t width, uint32_t height, const std::vector<Ref<RenderTexture>>& color_attachments, bool is_msaa = true, bool has_depth_attachment = true, VkImageLayout layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         ~VulkanFrameBuffer();
 
         void bind() const override;
@@ -17,6 +17,8 @@ namespace Yogi {
         void resize(uint32_t width, uint32_t height) override;
         uint32_t get_width() const override { return m_width; }
         uint32_t get_height() const override { return m_height; }
+        bool get_is_msaa() const { return m_is_msaa; }
+        bool get_has_depth_attachment() const { return m_has_depth_attachment; }
 
         const Ref<RenderTexture>& get_color_attachment(uint32_t index) const override { return m_color_attachments[index]; }
 
@@ -39,6 +41,7 @@ namespace Yogi {
         VkDeviceMemory m_depth_image_memory = VK_NULL_HANDLE;
         VkImageView m_depth_image_view = VK_NULL_HANDLE;
 
+        bool m_is_msaa = true;
         bool m_has_depth_attachment = true;
         VkRenderPass m_clear_render_pass = VK_NULL_HANDLE;
         VkRenderPass m_load_render_pass = VK_NULL_HANDLE;

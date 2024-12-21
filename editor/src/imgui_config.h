@@ -58,8 +58,7 @@
         Yogi::VulkanContext* context = (Yogi::VulkanContext*)Yogi::Application::get().get_window().get_context();
 
         VkExtent2D extent = context->get_swap_chain_extent();
-        context->set_has_depth_attachment(false);
-        context->create_frame_buffers();
+        context->create_frame_buffers(false, false);
         Yogi::VulkanFrameBuffer* frame_buffer = context->get_current_frame_buffer();
 
         init_info.Instance = context->get_instance();
@@ -95,7 +94,7 @@
         init_info.Subpass = 0;
         init_info.MinImageCount = context->get_swap_chain_image_count();
         init_info.ImageCount = context->get_swap_chain_image_count();
-        init_info.MSAASamples = context->get_msaa_samples();
+        init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
         init_info.Allocator = nullptr;
         init_info.CheckVkResultFn = nullptr;
         ImGui_ImplVulkan_Init(&init_info, frame_buffer->get_vk_clear_render_pass());

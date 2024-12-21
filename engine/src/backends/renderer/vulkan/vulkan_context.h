@@ -34,7 +34,6 @@ namespace Yogi
         VulkanIndexBuffer* get_current_index_buffer() { return m_index_buffer; }
         bool is_render_to_screen() { return m_current_frame_buffer == nullptr; }
         VulkanFrameBuffer* get_current_frame_buffer() { return m_current_frame_buffer ? m_current_frame_buffer : (m_image_index >= 0 ? m_swap_chain_frame_buffers[m_image_index].get() : m_swap_chain_frame_buffers[0].get()); }
-        void set_has_depth_attachment(bool has_depth_attachment) { m_has_depth_attachment = has_depth_attachment; }
         void set_current_vertex_buffer(const VulkanVertexBuffer* vertex_buffer) { m_vertex_buffer = (VulkanVertexBuffer*)vertex_buffer; }
         void set_current_index_buffer(const VulkanIndexBuffer* index_buffer) { m_index_buffer = (VulkanIndexBuffer*)index_buffer; }
         void set_current_frame_buffer(const VulkanFrameBuffer* frame_buffer) { m_current_frame_buffer = (VulkanFrameBuffer*)frame_buffer; }
@@ -51,7 +50,7 @@ namespace Yogi
         void create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& buffer_memory);
         void create_image(uint32_t width, uint32_t height, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& image_memory);
         VkImageView create_image_view(VkImage image, VkFormat format, VkImageAspectFlags aspect_flags);
-        VkRenderPass create_render_pass(const std::vector<VkFormat>& color_attachment_formats, VkImageLayout init_layout, VkImageLayout final_layout, bool has_depth_attachment = true);
+        VkRenderPass create_render_pass(const std::vector<VkFormat>& color_attachment_formats, VkImageLayout init_layout, VkImageLayout final_layout, bool is_msaa = true, bool has_depth_attachment = true);
         void copy_buffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size);
         void transition_image_layout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout, VkImageAspectFlags aspect_flags);
         VkCommandBuffer begin_single_time_commands();
@@ -62,7 +61,7 @@ namespace Yogi
         void wait_render_command();
         void begin_frame();
 
-        void create_frame_buffers();
+        void create_frame_buffers(bool is_msaa = true, bool has_depth_attachment = true);
 
         #ifdef YG_DEBUG
             VulkanRenderTexture* get_tmp_texture() { return (VulkanRenderTexture*)tmp_texture.get(); }
@@ -98,7 +97,6 @@ namespace Yogi
         VkExtent2D m_swap_chain_extent;
         std::vector<Ref<RenderTexture>> m_swap_chain_textures;
 
-        bool m_has_depth_attachment = true;
         std::vector<Ref<VulkanFrameBuffer>> m_swap_chain_frame_buffers;
         VkCommandPool m_command_pool;
         std::vector<VkCommandBuffer> m_command_buffers;

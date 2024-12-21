@@ -10,28 +10,32 @@ namespace Yogi {
         return CreateRef<VulkanFrameBuffer>(width, height, color_attachments, has_depth_attachment);
     }
 
-    VulkanFrameBuffer::VulkanFrameBuffer(uint32_t width, uint32_t height, const std::vector<Ref<RenderTexture>>& color_attachments, bool has_depth_attachment, VkImageLayout layout)
-    : m_width(width), m_height(height), m_color_attachments(color_attachments), m_has_depth_attachment(has_depth_attachment)
+    VulkanFrameBuffer::VulkanFrameBuffer(uint32_t width, uint32_t height, const std::vector<Ref<RenderTexture>>& color_attachments, bool is_msaa, bool has_depth_attachment, VkImageLayout layout)
+    : m_width(width), m_height(height), m_color_attachments(color_attachments), m_is_msaa(is_msaa), m_has_depth_attachment(has_depth_attachment)
     {
         VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
 
         std::vector<VkImageView> attachments(color_attachments.size());
         std::vector<VkFormat> attachment_formats(color_attachments.size());
-        m_msaa_images.resize(color_attachments.size());
-        m_msaa_image_memories.resize(color_attachments.size());
-        m_msaa_image_views.resize(color_attachments.size());
+        if (m_is_msaa) {
+            m_msaa_images.resize(color_attachments.size());
+            m_msaa_image_memories.resize(color_attachments.size());
+            m_msaa_image_views.resize(color_attachments.size());
+        }
         for (int32_t i = 0; i < color_attachments.size(); i ++) {
             auto& attachment = color_attachments[i];
             if (attachment->get_width() != width || attachment->get_height() != height)
                 attachment->resize(width, height);
             attachments[i] = ((VulkanRenderTexture*)attachment.get())->get_vk_image_view();
             attachment_formats[i] = ((VulkanRenderTexture*)attachment.get())->get_vk_format();
-            context->create_image(width, height, context->get_msaa_samples(), attachment_formats[i], VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_msaa_images[i], m_msaa_image_memories[i]);
-            m_msaa_image_views[i] = context->create_image_view(m_msaa_images[i], attachment_formats[i], VK_IMAGE_ASPECT_COLOR_BIT);
+            if (m_is_msaa) {
+                context->create_image(width, height, context->get_msaa_samples(), attachment_formats[i], VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_msaa_images[i], m_msaa_image_memories[i]);
+                m_msaa_image_views[i] = context->create_image_view(m_msaa_images[i], attachment_formats[i], VK_IMAGE_ASPECT_COLOR_BIT);
+            }
         }
 
-        m_clear_render_pass = context->create_render_pass(attachment_formats, VK_IMAGE_LAYOUT_UNDEFINED, layout, has_depth_attachment);
-        m_load_render_pass = context->create_render_pass(attachment_formats, layout, layout, has_depth_attachment);
+        m_clear_render_pass = context->create_render_pass(attachment_formats, VK_IMAGE_LAYOUT_UNDEFINED, layout, is_msaa, has_depth_attachment);
+        m_load_render_pass = context->create_render_pass(attachment_formats, layout, layout, is_msaa, has_depth_attachment);
         create_vk_frame_buffer(attachments);
     }
 
@@ -122,17 +126,19 @@ namespace Yogi {
                 attachment->resize(width, height);
             attachments.push_back(((VulkanRenderTexture*)attachment.get())->get_vk_image_view());
         }
-        VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
-        vkDeviceWaitIdle(context->get_device());
-        for (int32_t i = 0; i < m_msaa_images.size(); i ++) {
-            vkDestroyImageView(context->get_device(), m_msaa_image_views[i], nullptr);
-            vkDestroyImage(context->get_device(), m_msaa_images[i], nullptr);
-            vkFreeMemory(context->get_device(), m_msaa_image_memories[i], nullptr);
-        }
-        for (int32_t i = 0; i < m_color_attachments.size(); i ++) {
-            VkFormat attachment_format = ((VulkanRenderTexture*)m_color_attachments[i].get())->get_vk_format();
-            context->create_image(width, height, context->get_msaa_samples(), attachment_format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_msaa_images[i], m_msaa_image_memories[i]);
-            m_msaa_image_views[i] = context->create_image_view(m_msaa_images[i], attachment_format, VK_IMAGE_ASPECT_COLOR_BIT);
+        if (m_is_msaa) {
+            VulkanContext* context = (VulkanContext*)Application::get().get_window().get_context();
+            vkDeviceWaitIdle(context->get_device());
+            for (int32_t i = 0; i < m_msaa_images.size(); i ++) {
+                vkDestroyImageView(context->get_device(), m_msaa_image_views[i], nullptr);
+                vkDestroyImage(context->get_device(), m_msaa_images[i], nullptr);
+                vkFreeMemory(context->get_device(), m_msaa_image_memories[i], nullptr);
+            }
+            for (int32_t i = 0; i < m_color_attachments.size(); i ++) {
+                VkFormat attachment_format = ((VulkanRenderTexture*)m_color_attachments[i].get())->get_vk_format();
+                context->create_image(width, height, context->get_msaa_samples(), attachment_format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_msaa_images[i], m_msaa_image_memories[i]);
+                m_msaa_image_views[i] = context->create_image_view(m_msaa_images[i], attachment_format, VK_IMAGE_ASPECT_COLOR_BIT);
+            }
         }
 
         create_vk_frame_buffer(attachments);

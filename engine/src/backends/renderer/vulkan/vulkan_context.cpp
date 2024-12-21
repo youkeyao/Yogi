@@ -704,7 +704,7 @@ namespace Yogi {
         }
     }
 
-    VkRenderPass VulkanContext::create_render_pass(const std::vector<VkFormat>& color_attachment_formats, VkImageLayout init_layout, VkImageLayout final_layout, bool has_depth_attachment)
+    VkRenderPass VulkanContext::create_render_pass(const std::vector<VkFormat>& color_attachment_formats, VkImageLayout init_layout, VkImageLayout final_layout, bool is_msaa, bool has_depth_attachment)
     {
         std::vector<VkAttachmentDescription> all_attachments;
         std::vector<VkAttachmentReference> color_attachments;
@@ -712,7 +712,7 @@ namespace Yogi {
         for (auto& format : color_attachment_formats) {
             VkAttachmentDescription colorAttachment{};
             colorAttachment.format = format;
-            colorAttachment.samples = msaaSamples;
+            colorAttachment.samples = is_msaa ? msaaSamples : VK_SAMPLE_COUNT_1_BIT;
             colorAttachment.loadOp = init_layout == VK_IMAGE_LAYOUT_UNDEFINED ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
             colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
             colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -727,23 +727,25 @@ namespace Yogi {
             all_attachments.push_back(colorAttachment);
             color_attachments.push_back(colorAttachmentRef);
         }
-        for (auto& format : color_attachment_formats) {
-            VkAttachmentDescription colorAttachmentResolve{};
-            colorAttachmentResolve.format = format;
-            colorAttachmentResolve.samples = VK_SAMPLE_COUNT_1_BIT;
-            colorAttachmentResolve.loadOp = init_layout == VK_IMAGE_LAYOUT_UNDEFINED ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
-            colorAttachmentResolve.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-            colorAttachmentResolve.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-            colorAttachmentResolve.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-            colorAttachmentResolve.initialLayout = init_layout;
-            colorAttachmentResolve.finalLayout = final_layout;
+        if (is_msaa) {
+            for (auto& format : color_attachment_formats) {
+                VkAttachmentDescription colorAttachmentResolve{};
+                colorAttachmentResolve.format = format;
+                colorAttachmentResolve.samples = VK_SAMPLE_COUNT_1_BIT;
+                colorAttachmentResolve.loadOp = init_layout == VK_IMAGE_LAYOUT_UNDEFINED ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
+                colorAttachmentResolve.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+                colorAttachmentResolve.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+                colorAttachmentResolve.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+                colorAttachmentResolve.initialLayout = init_layout;
+                colorAttachmentResolve.finalLayout = final_layout;
 
-            VkAttachmentReference colorAttachmentResolveRef{};
-            colorAttachmentResolveRef.attachment = static_cast<uint32_t>(all_attachments.size());
-            colorAttachmentResolveRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                VkAttachmentReference colorAttachmentResolveRef{};
+                colorAttachmentResolveRef.attachment = static_cast<uint32_t>(all_attachments.size());
+                colorAttachmentResolveRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-            all_attachments.push_back(colorAttachmentResolve);
-            color_attachments_resolve.push_back(colorAttachmentResolveRef);
+                all_attachments.push_back(colorAttachmentResolve);
+                color_attachments_resolve.push_back(colorAttachmentResolveRef);
+            }
         }
         VkAttachmentDescription depthAttachment{};
         VkAttachmentReference depthAttachmentRef{};
@@ -755,7 +757,7 @@ namespace Yogi {
         subpass.pDepthStencilAttachment = nullptr;
         if (has_depth_attachment) {
             depthAttachment.format = find_depth_format();
-            depthAttachment.samples = msaaSamples;
+            depthAttachment.samples = is_msaa ? msaaSamples : VK_SAMPLE_COUNT_1_BIT;
             depthAttachment.loadOp = init_layout == VK_IMAGE_LAYOUT_UNDEFINED ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
             depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
             depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -791,11 +793,11 @@ namespace Yogi {
         return render_pass;
     }
 
-    void VulkanContext::create_frame_buffers()
+    void VulkanContext::create_frame_buffers(bool is_msaa, bool has_depth_attachment)
     {
         m_swap_chain_frame_buffers.resize(m_swap_chain_images.size());
         for (size_t i = 0; i < m_swap_chain_images.size(); i++) {
-            m_swap_chain_frame_buffers[i] = CreateRef<VulkanFrameBuffer>(m_swap_chain_extent.width, m_swap_chain_extent.height, std::vector<Ref<RenderTexture>>{m_swap_chain_textures[i]}, m_has_depth_attachment, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+            m_swap_chain_frame_buffers[i] = CreateRef<VulkanFrameBuffer>(m_swap_chain_extent.width, m_swap_chain_extent.height, std::vector<Ref<RenderTexture>>{m_swap_chain_textures[i]}, is_msaa, has_depth_attachment, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
         }
     }
 
@@ -865,10 +867,14 @@ namespace Yogi {
             m_window->wait_events();
         }
 
+        bool is_msaa = m_swap_chain_frame_buffers[0]->get_is_msaa();
+        bool has_depth_attachment = m_swap_chain_frame_buffers[0]->get_has_depth_attachment();
         vkDeviceWaitIdle(m_device);
         cleanup_swap_chain();
         create_swap_chain();
-        create_frame_buffers();
+        for (size_t i = 0; i < m_swap_chain_images.size(); i++) {
+            m_swap_chain_frame_buffers[i] = CreateRef<VulkanFrameBuffer>(m_swap_chain_extent.width, m_swap_chain_extent.height, std::vector<Ref<RenderTexture>>{m_swap_chain_textures[i]}, is_msaa, has_depth_attachment, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+        }
     }
 
     VkFormat VulkanContext::find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) {
