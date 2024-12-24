@@ -1,27 +1,21 @@
 #include <engine.h>
-#include "runtime/core/entrypoint.h"
 
 #include "editor_layer.h"
+#include "runtime/core/entrypoint.h"
 
 namespace Yogi {
 
-    class Editor : public Application
-    {
-    public:
-        Editor() : Application("Yogi Editor")
-        {
-            push_layer(new EditorLayer());
-        }
+class Editor : public Application
+{
+public:
+    Editor() : Application("Yogi Editor") { push_layer(new EditorLayer()); }
 
-        ~Editor()
-        {
+    ~Editor() {}
+};
 
-        }
-    };
-
-    Application* create_application()
-    {
-        return new Editor();
-    }
-
+Application *create_application()
+{
+    return new Editor();
 }
+
+}  // namespace Yogi

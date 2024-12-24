@@ -33,7 +33,7 @@ target_include_directories( imguizmo
 )
 # -----------------------------------------------------------
 
-add_compile_definitions(YG_EDITOR_ASSETS=\"${CMAKE_CURRENT_SOURCE_DIR}/assets/\")
+add_compile_definitions(YG_EDITOR_ASSET_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/assets/\")
 add_compile_definitions(YG_PROJECT_TEMPLATE=\"${CMAKE_CURRENT_SOURCE_DIR}/template\")
 add_executable(editor ${YG_EDITOR_SOURCES})
 target_link_libraries( editor
@@ -56,9 +56,17 @@ target_include_directories( editor
         ../engine/vendor/VulkanSDK/include
 )
 
+# copy imgui.ini
 add_custom_command(
     TARGET editor POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         ${CMAKE_CURRENT_SOURCE_DIR}/imgui.ini
         ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/imgui.ini
+)
+# copy assets
+add_custom_command(
+    TARGET editor POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_CURRENT_SOURCE_DIR}/assets
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/assets
 )

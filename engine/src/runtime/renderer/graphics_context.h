@@ -4,16 +4,16 @@
 
 namespace Yogi {
 
-    class GraphicsContext
-    {
-    public:
-        virtual ~GraphicsContext() = default;
+class GraphicsContext
+{
+public:
+    virtual ~GraphicsContext() = default;
 
-        virtual void init() = 0;
-        virtual void shutdown() = 0;
-        virtual void swap_buffers() = 0;
+    virtual void init() = 0;
+    virtual void shutdown() = 0;
+    virtual void swap_buffers() = 0;
 
-        static Scope<GraphicsContext> create(Window* window);
-    };
+    static Scope<GraphicsContext> create(Window *window);
+};
 
-}
+}  // namespace Yogi

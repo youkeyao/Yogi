@@ -70,9 +70,9 @@ else()
     message(FATAL_ERROR "Unknown platform")
 endif()
 #-------------------------------------------------------------
-set(YG_BUILD_SHADER_FOLDER "build")
-add_compile_definitions(YG_SHADER_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/src/shaders/${YG_BUILD_SHADER_FOLDER}/\")
-add_compile_definitions(YG_ASSET_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/assets/\")
+set(YG_BUILD_SHADER_FOLDER "build_shader")
+add_compile_definitions(YG_SHADER_DIR=\"${YG_BUILD_SHADER_FOLDER}/\")
+add_compile_definitions(YG_ASSET_DIR=\"assets/\")
 
 add_subdirectory( src/shaders )
 add_subdirectory( vendor/spdlog )
@@ -85,6 +85,7 @@ set(SPIRV_CROSS_ENABLE_CPP OFF)
 set(SPIRV_CROSS_ENABLE_REFLECT OFF)
 set(SPIRV_CROSS_ENABLE_C_API OFF)
 set(SPIRV_CROSS_ENABLE_UTIL OFF)
+set(SPIRV_CROSS_SKIP_INSTALL ON)
 add_subdirectory( vendor/SPIRV-Cross )
 set(ASSIMP_INSTALL OFF)
 set(BUILD_SHARED_LIBS OFF)
@@ -132,3 +133,11 @@ target_include_directories( engine
         vendor/assimp/include
 )
 add_dependencies(engine Shaders)
+
+# copy assets
+add_custom_command(
+    TARGET engine POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_CURRENT_SOURCE_DIR}/assets
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/assets
+)

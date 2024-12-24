@@ -4,57 +4,60 @@
 
 namespace Yogi {
 
-    //
-    // Vertex buffer
-    //
+//
+// Vertex buffer
+//
 
-    class OpenGLVertexBuffer : public VertexBuffer
-    {
-    public:
-        OpenGLVertexBuffer(void* vertices, uint32_t size, bool is_static);
-        ~OpenGLVertexBuffer();
+class OpenGLVertexBuffer : public VertexBuffer
+{
+public:
+    OpenGLVertexBuffer(void *vertices, uint32_t size, bool is_static);
+    ~OpenGLVertexBuffer();
 
-        void bind() const override;
-        void unbind() const override;
+    void bind() const override;
+    void unbind() const override;
 
-        void set_data(const void* data, uint32_t size) override;
-    private:
-        uint32_t m_renderer_id;
-    };
+    void set_data(const void *data, uint32_t size) override;
 
-    //
-    // Index buffer
-    //
+private:
+    uint32_t m_renderer_id;
+};
 
-    class OpenGLIndexBuffer : public IndexBuffer
-    {
-    public:
-        OpenGLIndexBuffer(uint32_t* indices, uint32_t count, bool is_static);
-        ~OpenGLIndexBuffer();
+//
+// Index buffer
+//
 
-        void bind() const override;
-        void unbind() const override;
+class OpenGLIndexBuffer : public IndexBuffer
+{
+public:
+    OpenGLIndexBuffer(uint32_t *indices, uint32_t count, bool is_static);
+    ~OpenGLIndexBuffer();
 
-        void set_data(const uint32_t* indices, uint32_t size) override;
-    private:
-        uint32_t m_renderer_id;
-    };
+    void bind() const override;
+    void unbind() const override;
 
-    //
-    // Uniform buffer
-    //
+    void set_data(const uint32_t *indices, uint32_t size) override;
 
-    class OpenGLUniformBuffer : public UniformBuffer
-    {
-    public:
-        OpenGLUniformBuffer(uint32_t size);
-        ~OpenGLUniformBuffer();
+private:
+    uint32_t m_renderer_id;
+};
 
-        void bind(uint32_t binding) const override;
+//
+// Uniform buffer
+//
 
-        void set_data(const void* data, uint32_t size, uint32_t offset = 0) override;
-    private:
-        uint32_t m_renderer_id = 0;
-    };
+class OpenGLUniformBuffer : public UniformBuffer
+{
+public:
+    OpenGLUniformBuffer(uint32_t size);
+    ~OpenGLUniformBuffer();
 
-}
+    void bind(uint32_t binding) const override;
+
+    void set_data(const void *data, uint32_t size, uint32_t offset = 0) override;
+
+private:
+    uint32_t m_renderer_id = 0;
+};
+
+}  // namespace Yogi

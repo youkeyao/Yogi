@@ -11,11 +11,11 @@ public:
     void on_attach() override;
     void on_detach() override;
     void on_update(Yogi::Timestep ts) override;
-    void on_event(Yogi::Event& event) override;
+    void on_event(Yogi::Event &event) override;
 
 private:
     Yogi::Ref<Yogi::Scene> m_scene;
-    Yogi::Entity checker;
+    Yogi::Entity           checker;
 
     glm::vec4 m_square_color = { 0.2f, 0.3f, 0.8f, 1.0f };
 };

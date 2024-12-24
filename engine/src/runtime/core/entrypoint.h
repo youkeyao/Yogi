@@ -1,6 +1,6 @@
 #pragma once
 
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
     Yogi::Log::init();
 
@@ -11,7 +11,7 @@ int main(int argc, char** argv)
     YG_PROFILE_BEGIN_SESSION("runtime", "Yogi_profile_runtime.json");
     app->run();
     YG_PROFILE_END_SESSION();
-    
+
     YG_PROFILE_BEGIN_SESSION("shutdown", "Yogi_profile_shutdown.json");
     delete app;
     YG_PROFILE_END_SESSION();
