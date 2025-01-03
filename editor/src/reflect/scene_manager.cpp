@@ -30,8 +30,8 @@ std::string SceneManager::serialize_scene(const Ref<Scene> &scene)
         writer.Int((uint32_t)entity);
         writer.Key("components");
         writer.StartObject();
-        entity.each_component([&writer](std::string_view name, void *component) {
-            std::string   component_name{ name };
+        entity.each_component([&writer](entt::id_type id_type, void *component) {
+            std::string   component_name = ComponentManager::get_component_name(id_type);
             ComponentType type = ComponentManager::get_component_type(component_name);
             writer.Key(component_name.c_str());
             writer.StartObject();

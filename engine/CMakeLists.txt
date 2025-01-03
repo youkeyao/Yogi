@@ -6,13 +6,13 @@ set( GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE )
 
 # ---window--------------------------------------------
 if ( YG_WINDOW_API STREQUAL "GLFW" )
-    include_directories( vendor/glfw/include )
     add_subdirectory( vendor/glfw )
     file(GLOB_RECURSE
         YG_WINDOW_SOURCES CONFIGURE_DEPENDS
             src/backends/window/glfw/*.cpp
     )
     set(yg_window glfw)
+    set(yg_window_include vendor/glfw/include)
 elseif ( YG_WINDOW_API STREQUAL "SDL" )
     set(SDL_ALSA off)
     set(SDL_TEST off)
@@ -22,6 +22,7 @@ elseif ( YG_WINDOW_API STREQUAL "SDL" )
             src/backends/window/sdl/*.cpp
     )
     set(yg_window SDL2::SDL2)
+    set(yg_window_include vendor/SDL/include)
 else()
     message( FATAL_ERROR "Unknow window" )
 endif()
@@ -29,19 +30,19 @@ endif()
 
 # ---renderer--------------------------------------------
 if ( YG_RENDERER_API STREQUAL "OpenGL" )
-    include_directories( vendor/glad/include )
     add_subdirectory( vendor/glad )
     file(GLOB_RECURSE
         YG_RENDERER_SOURCES CONFIGURE_DEPENDS
             src/backends/renderer/opengl/*.cpp
     )
     set(yg_renderer glad)
+    set(yg_renderer_include vendor/glad/include)
 elseif ( YG_RENDERER_API STREQUAL "Vulkan" )
-    include_directories( vendor/VulkanSDK/include )
     file(GLOB_RECURSE
         YG_RENDERER_SOURCES CONFIGURE_DEPENDS
             src/backends/renderer/vulkan/*.cpp
     )
+    set(yg_renderer_include vendor/VulkanSDK/include)
     if (WIN32)
         set(yg_renderer ${CMAKE_CURRENT_SOURCE_DIR}/vendor/VulkanSDK/lib/Win32/vulkan-1.lib)
         add_compile_definitions(YG_VK_LAYER_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}/vendor/VulkanSDK/bin/Win32\")
@@ -122,11 +123,11 @@ target_precompile_headers( engine
 target_include_directories( engine
     PUBLIC
         src
+        ${yg_window_include}
+        ${yg_renderer_include}
         vendor/glm
         vendor/entt/src
         vendor/JoltPhysics
-    PRIVATE
-        vendor/VulkanSDK/include
         vendor/SPIRV-Cross
         vendor/spdlog/include
         vendor/stb_image

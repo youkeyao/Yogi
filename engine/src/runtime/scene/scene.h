@@ -16,7 +16,8 @@ public:
     Scene();
     ~Scene();
 
-    template <typename T> void add_system()
+    template <typename T>
+    void add_system()
     {
         std::string system_name = get_type_name<T>();
         for (auto &[name, system] : m_systems) {
@@ -27,7 +28,8 @@ public:
         m_systems.push_back({ system_name, CreateRef<T>() });
     }
 
-    template <typename T> void remove_system()
+    template <typename T>
+    void remove_system()
     {
         std::string system_name = get_type_name<T>();
         for (auto iter = m_systems.begin(); iter != m_systems.end(); iter++) {
@@ -40,7 +42,8 @@ public:
         }
     }
 
-    template <typename... Args, typename F = std::function<void(Args &&...)>> void view_components(F func)
+    template <typename... Args, typename F = std::function<void(Args &&...)>>
+    void view_components(F func)
     {
         auto view = m_registry.view<Args...>();
         for (auto entity : view) {

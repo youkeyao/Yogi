@@ -1,6 +1,7 @@
 #include "editor_layer.h"
 
 #include "imgui_setting.h"
+#include "script/script_manager.h"
 #include "reflect/component_manager.h"
 #include "reflect/scene_manager.h"
 #include "reflect/system_manager.h"
@@ -35,6 +36,7 @@ void EditorLayer::on_attach()
     RenderSystem::set_default_frame_buffer(m_frame_buffer);
 
     AssetManager::init_project(YG_PROJECT_TEMPLATE);
+    ScriptManager::init(YG_PROJECT_TEMPLATE);
     m_scene = CreateRef<Scene>();
     m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
     m_content_browser_panel = CreateRef<ContentBrowserPanel>(YG_PROJECT_TEMPLATE);

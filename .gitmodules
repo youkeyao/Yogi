@@ -34,3 +34,9 @@
 [submodule "editor/vendor/ImGuizmo"]
 	path = editor/vendor/ImGuizmo
 	url = https://github.com/CedricGuillemet/ImGuizmo.git
+[submodule "editor/vendor/sol2"]
+	path = editor/vendor/sol2
+	url = https://github.com/ThePhD/sol2.git
+[submodule "editor/vendor/LuaJIT"]
+	path = editor/vendor/LuaJIT
+	url = https://github.com/WohlSoft/LuaJIT.git

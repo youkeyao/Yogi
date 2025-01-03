@@ -33,14 +33,19 @@ target_include_directories( imguizmo
 )
 # -----------------------------------------------------------
 
+# ---luajit----------------------------------------------------
+add_subdirectory( vendor/luajit )
+# -----------------------------------------------------------
+
 add_compile_definitions(YG_EDITOR_ASSET_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/assets/\")
 add_compile_definitions(YG_PROJECT_TEMPLATE=\"${CMAKE_CURRENT_SOURCE_DIR}/template\")
 add_executable(editor ${YG_EDITOR_SOURCES})
 target_link_libraries( editor
-    PRIVATE
+    PUBLIC
         engine
         imgui
         imguizmo
+        libluajit
 )
 target_include_directories( editor
     PRIVATE
@@ -49,12 +54,13 @@ target_include_directories( editor
         vendor/rapidjson/include
         vendor/portable-file-dialogs
         vendor/ImGuizmo
-        ../engine/src
-        ../engine/vendor/SPIRV-Cross
-        ../engine/vendor/glfw/include
-        ../engine/vendor/SDL/include
-        ../engine/vendor/VulkanSDK/include
+        vendor/sol2/include
 )
+if ( MSVC )
+    target_compile_options(editor PRIVATE /bigobj)
+elseif ( CMAKE_COMPILER_IS_GNUCXX )
+    target_compile_options(editor PRIVATE -Wa,-mbig-obj)
+endif()
 
 # copy imgui.ini
 add_custom_command(

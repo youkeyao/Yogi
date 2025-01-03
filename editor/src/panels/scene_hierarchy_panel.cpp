@@ -162,8 +162,8 @@ void SceneHierarchyPanel::draw_entity_node(Entity &entity, std::unordered_map<ui
 
 void SceneHierarchyPanel::draw_components()
 {
-    m_selected_entity.each_component([this](std::string_view name, void *component) {
-        std::string        component_name{ name };
+    m_selected_entity.each_component([this](entt::id_type id_type, void *component) {
+        std::string        component_name = ComponentManager::get_component_name(id_type);
         ComponentType      type = ComponentManager::get_component_type(component_name);
         ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed |
                                    ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_AllowItemOverlap |

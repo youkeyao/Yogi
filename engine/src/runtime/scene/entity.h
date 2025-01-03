@@ -11,7 +11,9 @@ class Entity
 
 public:
     Entity() = default;
-    template <typename T, typename... Args> T &add_component(Args &&...args)
+
+    template <typename T, typename... Args>
+    T &add_component(Args &&...args)
     {
         if (m_registry->any_of<T>(m_entity_handle)) {
             return get_component<T>();
@@ -20,30 +22,51 @@ public:
         return component;
     }
 
-    template <typename T> void remove_component()
+    template <typename T>
+    void *add_custom_component(const std::string &pool_name)
+    {
+        entt::storage<T> &pool = m_registry->storage<T>(entt::hashed_string::value(pool_name.c_str()));
+        if (pool.contains(m_entity_handle)) {
+            return get_custom_component(pool_name);
+        }
+        return (void *)&pool.emplace(m_entity_handle);
+    }
+
+    template <typename T>
+    void remove_component()
     {
         YG_CORE_ASSERT(m_registry->any_of<T>(m_entity_handle), "Entity remove invalid component!");
         m_registry->erase<T>(m_entity_handle);
     }
 
-    template <typename T> T &get_component()
+    void remove_custom_component(const std::string &pool_name)
+    {
+        entt::sparse_set *pool = m_registry->storage(entt::hashed_string::value(pool_name.c_str()));
+        YG_CORE_ASSERT(pool->contains(m_entity_handle), "Entity remove invalid component!");
+        return pool->erase(m_entity_handle);
+    }
+
+    template <typename T>
+    T &get_component()
     {
         YG_CORE_ASSERT(m_registry->any_of<T>(m_entity_handle), "Entity get invalid component!");
         T &component = m_registry->get<T>(m_entity_handle);
         return component;
     }
 
-    void each_component(std::function<void(std::string_view, void *)> func)
+    void *get_custom_component(const std::string &pool_name)
+    {
+        entt::sparse_set *pool = m_registry->storage(entt::hashed_string::value(pool_name.c_str()));
+        YG_CORE_ASSERT(pool->contains(m_entity_handle), "Entity get invalid component!");
+        return pool->value(m_entity_handle);
+    }
+
+    template <typename F>
+    void each_component(F func)
     {
         for (auto [id, storage] : m_registry->storage()) {
             if (storage.contains(m_entity_handle)) {
-                entt::type_info  type = storage.type();
-                std::string_view name = type.name();
-                size_t           pos = name.find(' ');
-                if (pos != std::string_view::npos) {
-                    name = name.substr(pos + 1);
-                }
-                func(name, storage.value(m_entity_handle));
+                func(id, storage.value(m_entity_handle));
             }
         }
     }
