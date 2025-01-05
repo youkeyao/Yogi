@@ -10,19 +10,9 @@ namespace Yogi {
 class AssetManager
 {
 public:
-    static void init(const std::string &dir)
-    {
-        TextureManager::init(dir);
-        MaterialManager::init(dir);
-        MeshManager::init(dir);
-    }
+    static void init(const std::string &dir);
     static void init_project(const std::string &dir);
-    static void shutdown()
-    {
-        TextureManager::clear();
-        MaterialManager::clear();
-        MeshManager::clear();
-    }
+    static void clear();
 };
 
 }  // namespace Yogi

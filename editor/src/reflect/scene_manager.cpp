@@ -35,7 +35,7 @@ std::string SceneManager::serialize_scene(const Ref<Scene> &scene)
             ComponentType type = ComponentManager::get_component_type(component_name);
             writer.Key(component_name.c_str());
             writer.StartObject();
-            for (auto [key, value] : type.m_fields) {
+            for (auto [key, value] : type.fields) {
                 writer.Key(key.c_str());
                 if (value.type_hash == typeid(bool).hash_code()) {
                     writer.Bool(*((bool *)((uint8_t *)component + value.offset)));
@@ -128,7 +128,7 @@ Ref<Scene> SceneManager::deserialize_scene(std::string json)
             const rapidjson::Value &component_fields_value = component_object.value;
             ComponentType           component_type = ComponentManager::get_component_type(component_name);
             void                   *component = ComponentManager::add_component(entity, component_name);
-            for (auto [key, value] : component_type.m_fields) {
+            for (auto [key, value] : component_type.fields) {
                 if (value.type_hash == typeid(bool).hash_code()) {
                     bool &v = *(bool *)((uint8_t *)component + value.offset);
                     v = component_fields_value[key.c_str()].GetBool();

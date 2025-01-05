@@ -1,4 +1,4 @@
-#include "runtime/systems/physics_system.h"
+#include "runtime/physics/physics_system.h"
 #include "runtime/scene/components.h"
 
 #include <Jolt/Core/Factory.h>

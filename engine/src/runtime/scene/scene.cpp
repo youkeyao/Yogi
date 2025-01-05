@@ -4,7 +4,9 @@ namespace Yogi {
 
 Scene::Scene() {}
 
-Scene::~Scene() {}
+Scene::~Scene() {
+    m_systems.clear();
+}
 
 Entity Scene::create_entity(uint32_t hint)
 {

@@ -4,7 +4,7 @@
 #include "runtime/renderer/frame_buffer.h"
 #include "runtime/scene/components.h"
 #include "runtime/scene/scene.h"
-#include "runtime/systems/system_base.h"
+#include "runtime/scene/system_base.h"
 
 namespace Yogi {
 

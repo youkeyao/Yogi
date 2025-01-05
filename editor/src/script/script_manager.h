@@ -6,13 +6,16 @@ namespace Yogi {
 
 class ScriptManager
 {
+protected:
+    static void init_usertype();
+
 public:
     static void init(const std::string &dir_path);
-    static void clear();
+
+    static void create_component(const std::string &component_name, const std::vector<std::string> &field_names);
 
 private:
-    static sol::state                         s_state;
-    static std::map<std::string, std::string> s_scripts;
+    static sol::state s_state;
 };
 
 }  // namespace Yogi

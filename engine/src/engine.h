@@ -22,11 +22,12 @@
 #include "runtime/renderer/render_command.h"
 #include "runtime/renderer/renderer.h"
 #include "runtime/renderer/texture.h"
+#include "runtime/renderer/render_system.h"
 // ---------------------------------------------
 
-// --systems-----------------------------------
-#include "runtime/systems/physics_system.h"
-#include "runtime/systems/render_system.h"
+// --physics-----------------------------------
+#include "runtime/physics/physics_system.h"
+
 // ----------------------------------------------
 
 // ---resources-------------------------------

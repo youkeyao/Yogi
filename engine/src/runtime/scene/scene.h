@@ -1,9 +1,10 @@
 #pragma once
 
 #include "runtime/scene/entity.h"
-#include "runtime/systems/system_base.h"
+#include "runtime/scene/system_base.h"
 
 #include <entt/entity/registry.hpp>
+#include <entt/entity/runtime_view.hpp>
 
 namespace Yogi {
 
@@ -28,10 +29,32 @@ public:
         m_systems.push_back({ system_name, CreateRef<T>() });
     }
 
+    void add_runtime_system(const std::string &system_name, Ref<SystemBase> system)
+    {
+        for (auto &[name, sys] : m_systems) {
+            if (name == system_name) {
+                return;
+            }
+        }
+        m_systems.push_back({ system_name, system });
+    }
+
     template <typename T>
     void remove_system()
     {
         std::string system_name = get_type_name<T>();
+        for (auto iter = m_systems.begin(); iter != m_systems.end(); iter++) {
+            auto &[name, system] = *iter;
+            if (name == system_name) {
+                iter = m_systems.erase(iter);
+                if (iter == m_systems.end())
+                    break;
+            }
+        }
+    }
+
+    void remove_runtime_system(const std::string &system_name)
+    {
         for (auto iter = m_systems.begin(); iter != m_systems.end(); iter++) {
             auto &[name, system] = *iter;
             if (name == system_name) {
@@ -50,6 +73,17 @@ public:
             Entity e(entity, &m_registry);
             std::apply([&](auto &...args) { func(e, args...); }, view.get(entity));
         }
+    }
+    void view_runtime_components(const std::vector<uint32_t> &components, std::function<void(Entity)> func)
+    {
+        entt::runtime_view view{};
+        for (auto component : components) {
+            entt::sparse_set *storage = m_registry.storage(component);
+            if (storage) {
+                view.iterate(*storage);
+            }
+        }
+        view.each([this, func](entt::entity entity) { func(Entity{ entity, &m_registry }); });
     }
 
     Entity create_entity(uint32_t hint = 0);

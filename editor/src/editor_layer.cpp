@@ -22,7 +22,6 @@ void EditorLayer::on_attach()
     YG_PROFILE_FUNCTION();
 
     ImguiSetting::init();
-
     ComponentManager::init();
     SystemManager::init();
 
@@ -47,6 +46,8 @@ void EditorLayer::on_detach()
 {
     YG_PROFILE_FUNCTION();
 
+    ComponentManager::clear();
+    SystemManager::clear();
     ImguiSetting::shutdown();
 }
 

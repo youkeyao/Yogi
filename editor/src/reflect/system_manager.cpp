@@ -1,34 +1,33 @@
 #include "reflect/system_manager.h"
 
 namespace Yogi {
+
 std::unordered_map<std::string, SystemManager::SystemFunc> SystemManager::s_add_system_funcs{};
 std::unordered_map<std::string, SystemManager::SystemFunc> SystemManager::s_remove_system_funcs{};
+
+std::unordered_map<std::string, std::pair<SystemManager::UpdateFunc, SystemManager::EventFunc>>
+    SystemManager::s_runtime_systems{};
 
 void SystemManager::init()
 {
     register_system<RenderSystem>();
     register_system<PhysicsSystem>();
 }
-
-template <typename Type> void SystemManager::register_system()
+void SystemManager::clear()
 {
-    std::string system_name = get_type_name<Type>();
-    s_add_system_funcs[system_name] = [](Ref<Scene> scene) {
-        scene->add_system<Type>();
-    };
-    s_remove_system_funcs[system_name] = [](Ref<Scene> scene) {
-        scene->remove_system<Type>();
-    };
+    s_add_system_funcs.clear();
+    s_remove_system_funcs.clear();
+    s_runtime_systems.clear();
 }
 
-void SystemManager::add_system(Ref<Scene> scene, std::string system_name)
+void SystemManager::add_system(Ref<Scene> scene, const std::string &system_name)
 {
-    s_add_system_funcs[system_name](scene);
+    s_add_system_funcs[system_name](scene, system_name);
 }
 
-void SystemManager::remove_system(Ref<Scene> scene, std::string system_name)
+void SystemManager::remove_system(Ref<Scene> scene, const std::string &system_name)
 {
-    s_remove_system_funcs[system_name](scene);
+    s_remove_system_funcs[system_name](scene, system_name);
 }
 
 void SystemManager::each_system_type(std::function<void(std::string)> func)

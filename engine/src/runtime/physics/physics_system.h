@@ -2,7 +2,7 @@
 
 #include "runtime/events/application_event.h"
 #include "runtime/scene/scene.h"
-#include "runtime/systems/system_base.h"
+#include "runtime/scene/system_base.h"
 
 #include <Jolt/Jolt.h>
 #include <Jolt/Core/JobSystemThreadPool.h>

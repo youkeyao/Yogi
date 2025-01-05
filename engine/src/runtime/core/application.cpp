@@ -32,7 +32,7 @@ Application::~Application()
     for (Layer *layer : m_layerstack) {
         layer->on_detach();
     }
-    AssetManager::shutdown();
+    AssetManager::clear();
     PipelineManager::clear();
     Renderer::shutdown();
 }

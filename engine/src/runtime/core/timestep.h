@@ -9,8 +9,8 @@ public:
 
     operator float() const { return m_time; }
 
-    float get_seconds() { return m_time; }
-    float get_miliseconds() { return m_time * 1000.0f; }
+    float get_seconds() const { return m_time; }
+    float get_miliseconds() const { return m_time * 1000.0f; }
 
 private:
     float m_time;

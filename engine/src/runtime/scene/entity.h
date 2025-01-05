@@ -23,11 +23,11 @@ public:
     }
 
     template <typename T>
-    void *add_custom_component(const std::string &pool_name)
+    void *add_runtime_component(uint32_t component_typeid)
     {
-        entt::storage<T> &pool = m_registry->storage<T>(entt::hashed_string::value(pool_name.c_str()));
+        entt::storage<T> &pool = m_registry->storage<T>(component_typeid);
         if (pool.contains(m_entity_handle)) {
-            return get_custom_component(pool_name);
+            return get_runtime_component(component_typeid);
         }
         return (void *)&pool.emplace(m_entity_handle);
     }
@@ -39,9 +39,9 @@ public:
         m_registry->erase<T>(m_entity_handle);
     }
 
-    void remove_custom_component(const std::string &pool_name)
+    void remove_runtime_component(uint32_t component_typeid)
     {
-        entt::sparse_set *pool = m_registry->storage(entt::hashed_string::value(pool_name.c_str()));
+        entt::sparse_set *pool = m_registry->storage(component_typeid);
         YG_CORE_ASSERT(pool->contains(m_entity_handle), "Entity remove invalid component!");
         return pool->erase(m_entity_handle);
     }
@@ -54,9 +54,9 @@ public:
         return component;
     }
 
-    void *get_custom_component(const std::string &pool_name)
+    void *get_runtime_component(uint32_t component_typeid)
     {
-        entt::sparse_set *pool = m_registry->storage(entt::hashed_string::value(pool_name.c_str()));
+        entt::sparse_set *pool = m_registry->storage(component_typeid);
         YG_CORE_ASSERT(pool->contains(m_entity_handle), "Entity get invalid component!");
         return pool->value(m_entity_handle);
     }

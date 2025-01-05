@@ -27,7 +27,7 @@ template <typename... Types>
 constexpr void add_fields(ComponentType &type, const std::vector<std::string> &field_names, std::size_t base, Types &&...fields)
 {
     uint32_t index = 0;
-    ((type.m_fields[field_names[index++]] = { (std::size_t)&fields - base, typeid(Types).hash_code() }), ...);
+    ((type.fields[field_names[index++]] = { (std::size_t)&fields - base, typeid(Types).hash_code() }), ...);
 }
 
 template <typename T>
@@ -56,7 +56,7 @@ constexpr void get_fields(ComponentType &type, const std::vector<std::string> &f
         auto &&[a1, a2, a3, a4, a5, a6] = object;
         add_fields(type, field_names, (std::size_t)&object, a1, a2, a3, a4, a5, a6);
     }
-    type.m_size = sizeof(T);
+    type.size = sizeof(T);
 }
 
 template <size_t N>
@@ -66,12 +66,12 @@ struct TypeN
 };
 
 template <std::size_t... Is>
-constexpr void register_custom_component(
-    std::vector<std::function<void *(Entity &, const std::string &)>> &add_funcs, std::integer_sequence<std::size_t, Is...>)
+constexpr void register_runtime_component(
+    std::vector<std::function<void *(Entity &, uint32_t)>> &add_funcs, std::integer_sequence<std::size_t, Is...>)
 {
     int expand[] = { (
-        add_funcs.emplace_back([](Entity &entity, const std::string &component_name) -> void * {
-            return entity.add_custom_component<TypeN<Is + 1>>(component_name);
+        add_funcs.emplace_back([](Entity &entity, uint32_t component_typeid) -> void * {
+            return entity.add_runtime_component<TypeN<Is + 1>>(component_typeid);
         }),
         0)... };
     (void)expand;
@@ -82,7 +82,7 @@ std::unordered_map<uint32_t, std::string>                              Component
 std::unordered_map<std::string, ComponentType>                         ComponentManager::s_component_types{};
 std::unordered_map<std::string, ComponentManager::AddComponentFunc>    ComponentManager::s_add_component_funcs{};
 std::unordered_map<std::string, ComponentManager::RemoveComponentFunc> ComponentManager::s_remove_component_funcs{};
-std::vector<std::function<void *(Entity &, const std::string &)>>      ComponentManager::s_add_custom_component_funcs{};
+std::vector<std::function<void *(Entity &, uint32_t)>>                 ComponentManager::s_add_runtime_component_funcs{};
 
 void ComponentManager::init()
 {
@@ -95,7 +95,15 @@ void ComponentManager::init()
     register_component<PointLightComponent>({ "attenuation_parms", "color" });
     register_component<SkyboxComponent>({ "material" });
     register_component<RigidBodyComponent>({ "is_static", "scale", "type" });
-    register_custom_component(s_add_custom_component_funcs, std::make_integer_sequence<std::size_t, 256>());
+    register_runtime_component(s_add_runtime_component_funcs, std::make_integer_sequence<std::size_t, 256>());
+}
+void ComponentManager::clear()
+{
+    s_component_names.clear();
+    s_component_types.clear();
+    s_add_component_funcs.clear();
+    s_remove_component_funcs.clear();
+    s_add_runtime_component_funcs.clear();
 }
 
 template <typename Type>
@@ -104,6 +112,7 @@ void ComponentManager::register_component(std::vector<std::string> field_names)
     ComponentType component_type;
     get_fields<Type>(component_type, field_names);
     std::string component_name = get_type_name<Type>();
+    component_type.type_id = entt::type_hash<Type>::value();
     s_component_names[entt::type_hash<Type>::value()] = component_name;
     s_component_types[component_name] = component_type;
     s_add_component_funcs[component_name] = [](Entity &entity, const std::string &component_name) -> void * {
@@ -116,15 +125,17 @@ void ComponentManager::register_component(std::vector<std::string> field_names)
 
 void ComponentManager::register_component(std::string component_name, ComponentType component_type)
 {
-    YG_ASSERT(component_type.m_size <= 256, "Component size too large!");
-    s_component_names[entt::hashed_string::value(component_name.c_str())] = component_name;
+    YG_ASSERT(component_type.size <= 256, "Component size too large!");
+    component_type.type_id = entt::hashed_string::value(component_name.c_str());
+    s_component_names[component_type.type_id] = component_name;
     s_component_types[component_name] = component_type;
     s_add_component_funcs[component_name] = [](Entity &entity, const std::string &component_name) -> void * {
         ComponentType &component_type = s_component_types[component_name];
-        return s_add_custom_component_funcs[component_type.m_size - 1](entity, component_name);
+        return s_add_runtime_component_funcs[component_type.size - 1](entity, component_type.type_id);
     };
     s_remove_component_funcs[component_name] = [](Entity &entity, const std::string &component_name) {
-        entity.remove_custom_component(component_name);
+        ComponentType &component_type = s_component_types[component_name];
+        entity.remove_runtime_component(component_type.type_id);
     };
 }
 
@@ -134,7 +145,7 @@ std::string ComponentManager::get_component_name(uint32_t component_type)
     return s_component_names[component_type];
 }
 
-ComponentType ComponentManager::get_component_type(std::string component_name)
+const ComponentType &ComponentManager::get_component_type(std::string component_name)
 {
     YG_CORE_ASSERT(s_component_types.find(component_name) != s_component_types.end(), "Get unknown component type!");
     return s_component_types[component_name];

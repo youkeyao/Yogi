@@ -162,7 +162,7 @@ void SceneHierarchyPanel::draw_entity_node(Entity &entity, std::unordered_map<ui
 
 void SceneHierarchyPanel::draw_components()
 {
-    m_selected_entity.each_component([this](entt::id_type id_type, void *component) {
+    m_selected_entity.each_component([this](uint32_t id_type, void *component) {
         std::string        component_name = ComponentManager::get_component_name(id_type);
         ComponentType      type = ComponentManager::get_component_type(component_name);
         ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed |
@@ -176,7 +176,7 @@ void SceneHierarchyPanel::draw_components()
             ImGui::EndPopup();
         }
         if (is_opened) {
-            for (auto [key, value] : type.m_fields) {
+            for (auto [key, value] : type.fields) {
                 if (value.type_hash == typeid(bool).hash_code()) {
                     bool *is = (bool *)((uint8_t *)component + value.offset);
                     ImGui::Checkbox(key.c_str(), is);
@@ -351,7 +351,7 @@ void SceneHierarchyPanel::check_field(std::string component_name, std::string fi
 {
     ComponentType type = ComponentManager::get_component_type(component_name);
     if (component_name == "Yogi::TransformComponent" && field == "parent") {
-        std::size_t offset = type.m_fields[field].offset;
+        std::size_t offset = type.fields[field].offset;
         Entity     &entity = *(Entity *)((uint8_t *)ptr + offset);
         if (check_entity_parent(entity, m_selected_entity) && check_entity_parent(m_selected_entity, entity)) {
             entity = Entity{};
