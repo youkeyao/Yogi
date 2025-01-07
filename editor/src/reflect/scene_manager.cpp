@@ -39,6 +39,8 @@ std::string SceneManager::serialize_scene(const Ref<Scene> &scene)
                 writer.Key(key.c_str());
                 if (value.type_hash == typeid(bool).hash_code()) {
                     writer.Bool(*((bool *)((uint8_t *)component + value.offset)));
+                } else if (value.type_hash == typeid(int).hash_code()) {
+                    writer.Int(*(int *)((uint8_t *)component + value.offset));
                 } else if (value.type_hash == typeid(std::string).hash_code()) {
                     writer.String(((std::string *)((uint8_t *)component + value.offset))->c_str());
                 } else if (value.type_hash == typeid(float).hash_code()) {
@@ -132,6 +134,9 @@ Ref<Scene> SceneManager::deserialize_scene(std::string json)
                 if (value.type_hash == typeid(bool).hash_code()) {
                     bool &v = *(bool *)((uint8_t *)component + value.offset);
                     v = component_fields_value[key.c_str()].GetBool();
+                } else if (value.type_hash == typeid(int).hash_code()) {
+                    int &v = *(int *)((uint8_t *)component + value.offset);
+                    v = component_fields_value[key.c_str()].GetInt();
                 } else if (value.type_hash == typeid(std::string).hash_code()) {
                     std::string &v = *(std::string *)((uint8_t *)component + value.offset);
                     v = component_fields_value[key.c_str()].GetString();

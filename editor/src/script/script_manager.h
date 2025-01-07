@@ -1,5 +1,6 @@
 #pragma once
 
+#include <engine.h>
 #include <sol/sol.hpp>
 
 namespace Yogi {
@@ -10,12 +11,12 @@ protected:
     static void init_usertype();
 
 public:
-    static void init(const std::string &dir_path);
-
-    static void create_component(const std::string &component_name, const std::vector<std::string> &field_names);
+    static void init();
+    static void init_project(const std::string &dir_path);
+    static void clear();
 
 private:
-    static sol::state s_state;
+    static sol::state *s_state;
 };
 
 }  // namespace Yogi

@@ -6,10 +6,12 @@ Scene::Scene() {}
 
 Scene::~Scene() {
     m_systems.clear();
+    m_registry.clear();
 }
 
 Entity Scene::create_entity(uint32_t hint)
 {
+    YG_PROFILE_SCOPE("create_entity");
     entt::entity handle = m_registry.create((entt::entity)hint);
     return Entity{ handle, &m_registry };
 }
@@ -33,8 +35,8 @@ void Scene::each_entity(std::function<void(Entity)> func)
 
 void Scene::each_system(std::function<void(std::string)> func)
 {
-    for (auto &[name, system] : m_systems) {
-        func(name);
+    for (int32_t i = 0; i < m_systems.size(); i++) {
+        func(m_systems[i].first);
     }
 }
 
@@ -50,8 +52,8 @@ void Scene::on_update(Timestep ts)
 {
     YG_PROFILE_FUNCTION();
 
-    for (auto &[name, system] : m_systems) {
-        system->on_update(ts, this);
+    for (int32_t i = 0; i < m_systems.size(); i++) {
+        m_systems[i].second->on_update(ts, *this);
     }
 }
 
@@ -59,8 +61,8 @@ void Scene::on_event(Event &e)
 {
     YG_PROFILE_FUNCTION();
 
-    for (auto &[name, system] : m_systems) {
-        system->on_event(e, this);
+    for (int32_t i = 0; i < m_systems.size(); i++) {
+        m_systems[i].second->on_event(e, *this);
     }
 }
 

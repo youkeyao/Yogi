@@ -22,12 +22,12 @@ public:
     RenderSystem();
     ~RenderSystem();
 
-    void on_update(Timestep ts, Scene *scene) override;
-    void set_light(Scene *scene);
-    void render_camera(const CameraComponent &camera, const TransformComponent &transform, Scene *scene);
+    void on_update(Timestep ts, Scene &scene) override;
+    void set_light(Scene &scene);
+    void render_camera(const CameraComponent &camera, const TransformComponent &transform, Scene &scene);
 
-    void on_event(Event &e, Scene *scene) override;
-    bool on_window_resized(WindowResizeEvent &e, Scene *scene);
+    void on_event(Event &e, Scene &scene) override;
+    bool on_window_resized(WindowResizeEvent &e, Scene &scene);
 
     static void set_default_frame_buffer(const Ref<FrameBuffer> &frame_buffer);
 
@@ -40,10 +40,11 @@ private:
     std::vector<std::pair<SpotLightComponent, ShadowData>>                 m_spot_lights;
     std::vector<std::pair<PointLightComponent, std::array<ShadowData, 6>>> m_point_lights;
     std::vector<Ref<FrameBuffer>>                                          m_shadow_frame_buffer_pool;
-    uint32_t                                                               m_shadow_frame_buffer_pool_index = 0;
-    static int                                                             s_width;
-    static int                                                             s_height;
-    static FrameBuffer                                                    *s_frame_buffer;
+
+    uint32_t            m_shadow_frame_buffer_pool_index = 0;
+    static int          s_width;
+    static int          s_height;
+    static FrameBuffer *s_frame_buffer;
 };
 
 }  // namespace Yogi

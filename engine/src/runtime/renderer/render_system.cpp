@@ -7,10 +7,11 @@
 
 namespace Yogi {
 
-int                    RenderSystem::s_width = 1280;
-int                    RenderSystem::s_height = 720;
-float                  near = 0.5f;
-float                  far = 50.0f;
+int   RenderSystem::s_width = 1280;
+int   RenderSystem::s_height = 720;
+float near = 0.5f;
+float far = 50.0f;
+
 FrameBuffer           *RenderSystem::s_frame_buffer = nullptr;
 std::vector<glm::mat4> pointShadowTransforms = {
     glm::perspective(glm::radians(90.0f), 1.0f, near, far) *
@@ -37,7 +38,7 @@ RenderSystem::~RenderSystem()
     }
 }
 
-void RenderSystem::on_update(Timestep ts, Scene *scene)
+void RenderSystem::on_update(Timestep ts, Scene &scene)
 {
     Renderer::reset_stats();
 
@@ -45,14 +46,14 @@ void RenderSystem::on_update(Timestep ts, Scene *scene)
     set_light(scene);
 
     // render camera
-    scene->view_components<TransformComponent, CameraComponent>(
+    scene.view_components<TransformComponent, CameraComponent>(
         [&](Entity entity, TransformComponent &transform, CameraComponent &camera) {
             camera.zoom_level = std::max(camera.zoom_level, 0.25f);
             render_camera(camera, transform, scene);
         });
 }
 
-void RenderSystem::set_light(Scene *scene)
+void RenderSystem::set_light(Scene &scene)
 {
     RenderCommand::set_clear_color({ 1.0f, 0.0f, 0.0f, 1.0f });
 
@@ -60,7 +61,7 @@ void RenderSystem::set_light(Scene *scene)
     m_directional_lights.clear();
     m_spot_lights.clear();
     m_point_lights.clear();
-    scene->view_components<TransformComponent, DirectionalLightComponent>(
+    scene.view_components<TransformComponent, DirectionalLightComponent>(
         [&](Entity entity, TransformComponent &transform, DirectionalLightComponent &light) {
             const glm::mat4 world_transform = transform.get_world_transform();
             const glm::mat4 light_space_matrix =
@@ -72,7 +73,7 @@ void RenderSystem::set_light(Scene *scene)
             Renderer::set_projection_view_matrix(light_space_matrix);
             RenderCommand::set_viewport(0, 0, m_shadow_map_size, m_shadow_map_size);
             RenderCommand::clear();
-            scene->view_components<TransformComponent, MeshRendererComponent>(
+            scene.view_components<TransformComponent, MeshRendererComponent>(
                 [&](Entity mesh_entity, TransformComponent &mesh_transform, MeshRendererComponent &mesh_renderer) {
                     if (mesh_renderer.cast_shadow) {
                         Renderer::draw_mesh(
@@ -83,8 +84,8 @@ void RenderSystem::set_light(Scene *scene)
             Renderer::flush();
             m_shadow_frame_buffer_pool[shadow_pool_index]->unbind();
         });
-    scene->view_components<TransformComponent, SpotLightComponent>([&](Entity entity, TransformComponent &transform,
-                                                                       SpotLightComponent &light) {
+    scene.view_components<TransformComponent, SpotLightComponent>([&](Entity entity, TransformComponent &transform,
+                                                                      SpotLightComponent &light) {
         const glm::mat4 world_transform = transform.get_world_transform();
         const glm::mat4 light_space_matrix =
             glm::perspective(glm::radians(light.outer_angle * 2), 1.0f, near, far) * glm::inverse(world_transform);
@@ -94,7 +95,7 @@ void RenderSystem::set_light(Scene *scene)
         Renderer::set_projection_view_matrix(light_space_matrix);
         RenderCommand::set_viewport(0, 0, m_shadow_map_size, m_shadow_map_size);
         RenderCommand::clear();
-        scene->view_components<TransformComponent, MeshRendererComponent>(
+        scene.view_components<TransformComponent, MeshRendererComponent>(
             [&](Entity mesh_entity, TransformComponent &mesh_transform, MeshRendererComponent &mesh_renderer) {
                 if (mesh_renderer.cast_shadow) {
                     Renderer::draw_mesh(
@@ -105,7 +106,7 @@ void RenderSystem::set_light(Scene *scene)
         Renderer::flush();
         m_shadow_frame_buffer_pool[shadow_pool_index]->unbind();
     });
-    scene->view_components<TransformComponent, PointLightComponent>(
+    scene.view_components<TransformComponent, PointLightComponent>(
         [&](Entity entity, TransformComponent &transform, PointLightComponent &light) {
             std::array<ShadowData, 6> &data =
                 m_point_lights.emplace_back(std::make_pair(light, std::array<ShadowData, 6>{})).second;
@@ -119,7 +120,7 @@ void RenderSystem::set_light(Scene *scene)
                 Renderer::set_projection_view_matrix(shadow_data.light_space_matrix);
                 RenderCommand::set_viewport(0, 0, m_shadow_map_size, m_shadow_map_size);
                 RenderCommand::clear();
-                scene->view_components<TransformComponent, MeshRendererComponent>(
+                scene.view_components<TransformComponent, MeshRendererComponent>(
                     [&](Entity mesh_entity, TransformComponent &mesh_transform, MeshRendererComponent &mesh_renderer) {
                         if (mesh_renderer.cast_shadow) {
                             Renderer::draw_mesh(
@@ -133,7 +134,7 @@ void RenderSystem::set_light(Scene *scene)
         });
 }
 
-void RenderSystem::render_camera(const CameraComponent &camera, const TransformComponent &transform, Scene *scene)
+void RenderSystem::render_camera(const CameraComponent &camera, const TransformComponent &transform, Scene &scene)
 {
     Renderer::reset_lights();
 
@@ -202,7 +203,7 @@ void RenderSystem::render_camera(const CameraComponent &camera, const TransformC
                 point_light_iterator++;
             }
             Renderer::set_texture_init_slot(Renderer::get_current_texture_slot());
-            scene->view_components<TransformComponent, MeshRendererComponent>(
+            scene.view_components<TransformComponent, MeshRendererComponent>(
                 [&](Entity mesh_entity, TransformComponent &mesh_transform, MeshRendererComponent &mesh_renderer) {
                     Renderer::draw_mesh(
                         mesh_renderer.mesh, mesh_renderer.material, mesh_transform.get_world_transform(), mesh_entity);
@@ -212,7 +213,7 @@ void RenderSystem::render_camera(const CameraComponent &camera, const TransformC
     }
 
     // skybox
-    scene->view_components<SkyboxComponent>([&](Entity skybox_entity, SkyboxComponent &skybox) {
+    scene.view_components<SkyboxComponent>([&](Entity skybox_entity, SkyboxComponent &skybox) {
         Renderer::draw_mesh(MeshManager::get_mesh("skybox"), skybox.material, glm::mat4(1.0f), skybox_entity);
     });
     Renderer::flush();
@@ -221,19 +222,19 @@ void RenderSystem::render_camera(const CameraComponent &camera, const TransformC
         s_frame_buffer->unbind();
 }
 
-void RenderSystem::on_event(Event &e, Scene *scene)
+void RenderSystem::on_event(Event &e, Scene &scene)
 {
     EventDispatcher dispatcher(e);
     dispatcher.dispatch<WindowResizeEvent>(YG_BIND_EVENT_FN(RenderSystem::on_window_resized, std::placeholders::_2), scene);
 }
 
-bool RenderSystem::on_window_resized(WindowResizeEvent &e, Scene *scene)
+bool RenderSystem::on_window_resized(WindowResizeEvent &e, Scene &scene)
 {
     s_width = e.get_width();
     s_height = e.get_height();
     if (s_frame_buffer)
         s_frame_buffer->resize(s_width, s_height);
-    scene->view_components<TransformComponent, CameraComponent>(
+    scene.view_components<TransformComponent, CameraComponent>(
         [e](Entity entity, TransformComponent &transform, CameraComponent &camera) {
             camera.aspect_ratio = (float)e.get_width() / e.get_height();
         });

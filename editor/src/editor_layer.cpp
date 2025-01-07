@@ -24,6 +24,7 @@ void EditorLayer::on_attach()
     ImguiSetting::init();
     ComponentManager::init();
     SystemManager::init();
+    ScriptManager::init();
 
     m_frame_texture = RenderTexture::create("frame_texture", 1, 1, TextureFormat::ATTACHMENT);
     m_entity_id_texture = RenderTexture::create("entity_id", 1, 1, TextureFormat::RED_INTEGER);
@@ -35,7 +36,7 @@ void EditorLayer::on_attach()
     RenderSystem::set_default_frame_buffer(m_frame_buffer);
 
     AssetManager::init_project(YG_PROJECT_TEMPLATE);
-    ScriptManager::init(YG_PROJECT_TEMPLATE);
+    ScriptManager::init_project(YG_PROJECT_TEMPLATE);
     m_scene = CreateRef<Scene>();
     m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
     m_content_browser_panel = CreateRef<ContentBrowserPanel>(YG_PROJECT_TEMPLATE);
@@ -46,8 +47,11 @@ void EditorLayer::on_detach()
 {
     YG_PROFILE_FUNCTION();
 
+    m_scene.reset();
+    m_hierarchy_panel.reset();
     ComponentManager::clear();
     SystemManager::clear();
+    ScriptManager::clear();
     ImguiSetting::shutdown();
 }
 
@@ -66,9 +70,9 @@ void EditorLayer::on_update(Timestep ts)
     if (m_scene_state == SceneState::Edit) {
         Renderer::reset_stats();
         m_editor_camera.on_update(ts, m_viewport_hovered);
-        m_editor_render_system->set_light(m_scene.get());
+        m_editor_render_system->set_light(*m_scene.get());
         m_editor_render_system->render_camera(
-            m_editor_camera.get_camera_component(), m_editor_camera.get_transform_component(), m_scene.get());
+            m_editor_camera.get_camera_component(), m_editor_camera.get_transform_component(), *m_scene.get());
         // Entity id
         m_entity_frame_buffer->bind();
         RenderCommand::clear();
@@ -247,7 +251,7 @@ void EditorLayer::on_event(Event &e)
         }
         if (m_scene_state == SceneState::Edit) {
             m_editor_camera.on_event(e);
-            m_editor_render_system->on_event(e, m_scene.get());
+            m_editor_render_system->on_event(e, *m_scene.get());
         } else {
             m_scene->on_event(e);
         }
@@ -260,7 +264,7 @@ void EditorLayer::on_window_resized(WindowResizeEvent &e)
 {
     if (m_scene_state == SceneState::Edit) {
         m_editor_camera.on_event(e);
-        m_editor_render_system->on_event(e, m_scene.get());
+        m_editor_render_system->on_event(e, *m_scene.get());
     } else {
         m_scene->on_event(e);
     }
@@ -304,6 +308,7 @@ void EditorLayer::open_project()
     auto f = pfd::select_folder("Open project").result();
     if (!f.empty()) {
         AssetManager::init_project(f);
+        ScriptManager::init_project(f);
         m_scene = CreateRef<Scene>();
         m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
         m_content_browser_panel = CreateRef<ContentBrowserPanel>(f);

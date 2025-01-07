@@ -28,14 +28,15 @@ public:
     uint8_t                                              *get_data() const { return m_data; }
 
 private:
-    std::string                                    m_name;
-    Ref<Pipeline>                                  m_pipeline;
-    int32_t                                        m_position_offset = -1;
-    int32_t                                        m_normal_offset = -1;
-    int32_t                                        m_texcoord_offset = -1;
-    int32_t                                        m_entity_offset = -1;
+    std::string   m_name;
+    Ref<Pipeline> m_pipeline;
+    int32_t       m_position_offset = -1;
+    int32_t       m_normal_offset = -1;
+    int32_t       m_texcoord_offset = -1;
+    int32_t       m_entity_offset = -1;
+    uint8_t      *m_data = nullptr;
+
     std::vector<std::pair<uint32_t, Ref<Texture>>> m_textures;
-    uint8_t                                       *m_data = nullptr;
 };
 
 }  // namespace Yogi

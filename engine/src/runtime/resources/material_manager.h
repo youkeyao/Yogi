@@ -7,8 +7,9 @@ namespace Yogi {
 class MaterialManager
 {
 public:
-    static void                 init(const std::string &dir_path);
-    static void                 clear();
+    static void init(const std::string &dir_path);
+    static void clear();
+
     static void                 add_material(const std::string &key, const Ref<Material> &material);
     static void                 remove_material(const Ref<Material> &material);
     static const Ref<Material> &get_material(const std::string &key);

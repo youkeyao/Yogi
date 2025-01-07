@@ -34,6 +34,7 @@ class ComponentManager
 {
     typedef void *(*AddComponentFunc)(Entity &, const std::string &);
     typedef void (*RemoveComponentFunc)(Entity &, const std::string &);
+    #define RUMTIME_COMPONENT_MAX_SIZE 256
 
 public:
     static void init();

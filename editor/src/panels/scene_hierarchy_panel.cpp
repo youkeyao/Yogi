@@ -180,6 +180,9 @@ void SceneHierarchyPanel::draw_components()
                 if (value.type_hash == typeid(bool).hash_code()) {
                     bool *is = (bool *)((uint8_t *)component + value.offset);
                     ImGui::Checkbox(key.c_str(), is);
+                } else if (value.type_hash == typeid(int).hash_code()) {
+                    int *i = (int *)((uint8_t *)component + value.offset);
+                    ImGui::InputInt(key.c_str(), i);
                 } else if (value.type_hash == typeid(std::string).hash_code()) {
                     std::string &str = *(std::string *)((uint8_t *)component + value.offset);
                     char         buffer[256];

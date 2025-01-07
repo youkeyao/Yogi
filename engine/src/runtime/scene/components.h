@@ -12,7 +12,7 @@ namespace Yogi {
 // ---Component Element--------------------------------------------------
 struct Transform
 {
-    Transform(const glm::mat4 &transform) : m_transform(transform) {}
+    Transform(const glm::mat4 &transform = glm::mat4(1.0f)) : m_transform(transform) {}
     operator glm::mat4() const { return m_transform; }
     Transform  operator*(const Transform &other) const { return Transform(m_transform * other.m_transform); }
     Transform &operator=(const glm::mat4 &transform)
@@ -27,7 +27,7 @@ private:
 
 struct Color
 {
-    Color(const glm::vec4 &color) : m_color(color) {}
+    Color(const glm::vec4 &color = glm::vec4(1.0f)) : m_color(color) {}
     operator glm::vec4() const { return m_color; }
     Color &operator=(const glm::vec4 &color)
     {

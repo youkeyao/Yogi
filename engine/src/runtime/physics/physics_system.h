@@ -17,8 +17,8 @@ public:
     PhysicsSystem();
     ~PhysicsSystem();
 
-    void on_update(Timestep ts, Scene *scene) override;
-    void on_event(Event &e, Scene *scene) override;
+    void on_update(Timestep ts, Scene &scene) override;
+    void on_event(Event &e, Scene &scene) override;
 
 private:
     JPH::PhysicsSystem                 *m_physics_system = nullptr;

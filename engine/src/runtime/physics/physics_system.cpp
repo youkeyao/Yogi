@@ -131,19 +131,19 @@ PhysicsSystem::~PhysicsSystem()
     JPH::Factory::sInstance = nullptr;
 }
 
-void PhysicsSystem::on_update(Timestep ts, Scene *scene)
+void PhysicsSystem::on_update(Timestep ts, Scene &scene)
 {
     JPH::BodyInterface &body_interface = m_physics_system->GetBodyInterface();
 
     // add body || update body transform
-    scene->view_components<TransformComponent, RigidBodyComponent>(
+    scene.view_components<TransformComponent, RigidBodyComponent>(
         [&](Entity entity, TransformComponent &transform, RigidBodyComponent &rigid_body) {
             JPH::BodyID body_id(entity);
             glm::mat4   transform_mat = transform.get_world_transform();
             JPH::Mat44  transform_matrix(
                 JPH::Vec4(transform_mat[0][0], transform_mat[0][1], transform_mat[0][2], transform_mat[0][3]),
                 JPH::Vec4(transform_mat[1][0], transform_mat[1][1], transform_mat[1][2], transform_mat[1][3]),
-                JPH::Vec4(transform_mat[2][3], transform_mat[2][1], transform_mat[2][2], transform_mat[2][3]),
+                JPH::Vec4(transform_mat[2][0], transform_mat[2][1], transform_mat[2][2], transform_mat[2][3]),
                 JPH::Vec4(transform_mat[3][0], transform_mat[3][1], transform_mat[3][2], transform_mat[3][3]));
             JPH::Vec3  scale;
             JPH::Mat44 decomposed_matrix = transform_matrix.Decompose(scale);
@@ -187,7 +187,7 @@ void PhysicsSystem::on_update(Timestep ts, Scene *scene)
     m_physics_system->Update(ts, (int)(ts * 60) + 1, m_temp_allocator, m_job_system);
 
     // update entity transform
-    scene->view_components<TransformComponent, RigidBodyComponent>(
+    scene.view_components<TransformComponent, RigidBodyComponent>(
         [&](Entity entity, TransformComponent &transform, RigidBodyComponent &rigid_body) {
             JPH::Mat44 transform_matrix = body_interface.GetWorldTransform(JPH::BodyID(entity));
             glm::vec3  scale;
@@ -204,6 +204,6 @@ void PhysicsSystem::on_update(Timestep ts, Scene *scene)
         });
 }
 
-void PhysicsSystem::on_event(Event &e, Scene *scene) {}
+void PhysicsSystem::on_event(Event &e, Scene &scene) {}
 
 }  // namespace Yogi

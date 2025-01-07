@@ -34,11 +34,12 @@ target_include_directories( imguizmo
 # -----------------------------------------------------------
 
 # ---luajit----------------------------------------------------
+set( LUAJIT_BUILD_TOOL OFF )
 add_subdirectory( vendor/luajit )
 # -----------------------------------------------------------
 
-add_compile_definitions(YG_EDITOR_ASSET_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/assets/\")
-add_compile_definitions(YG_PROJECT_TEMPLATE=\"${CMAKE_CURRENT_SOURCE_DIR}/template\")
+add_compile_definitions(YG_EDITOR_ASSET_DIR=\"assets/\")
+add_compile_definitions(YG_PROJECT_TEMPLATE=\"${CMAKE_SOURCE_DIR}/launcher/examples/template\")
 add_executable(editor ${YG_EDITOR_SOURCES})
 target_link_libraries( editor
     PUBLIC

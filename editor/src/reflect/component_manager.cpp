@@ -95,7 +95,8 @@ void ComponentManager::init()
     register_component<PointLightComponent>({ "attenuation_parms", "color" });
     register_component<SkyboxComponent>({ "material" });
     register_component<RigidBodyComponent>({ "is_static", "scale", "type" });
-    register_runtime_component(s_add_runtime_component_funcs, std::make_integer_sequence<std::size_t, 256>());
+    register_runtime_component(
+        s_add_runtime_component_funcs, std::make_integer_sequence<std::size_t, RUMTIME_COMPONENT_MAX_SIZE>());
 }
 void ComponentManager::clear()
 {
@@ -125,7 +126,7 @@ void ComponentManager::register_component(std::vector<std::string> field_names)
 
 void ComponentManager::register_component(std::string component_name, ComponentType component_type)
 {
-    YG_ASSERT(component_type.size <= 256, "Component size too large!");
+    YG_ASSERT(component_type.size <= RUMTIME_COMPONENT_MAX_SIZE, "Component size too large!");
     component_type.type_id = entt::hashed_string::value(component_name.c_str());
     s_component_names[component_type.type_id] = component_name;
     s_component_types[component_name] = component_type;

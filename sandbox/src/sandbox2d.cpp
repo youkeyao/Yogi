@@ -14,7 +14,7 @@ void Sandbox2D::on_attach()
     Yogi::Ref<Yogi::Material> mat1 = Yogi::MaterialManager::get_material("default");
 
     m_scene->add_system<Yogi::RenderSystem>();
-    m_scene->add_system<Yogi::PhysicsSystem>();
+    // m_scene->add_system<Yogi::PhysicsSystem>();
 
     checker = m_scene->create_entity();
     checker.add_component<Yogi::TransformComponent>().transform = glm::translate(glm::mat4(1.0f), { 0, -0.3, 0 });
@@ -45,9 +45,9 @@ void Sandbox2D::on_attach()
         }
     }
 
-    e = m_scene->create_entity();
-    e.add_component<Yogi::TransformComponent>().transform = glm::translate(glm::mat4(1.0f), glm::vec3(0, 0, 1));
-    e.add_component<Yogi::PointLightComponent>();
+    // e = m_scene->create_entity();
+    // e.add_component<Yogi::TransformComponent>().transform = glm::translate(glm::mat4(1.0f), glm::vec3(0, 0, 1));
+    // e.add_component<Yogi::PointLightComponent>();
 
     e = m_scene->create_entity();
     e.add_component<Yogi::TransformComponent>().transform = glm::translate(glm::mat4(1.0f), glm::vec3(0, 0, 5));
@@ -59,14 +59,15 @@ void Sandbox2D::on_attach()
 
     e = m_scene->create_entity();
     e.add_component<Yogi::TransformComponent>().transform =
-        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(0, 0.5, 1)), glm::vec3(0.5f));
+        glm::scale(glm::mat4(1.0f), glm::vec3(0.5f)) * glm::translate(glm::mat4(1.0f), glm::vec3(0, 0.5, 1));
     e.add_component<Yogi::MeshRendererComponent>(Yogi::MeshManager::get_mesh("cube"), mat1);
     e.add_component<Yogi::RigidBodyComponent>();
 
     e = m_scene->create_entity();
-    e.add_component<Yogi::TransformComponent>().transform = glm::scale(
-        glm::rotate(glm::translate(glm::mat4(1.0f), glm::vec3(0, -1.0f, 0)), glm::radians(-10.0f), glm::vec3(1, 0, 0)),
-        glm::vec3(4.0f, 1.0f, 4.0f));
+    e.add_component<Yogi::TransformComponent>().transform =
+        glm::scale(glm::mat4(1.0f), glm::vec3(4.0f, 1.0f, 4.0f)) *
+        glm::rotate(glm::mat4(1.0f), glm::radians(-10.0f), glm::vec3(1, 0, 0)) *
+        glm::translate(glm::mat4(1.0f), glm::vec3(0, -1.0f, 0));
     e.add_component<Yogi::MeshRendererComponent>(Yogi::MeshManager::get_mesh("cube"), mat1);
     e.add_component<Yogi::RigidBodyComponent>().is_static = true;
 }

@@ -29,7 +29,7 @@ public:
         m_systems.push_back({ system_name, CreateRef<T>() });
     }
 
-    void add_runtime_system(const std::string &system_name, Ref<SystemBase> system)
+    void add_runtime_system(const std::string &system_name, const Ref<SystemBase> &system)
     {
         for (auto &[name, sys] : m_systems) {
             if (name == system_name) {
@@ -47,8 +47,7 @@ public:
             auto &[name, system] = *iter;
             if (name == system_name) {
                 iter = m_systems.erase(iter);
-                if (iter == m_systems.end())
-                    break;
+                return;
             }
         }
     }
@@ -59,8 +58,7 @@ public:
             auto &[name, system] = *iter;
             if (name == system_name) {
                 iter = m_systems.erase(iter);
-                if (iter == m_systems.end())
-                    break;
+                return;
             }
         }
     }
