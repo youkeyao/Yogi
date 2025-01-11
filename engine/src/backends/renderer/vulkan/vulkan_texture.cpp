@@ -99,6 +99,46 @@ void read_pixel_impl(int32_t x, int32_t y, void *data, uint32_t width, uint32_t 
     vkFreeMemory(context->get_device(), staging_buffer_memory, nullptr);
 }
 
+void blit_impl(VkImage src_image, VkImage dst_image, uint32_t width, uint32_t height, VkFormat internal_format)
+{
+    VulkanContext *context = (VulkanContext *)Application::get().get_window().get_context();
+
+    context->transition_image_layout(
+        src_image, internal_format, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        VK_IMAGE_ASPECT_COLOR_BIT);
+    context->transition_image_layout(
+        dst_image, internal_format, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        VK_IMAGE_ASPECT_COLOR_BIT);
+
+    VkCommandBuffer command_buffer = context->begin_single_time_commands();
+    VkImageBlit     blit{};
+    blit.srcOffsets[0] = { 0, 0, 0 };
+    blit.srcOffsets[1] = { static_cast<int32_t>(width), static_cast<int32_t>(height), 1 };
+    blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    blit.srcSubresource.mipLevel = 0;
+    blit.srcSubresource.baseArrayLayer = 0;
+    blit.srcSubresource.layerCount = 1;
+    blit.dstOffsets[0] = { 0, 0, 0 };
+    blit.dstOffsets[1] = { static_cast<int32_t>(width), static_cast<int32_t>(height), 1 };
+    blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    blit.dstSubresource.mipLevel = 0;
+    blit.dstSubresource.baseArrayLayer = 0;
+    blit.dstSubresource.layerCount = 1;
+
+    vkCmdBlitImage(
+        command_buffer, src_image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dst_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
+        &blit, VK_FILTER_LINEAR);
+
+    context->end_single_time_commands(command_buffer);
+
+    context->transition_image_layout(
+        src_image, internal_format, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VK_IMAGE_ASPECT_COLOR_BIT);
+    context->transition_image_layout(
+        dst_image, internal_format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VK_IMAGE_ASPECT_COLOR_BIT);
+}
+
 void set_data_impl(void *data, size_t size, uint32_t &width, uint32_t &height, VkFormat &internal_format, VkImage &image)
 {
     VulkanContext *context = (VulkanContext *)Application::get().get_window().get_context();
@@ -223,6 +263,19 @@ void VulkanTexture2D::read_pixel(int32_t x, int32_t y, void *data) const
     read_pixel_impl(x, y, data, m_width, m_height, m_internal_format, m_image);
 }
 
+void VulkanTexture2D::blit(const Ref<Texture> &dst)
+{
+    if (std::dynamic_pointer_cast<VulkanTexture2D>(dst)) {
+        VulkanTexture2D *dst_texture = (VulkanTexture2D *)dst.get();
+        blit_impl(m_image, dst_texture->m_image, m_width, m_height, m_internal_format);
+    } else if (std::dynamic_pointer_cast<VulkanRenderTexture>(dst)) {
+        VulkanRenderTexture *dst_texture = (VulkanRenderTexture *)dst.get();
+        blit_impl(m_image, dst_texture->get_vk_image(), m_width, m_height, m_internal_format);
+    } else {
+        YG_CORE_ERROR("Blit invalid texture type!");
+    }
+}
+
 void VulkanTexture2D::set_data(void *data, size_t size)
 {
     set_data_impl(data, size, m_width, m_height, m_internal_format, m_image);
@@ -288,6 +341,19 @@ VulkanRenderTexture::~VulkanRenderTexture()
 void VulkanRenderTexture::read_pixel(int32_t x, int32_t y, void *data) const
 {
     read_pixel_impl(x, y, data, m_width, m_height, m_internal_format, m_image);
+}
+
+void VulkanRenderTexture::blit(const Ref<Texture> &dst)
+{
+    if (std::dynamic_pointer_cast<VulkanTexture2D>(dst)) {
+        VulkanTexture2D *dst_texture = (VulkanTexture2D *)dst.get();
+        blit_impl(m_image, dst_texture->get_vk_image(), m_width, m_height, m_internal_format);
+    } else if (std::dynamic_pointer_cast<VulkanRenderTexture>(dst)) {
+        VulkanRenderTexture *dst_texture = (VulkanRenderTexture *)dst.get();
+        blit_impl(m_image, dst_texture->m_image, m_width, m_height, m_internal_format);
+    } else {
+        YG_CORE_ERROR("Blit invalid texture type!");
+    }
 }
 
 void VulkanRenderTexture::set_data(void *data, size_t size)

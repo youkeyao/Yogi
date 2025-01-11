@@ -28,7 +28,7 @@ private:
     JPH::ObjectVsBroadPhaseLayerFilter *m_object_vs_broadphase_layer_filter = nullptr;
     JPH::ObjectLayerPairFilter         *m_object_vs_object_layer_filter = nullptr;
 
-    std::vector<JPH::BodyID> m_bodies;
+    std::unordered_set<uint32_t> m_previous_bodies;
 };
 
 }  // namespace Yogi

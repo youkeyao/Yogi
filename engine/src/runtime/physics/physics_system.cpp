@@ -100,7 +100,8 @@ PhysicsSystem::PhysicsSystem()
     JPH::RegisterTypes();
 
     m_temp_allocator = new JPH::TempAllocatorImpl(16 * 1024 * 1024);
-    m_job_system = new JPH::JobSystemThreadPool(1024, 8, 4);
+    m_job_system =
+        new JPH::JobSystemThreadPool(JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers, JPH::thread::hardware_concurrency());
 
     m_broad_phase_layer_interface = new BPLayerInterfaceImpl();
     m_object_vs_broadphase_layer_filter = new ObjectVsBroadPhaseLayerFilterImpl();
@@ -112,11 +113,6 @@ PhysicsSystem::PhysicsSystem()
 }
 PhysicsSystem::~PhysicsSystem()
 {
-    if (!m_bodies.empty()) {
-        m_physics_system->GetBodyInterface().RemoveBodies(m_bodies.data(), m_bodies.size());
-        m_physics_system->GetBodyInterface().DestroyBodies(m_bodies.data(), m_bodies.size());
-    }
-
     delete m_broad_phase_layer_interface;
     delete m_object_vs_broadphase_layer_filter;
     delete m_object_vs_object_layer_filter;
@@ -133,58 +129,72 @@ PhysicsSystem::~PhysicsSystem()
 
 void PhysicsSystem::on_update(Timestep ts, Scene &scene)
 {
-    JPH::BodyInterface &body_interface = m_physics_system->GetBodyInterface();
+    YG_PROFILE_FUNCTION();
+
+    JPH::BodyInterface          &body_interface = m_physics_system->GetBodyInterface();
+    std::unordered_set<uint32_t> to_remove(m_previous_bodies.begin(), m_previous_bodies.end());
 
     // add body || update body transform
-    scene.view_components<TransformComponent, RigidBodyComponent>(
-        [&](Entity entity, TransformComponent &transform, RigidBodyComponent &rigid_body) {
-            JPH::BodyID body_id(entity);
-            glm::mat4   transform_mat = transform.get_world_transform();
-            JPH::Mat44  transform_matrix(
-                JPH::Vec4(transform_mat[0][0], transform_mat[0][1], transform_mat[0][2], transform_mat[0][3]),
-                JPH::Vec4(transform_mat[1][0], transform_mat[1][1], transform_mat[1][2], transform_mat[1][3]),
-                JPH::Vec4(transform_mat[2][0], transform_mat[2][1], transform_mat[2][2], transform_mat[2][3]),
-                JPH::Vec4(transform_mat[3][0], transform_mat[3][1], transform_mat[3][2], transform_mat[3][3]));
-            JPH::Vec3  scale;
-            JPH::Mat44 decomposed_matrix = transform_matrix.Decompose(scale);
-            JPH::Vec3  translation = decomposed_matrix.GetTranslation();
-            decomposed_matrix.SetTranslation(JPH::Vec3(0, 0, 0));
-            JPH::Quat rotation = decomposed_matrix.GetQuaternion();
+    scene.view_components<TransformComponent, RigidBodyComponent>([&](Entity entity, TransformComponent &transform,
+                                                                      RigidBodyComponent &rigid_body) {
+        to_remove.erase(entity);
+        JPH::BodyID body_id(entity);
+        glm::mat4   transform_mat = transform.get_world_transform();
+        JPH::Mat44  transform_matrix(
+            JPH::Vec4(transform_mat[0][0], transform_mat[0][1], transform_mat[0][2], transform_mat[0][3]),
+            JPH::Vec4(transform_mat[1][0], transform_mat[1][1], transform_mat[1][2], transform_mat[1][3]),
+            JPH::Vec4(transform_mat[2][0], transform_mat[2][1], transform_mat[2][2], transform_mat[2][3]),
+            JPH::Vec4(transform_mat[3][0], transform_mat[3][1], transform_mat[3][2], transform_mat[3][3]));
+        JPH::Vec3  scale;
+        JPH::Mat44 decomposed_matrix = transform_matrix.Decompose(scale);
+        JPH::Vec3  translation = decomposed_matrix.GetTranslation();
+        decomposed_matrix.SetTranslation(JPH::Vec3(0, 0, 0));
+        JPH::Quat rotation = decomposed_matrix.GetQuaternion();
 
-            JPH::ShapeSettings::ShapeResult shape_result;
-            if (rigid_body.type == ColliderType::BOX) {
-                JPH::BoxShapeSettings shape_settings(
-                    JPH::Vec3(rigid_body.scale.x, rigid_body.scale.y, rigid_body.scale.z) * scale / 2);
-                shape_result = shape_settings.Create();
-            } else if (rigid_body.type == ColliderType::SPHERE) {
-                JPH::SphereShapeSettings shape_settings(
-                    (rigid_body.scale.x + rigid_body.scale.y + rigid_body.scale.z) / 3 *
-                    (scale.GetX() + scale.GetY() + scale.GetZ()) / 3);
-                shape_result = shape_settings.Create();
-            } else if (rigid_body.type == ColliderType::CAPSULE) {
-                JPH::CapsuleShapeSettings shape_settings(
-                    rigid_body.scale.y * scale.GetY() / 2,
-                    (rigid_body.scale.x + rigid_body.scale.z) / 2 * (scale.GetX() + scale.GetZ()) / 2 / 2);
-                shape_result = shape_settings.Create();
-            }
+        JPH::ShapeSettings::ShapeResult shape_result;
+        if (rigid_body.type == ColliderType::BOX) {
+            JPH::BoxShapeSettings shape_settings(
+                JPH::Vec3(rigid_body.scale.x, rigid_body.scale.y, rigid_body.scale.z) * scale / 2);
+            shape_result = shape_settings.Create();
+        } else if (rigid_body.type == ColliderType::SPHERE) {
+            JPH::SphereShapeSettings shape_settings(
+                (rigid_body.scale.x + rigid_body.scale.y + rigid_body.scale.z) / 3 *
+                (scale.GetX() + scale.GetY() + scale.GetZ()) / 3);
+            shape_result = shape_settings.Create();
+        } else if (rigid_body.type == ColliderType::CAPSULE) {
+            JPH::CapsuleShapeSettings shape_settings(
+                rigid_body.scale.y * scale.GetY() / 2,
+                (rigid_body.scale.x + rigid_body.scale.z) / 2 * (scale.GetX() + scale.GetZ()) / 2 / 2);
+            shape_result = shape_settings.Create();
+        }
 
-            if (!body_interface.IsAdded(body_id)) {
-                JPH::BodyCreationSettings body_create_settings(
-                    shape_result.Get(), translation, rotation,
-                    rigid_body.is_static ? JPH::EMotionType::Static : JPH::EMotionType::Dynamic,
-                    rigid_body.is_static ? Layers::NON_MOVING : Layers::MOVING);
-                JPH::Body *body = body_interface.CreateBodyWithID(JPH::BodyID(entity), body_create_settings);
-                body_interface.AddBody(
-                    body->GetID(), rigid_body.is_static ? JPH::EActivation::DontActivate : JPH::EActivation::Activate);
-                m_bodies.push_back(body->GetID());
-            } else {
-                body_interface.SetPosition(body_id, translation, JPH::EActivation::Activate);
-                body_interface.SetRotation(body_id, rotation, JPH::EActivation::Activate);
-                body_interface.SetShape(body_id, shape_result.Get(), true, JPH::EActivation::Activate);
-            }
-        });
+        if (!body_interface.IsAdded(body_id)) {
+            m_previous_bodies.insert(entity);
+            JPH::BodyCreationSettings body_create_settings(
+                shape_result.Get(), translation, rotation,
+                rigid_body.is_static ? JPH::EMotionType::Static : JPH::EMotionType::Dynamic,
+                rigid_body.is_static ? Layers::NON_MOVING : Layers::MOVING);
+            JPH::Body *body = body_interface.CreateBodyWithID(JPH::BodyID(entity), body_create_settings);
+            body_interface.AddBody(body_id, rigid_body.is_static ? JPH::EActivation::DontActivate : JPH::EActivation::Activate);
+        }
+        body_interface.ActivateBody(body_id);
+        body_interface.SetPosition(body_id, translation, JPH::EActivation::Activate);
+        body_interface.SetRotation(body_id, rotation, JPH::EActivation::Activate);
+        body_interface.SetShape(body_id, shape_result.Get(), true, JPH::EActivation::Activate);
+    });
 
-    m_physics_system->Update(ts, (int)(ts * 60) + 1, m_temp_allocator, m_job_system);
+    for (const uint32_t &entity : to_remove) {
+        m_previous_bodies.erase(entity);
+        JPH::BodyID body_id(entity);
+        body_interface.RemoveBody(body_id);
+        body_interface.DestroyBody(body_id);
+    }
+
+    const int system_steps = ts * 6 + 1;
+    for (int i = 0; i < system_steps; i++) {
+        const Timestep step = ts / system_steps;
+        m_physics_system->Update(ts / system_steps, (int)(step * 60) + 1, m_temp_allocator, m_job_system);
+    }
 
     // update entity transform
     scene.view_components<TransformComponent, RigidBodyComponent>(

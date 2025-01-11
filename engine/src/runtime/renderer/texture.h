@@ -15,7 +15,7 @@ public:
     virtual uint32_t get_height() const = 0;
 
     virtual void read_pixel(int32_t x, int32_t y, void *data) const = 0;
-
+    virtual void blit(const Ref<Texture> &dst) = 0;
     virtual void set_data(void *data, size_t size) = 0;
     virtual void bind(uint32_t binding = 0, uint32_t slot = 0) const = 0;
 

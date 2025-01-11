@@ -43,6 +43,11 @@ function init_on_update(ts, scene)
     end
 
     e = scene:create_entity()
+    e:add_component("Yogi::TagComponent").tag = "pointlight"
+    e:add_component("Yogi::TransformComponent").transform = Transform.translate(vec3(0, 0, 1))
+    e:add_component("Yogi::PointLightComponent")
+
+    e = scene:create_entity()
     e:add_component("Yogi::TagComponent").tag = "light"
     e:add_component("Yogi::TransformComponent").transform = Transform.translate(vec3(0, 0, 5))
     e:add_component("Yogi::DirectionalLightComponent")
@@ -54,7 +59,7 @@ function init_on_update(ts, scene)
 
     e = scene:create_entity()
     e:add_component("Yogi::TagComponent").tag = "cube1"
-    e:add_component("Yogi::TransformComponent").transform = Transform.scale(vec3(0.5, 0.5, 0.5)) * Transform.translate(vec3(0, 0.5, 1))
+    e:add_component("Yogi::TransformComponent").transform = Transform.translate(vec3(0, 0.5, 1)) * Transform.scale(vec3(0.5, 0.5, 0.5))
     mesh_renderer = e:add_component("Yogi::MeshRendererComponent")
     mesh_renderer.mesh = MeshManager.get_mesh("cube")
     mesh_renderer.material = mat
@@ -62,7 +67,7 @@ function init_on_update(ts, scene)
 
     e = scene:create_entity()
     e:add_component("Yogi::TagComponent").tag = "cube2"
-    e:add_component("Yogi::TransformComponent").transform = Transform.scale(vec3(4, 1, 4)) * Transform.rotate(-10, vec3(1, 0, 0)) * Transform.translate(vec3(0, -1, 0))
+    e:add_component("Yogi::TransformComponent").transform = Transform.rotate(-10, vec3(1, 0, 0)) * Transform.translate(vec3(0, -1, 0)) * Transform.scale(vec3(4, 1, 4))
     mesh_renderer = e:add_component("Yogi::MeshRendererComponent")
     mesh_renderer.mesh = MeshManager.get_mesh("cube")
     mesh_renderer.material = mat

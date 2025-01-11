@@ -65,6 +65,8 @@ void OpenGLContext::shutdown()
 
 void OpenGLContext::swap_buffers()
 {
+    YG_PROFILE_FUNCTION();
+
     m_window->gl_swap_buffers();
 }
 

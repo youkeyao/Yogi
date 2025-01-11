@@ -88,8 +88,131 @@ int lua_print(lua_State *L)
 }
 
 // ---------------------------------------------------------------------------------------------------
-
 sol::state *ScriptManager::s_state = nullptr;
+
+std::unordered_map<size_t, sol::object (*)(void *)> ScriptManager::s_cast_lua_object_funcs = {
+    { typeid(bool).hash_code(),
+     [](void *data) -> sol::object {
+          return sol::make_object(*s_state, *static_cast<bool *>(data));
+      } },
+    { typeid(int).hash_code(),
+     [](void *data) -> sol::object {
+          return sol::make_object(*s_state, *static_cast<int *>(data));
+      } },
+    { typeid(float).hash_code(),
+     [](void *data) -> sol::object {
+          return sol::make_object(*s_state, *static_cast<float *>(data));
+      } },
+    { typeid(std::string).hash_code(),
+     [](void *data) -> sol::object {
+          return sol::make_object(*s_state, *static_cast<std::string *>(data));
+      } },
+    { typeid(glm::vec2).hash_code(),
+     [](void *data) -> sol::object {
+          return sol::make_object(*s_state, *static_cast<glm::vec2 *>(data));
+      } },
+    { typeid(glm::vec3).hash_code(),
+     [](void *data) -> sol::object {
+          return sol::make_object(*s_state, *static_cast<glm::vec3 *>(data));
+      } },
+    { typeid(glm::vec4).hash_code(),
+     [](void *data) -> sol::object {
+          return sol::make_object(*s_state, *static_cast<glm::vec4 *>(data));
+      } },
+    { typeid(Color).hash_code(),
+     [](void *data) -> sol::object {
+          return sol::make_object(*s_state, *static_cast<Color *>(data));
+      } },
+    { typeid(Transform).hash_code(),
+     [](void *data) -> sol::object {
+          return sol::make_object(*s_state, *static_cast<Transform *>(data));
+      } },
+    { typeid(Entity).hash_code(),
+     [](void *data) -> sol::object {
+          return sol::make_object(*s_state, *static_cast<Entity *>(data));
+      } },
+    { typeid(Ref<Mesh>).hash_code(),
+     [](void *data) -> sol::object {
+          return sol::make_object(*s_state, *static_cast<Ref<Mesh> *>(data));
+      } },
+    { typeid(Ref<Material>).hash_code(),
+     [](void *data) -> sol::object {
+          return sol::make_object(*s_state, *static_cast<Ref<Material> *>(data));
+      } },
+    { typeid(Ref<RenderTexture>).hash_code(),
+     [](void *data) -> sol::object {
+          return sol::make_object(*s_state, *static_cast<Ref<RenderTexture> *>(data));
+      } },
+};
+std::unordered_map<size_t, void (*)(void *, const sol::object &)> ScriptManager::s_set_lua_object_funcs = {
+    { typeid(bool).hash_code(),
+     [](void *data, const sol::object &value) -> void {
+          *static_cast<bool *>(data) = value.as<bool>();
+      } },
+    { typeid(int).hash_code(),
+     [](void *data, const sol::object &value) -> void {
+          *static_cast<int *>(data) = value.as<int>();
+      } },
+    { typeid(float).hash_code(),
+     [](void *data, const sol::object &value) -> void {
+          *static_cast<float *>(data) = value.as<float>();
+      } },
+    { typeid(std::string).hash_code(),
+     [](void *data, const sol::object &value) -> void {
+          *static_cast<std::string *>(data) = value.as<std::string>();
+      } },
+    { typeid(glm::vec2).hash_code(),
+     [](void *data, const sol::object &value) -> void {
+          *static_cast<glm::vec2 *>(data) = value.as<glm::vec2>();
+      } },
+    { typeid(glm::vec3).hash_code(),
+     [](void *data, const sol::object &value) -> void {
+          *static_cast<glm::vec3 *>(data) = value.as<glm::vec3>();
+      } },
+    { typeid(glm::vec4).hash_code(),
+     [](void *data, const sol::object &value) -> void {
+          *static_cast<glm::vec4 *>(data) = value.as<glm::vec4>();
+      } },
+    { typeid(Color).hash_code(),
+     [](void *data, const sol::object &value) -> void {
+          *static_cast<Color *>(data) = value.as<Color>();
+      } },
+    { typeid(Transform).hash_code(),
+     [](void *data, const sol::object &value) -> void {
+          *static_cast<Transform *>(data) = value.as<Transform>();
+      } },
+    { typeid(Entity).hash_code(),
+     [](void *data, const sol::object &value) -> void {
+          *static_cast<Entity *>(data) = value.as<Entity>();
+      } },
+    { typeid(Ref<Mesh>).hash_code(),
+     [](void *data, const sol::object &value) -> void {
+          *static_cast<Ref<Mesh> *>(data) = value.as<Ref<Mesh>>();
+      } },
+    { typeid(Ref<Material>).hash_code(),
+     [](void *data, const sol::object &value) -> void {
+          *static_cast<Ref<Material> *>(data) = value.as<Ref<Material>>();
+      } },
+    { typeid(Ref<RenderTexture>).hash_code(),
+     [](void *data, const sol::object &value) -> void {
+          *static_cast<Ref<RenderTexture> *>(data) = value.as<Ref<RenderTexture>>();
+      } },
+};
+std::unordered_map<std::string, std::pair<size_t, size_t>> ScriptManager::s_basic_fields = {
+    { "bool",           { typeid(bool).hash_code(), sizeof(bool) }                             },
+    { "int",            { typeid(int).hash_code(), sizeof(int) }                               },
+    { "float",          { typeid(float).hash_code(), sizeof(float) }                           },
+    { "string",         { typeid(std::string).hash_code(), sizeof(std::string) }               },
+    { "vec2",           { typeid(glm::vec2).hash_code(), sizeof(glm::vec2) }                   },
+    { "vec3",           { typeid(glm::vec3).hash_code(), sizeof(glm::vec3) }                   },
+    { "vec4",           { typeid(glm::vec4).hash_code(), sizeof(glm::vec4) }                   },
+    { "color",          { typeid(Color).hash_code(), sizeof(Color) }                           },
+    { "transform",      { typeid(Transform).hash_code(), sizeof(Transform) }                   },
+    { "entity",         { typeid(Entity).hash_code(), sizeof(Entity) }                         },
+    { "mesh",           { typeid(Ref<Mesh>).hash_code(), sizeof(Ref<Mesh>) }                   },
+    { "material",       { typeid(Ref<Material>).hash_code(), sizeof(Ref<Material>) }           },
+    { "render_texture", { typeid(Ref<RenderTexture>).hash_code(), sizeof(Ref<RenderTexture>) } },
+};
 
 void ScriptManager::init_usertype()
 {
@@ -114,72 +237,18 @@ void ScriptManager::init_usertype()
             const Field &field = it->second;
             void        *field_ptr = (uint8_t *)data + field.offset;
 
-            if (field.type_hash == typeid(bool).hash_code()) {
-                return sol::make_object(*s_state, *static_cast<bool *>(field_ptr));
-            } else if (field.type_hash == typeid(int).hash_code()) {
-                return sol::make_object(*s_state, *static_cast<int *>(field_ptr));
-            } else if (field.type_hash == typeid(float).hash_code()) {
-                return sol::make_object(*s_state, *static_cast<float *>(field_ptr));
-            } else if (field.type_hash == typeid(std::string).hash_code()) {
-                return sol::make_object(*s_state, *static_cast<std::string *>(field_ptr));
-            } else if (field.type_hash == typeid(glm::vec2).hash_code()) {
-                return sol::make_object(*s_state, *static_cast<glm::vec2 *>(field_ptr));
-            } else if (field.type_hash == typeid(glm::vec3).hash_code()) {
-                return sol::make_object(*s_state, *static_cast<glm::vec3 *>(field_ptr));
-            } else if (field.type_hash == typeid(glm::vec4).hash_code()) {
-                return sol::make_object(*s_state, *static_cast<glm::vec4 *>(field_ptr));
-            } else if (field.type_hash == typeid(Color).hash_code()) {
-                return sol::make_object(*s_state, *static_cast<Color *>(field_ptr));
-            } else if (field.type_hash == typeid(Transform).hash_code()) {
-                return sol::make_object(*s_state, *static_cast<Transform *>(field_ptr));
-            } else if (field.type_hash == typeid(Entity).hash_code()) {
-                return sol::make_object(*s_state, *static_cast<Entity *>(field_ptr));
-            } else if (field.type_hash == typeid(Ref<Mesh>).hash_code()) {
-                return sol::make_object(*s_state, *static_cast<Ref<Mesh> *>(field_ptr));
-            } else if (field.type_hash == typeid(Ref<Material>).hash_code()) {
-                return sol::make_object(*s_state, *static_cast<Ref<Material> *>(field_ptr));
-            } else if (field.type_hash == typeid(Ref<RenderTexture>).hash_code()) {
-                return sol::make_object(*s_state, *static_cast<Ref<RenderTexture> *>(field_ptr));
-            }
-            return sol::nil;
+            return s_cast_lua_object_funcs[field.type_hash](field_ptr);
         },  // get field
         sol::meta_function::new_index,
-        [](RuntimeComponent &comp, const std::string &field_name, sol::object value) {
-            YG_PROFILE_SCOPE(("ScriptManager::set_field" + field_name).c_str());
+        [](RuntimeComponent &comp, const std::string &field_name, sol::object value, sol::this_state s) {
             void *data = comp.get_data();
             auto &type = comp.get_type();
             auto &it = type.fields.find(field_name);
             YG_ASSERT(it != type.fields.end(), "RuntimeComponent set unknown field name: {0}!", field_name);
             const Field &field = it->second;
-            void        *field_ptr = (uint8_t *)data + field.offset;
 
-            if (field.type_hash == typeid(bool).hash_code()) {
-                *static_cast<bool *>(field_ptr) = value.as<bool>();
-            } else if (field.type_hash == typeid(int).hash_code()) {
-                *static_cast<int *>(field_ptr) = value.as<int>();
-            } else if (field.type_hash == typeid(float).hash_code()) {
-                *static_cast<float *>(field_ptr) = value.as<float>();
-            } else if (field.type_hash == typeid(std::string).hash_code()) {
-                *static_cast<std::string *>(field_ptr) = value.as<std::string>();
-            } else if (field.type_hash == typeid(glm::vec2).hash_code()) {
-                *static_cast<glm::vec2 *>(field_ptr) = value.as<glm::vec2>();
-            } else if (field.type_hash == typeid(glm::vec3).hash_code()) {
-                *static_cast<glm::vec3 *>(field_ptr) = value.as<glm::vec3>();
-            } else if (field.type_hash == typeid(glm::vec4).hash_code()) {
-                *static_cast<glm::vec4 *>(field_ptr) = value.as<glm::vec4>();
-            } else if (field.type_hash == typeid(Color).hash_code()) {
-                *static_cast<Color *>(field_ptr) = value.as<Color>();
-            } else if (field.type_hash == typeid(Transform).hash_code()) {
-                *static_cast<Transform *>(field_ptr) = value.as<Transform>();
-            } else if (field.type_hash == typeid(Entity).hash_code()) {
-                *static_cast<Entity *>(field_ptr) = value.as<Entity>();
-            } else if (field.type_hash == typeid(Ref<Mesh>).hash_code()) {
-                *static_cast<Ref<Mesh> *>(field_ptr) = value.as<Ref<Mesh>>();
-            } else if (field.type_hash == typeid(Ref<Material>).hash_code()) {
-                *static_cast<Ref<Material> *>(field_ptr) = value.as<Ref<Material>>();
-            } else if (field.type_hash == typeid(Ref<RenderTexture>).hash_code()) {
-                *static_cast<Ref<RenderTexture> *>(field_ptr) = value.as<Ref<RenderTexture>>();
-            }
+            void *field_ptr = (uint8_t *)data + field.offset;
+            s_set_lua_object_funcs[field.type_hash](field_ptr, value);
         }  // set field
     );
     s_state->new_usertype<Entity>(
@@ -193,12 +262,12 @@ void ScriptManager::init_usertype()
         "get_component",
         [](Entity &entity, const std::string &component_name) -> RuntimeComponent {
             const auto &component_type = ComponentManager::get_component_type(component_name);
-            return RuntimeComponent{ entity.get_runtime_component(component_type.type_id), &component_type };
+            return RuntimeComponent{ entity.get_runtime_component(component_type.type_hash), &component_type };
         },  // get component
         "remove_component",
         [](Entity &entity, const std::string &component_name) {
             const auto &component_type = ComponentManager::get_component_type(component_name);
-            entity.remove_runtime_component(component_type.type_id);
+            entity.remove_runtime_component(component_type.type_hash);
         }  // remove component
     );
     s_state->new_usertype<Scene>(
@@ -215,7 +284,7 @@ void ScriptManager::init_usertype()
             for (const auto &[key, value] : component_names) {
                 if (value.get_type() == sol::type::string) {
                     const ComponentType &component_type = ComponentManager::get_component_type(value.as<std::string>());
-                    component_types.emplace_back(component_type.type_id);
+                    component_types.emplace_back(component_type.type_hash);
                 }
             }
             scene.view_runtime_components(component_types, func);
@@ -324,47 +393,12 @@ void ScriptManager::init()
             std::string key = pair.first.as<std::string>();
             std::string value = pair.second.as<std::string>();
 
-            if (value == "bool") {
-                component_type.fields[key] = { component_type.size, typeid(bool).hash_code() };
-                component_type.size += sizeof(bool);
-            } else if (value == "int") {
-                component_type.fields[key] = { component_type.size, typeid(int).hash_code() };
-                component_type.size += sizeof(int);
-            } else if (value == "float") {
-                component_type.fields[key] = { component_type.size, typeid(float).hash_code() };
-                component_type.size += sizeof(float);
-            } else if (value == "string") {
-                component_type.fields[key] = { component_type.size, typeid(std::string).hash_code() };
-                component_type.size += sizeof(std::string);
-            } else if (value == "vec2") {
-                component_type.fields[key] = { component_type.size, typeid(glm::vec2).hash_code() };
-                component_type.size += sizeof(glm::vec2);
-            } else if (value == "vec3") {
-                component_type.fields[key] = { component_type.size, typeid(glm::vec3).hash_code() };
-                component_type.size += sizeof(glm::vec3);
-            } else if (value == "vec4") {
-                component_type.fields[key] = { component_type.size, typeid(glm::vec4).hash_code() };
-                component_type.size += sizeof(glm::vec4);
-            } else if (value == "Color") {
-                component_type.fields[key] = { component_type.size, typeid(Color).hash_code() };
-                component_type.size += sizeof(Color);
-            } else if (value == "Transform") {
-                component_type.fields[key] = { component_type.size, typeid(Transform).hash_code() };
-                component_type.size += sizeof(Transform);
-            } else if (value == "Entity") {
-                component_type.fields[key] = { component_type.size, typeid(Entity).hash_code() };
-                component_type.size += sizeof(Entity);
-            } else if (value == "Mesh") {
-                component_type.fields[key] = { component_type.size, typeid(Ref<Mesh>).hash_code() };
-                component_type.size += sizeof(Ref<Mesh>);
-            } else if (value == "Material") {
-                component_type.fields[key] = { component_type.size, typeid(Ref<Material>).hash_code() };
-                component_type.size += sizeof(Ref<Material>);
-            } else if (value == "RenderTexture") {
-                component_type.fields[key] = { component_type.size, typeid(Ref<RenderTexture>).hash_code() };
-                component_type.size += sizeof(Ref<RenderTexture>);
+            auto &it = s_basic_fields.find(value);
+            if (it != s_basic_fields.end()) {
+                component_type.fields[key] = { component_type.size, it->second.first };
+                component_type.size += it->second.second;
             } else {
-                YG_CORE_ERROR("ScriptManager: Unknown type!");
+                YG_ERROR("ScriptManager: Unknown type!");
             }
         }
         ComponentManager::register_component(name, component_type);

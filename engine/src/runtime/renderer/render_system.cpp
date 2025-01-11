@@ -28,18 +28,24 @@ std::vector<glm::mat4> pointShadowTransforms = {
         glm::lookAt(glm::vec3(0.0f), glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, -1.0f, 0.0f))
 };
 
-RenderSystem::RenderSystem() {}
+RenderSystem::RenderSystem()
+{
+    m_render_shadow_map = RenderTexture::create("", m_shadow_map_size, m_shadow_map_size, TextureFormat::ATTACHMENT);
+    m_shadow_frame_buffer = FrameBuffer::create(m_shadow_map_size, m_shadow_map_size, { m_render_shadow_map });
+}
 RenderSystem::~RenderSystem()
 {
-    for (auto &frame_buffer : m_shadow_frame_buffer_pool) {
-        auto shadow_map = frame_buffer->get_color_attachment(0);
+    for (auto &shadow_map : m_shadow_map_pool) {
         shadow_map.reset();
-        frame_buffer.reset();
     }
+    m_render_shadow_map.reset();
+    m_shadow_frame_buffer.reset();
 }
 
 void RenderSystem::on_update(Timestep ts, Scene &scene)
 {
+    YG_PROFILE_FUNCTION();
+
     Renderer::reset_stats();
 
     // light
@@ -57,7 +63,7 @@ void RenderSystem::set_light(Scene &scene)
 {
     RenderCommand::set_clear_color({ 1.0f, 0.0f, 0.0f, 1.0f });
 
-    m_shadow_frame_buffer_pool_index = 0;
+    m_shadow_map_pool_index = 0;
     m_directional_lights.clear();
     m_spot_lights.clear();
     m_point_lights.clear();
@@ -66,10 +72,10 @@ void RenderSystem::set_light(Scene &scene)
             const glm::mat4 world_transform = transform.get_world_transform();
             const glm::mat4 light_space_matrix =
                 glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, -1.0f, 10.0f) * glm::inverse(world_transform);
-            const uint32_t shadow_pool_index = allocate_shadow_frame_buffer();
+            const uint32_t shadow_pool_index = allocate_shadow_map();
             m_directional_lights.emplace_back(
                 std::make_pair(light, ShadowData{ light_space_matrix, world_transform, shadow_pool_index }));
-            m_shadow_frame_buffer_pool[shadow_pool_index]->bind();
+            m_shadow_frame_buffer->bind();
             Renderer::set_projection_view_matrix(light_space_matrix);
             RenderCommand::set_viewport(0, 0, m_shadow_map_size, m_shadow_map_size);
             RenderCommand::clear();
@@ -82,16 +88,17 @@ void RenderSystem::set_light(Scene &scene)
                     }
                 });
             Renderer::flush();
-            m_shadow_frame_buffer_pool[shadow_pool_index]->unbind();
+            m_shadow_frame_buffer->unbind();
+            m_render_shadow_map->blit(m_shadow_map_pool[shadow_pool_index]);
         });
     scene.view_components<TransformComponent, SpotLightComponent>([&](Entity entity, TransformComponent &transform,
                                                                       SpotLightComponent &light) {
         const glm::mat4 world_transform = transform.get_world_transform();
         const glm::mat4 light_space_matrix =
             glm::perspective(glm::radians(light.outer_angle * 2), 1.0f, near, far) * glm::inverse(world_transform);
-        const uint32_t shadow_pool_index = allocate_shadow_frame_buffer();
+        const uint32_t shadow_pool_index = allocate_shadow_map();
         m_spot_lights.emplace_back(std::make_pair(light, ShadowData{ light_space_matrix, world_transform, shadow_pool_index }));
-        m_shadow_frame_buffer_pool[shadow_pool_index]->bind();
+        m_shadow_frame_buffer->bind();
         Renderer::set_projection_view_matrix(light_space_matrix);
         RenderCommand::set_viewport(0, 0, m_shadow_map_size, m_shadow_map_size);
         RenderCommand::clear();
@@ -104,7 +111,8 @@ void RenderSystem::set_light(Scene &scene)
                 }
             });
         Renderer::flush();
-        m_shadow_frame_buffer_pool[shadow_pool_index]->unbind();
+        m_shadow_frame_buffer->unbind();
+        m_render_shadow_map->blit(m_shadow_map_pool[shadow_pool_index]);
     });
     scene.view_components<TransformComponent, PointLightComponent>(
         [&](Entity entity, TransformComponent &transform, PointLightComponent &light) {
@@ -115,8 +123,8 @@ void RenderSystem::set_light(Scene &scene)
                 shadow_data.light_transform = transform.get_world_transform();
                 glm::vec3 light_pos = glm::vec3{ (glm::mat4)shadow_data.light_transform * glm::vec4(0, 0, 0, 1) };
                 shadow_data.light_space_matrix = pointShadowTransforms[i] * glm::translate(glm::mat4(1.0f), -light_pos);
-                shadow_data.shadow_pool_index = allocate_shadow_frame_buffer();
-                m_shadow_frame_buffer_pool[shadow_data.shadow_pool_index]->bind();
+                shadow_data.shadow_pool_index = allocate_shadow_map();
+                m_shadow_frame_buffer->bind();
                 Renderer::set_projection_view_matrix(shadow_data.light_space_matrix);
                 RenderCommand::set_viewport(0, 0, m_shadow_map_size, m_shadow_map_size);
                 RenderCommand::clear();
@@ -129,7 +137,8 @@ void RenderSystem::set_light(Scene &scene)
                         }
                     });
                 Renderer::flush();
-                m_shadow_frame_buffer_pool[shadow_data.shadow_pool_index]->unbind();
+                m_shadow_frame_buffer->unbind();
+                m_render_shadow_map->blit(m_shadow_map_pool[shadow_data.shadow_pool_index]);
             }
         });
 }
@@ -165,8 +174,7 @@ void RenderSystem::render_camera(const CameraComponent &camera, const TransformC
         std::vector<std::pair<SpotLightComponent, ShadowData>>::iterator spot_light_iterator = m_spot_lights.begin();
         std::vector<std::pair<PointLightComponent, std::array<ShadowData, 6>>>::iterator point_light_iterator =
             m_point_lights.begin();
-        while (directional_light_iterator != m_directional_lights.end() || spot_light_iterator != m_spot_lights.end() ||
-               point_light_iterator != m_point_lights.end()) {
+        do {
             Renderer::set_current_texture_slot(0);
             if (directional_light_iterator != m_directional_lights.end()) {
                 DirectionalLightComponent directional_light = directional_light_iterator->first;
@@ -174,7 +182,7 @@ void RenderSystem::render_camera(const CameraComponent &camera, const TransformC
                 Renderer::set_directional_light(
                     directional_light.color, glm::vec3{ (glm::mat4)shadow_data.light_transform * glm::vec4(0, 0, -1, 0) },
                     shadow_data.light_space_matrix);
-                Renderer::add_texture(m_shadow_frame_buffer_pool[shadow_data.shadow_pool_index]->get_color_attachment(0));
+                Renderer::add_texture(m_shadow_map_pool[shadow_data.shadow_pool_index]);
                 directional_light_iterator++;
             }
             while (spot_light_iterator != m_spot_lights.end()) {
@@ -186,7 +194,7 @@ void RenderSystem::render_camera(const CameraComponent &camera, const TransformC
                           glm::vec3{ (glm::mat4)shadow_data.light_transform * glm::vec4(0, 0, -1, 0) },
                           glm::cos(glm::radians(spot_light.outer_angle)), shadow_data.light_space_matrix }))
                     break;
-                Renderer::add_texture(m_shadow_frame_buffer_pool[shadow_data.shadow_pool_index]->get_color_attachment(0));
+                Renderer::add_texture(m_shadow_map_pool[shadow_data.shadow_pool_index]);
                 spot_light_iterator++;
             }
             while (point_light_iterator != m_point_lights.end()) {
@@ -198,7 +206,7 @@ void RenderSystem::render_camera(const CameraComponent &camera, const TransformC
                     break;
                 for (int32_t i = 0; i < 6; i++) {
                     Renderer::add_texture(
-                        m_shadow_frame_buffer_pool[shadow_data[i].shadow_pool_index]->get_color_attachment(0));
+                        m_shadow_map_pool[shadow_data[i].shadow_pool_index]);
                 }
                 point_light_iterator++;
             }
@@ -209,7 +217,8 @@ void RenderSystem::render_camera(const CameraComponent &camera, const TransformC
                         mesh_renderer.mesh, mesh_renderer.material, mesh_transform.get_world_transform(), mesh_entity);
                 });
             Renderer::flush();
-        }
+        } while (directional_light_iterator != m_directional_lights.end() || spot_light_iterator != m_spot_lights.end() ||
+                 point_light_iterator != m_point_lights.end());
     }
 
     // skybox
@@ -246,14 +255,14 @@ void RenderSystem::set_default_frame_buffer(const Ref<FrameBuffer> &frame_buffer
     s_frame_buffer = frame_buffer.get();
 }
 
-uint32_t RenderSystem::allocate_shadow_frame_buffer()
+uint32_t RenderSystem::allocate_shadow_map()
 {
-    if (m_shadow_frame_buffer_pool_index < m_shadow_frame_buffer_pool.size()) {
-        return m_shadow_frame_buffer_pool_index++;
+    if (m_shadow_map_pool_index < m_shadow_map_pool.size()) {
+        return m_shadow_map_pool_index++;
     }
     Ref<RenderTexture> shadow_map = RenderTexture::create("", m_shadow_map_size, m_shadow_map_size, TextureFormat::ATTACHMENT);
-    m_shadow_frame_buffer_pool.emplace_back(FrameBuffer::create(m_shadow_map_size, m_shadow_map_size, { shadow_map }));
-    return m_shadow_frame_buffer_pool_index++;
+    m_shadow_map_pool.emplace_back(shadow_map);
+    return m_shadow_map_pool_index++;
 }
 
 }  // namespace Yogi

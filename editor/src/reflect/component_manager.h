@@ -12,7 +12,7 @@ struct Field
 
 struct ComponentType
 {
-    std::uint32_t                          type_id = 0;
+    std::uint32_t                          type_hash = 0;
     std::unordered_map<std::string, Field> fields;
     std::size_t                            size = 0;
 };
@@ -34,7 +34,7 @@ class ComponentManager
 {
     typedef void *(*AddComponentFunc)(Entity &, const std::string &);
     typedef void (*RemoveComponentFunc)(Entity &, const std::string &);
-    #define RUMTIME_COMPONENT_MAX_SIZE 256
+#define RUMTIME_COMPONENT_MAX_SIZE 256
 
 public:
     static void init();

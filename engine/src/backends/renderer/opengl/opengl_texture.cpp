@@ -88,6 +88,23 @@ void OpenGLTexture2D::read_pixel(int32_t x, int32_t y, void *data) const
     delete[] all_pixels;
 }
 
+void OpenGLTexture2D::blit(const Ref<Texture> &dst)
+{
+    GLuint dst_renderer_id;
+    if (std::dynamic_pointer_cast<OpenGLTexture2D>(dst)) {
+        OpenGLTexture2D *dst_texture = (OpenGLTexture2D *)dst.get();
+        dst_renderer_id = dst_texture->get_renderer_id();
+    } else if (std::dynamic_pointer_cast<OpenGLRenderTexture>(dst)) {
+        OpenGLRenderTexture *dst_texture = (OpenGLRenderTexture *)dst.get();
+        dst_renderer_id = dst_texture->get_renderer_id();
+    } else {
+        YG_CORE_ERROR("Blit invalid texture type!");
+        return;
+    }
+    glCopyImageSubData(
+        m_renderer_id, GL_TEXTURE_2D, 0, 0, 0, 0, dst_renderer_id, GL_TEXTURE_2D, 0, 0, 0, 0, m_width, m_height, 1);
+}
+
 void OpenGLTexture2D::set_data(void *data, size_t size)
 {
     uint32_t bpp = 0;
@@ -165,6 +182,23 @@ void OpenGLRenderTexture::read_pixel(int32_t x, int32_t y, void *data) const
     glGetTextureImage(m_renderer_id, 0, m_data_format, type, m_width * m_height * bpp, all_pixels);
     memcpy(data, all_pixels + x * bpp + y * m_width * bpp, bpp);
     delete[] all_pixels;
+}
+
+void OpenGLRenderTexture::blit(const Ref<Texture> &dst)
+{
+    GLuint dst_renderer_id;
+    if (std::dynamic_pointer_cast<OpenGLTexture2D>(dst)) {
+        OpenGLTexture2D *dst_texture = (OpenGLTexture2D *)dst.get();
+        dst_renderer_id = dst_texture->get_renderer_id();
+    } else if (std::dynamic_pointer_cast<OpenGLRenderTexture>(dst)) {
+        OpenGLRenderTexture *dst_texture = (OpenGLRenderTexture *)dst.get();
+        dst_renderer_id = dst_texture->m_renderer_id;
+    } else {
+        YG_CORE_ERROR("Blit invalid texture type!");
+        return;
+    }
+    glCopyImageSubData(
+        m_renderer_id, GL_TEXTURE_2D, 0, 0, 0, 0, dst_renderer_id, GL_TEXTURE_2D, 0, 0, 0, 0, m_width, m_height, 1);
 }
 
 void OpenGLRenderTexture::set_data(void *data, size_t size)

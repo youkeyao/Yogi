@@ -14,10 +14,16 @@ public:
 
     uint32_t get_width() const override { return m_width; }
     uint32_t get_height() const override { return m_height; }
-    void     read_pixel(int32_t x, int32_t y, void *data) const override;
 
+    void read_pixel(int32_t x, int32_t y, void *data) const override;
+    void blit(const Ref<Texture> &dst) override;
     void set_data(void *data, size_t size) override;
     void bind(uint32_t binding = 0, uint32_t slot = 0) const override;
+
+    VkImage     get_vk_image() const { return m_image; }
+    VkImageView get_vk_image_view() const { return m_image_view; }
+    VkFormat    get_vk_format() const { return m_internal_format; }
+    VkSampler   get_vk_sampler() const { return m_sampler; }
 
 private:
     uint32_t       m_width, m_height;
@@ -37,8 +43,9 @@ public:
 
     uint32_t get_width() const override { return m_width; }
     uint32_t get_height() const override { return m_height; }
-    void     read_pixel(int32_t x, int32_t y, void *data) const override;
 
+    void read_pixel(int32_t x, int32_t y, void *data) const override;
+    void blit(const Ref<Texture> &dst) override;
     void set_data(void *data, size_t size) override;
     void bind(uint32_t binding = 0, uint32_t slot = 0) const override;
     void resize(uint32_t width, uint32_t height) override;

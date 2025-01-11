@@ -113,7 +113,7 @@ void ComponentManager::register_component(std::vector<std::string> field_names)
     ComponentType component_type;
     get_fields<Type>(component_type, field_names);
     std::string component_name = get_type_name<Type>();
-    component_type.type_id = entt::type_hash<Type>::value();
+    component_type.type_hash = entt::type_hash<Type>::value();
     s_component_names[entt::type_hash<Type>::value()] = component_name;
     s_component_types[component_name] = component_type;
     s_add_component_funcs[component_name] = [](Entity &entity, const std::string &component_name) -> void * {
@@ -127,16 +127,16 @@ void ComponentManager::register_component(std::vector<std::string> field_names)
 void ComponentManager::register_component(std::string component_name, ComponentType component_type)
 {
     YG_ASSERT(component_type.size <= RUMTIME_COMPONENT_MAX_SIZE, "Component size too large!");
-    component_type.type_id = entt::hashed_string::value(component_name.c_str());
-    s_component_names[component_type.type_id] = component_name;
+    component_type.type_hash = entt::hashed_string::value(component_name.c_str());
+    s_component_names[component_type.type_hash] = component_name;
     s_component_types[component_name] = component_type;
     s_add_component_funcs[component_name] = [](Entity &entity, const std::string &component_name) -> void * {
         ComponentType &component_type = s_component_types[component_name];
-        return s_add_runtime_component_funcs[component_type.size - 1](entity, component_type.type_id);
+        return s_add_runtime_component_funcs[component_type.size - 1](entity, component_type.type_hash);
     };
     s_remove_component_funcs[component_name] = [](Entity &entity, const std::string &component_name) {
         ComponentType &component_type = s_component_types[component_name];
-        entity.remove_runtime_component(component_type.type_id);
+        entity.remove_runtime_component(component_type.type_hash);
     };
 }
 

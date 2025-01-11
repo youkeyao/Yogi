@@ -32,16 +32,19 @@ public:
     static void set_default_frame_buffer(const Ref<FrameBuffer> &frame_buffer);
 
 private:
-    uint32_t allocate_shadow_frame_buffer();
+    uint32_t allocate_shadow_map();
 
 private:
     int32_t                                                                m_shadow_map_size = 2048;
     std::vector<std::pair<DirectionalLightComponent, ShadowData>>          m_directional_lights;
     std::vector<std::pair<SpotLightComponent, ShadowData>>                 m_spot_lights;
     std::vector<std::pair<PointLightComponent, std::array<ShadowData, 6>>> m_point_lights;
-    std::vector<Ref<FrameBuffer>>                                          m_shadow_frame_buffer_pool;
+    std::vector<Ref<RenderTexture>>                                        m_shadow_map_pool;
 
-    uint32_t            m_shadow_frame_buffer_pool_index = 0;
+    Ref<RenderTexture> m_render_shadow_map;
+    Ref<FrameBuffer>   m_shadow_frame_buffer;
+
+    uint32_t            m_shadow_map_pool_index = 0;
     static int          s_width;
     static int          s_height;
     static FrameBuffer *s_frame_buffer;

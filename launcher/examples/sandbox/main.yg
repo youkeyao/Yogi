@@ -1,1 +1,1 @@
-{"entities":[],"systems":["InitSystem","Yogi::RenderSystem","RotateSystem"]}
+{"entities":[],"systems":["InitSystem","Yogi::RenderSystem","Yogi::PhysicsSystem","RotateSystem"]}
