@@ -34,6 +34,7 @@ void LauncherLayer::on_detach()
     m_scene.reset();
     Yogi::ComponentManager::clear();
     Yogi::SystemManager::clear();
+    Yogi::ScriptManager::clear();
 }
 
 void LauncherLayer::on_update(Yogi::Timestep ts)

@@ -232,7 +232,7 @@ void ScriptManager::init_usertype()
         [](RuntimeComponent &comp, const std::string &field_name) -> sol::object {
             void *data = comp.get_data();
             auto &type = comp.get_type();
-            auto &it = type.fields.find(field_name);
+            const auto &it = type.fields.find(field_name);
             YG_ASSERT(it != type.fields.end(), "RuntimeComponent get unknown field name: {0}!", field_name);
             const Field &field = it->second;
             void        *field_ptr = (uint8_t *)data + field.offset;
@@ -243,7 +243,7 @@ void ScriptManager::init_usertype()
         [](RuntimeComponent &comp, const std::string &field_name, sol::object value, sol::this_state s) {
             void *data = comp.get_data();
             auto &type = comp.get_type();
-            auto &it = type.fields.find(field_name);
+            const auto &it = type.fields.find(field_name);
             YG_ASSERT(it != type.fields.end(), "RuntimeComponent set unknown field name: {0}!", field_name);
             const Field &field = it->second;
 
@@ -314,28 +314,28 @@ void ScriptManager::init_usertype()
         sol::property(
             [](Color &color) -> float { return ((glm::vec4)color).r; },
             [](Color &color, float v) {
-                glm::vec4 &vec = (glm::vec4)color;
+                const glm::vec4 &vec = (glm::vec4)color;
                 color = glm::vec4{ v, vec.g, vec.b, vec.a };
             }),  // r
         "g",
         sol::property(
             [](Color &color) -> float { return ((glm::vec4)color).g; },
             [](Color &color, float v) {
-                glm::vec4 &vec = (glm::vec4)color;
+                const glm::vec4 &vec = (glm::vec4)color;
                 color = glm::vec4{ vec.r, v, vec.b, vec.a };
             }),  // g
         "b",
         sol::property(
             [](Color &color) -> float { return ((glm::vec4)color).b; },
             [](Color &color, float v) {
-                glm::vec4 &vec = (glm::vec4)color;
+                const glm::vec4 &vec = (glm::vec4)color;
                 color = glm::vec4{ vec.r, vec.g, v, vec.a };
             }),  // b
         "a",
         sol::property(
             [](Color &color) -> float { return ((glm::vec4)color).a; },
             [](Color &color, float v) {
-                glm::vec4 &vec = (glm::vec4)color;
+                const glm::vec4 &vec = (glm::vec4)color;
                 color = glm::vec4{ vec.r, vec.g, vec.b, v };
             })  // a
     );
@@ -393,7 +393,7 @@ void ScriptManager::init()
             std::string key = pair.first.as<std::string>();
             std::string value = pair.second.as<std::string>();
 
-            auto &it = s_basic_fields.find(value);
+            const auto &it = s_basic_fields.find(value);
             if (it != s_basic_fields.end()) {
                 component_type.fields[key] = { component_type.size, it->second.first };
                 component_type.size += it->second.second;
@@ -412,7 +412,7 @@ void ScriptManager::init()
                 func(ts, scene);
 #else
                 sol::safe_function func = on_update;
-                auto         &result = func(ts, scene);
+                const auto         &result = func(ts, scene);
                 if (!result.valid()) {
                     sol::error err = result;
                     YG_ERROR("{0} update error: {1}", name, err.what());
@@ -425,7 +425,7 @@ void ScriptManager::init()
                 func(event, scene);
 #else
                 sol::safe_function func = on_event;
-                auto         &result = func(event, scene);
+                const auto         &result = func(event, scene);
                 if (!result.valid()) {
                     sol::error err = result;
                     YG_ERROR("{0} event error: {1}", name, err.what());
@@ -450,7 +450,7 @@ void ScriptManager::init_project(const std::string &dir_path)
 #ifdef YG_SCRIPT_NO_SAFE
                 s_state->script_file(path.string());
 #else
-                auto &result = s_state->script_file(path.string());
+                const auto &result = s_state->safe_script_file(path.string());
                 if (!result.valid()) {
                     sol::error err = result;
                     YG_CORE_ERROR("ScriptManager error in {0}: {1}", path.string(), err.what());

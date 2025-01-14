@@ -52,7 +52,7 @@ public:
     static void register_component(std::string component_name, ComponentType component_type);
 
 private:
-    static std::vector<std::function<void *(Entity &, uint32_t)>> s_add_runtime_component_funcs;
+    static std::vector<void *(*)(Entity &, uint32_t)> s_add_runtime_component_funcs;
 
     static std::unordered_map<uint32_t, std::string>            s_component_names;
     static std::unordered_map<std::string, ComponentType>       s_component_types;

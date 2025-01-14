@@ -66,8 +66,8 @@ struct TypeN
 };
 
 template <std::size_t... Is>
-constexpr void register_runtime_component(
-    std::vector<std::function<void *(Entity &, uint32_t)>> &add_funcs, std::integer_sequence<std::size_t, Is...>)
+constexpr void
+register_runtime_component(std::vector<void *(*)(Entity &, uint32_t)> &add_funcs, std::integer_sequence<std::size_t, Is...>)
 {
     int expand[] = { (
         add_funcs.emplace_back([](Entity &entity, uint32_t component_typeid) -> void * {
@@ -82,7 +82,7 @@ std::unordered_map<uint32_t, std::string>                              Component
 std::unordered_map<std::string, ComponentType>                         ComponentManager::s_component_types{};
 std::unordered_map<std::string, ComponentManager::AddComponentFunc>    ComponentManager::s_add_component_funcs{};
 std::unordered_map<std::string, ComponentManager::RemoveComponentFunc> ComponentManager::s_remove_component_funcs{};
-std::vector<std::function<void *(Entity &, uint32_t)>>                 ComponentManager::s_add_runtime_component_funcs{};
+std::vector<void *(*)(Entity &, uint32_t)>                             ComponentManager::s_add_runtime_component_funcs{};
 
 void ComponentManager::init()
 {

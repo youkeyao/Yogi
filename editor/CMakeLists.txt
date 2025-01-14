@@ -35,7 +35,7 @@ target_include_directories( imguizmo
 
 # ---luajit----------------------------------------------------
 set( LUAJIT_BUILD_TOOL OFF )
-add_subdirectory( vendor/luajit )
+add_subdirectory( vendor/LuaJIT )
 # -----------------------------------------------------------
 
 add_compile_definitions(YG_EDITOR_ASSET_DIR=\"assets/\")
@@ -59,8 +59,10 @@ target_include_directories( editor
 )
 if ( MSVC )
     target_compile_options(editor PRIVATE /bigobj)
-elseif ( CMAKE_COMPILER_IS_GNUCXX )
-    target_compile_options(editor PRIVATE -Wa,-mbig-obj)
+elseif ( CMAKE_CXX_COMPILER_ID STREQUAL "GNU" )
+    if ( WIN32 )
+        target_compile_options(editor PRIVATE -Wa,-mbig-obj)
+    endif()
 endif()
 
 # copy imgui.ini
