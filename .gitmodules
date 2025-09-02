@@ -1,42 +1,15 @@
-[submodule "engine/vendor/glfw"]
-	path = engine/vendor/glfw
-	url = https://github.com/glfw/glfw.git
-[submodule "engine/vendor/spdlog"]
-	path = engine/vendor/spdlog
+[submodule "Engine/ThirdParty/spdlog"]
+	path = Engine/ThirdParty/spdlog
 	url = https://github.com/gabime/spdlog.git
-[submodule "engine/vendor/glm"]
-	path = engine/vendor/glm
+[submodule "Engine/ThirdParty/glm"]
+	path = Engine/ThirdParty/glm
 	url = https://github.com/g-truc/glm.git
-[submodule "engine/vendor/entt"]
-	path = engine/vendor/entt
-	url = https://github.com/skypjack/entt.git
-[submodule "engine/vendor/SPIRV-Cross"]
-	path = engine/vendor/SPIRV-Cross
-	url = https://github.com/KhronosGroup/SPIRV-Cross.git
-[submodule "engine/vendor/SDL"]
-	path = engine/vendor/SDL
-	url = https://github.com/libsdl-org/SDL.git
-[submodule "engine/vendor/assimp"]
-	path = engine/vendor/assimp
-	url = https://github.com/assimp/assimp.git
-[submodule "engine/vendor/JoltPhysics"]
-	path = engine/vendor/JoltPhysics
-	url = https://github.com/jrouwe/JoltPhysics.git
-[submodule "editor/vendor/imgui"]
-	path = editor/vendor/imgui
-	url = https://github.com/ocornut/imgui.git
-[submodule "editor/vendor/rapidjson"]
-	path = editor/vendor/rapidjson
-	url = https://github.com/Tencent/rapidjson.git
-[submodule "editor/vendor/portable-file-dialogs"]
-	path = editor/vendor/portable-file-dialogs
-	url = https://github.com/samhocevar/portable-file-dialogs.git
-[submodule "editor/vendor/ImGuizmo"]
-	path = editor/vendor/ImGuizmo
-	url = https://github.com/CedricGuillemet/ImGuizmo.git
-[submodule "editor/vendor/sol2"]
-	path = editor/vendor/sol2
-	url = https://github.com/ThePhD/sol2.git
-[submodule "editor/vendor/LuaJIT"]
-	path = editor/vendor/LuaJIT
-	url = https://github.com/WohlSoft/LuaJIT.git
+[submodule "Engine/ThirdParty/glfw"]
+	path = Engine/ThirdParty/glfw
+	url = https://github.com/glfw/glfw.git
+[submodule "Engine/ThirdParty/volk"]
+	path = Engine/ThirdParty/volk
+	url = https://github.com/zeux/volk.git
+[submodule "Engine/ThirdParty/Vulkan-Headers"]
+	path = Engine/ThirdParty/Vulkan-Headers
+	url = https://github.com/KhronosGroup/Vulkan-Headers.git

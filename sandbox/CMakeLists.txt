@@ -1,8 +1,12 @@
-project (Sandbox)
+project( Sandbox )
 
-file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS src/*.cpp)
-add_executable(sandbox ${SOURCES})
-target_link_libraries( sandbox
+file( GLOB_RECURSE SOURCES CONFIGURE_DEPENDS Source/*.cpp )
+add_executable( Sandbox ${SOURCES} )
+target_link_libraries( Sandbox
     PRIVATE
-        engine
+        YGEngine
+)
+target_include_directories( Sandbox
+    PRIVATE
+        Include
 )
