@@ -92,17 +92,18 @@ void VulkanDeviceContext::CreateVkInstance()
 
     std::vector<const char*> extensions;
     extensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
-#ifdef YG_PLATFORM_WINDOWS
+#ifdef YG_PLATFORM_WIN32
     extensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
 #elif YG_PLATFORM_MACOS
     extensions.push_back(VK_EXT_METAL_SURFACE_EXTENSION_NAME);
 #elif YG_PLATFORM_LINUX
+    extensions.push_back(VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME);
     extensions.push_back(VK_KHR_XLIB_SURFACE_EXTENSION_NAME);
     extensions.push_back(VK_KHR_XCB_SURFACE_EXTENSION_NAME);
 #endif
 
 #ifdef YG_DEBUG
-#    ifdef YG_PLATFORM_WINDOWS
+#    ifdef YG_PLATFORM_WIN32
     _putenv_s("VK_LAYER_PATH", YG_VK_LAYER_PATH);
 #    else
     setenv("VK_LAYER_PATH", YG_VK_LAYER_PATH, 1);

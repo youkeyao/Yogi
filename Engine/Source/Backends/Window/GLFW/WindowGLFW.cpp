@@ -27,10 +27,9 @@ void WindowGLFW::Init()
     {
         int success = glfwInit();
         YG_CORE_ASSERT(success, "Could not initialize GLFW!");
-#if YG_RENDERER_VULKAN
+#ifndef YG_RENDERER_OPENGL
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 #endif
-        glfwWindowHint(GLFW_SAMPLES, 4);
         glfwSetErrorCallback(GLFWErrorCallback);
         s_isGLFWInitialized = true;
     }

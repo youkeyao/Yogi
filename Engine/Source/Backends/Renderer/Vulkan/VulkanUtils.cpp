@@ -112,7 +112,7 @@ VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, const 
         int width  = window->GetWidth();
         int height = window->GetHeight();
 
-        VkExtent2D actualExtent = {static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
+        VkExtent2D actualExtent = { static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
         actualExtent.width =
             std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
         actualExtent.height =
@@ -155,8 +155,30 @@ VkFormat YgTextureFormat2VkFormat(ITexture::Format format)
         case ITexture::Format::D24_UNORM_S8_UINT:
             return VK_FORMAT_D24_UNORM_S8_UINT;
         default:
-            YG_CORE_ERROR("Vulkan: Unsupported texture format!");
+            YG_CORE_ERROR("Vulkan: Unsupported Yg texture format!");
             return VK_FORMAT_UNDEFINED;
+    }
+}
+
+ITexture::Format VkFormat2YgTextureFormat(VkFormat format)
+{
+    switch (format)
+    {
+        case VK_FORMAT_R8G8B8A8_UNORM:
+            return ITexture::Format::R8G8B8A8_UNORM;
+        case VK_FORMAT_R8G8B8A8_SRGB:
+            return ITexture::Format::R8G8B8A8_SRGB;
+        case VK_FORMAT_B8G8R8A8_UNORM:
+            return ITexture::Format::B8G8R8A8_UNORM;
+        case VK_FORMAT_B8G8R8A8_SRGB:
+            return ITexture::Format::B8G8R8A8_SRGB;
+        case VK_FORMAT_D32_SFLOAT:
+            return ITexture::Format::D32_FLOAT;
+        case VK_FORMAT_D24_UNORM_S8_UINT:
+            return ITexture::Format::D24_UNORM_S8_UINT;
+        default:
+            YG_CORE_ERROR("Vulkan: Unsupported Vk texture format!");
+            return ITexture::Format::None;
     }
 }
 

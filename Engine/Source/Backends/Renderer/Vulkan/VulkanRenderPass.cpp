@@ -1,7 +1,6 @@
 #include "VulkanRenderPass.h"
 #include "Renderer/RHI/IRenderPass.h"
 #include "VulkanDeviceContext.h"
-#include <vulkan/vulkan.h>
 
 namespace Yogi
 {

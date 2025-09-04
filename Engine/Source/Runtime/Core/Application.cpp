@@ -124,6 +124,7 @@ bool Application::OnWindowResize(WindowResizeEvent& e)
     }
 
     m_isMinimized = false;
+    m_swapChain->Resize(e.GetWidth(), e.GetHeight());
     return false;
 }
 

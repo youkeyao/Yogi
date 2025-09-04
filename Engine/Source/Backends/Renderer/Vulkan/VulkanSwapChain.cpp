@@ -28,7 +28,7 @@ VulkanSwapChain::~VulkanSwapChain()
     View<VulkanDeviceContext> deviceContext =
         static_cast<View<VulkanDeviceContext>>(Application::GetInstance().GetContext());
 
-    Cleanup();
+    CleanupSwapChain();
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
     {
         vkDestroySemaphore(deviceContext->GetVkDevice(), m_imageAvailableSemaphores[i], nullptr);
@@ -48,18 +48,7 @@ void VulkanSwapChain::AcquireNextImage()
 
     VkResult result = vkAcquireNextImageKHR(
         device, m_swapChain, UINT64_MAX, m_imageAvailableSemaphores[m_currentFrame], VK_NULL_HANDLE, &m_imageIndex);
-
-    if (result == VK_ERROR_OUT_OF_DATE_KHR)
-    {
-        int width  = m_window->GetWidth();
-        int height = m_window->GetHeight();
-        Resize(width, height);
-    }
-    else
-    {
-        YG_CORE_ASSERT(result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR,
-                       "Vulkan: Failed to acquire swap chain image!");
-    }
+    YG_CORE_ASSERT(result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR, "Vulkan: Failed to acquire swap chain image!");
 
     vkResetFences(device, 1, &m_renderCommandFences[m_currentFrame]);
 }
@@ -69,19 +58,6 @@ void VulkanSwapChain::Present()
     View<VulkanDeviceContext> deviceContext =
         static_cast<View<VulkanDeviceContext>>(Application::GetInstance().GetContext());
     VkDevice device = deviceContext->GetVkDevice();
-
-    VulkanCommandBuffer submitCommandBuffer(
-        CommandBufferDesc{ CommandBufferUsage::OneTimeSubmit, SubmitQueue::Graphics });
-    vkWaitForFences(device, 1, &m_renderCommandFences[m_currentFrame], VK_TRUE, UINT64_MAX);
-    vkResetFences(device, 1, &m_renderCommandFences[m_currentFrame]);
-    submitCommandBuffer.Begin();
-    View<VulkanTexture> target = static_cast<View<VulkanTexture>>(CreateView(m_colorTextures[m_imageIndex]));
-    submitCommandBuffer.TransitionImageLayout(target->GetVkImage(),
-                                              ITexture::Usage::RenderTarget,
-                                              VK_IMAGE_LAYOUT_UNDEFINED,
-                                              VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
-    submitCommandBuffer.End();
-    submitCommandBuffer.Submit();
 
     VkPresentInfoKHR presentInfo{};
     presentInfo.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -95,17 +71,7 @@ void VulkanSwapChain::Present()
     presentInfo.pResults        = nullptr;
 
     VkResult result = vkQueuePresentKHR(m_presentQueue, &presentInfo);
-
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
-    {
-        int width  = m_window->GetWidth();
-        int height = m_window->GetHeight();
-        Resize(width, height);
-    }
-    else
-    {
-        YG_CORE_ASSERT(result == VK_SUCCESS, "Vulkan: Failed to present swap chain image!");
-    }
+    YG_CORE_ASSERT(result == VK_SUCCESS, "Vulkan: Failed to present swap chain image!");
 
     m_currentFrame = (m_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
@@ -122,13 +88,13 @@ void VulkanSwapChain::Resize(uint32_t width, uint32_t height)
         static_cast<View<VulkanDeviceContext>>(Application::GetInstance().GetContext());
     vkDeviceWaitIdle(deviceContext->GetVkDevice());
 
-    Cleanup();
+    CleanupSwapChain();
     CreateVkSwapChain();
 }
 
 // ---------------------------------------------------------------------------------------------
 
-void VulkanSwapChain::Cleanup()
+void VulkanSwapChain::CleanupSwapChain()
 {
     View<VulkanDeviceContext> deviceContext =
         static_cast<View<VulkanDeviceContext>>(Application::GetInstance().GetContext());
@@ -190,6 +156,7 @@ void VulkanSwapChain::CreateVkSwapChain()
             break;
         }
     }
+    m_colorFormat                = VkFormat2YgTextureFormat(surfaceFormat.format);
     VkPresentModeKHR presentMode = ChooseSwapPresentMode(swapChainSupport.presentModes);
     VkExtent2D       extent      = ChooseSwapExtent(swapChainSupport.capabilities, m_window);
 

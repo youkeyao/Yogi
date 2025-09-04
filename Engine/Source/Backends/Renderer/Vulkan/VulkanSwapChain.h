@@ -28,7 +28,7 @@ public:
     VkFence GetVkRenderCommandFence() const { return m_renderCommandFences[m_currentFrame]; }
 
 private:
-    void Cleanup();
+    void CleanupSwapChain();
     void RecreateSwapChain();
     void CreateVkSurface();
     void CreateVkSwapChain();

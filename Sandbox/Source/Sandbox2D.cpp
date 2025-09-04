@@ -62,13 +62,13 @@ void Sandbox2D::OnAttach()
 
     Yogi::View<Yogi::ISwapChain> swapChain = Yogi::Application::GetInstance().GetSwapChain();
 
-    m_renderPass = Yogi::IRenderPass::Create(Yogi::RenderPassDesc{
-        { Yogi::AttachmentDesc{ Yogi::ITexture::Format::R8G8B8A8_SRGB, Yogi::AttachmentUsage::Color } },
-        Yogi::AttachmentDesc{ Yogi::ITexture::Format::D32_FLOAT,
-                              Yogi::AttachmentUsage::DepthStencil,
-                              Yogi::LoadOp::Clear,
-                              Yogi::StoreOp::DontCare },
-        swapChain->GetNumSamples() });
+    m_renderPass = Yogi::IRenderPass::Create(
+        Yogi::RenderPassDesc{ { Yogi::AttachmentDesc{ swapChain->GetColorFormat(), Yogi::AttachmentUsage::Present } },
+                              Yogi::AttachmentDesc{ swapChain->GetDepthFormat(),
+                                                    Yogi::AttachmentUsage::DepthStencil,
+                                                    Yogi::LoadOp::Clear,
+                                                    Yogi::StoreOp::DontCare },
+                              swapChain->GetNumSamples() });
 
     m_shaderResourceBinding = Yogi::IShaderResourceBinding::Create(
         { Yogi::ShaderResourceAttribute{ 0, 1, Yogi::ShaderResourceType::Buffer, Yogi::ShaderStage::Vertex } });

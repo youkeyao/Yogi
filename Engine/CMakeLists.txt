@@ -54,6 +54,7 @@ elseif ( YG_RENDERER_API STREQUAL "Vulkan" )
         add_compile_definitions( VK_USE_PLATFORM_METAL_EXT )
         add_compile_definitions( YG_VK_LAYER_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/VulkanLayer/MacOS\" )
     elseif ( UNIX )
+        add_compile_definitions( VK_USE_PLATFORM_WAYLAND_KHR )
         add_compile_definitions( VK_USE_PLATFORM_XCB_KHR )
         add_compile_definitions( VK_USE_PLATFORM_XLIB_KHR )
         add_compile_definitions( YG_VK_LAYER_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/VulkanLayer/Linux\" )
@@ -78,7 +79,7 @@ endif()
 #-------------------------------------------------------------
 set( YG_BUILD_SHADER_FOLDER "BuildShader" )
 add_compile_definitions( YG_SHADER_DIR=\"${YG_BUILD_SHADER_FOLDER}/\" )
-add_compile_definitions( YG_ASSET_DIR=\"assets/\" )
+add_compile_definitions( YG_ASSET_DIR=\"Assets/\" )
 
 add_subdirectory( Source/Shaders )
 add_subdirectory( ThirdParty/spdlog )
@@ -158,6 +159,6 @@ add_dependencies(YGEngine Shaders)
 add_custom_command(
     TARGET YGEngine POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_CURRENT_SOURCE_DIR}/assets
-        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/assets
+        ${CMAKE_CURRENT_SOURCE_DIR}/Assets
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Assets
 )

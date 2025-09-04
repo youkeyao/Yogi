@@ -10,11 +10,11 @@ set( CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} )
 
 # ---platform------------------------------------
 if ( WIN32 )
-    add_compile_definitions( YG_PLATFORM_WINDOWS )
+    add_compile_definitions( YG_PLATFORM_WIN32 )
 elseif ( APPLE )
     add_compile_definitions( YG_PLATFORM_MACOS )
 elseif ( UNIX )
-    add_compile_definitions( YG_PLATFORM_UNIX )
+    add_compile_definitions( YG_PLATFORM_LINUX )
 else()
     message( FATAL_ERROR "Unknown platform" )
 endif()

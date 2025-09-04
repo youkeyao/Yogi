@@ -33,9 +33,9 @@ private:
     void CreateDescriptorPool();
 
 protected:
-    const std::vector<const char*> DeviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-                                                       VK_KHR_MAINTENANCE1_EXTENSION_NAME,
-                                                       VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME};
+    std::vector<const char*> DeviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+                                                  VK_KHR_MAINTENANCE1_EXTENSION_NAME,
+                                                  VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME };
 
     VkInstance       m_instance;
     VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
@@ -48,7 +48,7 @@ protected:
     std::vector<VkDescriptorPool> m_descriptorPools;
 
 #ifdef YG_DEBUG
-    const std::vector<const char*> ValidationLayers = {"VK_LAYER_KHRONOS_validation"};
+    const std::vector<const char*> ValidationLayers = { "VK_LAYER_KHRONOS_validation" };
     VkDebugUtilsMessengerEXT       m_debugMessenger;
 #endif
 };

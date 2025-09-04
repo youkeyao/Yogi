@@ -1,14 +1,6 @@
 #pragma once
 
 #include <volk.h>
-#ifdef YG_PLATFORM_WINDOWS
-#    include <vulkan/vulkan_win32.h>
-#elif YG_PLATFORM_MACOS
-#    include <vulkan/vulkan_metal.h>
-#elif YG_PLATFORM_LINUX
-#    include <vulkan/vulkan_xlib.h>
-#    include <vulkan/vulkan_xcb.h>
-#endif
 
 #include "Core/Window.h"
 #include "Renderer/RHI/ITexture.h"
@@ -43,6 +35,7 @@ VkExtent2D              ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabil
 uint32_t FindMemoryType(uint32_t typeFilter, VkPhysicalDevice physicalDevice, VkMemoryPropertyFlags properties);
 
 VkFormat              YgTextureFormat2VkFormat(ITexture::Format format);
+ITexture::Format      VkFormat2YgTextureFormat(VkFormat format);
 VkFormat              YgShaderElementType2VkFormat(ShaderElementType type);
 VkImageLayout         AttachmentUsage2VkImageLayout(AttachmentUsage usage);
 VkAccessFlags         AccessMaskFromImageLayout(VkImageLayout Layout, bool IsDstMask);
