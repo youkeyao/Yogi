@@ -155,7 +155,7 @@ namespace InstrumentorUtils
 template <size_t N>
 struct ChangeResult
 {
-    char data[N];
+    char Data[N];
 };
 
 template <size_t N, size_t K>

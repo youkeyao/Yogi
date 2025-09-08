@@ -11,13 +11,17 @@ VulkanTexture::VulkanTexture(const TextureDesc& desc) :
     m_usage(desc.Usage),
     m_numSamples(desc.NumSamples)
 {
-    CreateVkImage(desc.Width, desc.Height, (VkSampleCountFlagBits)desc.NumSamples,
-                  YgTextureFormat2VkFormat(desc.Format), VK_IMAGE_TILING_OPTIMAL,
+    CreateVkImage(desc.Width,
+                  desc.Height,
+                  (VkSampleCountFlagBits)desc.NumSamples,
+                  YgTextureFormat2VkFormat(desc.Format),
+                  VK_IMAGE_TILING_OPTIMAL,
                   VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT |
                       (desc.Usage == ITexture::Usage::RenderTarget ? VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT : 0) |
                       (desc.Usage == ITexture::Usage::DepthStencil ? VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT : 0),
                   VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    CreateVkImageView(m_image, YgTextureFormat2VkFormat(desc.Format),
+    CreateVkImageView(m_image,
+                      YgTextureFormat2VkFormat(desc.Format),
                       desc.Usage == ITexture::Usage::DepthStencil ? VK_IMAGE_ASPECT_DEPTH_BIT :
                                                                     VK_IMAGE_ASPECT_COLOR_BIT);
     CreateVkSampler(VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT);
@@ -28,7 +32,12 @@ VulkanTexture::VulkanTexture(uint32_t         width,
                              ITexture::Format format,
                              ITexture::Usage  usage,
                              VkImage          image) :
-    m_image(image), m_sampler(VK_NULL_HANDLE), m_width(width), m_height(height), m_format(format), m_usage(usage)
+    m_image(image),
+    m_sampler(VK_NULL_HANDLE),
+    m_width(width),
+    m_height(height),
+    m_format(format),
+    m_usage(usage)
 {
     CreateVkImageView(image, YgTextureFormat2VkFormat(format), VK_IMAGE_ASPECT_COLOR_BIT);
 }

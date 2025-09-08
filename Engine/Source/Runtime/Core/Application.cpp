@@ -15,7 +15,7 @@ Application::Application(const std::string& name)
 
     m_window = Window::Create(WindowProps{ name, 1280, 720 });
     m_window->Init();
-    m_window->SetEventCallback(YG_BIND_EVENT_FN(Application::OnEvent));
+    m_window->SetEventCallback(YG_BIND_FN(Application::OnEvent));
 
     m_context   = IDeviceContext::Create();
     m_swapChain = ISwapChain::Create(SwapChainDesc{ m_window->GetWidth(),
@@ -64,8 +64,8 @@ void Application::OnEvent(Event& e)
         }
     }
 
-    dispatcher.dispatch<WindowCloseEvent>(YG_BIND_EVENT_FN(Application::OnWindowClose));
-    dispatcher.dispatch<WindowResizeEvent>(YG_BIND_EVENT_FN(Application::OnWindowResize));
+    dispatcher.dispatch<WindowCloseEvent>(YG_BIND_FN(Application::OnWindowClose));
+    dispatcher.dispatch<WindowResizeEvent>(YG_BIND_FN(Application::OnWindowResize));
 }
 
 void Application::Close() { m_isRunning = false; }

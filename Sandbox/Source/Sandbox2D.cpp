@@ -29,59 +29,41 @@ void Sandbox2D::OnAttach()
 {
     YG_PROFILE_FUNCTION();
 
-    struct Vertex
-    {
-        Yogi::Vector3 pos;
-        Yogi::Vector4 color;
-    };
-    constexpr Vertex CubeVerts[8] = {
-        { Yogi::Vector3{ -1, -1, -1 }, Yogi::Vector4{ 1, 0, 0, 1 } },
-        { Yogi::Vector3{ -1, +1, -1 }, Yogi::Vector4{ 0, 1, 0, 1 } },
-        { Yogi::Vector3{ +1, +1, -1 }, Yogi::Vector4{ 0, 0, 1, 1 } },
-        { Yogi::Vector3{ +1, -1, -1 }, Yogi::Vector4{ 1, 1, 1, 1 } },
-
-        { Yogi::Vector3{ -1, -1, +1 }, Yogi::Vector4{ 1, 1, 0, 1 } },
-        { Yogi::Vector3{ -1, +1, +1 }, Yogi::Vector4{ 0, 1, 1, 1 } },
-        { Yogi::Vector3{ +1, +1, +1 }, Yogi::Vector4{ 1, 0, 1, 1 } },
-        { Yogi::Vector3{ +1, -1, +1 }, Yogi::Vector4{ 0.2f, 0.2f, 0.2f, 1.f } },
-    };
-    m_vertexBuffer = Yogi::IBuffer::Create(
-        Yogi::BufferDesc{ sizeof(CubeVerts), Yogi::BufferUsage::Vertex, Yogi::BufferAccess::Dynamic, CubeVerts });
-
-    constexpr uint32_t Indices[] = { 2, 0, 1, 2, 3, 0, 4, 6, 5, 4, 7, 6, 0, 7, 4, 0, 3, 7,
-                                     1, 0, 4, 1, 4, 5, 1, 5, 2, 5, 6, 2, 3, 6, 7, 3, 2, 6 };
-
-    m_indexBuffer = Yogi::IBuffer::Create(
-        Yogi::BufferDesc{ sizeof(Indices), Yogi::BufferUsage::Index, Yogi::BufferAccess::Dynamic, Indices });
-
-    m_uniformBuffer = Yogi::IBuffer::Create(
-        Yogi::BufferDesc{ sizeof(Yogi::Matrix4), Yogi::BufferUsage::Uniform, Yogi::BufferAccess::Dynamic });
-
-    std::vector<Yogi::ShaderDesc> shaders = { { Yogi::ShaderStage::Vertex, ReadFile("BuildShader/Test.vert") },
-                                              { Yogi::ShaderStage::Fragment, ReadFile("BuildShader/Test.frag") } };
-
+    Yogi::AssetManager::PushAssetSource(Yogi::CreateScope<Yogi::FileSystemSource>("Assets/"));
     Yogi::View<Yogi::ISwapChain> swapChain = Yogi::Application::GetInstance().GetSwapChain();
 
-    m_renderPass = Yogi::IRenderPass::Create(
+    m_world = Yogi::CreateScope<Yogi::World>();
+
+    auto renderPass = Yogi::IRenderPass::Create(
         Yogi::RenderPassDesc{ { Yogi::AttachmentDesc{ swapChain->GetColorFormat(), Yogi::AttachmentUsage::Present } },
                               Yogi::AttachmentDesc{ swapChain->GetDepthFormat(),
                                                     Yogi::AttachmentUsage::DepthStencil,
                                                     Yogi::LoadOp::Clear,
                                                     Yogi::StoreOp::DontCare },
                               swapChain->GetNumSamples() });
-
-    m_shaderResourceBinding = Yogi::IShaderResourceBinding::Create(
+    m_renderPass = Yogi::AssetManager::AddAsset<Yogi::IRenderPass>(std::move(renderPass), "RenderPasses/Default.rpass");
+    auto shaderResourceBinding = Yogi::IShaderResourceBinding::Create(
         { Yogi::ShaderResourceAttribute{ 0, 1, Yogi::ShaderResourceType::Buffer, Yogi::ShaderStage::Vertex } });
-    m_shaderResourceBinding->BindBuffer(CreateView(m_uniformBuffer), 0);
+    m_shaderResourceBinding = Yogi::AssetManager::AddAsset<Yogi::IShaderResourceBinding>(
+        std::move(shaderResourceBinding), "ShaderResourceBindings/Default.srb");
 
+    std::vector<Yogi::ShaderDesc> shaders = { { Yogi::ShaderStage::Vertex, ReadFile("BuildShader/Test.vert") },
+                                              { Yogi::ShaderStage::Fragment, ReadFile("BuildShader/Test.frag") } };
     m_pipeline = Yogi::IPipeline::Create(
         Yogi::PipelineDesc{ shaders,
                             { Yogi::VertexAttribute{ "Pos", 0, 12, Yogi::ShaderElementType::Float3 },
                               Yogi::VertexAttribute{ "Color", 12, 16, Yogi::ShaderElementType::Float4 } },
-                            CreateView(m_shaderResourceBinding),
-                            CreateView(m_renderPass),
+                            m_shaderResourceBinding.Get(),
+                            m_renderPass.Get(),
                             0,
                             Yogi::PrimitiveTopology::TriangleList });
+
+    auto mesh     = Yogi::AssetManager::GetAsset<Yogi::Mesh>("Meshes/Cube.obj::cube");
+    auto material = Yogi::CreateScope<Yogi::Material>(CreateView(m_pipeline));
+    auto materialAsset = Yogi::AssetManager::AddAsset<Yogi::Material>(std::move(material), "Materials/Default.mat");
+
+    m_world->CreateEntity().AddComponent<Yogi::MeshRendererComponent>(mesh, materialAsset);
+    m_world->AddSystem<Yogi::ForwardRenderSystem>();
 
     // m_depth_texture = context->create_texture(
     //     Yogi::TextureDesc{ swap_chain->get_width(), swap_chain->get_height(), 1, 1,
@@ -180,39 +162,39 @@ void Sandbox2D::OnUpdate(Yogi::Timestep ts)
 
     {
         YG_PROFILE_SCOPE("Render draw");
-        Yogi::View<Yogi::ISwapChain>    swapChain     = Yogi::Application::GetInstance().GetSwapChain();
-        Yogi::View<Yogi::ITexture>      currentTarget = swapChain->GetCurrentTarget();
-        Yogi::View<Yogi::ITexture>      currentDepth  = swapChain->GetCurrentDepth();
-        Yogi::Scope<Yogi::IFrameBuffer> frameBuffer   = Yogi::IFrameBuffer::Create(Yogi::FrameBufferDesc{
-            swapChain->GetWidth(),
-            swapChain->GetHeight(),
-            CreateView(m_renderPass),
-              { currentTarget },
-            currentDepth,
-        });
+        // Yogi::View<Yogi::ISwapChain>    swapChain     = Yogi::Application::GetInstance().GetSwapChain();
+        // Yogi::View<Yogi::ITexture>      currentTarget = swapChain->GetCurrentTarget();
+        // Yogi::View<Yogi::ITexture>      currentDepth  = swapChain->GetCurrentDepth();
+        // Yogi::Scope<Yogi::IFrameBuffer> frameBuffer   = Yogi::IFrameBuffer::Create(Yogi::FrameBufferDesc{
+        //     swapChain->GetWidth(),
+        //     swapChain->GetHeight(),
+        //     CreateView(m_renderPass),
+        //       { currentTarget },
+        //     currentDepth,
+        // });
 
-        m_transform = Yogi::Matrix4::Rotation(0, (float)ts * 20.0f, 0) * m_transform;
-        Yogi::Matrix4 transform =
-            Yogi::MathUtils::Perspective(
-                45.0f, (float)swapChain->GetWidth() / (float)swapChain->GetHeight(), 0.1f, 100.0f) *
-            Yogi::Matrix4::Translation(Yogi::Vector3{ 0, 0, -5 }) * m_transform;
-        m_uniformBuffer->UpdateData(&transform, sizeof(Yogi::Matrix4), 0);
+        // m_transform = Yogi::Matrix4::Rotation(0, (float)ts * 20.0f, 0) * m_transform;
+        // Yogi::Matrix4 transform =
+        //     Yogi::MathUtils::Perspective(
+        //         45.0f, (float)swapChain->GetWidth() / (float)swapChain->GetHeight(), 0.1f, 100.0f) *
+        //     Yogi::Matrix4::Translation(Yogi::Vector3{ 0, 0, -5 }) * m_transform;
+        // m_uniformBuffer->UpdateData(&transform, sizeof(Yogi::Matrix4), 0);
 
-        Yogi::Scope<Yogi::ICommandBuffer> commandBuffer = Yogi::ICommandBuffer::Create(
-            Yogi::CommandBufferDesc{ Yogi::CommandBufferUsage::OneTimeSubmit, Yogi::SubmitQueue::Graphics });
-        commandBuffer->Begin();
-        commandBuffer->BeginRenderPass(
-            CreateView(frameBuffer), { Yogi::ClearValue{ 0.1f, 0.1f, 0.1f, 1.0f } }, Yogi::ClearValue{ 1.0f, 0 });
-        commandBuffer->SetVertexBuffer(CreateView(m_vertexBuffer));
-        commandBuffer->SetIndexBuffer(CreateView(m_indexBuffer));
-        commandBuffer->SetPipeline(CreateView(m_pipeline));
-        commandBuffer->SetShaderResourceBinding(CreateView(m_shaderResourceBinding));
-        commandBuffer->SetViewport({ 0, 0, (float)swapChain->GetWidth(), (float)swapChain->GetHeight() });
-        commandBuffer->SetScissor({ 0, 0, swapChain->GetWidth(), swapChain->GetHeight() });
-        commandBuffer->DrawIndexed(m_indexBuffer->GetSize() / sizeof(uint32_t), 1, 0, 0, 0);
-        commandBuffer->EndRenderPass();
-        commandBuffer->End();
-        commandBuffer->Submit();
+        // Yogi::Scope<Yogi::ICommandBuffer> commandBuffer = Yogi::ICommandBuffer::Create(
+        //     Yogi::CommandBufferDesc{ Yogi::CommandBufferUsage::OneTimeSubmit, Yogi::SubmitQueue::Graphics });
+        // commandBuffer->Begin();
+        // commandBuffer->BeginRenderPass(
+        //     CreateView(frameBuffer), { Yogi::ClearValue{ 0.1f, 0.1f, 0.1f, 1.0f } }, Yogi::ClearValue{ 1.0f, 0 });
+        // commandBuffer->SetVertexBuffer(CreateView(m_vertexBuffer));
+        // commandBuffer->SetIndexBuffer(CreateView(m_indexBuffer));
+        // commandBuffer->SetPipeline(CreateView(m_pipeline));
+        // commandBuffer->SetShaderResourceBinding(CreateView(m_shaderResourceBinding));
+        // commandBuffer->SetViewport({ 0, 0, (float)swapChain->GetWidth(), (float)swapChain->GetHeight() });
+        // commandBuffer->SetScissor({ 0, 0, swapChain->GetWidth(), swapChain->GetHeight() });
+        // commandBuffer->DrawIndexed(m_indexBuffer->GetSize() / sizeof(uint32_t), 1, 0, 0, 0);
+        // commandBuffer->EndRenderPass();
+        // commandBuffer->End();
+        // commandBuffer->Submit();
 
         // Yogi::Renderer2D::begin_scene(m_camera_controller.get_camera());
         // Yogi::Renderer2D::draw_quad({-1.0f, 0.0f}, glm::radians(45.0f), {0.8f, 0.8f}, {0.8f, 0.2f, 0.3f, 1.0f});

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Math/Vector3.h"
+#include "Math/Quaternion.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -30,6 +31,16 @@ struct Matrix4 : public glm::mat4
     static Matrix4 Rotation(float angle, const Vector3& axis)
     {
         return glm::rotate(glm::mat4(1.0f), glm::radians(angle), glm::vec3(axis.x, axis.y, axis.z));
+    }
+
+    static Matrix4 Rotation(const Quaternion& quaternion)
+    {
+        return glm::mat4_cast(quaternion);
+    }
+
+    static Matrix4 Scale(const Vector3& scale)
+    {
+        return glm::scale(glm::mat4(1.0f), glm::vec3(scale.x, scale.y, scale.z));
     }
 
     static Matrix4 Identity() { return glm::mat4(1.0f); }

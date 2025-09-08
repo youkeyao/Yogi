@@ -4,7 +4,6 @@ namespace Yogi
 {
 
 #define BIT(x)                   (1 << x)
-#define YG_BIND_EVENT_FN(x, ...) std::bind(&x, this, std::placeholders::_1, ##__VA_ARGS__)
 
 enum class EventType
 {

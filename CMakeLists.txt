@@ -47,7 +47,7 @@ if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
     add_compile_definitions( YG_DEBUG )
 endif()
 
-set( BUILD_SHARED_LIBS OFF )
+set( BUILD_SHARED_LIBS ON )
 
 add_subdirectory( Engine )
 add_subdirectory( Sandbox )

@@ -21,7 +21,8 @@ class YG_API KeyPressedEvent : public KeyEvent
 {
 public:
     KeyPressedEvent(int key_code, int repeat_count, void* event) :
-        KeyEvent(key_code, event), m_repeatCount(repeat_count)
+        KeyEvent(key_code, event),
+        m_repeatCount(repeat_count)
     {}
 
     inline int GetRepeatCount() const { return m_repeatCount; }

@@ -67,19 +67,17 @@ endif()
 #-------------------------------------------------------------
 
 # ---Shader compiler------------------------------------------------------------------------
-if (WIN32)
-    set(yg_glslang_bin ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/VulkanLayer/Win32/glslangValidator.exe)
-elseif (APPLE)
-    set(yg_glslang_bin ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/VulkanLayer/MacOS/glslangValidator)
-elseif (UNIX)
-    set(yg_glslang_bin ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/VulkanLayer/Linux/glslangValidator)
+if ( WIN32 )
+    set( yg_glslang_bin ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/VulkanLayer/Win32/glslangValidator.exe )
+elseif ( APPLE )
+    set( yg_glslang_bin ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/VulkanLayer/MacOS/glslangValidator )
+elseif ( UNIX )
+    set( yg_glslang_bin ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/VulkanLayer/Linux/glslangValidator )
 else()
-    message(FATAL_ERROR "Unknown platform")
+    message( FATAL_ERROR "Unknown platform" )
 endif()
 #-------------------------------------------------------------
-set( YG_BUILD_SHADER_FOLDER "BuildShader" )
-add_compile_definitions( YG_SHADER_DIR=\"${YG_BUILD_SHADER_FOLDER}/\" )
-add_compile_definitions( YG_ASSET_DIR=\"Assets/\" )
+set( YG_BUILD_SHADER_FOLDER "Assets/Shaders" )
 
 add_subdirectory( Source/Shaders )
 add_subdirectory( ThirdParty/spdlog )
@@ -94,9 +92,10 @@ add_subdirectory( ThirdParty/stb_image )
 # set(SPIRV_CROSS_ENABLE_UTIL OFF)
 # set(SPIRV_CROSS_SKIP_INSTALL ON)
 # add_subdirectory( vendor/SPIRV-Cross )
-# set(ASSIMP_INSTALL OFF)
-# set(ASSIMP_BUILD_TESTS OFF)
-# add_subdirectory( vendor/assimp )
+set( ASSIMP_INSTALL OFF )
+set( ASSIMP_BUILD_TESTS OFF )
+set( ASSIMP_BUILD_ZLIB ON )
+add_subdirectory( ThirdParty/assimp )
 # add_subdirectory( vendor/JoltPhysics/Build )
 
 file( GLOB_RECURSE
@@ -104,14 +103,17 @@ file( GLOB_RECURSE
         Source/Runtime/*.cpp
 )
 
-if (BUILD_SHARED_LIBS)
+if ( BUILD_SHARED_LIBS )
     add_library( YGEngine
         SHARED
             ${YG_ENGINE_SOURCES}
             ${YG_WINDOW_SOURCES}
             ${YG_RENDERER_SOURCES}
     )
-    target_compile_definitions( YGEngine PUBLIC YG_SHARED_LIB )
+    if ( WIN32 )
+        target_compile_definitions( YGEngine PUBLIC YG_SHARED_LIB )
+        target_compile_definitions( YGEngine PRIVATE YG_EXPORT )
+    endif()
 else()
     add_library( YGEngine
         STATIC
@@ -127,7 +129,7 @@ target_link_libraries( YGEngine
     PRIVATE
         stb_image
         # spirv-cross-glsl
-        # assimp
+        assimp
         ${YGWindowLib}
         ${YGRendererLib}
 )
@@ -138,22 +140,17 @@ target_precompile_headers( YGEngine
 target_include_directories( YGEngine
     PUBLIC
         Include
-        ThirdParty/spdlog/include
         ThirdParty/glm
+        ThirdParty/entt/src
     PRIVATE
         ${YGWindowInclude}
         ${YGRendererInclude}
-        ThirdParty/entt/src
         # ThirdParty/JoltPhysics
         # ThirdParty/SPIRV-Cross
-        ThirdParty/stb_image
+        # ThirdParty/stb_image
         # ThirdParty/assimp/include
 )
-target_compile_definitions( YGEngine
-    PRIVATE
-        YG_EXPORT
-)
-add_dependencies(YGEngine Shaders)
+add_dependencies( YGEngine Shaders )
 
 # copy assets
 add_custom_command(

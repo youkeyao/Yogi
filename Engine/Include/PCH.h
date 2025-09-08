@@ -25,6 +25,7 @@
 #include <thread>
 #include <utility>
 #include <vector>
+#include <any>
 #ifdef __GNUG__
 #    include <cxxabi.h>
 #endif
@@ -61,11 +62,19 @@ constexpr View<T> CreateView(const Scope<T>& scope)
     return scope.get();
 }
 
+template <typename T, typename... Args>
+constexpr View<T> CreateView(T value)
+{
+    return &value;
+}
+
 // template <typename T> using Ref = std::shared_ptr<T>;
 // template <typename T, typename... Args> constexpr Ref<T> CreateRef(Args&&... args)
 // {
 //     return std::make_shared<T>(std::forward<Args>(args)...);
 // }
+
+#define YG_BIND_FN(x, ...) std::bind(&x, this, std::placeholders::_1, ##__VA_ARGS__)
 
 template <typename Type>
 auto GetTypeName()

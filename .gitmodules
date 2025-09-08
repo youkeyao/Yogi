@@ -13,3 +13,9 @@
 [submodule "Engine/ThirdParty/Vulkan-Headers"]
 	path = Engine/ThirdParty/Vulkan-Headers
 	url = https://github.com/KhronosGroup/Vulkan-Headers.git
+[submodule "Engine/ThirdParty/entt"]
+	path = Engine/ThirdParty/entt
+	url = https://github.com/skypjack/entt.git
+[submodule "Engine/ThirdParty/assimp"]
+	path = Engine/ThirdParty/assimp
+	url = https://github.com/assimp/assimp.git

@@ -29,4 +29,20 @@
 #include "Renderer/RHI/ITexture.h"
 #include "Renderer/RHI/IRenderPass.h"
 #include "Renderer/RHI/IShaderResourceBinding.h"
+
+#include "Renderer/Mesh.h"
+#include "Renderer/Material.h"
+#include "Renderer/RenderComponents.h"
+#include "Renderer/ForwardRenderSystem.h"
+// ---------------------------------------------
+
+// ---scene------------------------------------
+#include "Scene/World.h"
+#include "Scene/Entity.h"
+#include "Scene/ComponentBase.h"
+// ---------------------------------------------
+
+// ---resources-------------------------------
+#include "Resources/AssetManager.h"
+#include "Resources/FileSystemSource.h"
 // ---------------------------------------------
