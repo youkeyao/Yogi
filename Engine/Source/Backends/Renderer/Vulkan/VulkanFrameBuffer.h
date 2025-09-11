@@ -14,11 +14,11 @@ public:
     VulkanFrameBuffer(const FrameBufferDesc& desc);
     virtual ~VulkanFrameBuffer();
 
-    uint32_t                           GetWidth() const override { return m_width; }
-    uint32_t                           GetHeight() const override { return m_height; }
-    View<IRenderPass>                  GetRenderPass() const override { return m_renderPass; }
-    const std::vector<View<ITexture>>& GetColorAttachments() const override { return m_colorAttachments; }
-    View<ITexture>                     GetDepthAttachment() const override { return m_depthAttachment; }
+    inline uint32_t                          GetWidth() const override { return m_width; }
+    inline uint32_t                          GetHeight() const override { return m_height; }
+    inline Ref<IRenderPass>                  GetRenderPass() const override { return m_renderPass; }
+    inline const std::vector<Ref<ITexture>>& GetColorAttachments() const override { return m_colorAttachments; }
+    inline Ref<ITexture>                     GetDepthAttachment() const override { return m_depthAttachment; }
 
     inline VkFramebuffer GetVkFrameBuffer() const { return m_frameBuffer; }
 
@@ -29,13 +29,13 @@ private:
 private:
     VkFramebuffer m_frameBuffer = VK_NULL_HANDLE;
 
-    std::vector<Scope<VulkanTexture>> m_msaaTextures;
+    std::vector<Handle<VulkanTexture>> m_msaaTextures;
 
-    uint32_t                    m_width;
-    uint32_t                    m_height;
-    View<IRenderPass>           m_renderPass = nullptr;
-    std::vector<View<ITexture>> m_colorAttachments;
-    View<ITexture>              m_depthAttachment = nullptr;
+    uint32_t                   m_width;
+    uint32_t                   m_height;
+    Ref<IRenderPass>           m_renderPass = nullptr;
+    std::vector<Ref<ITexture>> m_colorAttachments;
+    Ref<ITexture>              m_depthAttachment = nullptr;
 };
 
 } // namespace Yogi

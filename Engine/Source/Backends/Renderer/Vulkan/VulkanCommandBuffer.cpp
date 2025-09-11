@@ -7,9 +7,9 @@
 namespace Yogi
 {
 
-Scope<ICommandBuffer> ICommandBuffer::Create(const CommandBufferDesc& desc)
+Handle<ICommandBuffer> ICommandBuffer::Create(const CommandBufferDesc& desc)
 {
-    return CreateScope<VulkanCommandBuffer>(desc);
+    return Handle<VulkanCommandBuffer>::Create(desc);
 }
 
 VulkanCommandBuffer::VulkanCommandBuffer(const CommandBufferDesc& desc) :
@@ -17,15 +17,14 @@ VulkanCommandBuffer::VulkanCommandBuffer(const CommandBufferDesc& desc) :
     m_usage(desc.Usage),
     m_queue(desc.Queue)
 {
-    View<VulkanDeviceContext> deviceContext =
-        static_cast<View<VulkanDeviceContext>>(Application::GetInstance().GetContext());
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
 
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.commandPool        = deviceContext->GetVkCommandPool();
+    allocInfo.commandPool        = context->GetVkCommandPool();
     allocInfo.level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocInfo.commandBufferCount = 1;
-    if (vkAllocateCommandBuffers(deviceContext->GetVkDevice(), &allocInfo, &m_commandBuffer) != VK_SUCCESS)
+    if (vkAllocateCommandBuffers(context->GetVkDevice(), &allocInfo, &m_commandBuffer) != VK_SUCCESS)
     {
         throw std::runtime_error("Failed to allocate command buffer!");
     }
@@ -33,12 +32,11 @@ VulkanCommandBuffer::VulkanCommandBuffer(const CommandBufferDesc& desc) :
 
 VulkanCommandBuffer::~VulkanCommandBuffer()
 {
-    View<VulkanDeviceContext> deviceContext =
-        static_cast<View<VulkanDeviceContext>>(Application::GetInstance().GetContext());
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
     if (m_commandBuffer != VK_NULL_HANDLE)
     {
         Wait();
-        vkFreeCommandBuffers(deviceContext->GetVkDevice(), deviceContext->GetVkCommandPool(), 1, &m_commandBuffer);
+        vkFreeCommandBuffers(context->GetVkDevice(), context->GetVkCommandPool(), 1, &m_commandBuffer);
     }
 }
 
@@ -59,9 +57,8 @@ void VulkanCommandBuffer::End()
 
 void VulkanCommandBuffer::Submit()
 {
-    View<VulkanDeviceContext> deviceContext =
-        static_cast<View<VulkanDeviceContext>>(Application::GetInstance().GetContext());
-    View<VulkanSwapChain> swapChain = static_cast<View<VulkanSwapChain>>(Application::GetInstance().GetSwapChain());
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VulkanSwapChain* swapChain = static_cast<VulkanSwapChain*>(Application::GetInstance().GetSwapChain().Get());
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -73,14 +70,14 @@ void VulkanCommandBuffer::Submit()
     {
         case SubmitQueue::Graphics:
             result =
-                vkQueueSubmit(deviceContext->GetGraphicsQueue(), 1, &submitInfo, swapChain->GetVkRenderCommandFence());
+                vkQueueSubmit(context->GetGraphicsQueue(), 1, &submitInfo, swapChain->GetVkRenderCommandFence());
             break;
         case SubmitQueue::Compute:
             // To be implemented
             YG_CORE_ASSERT(false, "Compute queue submission not implemented yet!");
             break;
         case SubmitQueue::Transfer:
-            result = vkQueueSubmit(deviceContext->GetTransferQueue(), 1, &submitInfo, VK_NULL_HANDLE);
+            result = vkQueueSubmit(context->GetTransferQueue(), 1, &submitInfo, VK_NULL_HANDLE);
             break;
         default:
             YG_CORE_ASSERT(false, "Invalid SubmitQueue type!");
@@ -90,32 +87,31 @@ void VulkanCommandBuffer::Submit()
 
 void VulkanCommandBuffer::Wait()
 {
-    View<VulkanDeviceContext> deviceContext =
-        static_cast<View<VulkanDeviceContext>>(Application::GetInstance().GetContext());
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
 
     switch (m_queue)
     {
         case SubmitQueue::Graphics:
-            vkQueueWaitIdle(deviceContext->GetGraphicsQueue());
+            vkQueueWaitIdle(context->GetGraphicsQueue());
             break;
         case SubmitQueue::Compute:
             // To be implemented
             YG_CORE_ASSERT(false, "Compute queue submission not implemented yet!");
             break;
         case SubmitQueue::Transfer:
-            vkQueueWaitIdle(deviceContext->GetTransferQueue());
+            vkQueueWaitIdle(context->GetTransferQueue());
             break;
         default:
             break;
     }
 }
 
-void VulkanCommandBuffer::BeginRenderPass(const View<IFrameBuffer>&      frameBuffer,
+void VulkanCommandBuffer::BeginRenderPass(const Ref<IFrameBuffer>&      frameBuffer,
                                           const std::vector<ClearValue>& colorClearValues,
                                           const ClearValue&              depthClearValue)
 {
-    View<VulkanFrameBuffer> vkFrameBuffer = static_cast<View<VulkanFrameBuffer>>(frameBuffer);
-    View<VulkanRenderPass>  vkRenderPass  = static_cast<View<VulkanRenderPass>>(vkFrameBuffer->GetRenderPass());
+    Ref<VulkanFrameBuffer> vkFrameBuffer = Ref<VulkanFrameBuffer>::Cast(frameBuffer);
+    Ref<VulkanRenderPass>  vkRenderPass  = Ref<VulkanRenderPass>::Cast(vkFrameBuffer->GetRenderPass());
     SampleCountFlagBits     numSamples    = vkRenderPass->GetNumSamples();
     VkRenderPassBeginInfo   renderPassInfo{};
     renderPassInfo.sType             = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -145,23 +141,23 @@ void VulkanCommandBuffer::BeginRenderPass(const View<IFrameBuffer>&      frameBu
 
 void VulkanCommandBuffer::EndRenderPass() { vkCmdEndRenderPass(m_commandBuffer); }
 
-void VulkanCommandBuffer::SetPipeline(const View<IPipeline>& pipeline)
+void VulkanCommandBuffer::SetPipeline(const Ref<IPipeline>& pipeline)
 {
-    View<VulkanPipeline> vkPipeline = static_cast<View<VulkanPipeline>>(pipeline);
+    Ref<VulkanPipeline> vkPipeline = Ref<VulkanPipeline>::Cast(pipeline);
     vkCmdBindPipeline(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkPipeline->GetVkPipeline());
 }
 
-void VulkanCommandBuffer::SetVertexBuffer(const View<IBuffer>& buffer, uint32_t offset)
+void VulkanCommandBuffer::SetVertexBuffer(const Ref<IBuffer>& buffer, uint32_t offset)
 {
-    View<VulkanBuffer> vkBuffer        = static_cast<View<VulkanBuffer>>(buffer);
+    Ref<VulkanBuffer> vkBuffer        = Ref<VulkanBuffer>::Cast(buffer);
     VkBuffer           vertexBuffers[] = { vkBuffer->GetVkBuffer() };
     VkDeviceSize       offsets[]       = { offset };
     vkCmdBindVertexBuffers(m_commandBuffer, 0, 1, vertexBuffers, offsets);
 }
 
-void VulkanCommandBuffer::SetIndexBuffer(const View<IBuffer>& buffer, uint32_t offset)
+void VulkanCommandBuffer::SetIndexBuffer(const Ref<IBuffer>& buffer, uint32_t offset)
 {
-    View<VulkanBuffer> vkBuffer = static_cast<View<VulkanBuffer>>(buffer);
+    Ref<VulkanBuffer> vkBuffer = Ref<VulkanBuffer>::Cast(buffer);
     vkCmdBindIndexBuffer(m_commandBuffer, vkBuffer->GetVkBuffer(), offset, VK_INDEX_TYPE_UINT32);
 }
 
@@ -185,9 +181,9 @@ void VulkanCommandBuffer::SetScissor(const Scissor& scissor)
     vkCmdSetScissor(m_commandBuffer, 0, 1, &vkScissor);
 }
 
-void VulkanCommandBuffer::SetShaderResourceBinding(const View<IShaderResourceBinding>& binding)
+void VulkanCommandBuffer::SetShaderResourceBinding(const Ref<IShaderResourceBinding>& binding)
 {
-    View<VulkanShaderResourceBinding> vkBinding = static_cast<View<VulkanShaderResourceBinding>>(binding);
+    Ref<VulkanShaderResourceBinding> vkBinding = Ref<VulkanShaderResourceBinding>::Cast(binding);
 
     VkDescriptorSet set = vkBinding->GetVkDescriptorSet();
     vkCmdBindDescriptorSets(

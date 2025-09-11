@@ -3,7 +3,7 @@
 namespace Yogi
 {
 
-World::World() { m_registry = CreateScope<entt::registry>(); }
+World::World() : m_registry(nullptr) { m_registry = Handle<entt::registry>::Create(); }
 
 World::~World() { m_systems.clear(); }
 
@@ -11,14 +11,14 @@ Entity World::CreateEntity(uint32_t hint)
 {
     YG_PROFILE_SCOPE("create_entity");
     entt::entity handle = m_registry->create((entt::entity)hint);
-    return Entity{ handle, CreateView(m_registry) };
+    return Entity{ handle, Ref<entt::registry>::Create(m_registry) };
 }
 
 Entity World::GetEntity(uint32_t handle)
 {
     if (m_registry->orphan((entt::entity)handle))
         return Entity::Null();
-    return Entity{ (entt::entity)handle, CreateView(m_registry) };
+    return Entity{ (entt::entity)handle, Ref<entt::registry>::Create(m_registry) };
 }
 
 void World::DeleteEntity(Entity entity) { m_registry->destroy(entity.m_entityHandle); }
@@ -27,7 +27,7 @@ void World::EachEntity(std::function<void(Entity)>&& func)
 {
     for (auto entityID : m_registry->view<entt::entity>())
     {
-        func(Entity({ entityID, CreateView(m_registry) }));
+        func(Entity({ entityID, Ref<entt::registry>::Create(m_registry) }));
     }
 }
 

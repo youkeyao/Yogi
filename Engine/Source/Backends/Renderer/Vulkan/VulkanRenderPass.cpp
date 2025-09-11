@@ -5,7 +5,7 @@
 namespace Yogi
 {
 
-Scope<IRenderPass> IRenderPass::Create(const RenderPassDesc& desc) { return CreateScope<VulkanRenderPass>(desc); }
+Handle<IRenderPass> IRenderPass::Create(const RenderPassDesc& desc) { return Handle<VulkanRenderPass>::Create(desc); }
 
 VulkanRenderPass::VulkanRenderPass(const RenderPassDesc& desc) :
     m_colorAttachments(desc.ColorAttachments),
@@ -17,12 +17,11 @@ VulkanRenderPass::VulkanRenderPass(const RenderPassDesc& desc) :
 
 VulkanRenderPass::~VulkanRenderPass()
 {
-    View<VulkanDeviceContext> deviceContext =
-        static_cast<View<VulkanDeviceContext>>(Application::GetInstance().GetContext());
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
 
     if (m_RenderPass != VK_NULL_HANDLE)
     {
-        vkDestroyRenderPass(deviceContext->GetVkDevice(), m_RenderPass, nullptr);
+        vkDestroyRenderPass(context->GetVkDevice(), m_RenderPass, nullptr);
         m_RenderPass = VK_NULL_HANDLE;
     }
 }
@@ -31,8 +30,7 @@ VulkanRenderPass::~VulkanRenderPass()
 
 void VulkanRenderPass::CreateVkRenderPass()
 {
-    View<VulkanDeviceContext> deviceContext =
-        static_cast<View<VulkanDeviceContext>>(Application::GetInstance().GetContext());
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
 
     std::vector<VkAttachmentDescription> allAttachments;
     std::vector<VkAttachmentReference>   colorAttachmentRefs;
@@ -113,7 +111,7 @@ void VulkanRenderPass::CreateVkRenderPass()
     renderPassInfo.dependencyCount = 1;
     renderPassInfo.pDependencies   = &dependency;
 
-    VkResult result = vkCreateRenderPass(deviceContext->GetVkDevice(), &renderPassInfo, nullptr, &m_RenderPass);
+    VkResult result = vkCreateRenderPass(context->GetVkDevice(), &renderPassInfo, nullptr, &m_RenderPass);
     YG_CORE_ASSERT(result == VK_SUCCESS, "Vulkan: Failed to create render pass!");
 }
 

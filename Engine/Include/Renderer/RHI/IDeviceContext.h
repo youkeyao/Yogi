@@ -19,7 +19,7 @@ public:
 
     virtual void WaitIdle() = 0;
 
-    static Scope<IDeviceContext> Create();
+    static Handle<IDeviceContext> Create();
 };
 
 } // namespace Yogi

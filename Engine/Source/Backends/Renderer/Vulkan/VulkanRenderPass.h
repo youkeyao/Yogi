@@ -12,9 +12,9 @@ public:
     VulkanRenderPass(const RenderPassDesc& desc);
     virtual ~VulkanRenderPass();
 
-    const std::vector<AttachmentDesc>& GetColorAttachments() const override { return m_colorAttachments; }
-    AttachmentDesc                     GetDepthAttachment() const override { return m_depthAttachment; }
-    SampleCountFlagBits                GetNumSamples() const override { return m_numSamples; }
+    inline const std::vector<AttachmentDesc>& GetColorAttachments() const override { return m_colorAttachments; }
+    inline AttachmentDesc                     GetDepthAttachment() const override { return m_depthAttachment; }
+    inline SampleCountFlagBits                GetNumSamples() const override { return m_numSamples; }
 
     inline VkRenderPass GetVkRenderPass() const { return m_RenderPass; }
 

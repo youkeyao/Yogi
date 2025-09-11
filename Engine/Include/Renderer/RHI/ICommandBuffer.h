@@ -60,17 +60,17 @@ public:
     virtual void Submit() = 0;
     virtual void Wait()   = 0;
 
-    virtual void BeginRenderPass(const View<IFrameBuffer>&      frameBuffer,
+    virtual void BeginRenderPass(const Ref<IFrameBuffer>&       frameBuffer,
                                  const std::vector<ClearValue>& colorClearValues,
                                  const ClearValue&              depthClearValue) = 0;
     virtual void EndRenderPass()                                    = 0;
 
-    virtual void SetPipeline(const View<IPipeline>& pipeline)                          = 0;
-    virtual void SetVertexBuffer(const View<IBuffer>& buffer, uint32_t offset = 0)     = 0;
-    virtual void SetIndexBuffer(const View<IBuffer>& buffer, uint32_t offset = 0)      = 0;
-    virtual void SetViewport(const Viewport& viewport)                                 = 0;
-    virtual void SetScissor(const Scissor& scissor)                                    = 0;
-    virtual void SetShaderResourceBinding(const View<IShaderResourceBinding>& binding) = 0;
+    virtual void SetPipeline(const Ref<IPipeline>& pipeline)                          = 0;
+    virtual void SetVertexBuffer(const Ref<IBuffer>& buffer, uint32_t offset = 0)     = 0;
+    virtual void SetIndexBuffer(const Ref<IBuffer>& buffer, uint32_t offset = 0)      = 0;
+    virtual void SetViewport(const Viewport& viewport)                                = 0;
+    virtual void SetScissor(const Scissor& scissor)                                   = 0;
+    virtual void SetShaderResourceBinding(const Ref<IShaderResourceBinding>& binding) = 0;
 
     virtual void Draw(uint32_t vertexCount,
                       uint32_t instanceCount = 1,
@@ -82,7 +82,7 @@ public:
                              int32_t  vertexOffset  = 0,
                              uint32_t firstInstance = 0) = 0;
 
-    static Scope<ICommandBuffer> Create(const CommandBufferDesc& desc);
+    static Handle<ICommandBuffer> Create(const CommandBufferDesc& desc);
 };
 
 } // namespace Yogi

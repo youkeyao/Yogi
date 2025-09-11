@@ -40,7 +40,7 @@ public:
     // Buffer operations
     virtual void UpdateData(const void* data, uint32_t size, uint32_t offset = 0) = 0;
 
-    static Scope<IBuffer> Create(const BufferDesc& desc);
+    static Handle<IBuffer> Create(const BufferDesc& desc);
 };
 
 } // namespace Yogi

@@ -6,7 +6,7 @@
 namespace Yogi
 {
 
-Scope<IPipeline> IPipeline::Create(const PipelineDesc& desc) { return CreateScope<VulkanPipeline>(desc); }
+Handle<IPipeline> IPipeline::Create(const PipelineDesc& desc) { return Handle<VulkanPipeline>::Create(desc); }
 
 VulkanPipeline::VulkanPipeline(const PipelineDesc& desc)
 {
@@ -18,17 +18,15 @@ VulkanPipeline::~VulkanPipeline()
 {
     if (m_pipeline != VK_NULL_HANDLE)
     {
-        View<VulkanDeviceContext> deviceContext =
-            static_cast<View<VulkanDeviceContext>>(Application::GetInstance().GetContext());
-        vkDestroyPipeline(deviceContext->GetVkDevice(), m_pipeline, nullptr);
+        VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+        vkDestroyPipeline(context->GetVkDevice(), m_pipeline, nullptr);
     }
 }
 
 void VulkanPipeline::CreateVkPipeline(const PipelineDesc& desc)
 {
-    View<VulkanDeviceContext> deviceContext =
-        static_cast<View<VulkanDeviceContext>>(Application::GetInstance().GetContext());
-    VkDevice device = deviceContext->GetVkDevice();
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VkDevice             device  = context->GetVkDevice();
 
     // --- Shader modules ---
     std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
@@ -148,9 +146,8 @@ void VulkanPipeline::CreateVkPipeline(const PipelineDesc& desc)
     depthStencil.stencilTestEnable     = VK_FALSE;
 
     // --- Graphics pipeline ---
-    View<VulkanShaderResourceBinding> vkSRB =
-        static_cast<View<VulkanShaderResourceBinding>>(desc.ShaderResourceBinding);
-    VkGraphicsPipelineCreateInfo pipelineInfo{};
+    Ref<VulkanShaderResourceBinding> vkSRB = Ref<VulkanShaderResourceBinding>::Cast(desc.ShaderResourceBinding);
+    VkGraphicsPipelineCreateInfo     pipelineInfo{};
     pipelineInfo.sType               = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     pipelineInfo.stageCount          = static_cast<uint32_t>(shaderStages.size());
     pipelineInfo.pStages             = shaderStages.data();
@@ -162,7 +159,7 @@ void VulkanPipeline::CreateVkPipeline(const PipelineDesc& desc)
     pipelineInfo.pColorBlendState    = &colorBlending;
     pipelineInfo.pDynamicState       = &dynamicState;
     pipelineInfo.layout              = vkSRB->GetVkPipelineLayout();
-    pipelineInfo.renderPass          = static_cast<View<VulkanRenderPass>>(desc.RenderPass)->GetVkRenderPass();
+    pipelineInfo.renderPass          = Ref<VulkanRenderPass>::Cast(desc.RenderPass)->GetVkRenderPass();
     pipelineInfo.subpass             = 0;
     pipelineInfo.pDepthStencilState  = &depthStencil;
 

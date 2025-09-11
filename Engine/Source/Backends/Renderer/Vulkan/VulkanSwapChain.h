@@ -12,20 +12,23 @@ public:
     VulkanSwapChain(const SwapChainDesc& desc);
     virtual ~VulkanSwapChain();
 
-    uint32_t            GetWidth() const override { return m_width; }
-    uint32_t            GetHeight() const override { return m_height; }
-    ITexture::Format    GetColorFormat() const override { return m_colorFormat; }
-    ITexture::Format    GetDepthFormat() const override { return m_depthFormat; }
-    SampleCountFlagBits GetNumSamples() const override { return m_numSamples; }
+    inline uint32_t            GetWidth() const override { return m_width; }
+    inline uint32_t            GetHeight() const override { return m_height; }
+    inline ITexture::Format    GetColorFormat() const override { return m_colorFormat; }
+    inline ITexture::Format    GetDepthFormat() const override { return m_depthFormat; }
+    inline SampleCountFlagBits GetNumSamples() const override { return m_numSamples; }
 
-    View<ITexture> GetCurrentTarget() const override { return CreateView(m_colorTextures[m_imageIndex]); }
-    View<ITexture> GetCurrentDepth() const override { return CreateView(m_depthTextures[m_imageIndex]); }
+    Ref<ITexture> GetCurrentTarget() const override
+    {
+        return Ref<VulkanTexture>::Create(m_colorTextures[m_imageIndex]);
+    }
+    Ref<ITexture> GetCurrentDepth() const override { return Ref<VulkanTexture>::Create(m_depthTextures[m_imageIndex]); }
 
     void AcquireNextImage() override;
     void Present() override;
     void Resize(uint32_t width, uint32_t height) override;
 
-    VkFence GetVkRenderCommandFence() const { return m_renderCommandFences[m_currentFrame]; }
+    inline VkFence GetVkRenderCommandFence() const { return m_renderCommandFences[m_currentFrame]; }
 
 private:
     void CleanupSwapChain();
@@ -44,8 +47,8 @@ private:
     VkSwapchainKHR m_swapChain    = VK_NULL_HANDLE;
     VkQueue        m_presentQueue = VK_NULL_HANDLE;
 
-    std::vector<Scope<VulkanTexture>> m_colorTextures;
-    std::vector<Scope<VulkanTexture>> m_depthTextures;
+    std::vector<Handle<VulkanTexture>> m_colorTextures;
+    std::vector<Handle<VulkanTexture>> m_depthTextures;
 
     std::vector<VkSemaphore> m_imageAvailableSemaphores;
     std::vector<VkSemaphore> m_renderFinishedSemaphores;
@@ -56,7 +59,7 @@ private:
     ITexture::Format    m_colorFormat;
     ITexture::Format    m_depthFormat;
     SampleCountFlagBits m_numSamples;
-    View<Window>        m_window;
+    Ref<Window>         m_window;
 };
 
 } // namespace Yogi

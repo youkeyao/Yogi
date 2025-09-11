@@ -33,10 +33,10 @@ class YG_API IShaderResourceBinding
 public:
     virtual ~IShaderResourceBinding() = default;
 
-    virtual void BindBuffer(const View<IBuffer>& buffer, int binding, int slot = 0)    = 0;
-    virtual void BindTexture(const View<ITexture>& texture, int binding, int slot = 0) = 0;
+    virtual void BindBuffer(const Ref<IBuffer>& buffer, int binding, int slot = 0)    = 0;
+    virtual void BindTexture(const Ref<ITexture>& texture, int binding, int slot = 0) = 0;
 
-    static Scope<IShaderResourceBinding> Create(const std::vector<ShaderResourceAttribute>& shaderResourceLayout);
+    static Handle<IShaderResourceBinding> Create(const std::vector<ShaderResourceAttribute>& shaderResourceLayout);
 };
 
 } // namespace Yogi

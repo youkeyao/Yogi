@@ -13,9 +13,9 @@ public:
     VulkanTexture(uint32_t width, uint32_t height, ITexture::Format format, ITexture::Usage usage, VkImage image);
     virtual ~VulkanTexture();
 
-    uint32_t         GetWidth() const override { return m_width; }
-    uint32_t         GetHeight() const override { return m_height; }
-    ITexture::Format GetFormat() const override { return m_format; }
+    inline uint32_t         GetWidth() const override { return m_width; }
+    inline uint32_t         GetHeight() const override { return m_height; }
+    inline ITexture::Format GetFormat() const override { return m_format; }
 
     inline VkImage     GetVkImage() const { return m_image; }
     inline VkImageView GetVkImageView() const { return m_imageView; }

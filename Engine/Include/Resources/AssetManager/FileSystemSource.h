@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Resources/IAssetSource.h"
+#include "Resources/AssetManager/IAssetSource.h"
 
 namespace Yogi
 {

@@ -1,6 +1,6 @@
-#include "Resources/FileSystemSource.h"
-#include "Resources/AssetManager.h"
-#include "Resources/MeshSerializer.h"
+#include "Resources/AssetManager/FileSystemSource.h"
+#include "Resources/AssetManager/AssetManager.h"
+#include "Resources/AssetManager/MeshSerializer.h"
 
 namespace Yogi
 {
@@ -29,7 +29,7 @@ std::vector<uint8_t> LoadBinaryFile(const std::string& filepath)
 
 FileSystemSource::FileSystemSource(const std::string& rootDir) : m_rootDir(rootDir)
 {
-    AssetManager::RegisterAssetSerializer<Mesh>(CreateScope<MeshSerializer>());
+    AssetManager::RegisterAssetSerializer<Mesh>(Handle<MeshSerializer>::Create());
 }
 
 std::vector<uint8_t> FileSystemSource::LoadSource(const std::string& key)

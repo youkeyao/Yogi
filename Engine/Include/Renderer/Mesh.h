@@ -21,8 +21,8 @@ public:
         m_indices(indices)
     {}
 
-    const std::vector<Vertex>&   GetVertices() const { return m_vertices; }
-    const std::vector<uint32_t>& GetIndices() const { return m_indices; }
+    inline const std::vector<Vertex>&   GetVertices() const { return m_vertices; }
+    inline const std::vector<uint32_t>& GetIndices() const { return m_indices; }
 
 private:
     std::vector<Vertex>   m_vertices;

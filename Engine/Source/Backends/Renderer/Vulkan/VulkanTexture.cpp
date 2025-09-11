@@ -44,9 +44,8 @@ VulkanTexture::VulkanTexture(uint32_t         width,
 
 VulkanTexture::~VulkanTexture()
 {
-    View<VulkanDeviceContext> deviceContext =
-        static_cast<View<VulkanDeviceContext>>(Application::GetInstance().GetContext());
-    VkDevice device = deviceContext->GetVkDevice();
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VkDevice             device  = context->GetVkDevice();
 
     if (m_imageView != VK_NULL_HANDLE)
         vkDestroyImageView(device, m_imageView, nullptr);
@@ -69,10 +68,9 @@ void VulkanTexture::CreateVkImage(uint32_t              width,
                                   VkImageUsageFlags     usage,
                                   VkMemoryPropertyFlags properties)
 {
-    View<VulkanDeviceContext> deviceContext =
-        static_cast<View<VulkanDeviceContext>>(Application::GetInstance().GetContext());
-    VkPhysicalDevice physicalDevice = deviceContext->GetVkPhysicalDevice();
-    VkDevice         device         = deviceContext->GetVkDevice();
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VkPhysicalDevice     physicalDevice = context->GetVkPhysicalDevice();
+    VkDevice             device         = context->GetVkDevice();
 
     VkImageCreateInfo imageInfo{};
     imageInfo.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -108,10 +106,9 @@ void VulkanTexture::CreateVkImage(uint32_t              width,
 
 void VulkanTexture::CreateVkImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags)
 {
-    View<VulkanDeviceContext> deviceContext =
-        static_cast<View<VulkanDeviceContext>>(Application::GetInstance().GetContext());
-    VkPhysicalDevice physicalDevice = deviceContext->GetVkPhysicalDevice();
-    VkDevice         device         = deviceContext->GetVkDevice();
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VkPhysicalDevice     physicalDevice = context->GetVkPhysicalDevice();
+    VkDevice             device         = context->GetVkDevice();
 
     VkImageViewCreateInfo viewInfo{};
     viewInfo.sType                           = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -130,9 +127,8 @@ void VulkanTexture::CreateVkImageView(VkImage image, VkFormat format, VkImageAsp
 
 void VulkanTexture::CreateVkSampler(VkFilter magFilter, VkFilter minFilter, VkSamplerAddressMode addressMode)
 {
-    View<VulkanDeviceContext> deviceContext =
-        static_cast<View<VulkanDeviceContext>>(Application::GetInstance().GetContext());
-    VkDevice device = deviceContext->GetVkDevice();
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VkDevice             device  = context->GetVkDevice();
 
     VkSamplerCreateInfo samplerInfo{};
     samplerInfo.sType                   = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;

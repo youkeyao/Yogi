@@ -8,7 +8,7 @@
 namespace Yogi
 {
 
-Scope<ISwapChain> ISwapChain::Create(const SwapChainDesc& desc) { return CreateScope<VulkanSwapChain>(desc); }
+Handle<ISwapChain> ISwapChain::Create(const SwapChainDesc& desc) { return Handle<VulkanSwapChain>::Create(desc); }
 
 VulkanSwapChain::VulkanSwapChain(const SwapChainDesc& desc) :
     m_width(desc.Width),
@@ -25,24 +25,22 @@ VulkanSwapChain::VulkanSwapChain(const SwapChainDesc& desc) :
 
 VulkanSwapChain::~VulkanSwapChain()
 {
-    View<VulkanDeviceContext> deviceContext =
-        static_cast<View<VulkanDeviceContext>>(Application::GetInstance().GetContext());
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
 
     CleanupSwapChain();
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
     {
-        vkDestroySemaphore(deviceContext->GetVkDevice(), m_imageAvailableSemaphores[i], nullptr);
-        vkDestroySemaphore(deviceContext->GetVkDevice(), m_renderFinishedSemaphores[i], nullptr);
-        vkDestroyFence(deviceContext->GetVkDevice(), m_renderCommandFences[i], nullptr);
+        vkDestroySemaphore(context->GetVkDevice(), m_imageAvailableSemaphores[i], nullptr);
+        vkDestroySemaphore(context->GetVkDevice(), m_renderFinishedSemaphores[i], nullptr);
+        vkDestroyFence(context->GetVkDevice(), m_renderCommandFences[i], nullptr);
     }
-    vkDestroySurfaceKHR(deviceContext->GetVkInstance(), m_surface, nullptr);
+    vkDestroySurfaceKHR(context->GetVkInstance(), m_surface, nullptr);
 }
 
 void VulkanSwapChain::AcquireNextImage()
 {
-    View<VulkanDeviceContext> deviceContext =
-        static_cast<View<VulkanDeviceContext>>(Application::GetInstance().GetContext());
-    VkDevice device = deviceContext->GetVkDevice();
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VkDevice             device  = context->GetVkDevice();
 
     vkWaitForFences(device, 1, &m_renderCommandFences[m_currentFrame], VK_TRUE, UINT64_MAX);
 
@@ -55,9 +53,8 @@ void VulkanSwapChain::AcquireNextImage()
 
 void VulkanSwapChain::Present()
 {
-    View<VulkanDeviceContext> deviceContext =
-        static_cast<View<VulkanDeviceContext>>(Application::GetInstance().GetContext());
-    VkDevice device = deviceContext->GetVkDevice();
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VkDevice             device  = context->GetVkDevice();
 
     VkPresentInfoKHR presentInfo{};
     presentInfo.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -84,9 +81,8 @@ void VulkanSwapChain::Resize(uint32_t width, uint32_t height)
     m_width  = width;
     m_height = height;
 
-    View<VulkanDeviceContext> deviceContext =
-        static_cast<View<VulkanDeviceContext>>(Application::GetInstance().GetContext());
-    vkDeviceWaitIdle(deviceContext->GetVkDevice());
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    vkDeviceWaitIdle(context->GetVkDevice());
 
     CleanupSwapChain();
     CreateVkSwapChain();
@@ -96,8 +92,7 @@ void VulkanSwapChain::Resize(uint32_t width, uint32_t height)
 
 void VulkanSwapChain::CleanupSwapChain()
 {
-    View<VulkanDeviceContext> deviceContext =
-        static_cast<View<VulkanDeviceContext>>(Application::GetInstance().GetContext());
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
 
     for (auto& texture : m_colorTextures)
     {
@@ -113,26 +108,25 @@ void VulkanSwapChain::CleanupSwapChain()
 
     if (m_swapChain != VK_NULL_HANDLE)
     {
-        vkDestroySwapchainKHR(deviceContext->GetVkDevice(), m_swapChain, nullptr);
+        vkDestroySwapchainKHR(context->GetVkDevice(), m_swapChain, nullptr);
         m_swapChain = VK_NULL_HANDLE;
     }
 }
 
 void VulkanSwapChain::CreateVkSurface()
 {
-    View<VulkanDeviceContext> deviceContext =
-        static_cast<View<VulkanDeviceContext>>(Application::GetInstance().GetContext());
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
 
     if (m_surface != VK_NULL_HANDLE)
     {
-        vkDestroySurfaceKHR(deviceContext->GetVkInstance(), m_surface, NULL);
+        vkDestroySurfaceKHR(context->GetVkInstance(), m_surface, NULL);
         m_surface = VK_NULL_HANDLE;
     }
 
     VkResult result = VK_ERROR_INITIALIZATION_FAILED;
 #ifdef YG_WINDOW_GLFW
     result = glfwCreateWindowSurface(
-        deviceContext->GetVkInstance(), (GLFWwindow*)m_window->GetNativeWindow(), nullptr, &m_surface);
+        context->GetVkInstance(), (GLFWwindow*)m_window->GetNativeWindow(), nullptr, &m_surface);
 #endif
 
     YG_CORE_ASSERT(result == VK_SUCCESS && m_surface != VK_NULL_HANDLE, "Vulkan: Failed to create window surface!");
@@ -140,10 +134,9 @@ void VulkanSwapChain::CreateVkSurface()
 
 void VulkanSwapChain::CreateVkSwapChain()
 {
-    View<VulkanDeviceContext> deviceContext =
-        static_cast<View<VulkanDeviceContext>>(Application::GetInstance().GetContext());
-    VkPhysicalDevice physicalDevice = deviceContext->GetVkPhysicalDevice();
-    VkDevice         device         = deviceContext->GetVkDevice();
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VkPhysicalDevice     physicalDevice = context->GetVkPhysicalDevice();
+    VkDevice             device         = context->GetVkDevice();
 
     SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(physicalDevice, m_surface);
     VkSurfaceFormatKHR      surfaceFormat    = swapChainSupport.formats[0];
@@ -203,27 +196,28 @@ void VulkanSwapChain::CreateVkSwapChain()
     std::vector<VkImage> swapChainImages(imageCount);
     vkGetSwapchainImagesKHR(device, m_swapChain, &imageCount, swapChainImages.data());
 
-    m_colorTextures.resize(imageCount);
+    m_colorTextures.reserve(imageCount);
+    m_colorTextures.clear();
     for (size_t i = 0; i < swapChainImages.size(); ++i)
     {
-        m_colorTextures[i] = CreateScope<VulkanTexture>(
-            extent.width, extent.height, m_colorFormat, ITexture::Usage::RenderTarget, swapChainImages[i]);
+        m_colorTextures.emplace_back(Handle<VulkanTexture>::Create(
+            extent.width, extent.height, m_colorFormat, ITexture::Usage::RenderTarget, swapChainImages[i]));
     }
 
-    m_depthTextures.resize(imageCount);
+    m_depthTextures.reserve(imageCount);
+    m_depthTextures.clear();
     for (size_t i = 0; i < swapChainImages.size(); ++i)
     {
-        m_depthTextures[i] = CreateScope<VulkanTexture>(Yogi::TextureDesc{
-            extent.width, extent.height, 1, m_depthFormat, Yogi::ITexture::Usage::DepthStencil, m_numSamples });
+        m_depthTextures.emplace_back(Handle<VulkanTexture>::Create(Yogi::TextureDesc{
+            extent.width, extent.height, 1, m_depthFormat, Yogi::ITexture::Usage::DepthStencil, m_numSamples }));
     }
 }
 
 void VulkanSwapChain::CreateVkSyncObjects()
 {
-    View<VulkanDeviceContext> deviceContext =
-        static_cast<View<VulkanDeviceContext>>(Application::GetInstance().GetContext());
-    VkPhysicalDevice physicalDevice = deviceContext->GetVkPhysicalDevice();
-    VkDevice         device         = deviceContext->GetVkDevice();
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VkPhysicalDevice     physicalDevice = context->GetVkPhysicalDevice();
+    VkDevice             device         = context->GetVkDevice();
 
     m_imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
     m_renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);

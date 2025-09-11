@@ -14,19 +14,18 @@ public:
     void OnEvent(Yogi::Event& event) override;
 
 private:
-    Yogi::Scope<Yogi::World> m_world;
-    // Yogi::Entity           checker;
+    Yogi::Handle<Yogi::World> m_world = nullptr;
+    Yogi::Entity              m_box = Yogi::Entity::Null();
 
-    // Yogi::Scope<Yogi::IBuffer> m_vertexBuffer;
-    // Yogi::Scope<Yogi::IBuffer> m_indexBuffer;
-    // Yogi::Scope<Yogi::IBuffer> m_uniformBuffer;
+    Yogi::Handle<Yogi::IBuffer> m_vertexBuffer  = nullptr;
+    Yogi::Handle<Yogi::IBuffer> m_indexBuffer   = nullptr;
+    Yogi::Handle<Yogi::IBuffer> m_uniformBuffer = nullptr;
 
     Yogi::Matrix4 m_transform = Yogi::Matrix4::Identity();
 
-    Yogi::AssetHandle<Yogi::IRenderPass> m_renderPass;
-    // Yogi::Scope<Yogi::IRenderPass>            m_renderPass;
-    Yogi::Scope<Yogi::IPipeline>              m_pipeline;
-    // Yogi::Scope<Yogi::ICommandBuffer>         m_commandBuffer;
-    Yogi::AssetHandle<Yogi::IShaderResourceBinding> m_shaderResourceBinding;
-    // Yogi::Scope<Yogi::IShaderResourceBinding> m_shaderResourceBinding;
+    Yogi::Handle<Yogi::IRenderPass>            m_renderPass            = nullptr;
+    Yogi::Handle<Yogi::IPipeline>              m_pipeline              = nullptr;
+    Yogi::Handle<Yogi::ICommandBuffer>         m_commandBuffer         = nullptr;
+    Yogi::Handle<Yogi::IShaderResourceBinding> m_shaderResourceBinding = nullptr;
+    Yogi::Handle<Yogi::Material>               m_material              = nullptr;
 };

@@ -12,13 +12,13 @@ public:
     VulkanBuffer(const BufferDesc& desc);
     virtual ~VulkanBuffer();
 
-    uint32_t     GetSize() const override { return m_size; }
-    BufferUsage  GetUsage() const override { return m_usage; }
-    BufferAccess GetAccess() const override { return m_access; }
+    inline uint32_t     GetSize() const override { return m_size; }
+    inline BufferUsage  GetUsage() const override { return m_usage; }
+    inline BufferAccess GetAccess() const override { return m_access; }
 
     void UpdateData(const void* data, uint32_t size, uint32_t offset = 0) override;
 
-    VkBuffer GetVkBuffer() const { return m_buffer; }
+    inline VkBuffer GetVkBuffer() const { return m_buffer; }
 
 private:
     VkBuffer       m_buffer;

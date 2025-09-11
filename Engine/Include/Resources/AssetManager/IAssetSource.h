@@ -3,7 +3,7 @@
 namespace Yogi
 {
 
-class YG_API IAssetSource
+class IAssetSource
 {
 public:
     virtual ~IAssetSource() = default;

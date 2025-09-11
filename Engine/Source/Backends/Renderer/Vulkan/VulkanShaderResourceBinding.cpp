@@ -6,17 +6,17 @@
 namespace Yogi
 {
 
-Scope<IShaderResourceBinding> IShaderResourceBinding::Create(
+Handle<IShaderResourceBinding> IShaderResourceBinding::Create(
     const std::vector<ShaderResourceAttribute>& shaderResourceLayout)
 {
-    return CreateScope<VulkanShaderResourceBinding>(shaderResourceLayout);
+    return Handle<VulkanShaderResourceBinding>::Create(shaderResourceLayout);
 }
 
 VulkanShaderResourceBinding::VulkanShaderResourceBinding(
     const std::vector<ShaderResourceAttribute>& shaderResourceLayout)
 {
-    View<VulkanDeviceContext> context = static_cast<View<VulkanDeviceContext>>(Application::GetInstance().GetContext());
-    VkDevice                  device  = context->GetVkDevice();
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VkDevice             device  = context->GetVkDevice();
 
     std::vector<VkDescriptorSetLayoutBinding> bindings(shaderResourceLayout.size());
     for (int i = 0; i < shaderResourceLayout.size(); ++i)
@@ -54,17 +54,17 @@ VulkanShaderResourceBinding::VulkanShaderResourceBinding(
 
 VulkanShaderResourceBinding::~VulkanShaderResourceBinding()
 {
-    View<VulkanDeviceContext> context = static_cast<View<VulkanDeviceContext>>(Application::GetInstance().GetContext());
-    VkDevice                  device  = context->GetVkDevice();
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VkDevice             device  = context->GetVkDevice();
     if (m_descriptorSetLayout != VK_NULL_HANDLE)
         vkDestroyDescriptorSetLayout(device, m_descriptorSetLayout, nullptr);
     if (m_pipelineLayout != VK_NULL_HANDLE)
         vkDestroyPipelineLayout(device, m_pipelineLayout, nullptr);
 }
 
-void VulkanShaderResourceBinding::BindBuffer(const View<IBuffer>& buffer, int binding, int slot)
+void VulkanShaderResourceBinding::BindBuffer(const Ref<IBuffer>& buffer, int binding, int slot)
 {
-    View<VulkanBuffer> vkBuffer = static_cast<View<VulkanBuffer>>(buffer);
+    Ref<VulkanBuffer> vkBuffer = Ref<VulkanBuffer>::Cast(buffer);
 
     VkDescriptorBufferInfo bufferInfo{};
     bufferInfo.buffer = vkBuffer->GetVkBuffer();
@@ -82,13 +82,13 @@ void VulkanShaderResourceBinding::BindBuffer(const View<IBuffer>& buffer, int bi
     descriptorWrite.pImageInfo       = nullptr;
     descriptorWrite.pTexelBufferView = nullptr;
 
-    View<VulkanDeviceContext> context = static_cast<View<VulkanDeviceContext>>(Application::GetInstance().GetContext());
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
     vkUpdateDescriptorSets(context->GetVkDevice(), 1, &descriptorWrite, 0, nullptr);
 }
 
-void VulkanShaderResourceBinding::BindTexture(const View<ITexture>& texture, int binding, int slot)
+void VulkanShaderResourceBinding::BindTexture(const Ref<ITexture>& texture, int binding, int slot)
 {
-    View<VulkanTexture>   vkTexture = static_cast<View<VulkanTexture>>(texture);
+    Ref<VulkanTexture>   vkTexture = Ref<VulkanTexture>::Cast(texture);
     VkDescriptorImageInfo imageInfo{};
     imageInfo.imageView   = vkTexture->GetVkImageView();
     imageInfo.sampler     = vkTexture->GetVkSampler();
@@ -105,7 +105,7 @@ void VulkanShaderResourceBinding::BindTexture(const View<ITexture>& texture, int
     descriptorWrite.pBufferInfo      = nullptr;
     descriptorWrite.pTexelBufferView = nullptr;
 
-    View<VulkanDeviceContext> context = static_cast<View<VulkanDeviceContext>>(Application::GetInstance().GetContext());
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
     vkUpdateDescriptorSets(context->GetVkDevice(), 1, &descriptorWrite, 0, nullptr);
 }
 

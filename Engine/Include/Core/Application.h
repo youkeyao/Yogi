@@ -19,11 +19,11 @@ public:
     void Run();
     void Close();
     void OnEvent(Event& e);
-    void PushLayer(Scope<Layer> layer);
+    void PushLayer(Handle<Layer>&& layer);
 
-    inline View<Window>         GetWindow() { return CreateView(m_window); }
-    inline View<IDeviceContext> GetContext() { return CreateView(m_context); }
-    inline View<ISwapChain>     GetSwapChain() { return CreateView(m_swapChain); }
+    inline const Handle<Window>&         GetWindow() const { return m_window; }
+    inline const Handle<IDeviceContext>& GetContext() const { return m_context; }
+    inline const Handle<ISwapChain>&     GetSwapChain() const { return m_swapChain; }
 
     inline static Application& GetInstance() { return *s_instance; }
 
@@ -32,10 +32,10 @@ private:
     bool OnWindowResize(WindowResizeEvent& e);
 
 private:
-    Scope<Window>             m_window;
-    Scope<IDeviceContext>     m_context;
-    Scope<ISwapChain>         m_swapChain;
-    std::vector<Scope<Layer>> m_layers;
+    Handle<Window>             m_window    = nullptr;
+    Handle<IDeviceContext>     m_context   = nullptr;
+    Handle<ISwapChain>         m_swapChain = nullptr;
+    std::vector<Handle<Layer>> m_layers;
 
     float m_lastFrameTime = 0.0f;
     bool  m_isRunning     = true;

@@ -101,7 +101,7 @@ VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& avai
     }
     return VK_PRESENT_MODE_FIFO_KHR;
 }
-VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, const View<Window>& window)
+VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, const Ref<Window>& window)
 {
     if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
     {

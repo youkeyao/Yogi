@@ -25,7 +25,7 @@ public:
                 return;
             }
         }
-        m_systems.push_back({ systemName, CreateScope<T>() });
+        m_systems.push_back({ systemName, Handle<T>::Create() });
     }
 
     template <typename T>
@@ -49,7 +49,7 @@ public:
         auto view = m_registry->view<Args...>();
         for (auto entity : view)
         {
-            Entity e(entity, CreateView(m_registry));
+            Entity e(entity, Ref<entt::registry>::Create(m_registry));
             std::apply([&](auto&... args) { func(e, args...); }, view.get(entity));
         }
     }
@@ -67,8 +67,8 @@ public:
     void OnEvent(Event& e);
 
 private:
-    Scope<entt::registry>                                  m_registry;
-    std::vector<std::pair<std::string, Scope<SystemBase>>> m_systems;
+    Handle<entt::registry>                                  m_registry;
+    std::vector<std::pair<std::string, Handle<SystemBase>>> m_systems;
 };
 
 } // namespace Yogi

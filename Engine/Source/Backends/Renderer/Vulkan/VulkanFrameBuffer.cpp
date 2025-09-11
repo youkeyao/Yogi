@@ -4,7 +4,7 @@
 namespace Yogi
 {
 
-Scope<IFrameBuffer> IFrameBuffer::Create(const FrameBufferDesc& desc) { return CreateScope<VulkanFrameBuffer>(desc); }
+Handle<IFrameBuffer> IFrameBuffer::Create(const FrameBufferDesc& desc) { return Handle<VulkanFrameBuffer>::Create(desc); }
 
 VulkanFrameBuffer::VulkanFrameBuffer(const FrameBufferDesc& desc) :
     m_width(desc.Width),
@@ -24,9 +24,8 @@ void VulkanFrameBuffer::Cleanup()
 {
     if (m_frameBuffer != VK_NULL_HANDLE)
     {
-        View<VulkanDeviceContext> deviceContext =
-            static_cast<View<VulkanDeviceContext>>(Application::GetInstance().GetContext());
-        vkDestroyFramebuffer(deviceContext->GetVkDevice(), m_frameBuffer, nullptr);
+        VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+        vkDestroyFramebuffer(context->GetVkDevice(), m_frameBuffer, nullptr);
         m_frameBuffer = VK_NULL_HANDLE;
     }
     m_msaaTextures.clear();
@@ -34,15 +33,14 @@ void VulkanFrameBuffer::Cleanup()
 
 void VulkanFrameBuffer::CreateVkFrameBuffer()
 {
-    View<VulkanDeviceContext> deviceContext =
-        static_cast<View<VulkanDeviceContext>>(Application::GetInstance().GetContext());
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
     Cleanup();
 
     SampleCountFlagBits      numSamples = m_renderPass->GetNumSamples();
     std::vector<VkImageView> attachments;
     for (int i = 0; i < m_colorAttachments.size(); ++i)
     {
-        View<VulkanTexture> texture = static_cast<View<VulkanTexture>>(m_colorAttachments[i]);
+        Ref<VulkanTexture> texture = Ref<VulkanTexture>::Cast(m_colorAttachments[i]);
         if (numSamples > SampleCountFlagBits::Count1)
         {
             TextureDesc msaaDesc{};
@@ -52,7 +50,7 @@ void VulkanFrameBuffer::CreateVkFrameBuffer()
             msaaDesc.Usage      = ITexture::Usage::RenderTarget;
             msaaDesc.NumSamples = numSamples;
 
-            m_msaaTextures.push_back(CreateScope<VulkanTexture>(msaaDesc));
+            m_msaaTextures.push_back(Handle<VulkanTexture>::Create(msaaDesc));
             attachments.push_back(m_msaaTextures.back()->GetVkImageView());
         }
         attachments.push_back(texture->GetVkImageView());
@@ -60,19 +58,19 @@ void VulkanFrameBuffer::CreateVkFrameBuffer()
 
     if (m_depthAttachment)
     {
-        attachments.push_back(static_cast<View<VulkanTexture>>(m_depthAttachment)->GetVkImageView());
+        attachments.push_back(Ref<VulkanTexture>::Cast(m_depthAttachment)->GetVkImageView());
     }
 
     VkFramebufferCreateInfo framebufferInfo{};
     framebufferInfo.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    framebufferInfo.renderPass      = static_cast<View<VulkanRenderPass>>(m_renderPass)->GetVkRenderPass();
+    framebufferInfo.renderPass      = Ref<VulkanRenderPass>::Cast(m_renderPass)->GetVkRenderPass();
     framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
     framebufferInfo.pAttachments    = attachments.data();
     framebufferInfo.width           = m_width;
     framebufferInfo.height          = m_height;
     framebufferInfo.layers          = 1;
 
-    VkResult result = vkCreateFramebuffer(deviceContext->GetVkDevice(), &framebufferInfo, nullptr, &m_frameBuffer);
+    VkResult result = vkCreateFramebuffer(context->GetVkDevice(), &framebufferInfo, nullptr, &m_frameBuffer);
     YG_CORE_ASSERT(result == VK_SUCCESS, "Vulkan: Failed to create framebuffer!");
 }
 

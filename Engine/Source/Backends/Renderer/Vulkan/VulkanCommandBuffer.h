@@ -18,17 +18,17 @@ public:
     void Submit() override;
     void Wait() override;
 
-    void BeginRenderPass(const View<IFrameBuffer>&      frameBuffer,
+    void BeginRenderPass(const Ref<IFrameBuffer>&       frameBuffer,
                          const std::vector<ClearValue>& colorClearValues,
                          const ClearValue&              depthClearValue) override;
     void EndRenderPass() override;
 
-    void SetPipeline(const View<IPipeline>& pipeline) override;
-    void SetVertexBuffer(const View<IBuffer>& buffer, uint32_t offset = 0) override;
-    void SetIndexBuffer(const View<IBuffer>& buffer, uint32_t offset = 0) override;
+    void SetPipeline(const Ref<IPipeline>& pipeline) override;
+    void SetVertexBuffer(const Ref<IBuffer>& buffer, uint32_t offset = 0) override;
+    void SetIndexBuffer(const Ref<IBuffer>& buffer, uint32_t offset = 0) override;
     void SetViewport(const Viewport& viewport) override;
     void SetScissor(const Scissor& scissor) override;
-    void SetShaderResourceBinding(const View<IShaderResourceBinding>& binding) override;
+    void SetShaderResourceBinding(const Ref<IShaderResourceBinding>& binding) override;
 
     void Draw(uint32_t vertexCount,
               uint32_t instanceCount = 1,

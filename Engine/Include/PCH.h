@@ -41,38 +41,12 @@
 #endif
 
 #include "Core/Log.h"
+#include "Core/Handle.h"
+#include "Core/Ref.h"
 #include "Debug/Instrumentor.h"
 
 namespace Yogi
 {
-
-template <typename T>
-using Scope = std::unique_ptr<T>;
-template <typename T, typename... Args>
-constexpr Scope<T> CreateScope(Args&&... args)
-{
-    return std::make_unique<T>(std::forward<Args>(args)...);
-}
-
-template <typename T>
-using View = T*;
-template <typename T, typename... Args>
-constexpr View<T> CreateView(const Scope<T>& scope)
-{
-    return scope.get();
-}
-
-template <typename T, typename... Args>
-constexpr View<T> CreateView(T value)
-{
-    return &value;
-}
-
-// template <typename T> using Ref = std::shared_ptr<T>;
-// template <typename T, typename... Args> constexpr Ref<T> CreateRef(Args&&... args)
-// {
-//     return std::make_shared<T>(std::forward<Args>(args)...);
-// }
 
 #define YG_BIND_FN(x, ...) std::bind(&x, this, std::placeholders::_1, ##__VA_ARGS__)
 

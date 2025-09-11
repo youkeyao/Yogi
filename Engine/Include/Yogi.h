@@ -43,6 +43,6 @@
 // ---------------------------------------------
 
 // ---resources-------------------------------
-#include "Resources/AssetManager.h"
-#include "Resources/FileSystemSource.h"
+#include "Resources/AssetManager/AssetManager.h"
+#include "Resources/AssetManager/FileSystemSource.h"
 // ---------------------------------------------

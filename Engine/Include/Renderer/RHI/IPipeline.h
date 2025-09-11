@@ -55,8 +55,8 @@ struct PipelineDesc
 {
     std::vector<ShaderDesc>      Shaders;
     std::vector<VertexAttribute> VertexLayout;
-    View<IShaderResourceBinding> ShaderResourceBinding;
-    View<IRenderPass>            RenderPass;
+    Ref<IShaderResourceBinding>  ShaderResourceBinding;
+    Ref<IRenderPass>             RenderPass;
     int                          SubPassIndex;
     PrimitiveTopology            Topology = PrimitiveTopology::TriangleList;
 };
@@ -68,7 +68,7 @@ public:
 
     const std::vector<VertexAttribute>& GetVertexLayout() const { return m_vertexLayout; }
 
-    static Scope<IPipeline> Create(const PipelineDesc& desc);
+    static Handle<IPipeline> Create(const PipelineDesc& desc);
 
 protected:
     std::vector<VertexAttribute> m_vertexLayout;

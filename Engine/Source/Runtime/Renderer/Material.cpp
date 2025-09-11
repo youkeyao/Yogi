@@ -3,7 +3,7 @@
 namespace Yogi
 {
 
-Material::Material(const View<IPipeline>& pipeline) : m_pipeline(pipeline)
+Material::Material(const Ref<IPipeline>& pipeline) : m_pipeline(pipeline)
 {
     auto&    vertexLayout = m_pipeline->GetVertexLayout();
     uint32_t stride       = vertexLayout.back().Offset + vertexLayout.back().Size;
@@ -28,7 +28,7 @@ Material::Material(const View<IPipeline>& pipeline) : m_pipeline(pipeline)
         }
         else if (element.Name.substr(0, 4) == "TEX_")
         {
-            m_textures.push_back({ element.Offset, nullptr });
+            // m_textures.push_back({ element.Offset, nullptr });
         }
     }
 }

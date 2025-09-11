@@ -13,7 +13,7 @@ struct SwapChainDesc
     ITexture::Format    ColorFormat;
     ITexture::Format    DepthFormat;
     SampleCountFlagBits NumSamples;
-    View<Window>        Window;
+    Ref<Window>        Window;
 };
 
 class YG_API ISwapChain
@@ -27,14 +27,14 @@ public:
     virtual ITexture::Format    GetDepthFormat() const = 0;
     virtual SampleCountFlagBits GetNumSamples() const  = 0;
 
-    virtual View<ITexture> GetCurrentTarget() const = 0;
-    virtual View<ITexture> GetCurrentDepth() const  = 0;
+    virtual Ref<ITexture> GetCurrentTarget() const = 0;
+    virtual Ref<ITexture> GetCurrentDepth() const  = 0;
 
     virtual void AcquireNextImage()                      = 0;
     virtual void Present()                               = 0;
     virtual void Resize(uint32_t width, uint32_t height) = 0;
 
-    static Scope<ISwapChain> Create(const SwapChainDesc& desc);
+    static Handle<ISwapChain> Create(const SwapChainDesc& desc);
 };
 
 } // namespace Yogi

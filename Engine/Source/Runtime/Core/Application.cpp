@@ -23,7 +23,7 @@ Application::Application(const std::string& name)
                                                     ITexture::Format::R8G8B8A8_SRGB,
                                                     ITexture::Format::D32_FLOAT,
                                                     SampleCountFlagBits::Count4,
-                                                    CreateView(m_window) });
+                                                    Ref<Window>::Create(m_window) });
 }
 
 Application::~Application()
@@ -41,7 +41,7 @@ Application::~Application()
     m_context   = nullptr;
 }
 
-void Application::PushLayer(Scope<Layer> layer)
+void Application::PushLayer(Handle<Layer>&& layer)
 {
     YG_PROFILE_FUNCTION();
 

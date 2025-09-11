@@ -4,7 +4,7 @@
 namespace Yogi
 {
 
-Scope<IDeviceContext> IDeviceContext::Create() { return CreateScope<VulkanDeviceContext>(); }
+Handle<IDeviceContext> IDeviceContext::Create() { return Handle<VulkanDeviceContext>::Create(); }
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT      messageSeverity,
                                                     VkDebugUtilsMessageTypeFlagsEXT             messageType,

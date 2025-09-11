@@ -5,7 +5,7 @@
 namespace Yogi
 {
 
-Scope<IBuffer> IBuffer::Create(const BufferDesc& desc) { return CreateScope<VulkanBuffer>(desc); }
+Handle<IBuffer> IBuffer::Create(const BufferDesc& desc) { return Handle<VulkanBuffer>::Create(desc); }
 
 VulkanBuffer::VulkanBuffer(const BufferDesc& desc) : m_size(desc.Size), m_usage(desc.Usage), m_access(desc.Access)
 {
@@ -44,9 +44,9 @@ VulkanBuffer::VulkanBuffer(const BufferDesc& desc) : m_size(desc.Size), m_usage(
         bufferInfo.usage |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
     }
 
-    View<VulkanDeviceContext> context = static_cast<View<VulkanDeviceContext>>(Application::GetInstance().GetContext());
-    VkDevice                  device  = context->GetVkDevice();
-    VkPhysicalDevice          physicalDevice = context->GetVkPhysicalDevice();
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VkDevice             device  = context->GetVkDevice();
+    VkPhysicalDevice     physicalDevice = context->GetVkPhysicalDevice();
     vkCreateBuffer(device, &bufferInfo, nullptr, &m_buffer);
 
     VkMemoryRequirements memRequirements;
@@ -71,8 +71,8 @@ VulkanBuffer::VulkanBuffer(const BufferDesc& desc) : m_size(desc.Size), m_usage(
 
 VulkanBuffer::~VulkanBuffer()
 {
-    View<VulkanDeviceContext> context = static_cast<View<VulkanDeviceContext>>(Application::GetInstance().GetContext());
-    VkDevice                  device  = context->GetVkDevice();
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VkDevice             device  = context->GetVkDevice();
 
     vkDeviceWaitIdle(device);
     vkUnmapMemory(device, m_memory);

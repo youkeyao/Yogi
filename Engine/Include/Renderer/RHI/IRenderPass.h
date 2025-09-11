@@ -51,7 +51,7 @@ public:
     virtual AttachmentDesc                     GetDepthAttachment() const  = 0;
     virtual SampleCountFlagBits                GetNumSamples() const       = 0;
 
-    static Scope<IRenderPass> Create(const RenderPassDesc& desc);
+    static Handle<IRenderPass> Create(const RenderPassDesc& desc);
 };
 
 } // namespace Yogi

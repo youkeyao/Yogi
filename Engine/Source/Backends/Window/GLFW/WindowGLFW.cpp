@@ -10,7 +10,7 @@ static void GLFWErrorCallback(int error, const char* description)
     YG_CORE_ERROR("GLFW Error ({0}): {1}", error, description);
 }
 
-Scope<Window> Window::Create(const WindowProps& props) { return CreateScope<WindowGLFW>(props); }
+Handle<Window> Window::Create(const WindowProps& props) { return Handle<WindowGLFW>::Create(props); }
 
 WindowGLFW::WindowGLFW(const WindowProps& props)
 {

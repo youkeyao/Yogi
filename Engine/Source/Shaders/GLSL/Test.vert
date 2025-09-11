@@ -7,14 +7,14 @@ layout(std140, binding=0) uniform Constants
 };
 
 // 输入 (来自顶点缓冲)
-layout(location = 0) in vec3 Pos; // Position
-layout(location = 1) in vec4 Color; // Color
+layout(location = 0) in vec3 a_Position; // Position
+layout(location = 1) in vec2 a_TexCoord; // TexCoord
 
 // 输出给片段着色器
 layout(location = 0) out vec4 v_Color;
 
 void main()
 {
-    gl_Position = g_WorldViewProj * vec4(Pos, 1.0);
-    v_Color = Color;
+    gl_Position = g_WorldViewProj * vec4(a_Position, 1.0);
+    v_Color = vec4(a_TexCoord, 0, 1);
 }

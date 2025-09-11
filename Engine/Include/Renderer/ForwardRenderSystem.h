@@ -26,8 +26,8 @@ public:
 
 private:
     bool OnWindowResize(WindowResizeEvent& e, World& world);
-    void RenderCamera(const CameraComponent& camera, const TransformComponent& transform, World& world);
-    void Flush(const View<IPipeline>& pipeline);
+    void RenderCamera(CameraComponent& camera, const TransformComponent& transform, World& world);
+    void Flush(const Ref<IPipeline>& pipeline);
 
 private:
     static const uint32_t MAX_TRIANGLES     = 100000;
@@ -37,16 +37,16 @@ private:
 
     SceneData m_sceneData;
 
-    Scope<IBuffer> m_vertexBuffer;
-    Scope<IBuffer> m_indexBuffer;
-    Scope<IBuffer> m_uniformBuffer;
+    Handle<IBuffer> m_vertexBuffer  = nullptr;
+    Handle<IBuffer> m_indexBuffer   = nullptr;
+    Handle<IBuffer> m_uniformBuffer = nullptr;
 
-    Scope<IRenderPass>            m_renderPass;
-    Scope<IShaderResourceBinding> m_shaderResourceBinding;
-    Scope<IFrameBuffer>           m_frameBuffer;
+    Handle<IRenderPass>            m_renderPass            = nullptr;
+    Handle<IShaderResourceBinding> m_shaderResourceBinding = nullptr;
+    Handle<IFrameBuffer>           m_frameBuffer           = nullptr;
 
-    std::unordered_map<View<IPipeline>, std::vector<uint8_t>>  m_vertices;
-    std::unordered_map<View<IPipeline>, std::vector<uint32_t>> m_indices;
+    std::unordered_map<Ref<IPipeline>, std::vector<uint8_t>>  m_vertices;
+    std::unordered_map<Ref<IPipeline>, std::vector<uint32_t>> m_indices;
 };
 
 } // namespace Yogi

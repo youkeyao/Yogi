@@ -1,4 +1,4 @@
-#include "Resources/MeshSerializer.h"
+#include "Resources/AssetManager/MeshSerializer.h"
 
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
@@ -7,7 +7,7 @@
 namespace Yogi
 {
 
-Scope<Mesh> ProcessMesh(aiMesh* mesh, const aiScene* scene)
+Handle<Mesh> ProcessMesh(aiMesh* mesh, const aiScene* scene)
 {
     std::vector<Vertex>   vertices;
     std::vector<uint32_t> indices;
@@ -29,9 +29,9 @@ Scope<Mesh> ProcessMesh(aiMesh* mesh, const aiScene* scene)
         indices.push_back(Face.mIndices[2]);
     }
 
-    return CreateScope<Mesh>(vertices, indices);
+    return Handle<Mesh>::Create(vertices, indices);
 }
-Scope<Mesh> ProcessNode(aiNode* node, const aiScene* scene, const std::string& meshName)
+Handle<Mesh> ProcessNode(aiNode* node, const aiScene* scene, const std::string& meshName)
 {
     for (int i = 0; i < node->mNumMeshes; ++i)
     {
@@ -44,7 +44,7 @@ Scope<Mesh> ProcessNode(aiNode* node, const aiScene* scene, const std::string& m
     for (int i = 0; i < node->mNumChildren; ++i)
     {
         auto mesh = ProcessNode(node->mChildren[i], scene, meshName);
-        if (mesh != nullptr)
+        if (mesh)
         {
             return mesh;
         }
@@ -54,7 +54,7 @@ Scope<Mesh> ProcessNode(aiNode* node, const aiScene* scene, const std::string& m
 
 // --------------------------------------------------------------------------------
 
-Scope<Mesh> MeshSerializer::Deserialize(const std::vector<uint8_t>& binary, const std::string& key)
+Handle<Mesh> MeshSerializer::Deserialize(const std::vector<uint8_t>& binary, const std::string& key)
 {
     size_t      sepPos   = key.find("::");
     std::string filepath = key;
@@ -78,6 +78,6 @@ Scope<Mesh> MeshSerializer::Deserialize(const std::vector<uint8_t>& binary, cons
     return ProcessNode(scene->mRootNode, scene, meshName);
 }
 
-std::vector<uint8_t> MeshSerializer::Serialize(const Scope<Mesh>& mesh, const std::string& key) { return {}; }
+std::vector<uint8_t> MeshSerializer::Serialize(const Ref<Mesh>& mesh, const std::string& key) { return {}; }
 
 } // namespace Yogi
