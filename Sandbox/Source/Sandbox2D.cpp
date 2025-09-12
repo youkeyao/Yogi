@@ -248,5 +248,5 @@ void Sandbox2D::OnUpdate(Yogi::Timestep ts)
 
 void Sandbox2D::OnEvent(Yogi::Event& e)
 {
-    // m_scene->on_event(e);
+    m_world->OnEvent(e);
 }

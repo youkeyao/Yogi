@@ -1,79 +1,52 @@
-// #pragma once
+#pragma once
 
-// namespace Yogi
-// {
+#include "Resources/ResourceManager/ResourceHash.h"
 
-// class YG_API ResourceManager
-// {
-// public:
-//     template <typename T>
-//     static Ref<T> AddAsset(Handle<T>&& asset, const std::string& key)
-//     {
-//         auto& assetMap = GetAssetMap<T>();
-//         auto  it       = assetMap.find(key);
-//         if (it == assetMap.end())
-//         {
-//             asset.SetSubCallBack([&]() {
-//                 if (asset.GetRefCount() == 1)
-//                     assetMap.erase(key);
-//             });
-//             auto [assetIt, result] = assetMap.emplace(key, std::move(asset));
-//             return Ref<T>::Create(assetIt->second);
-//         }
-//         return nullptr;
-//     }
+namespace Yogi
+{
 
-//     template <typename T>
-//     static Ref<T> GetAsset(const std::string& key)
-//     {
-//         auto& assetMap = GetAssetMap<T>();
-//         auto  it       = assetMap.find(key);
-//         if (it != assetMap.end())
-//         {
-//             return Ref<T>::Create(it->second);
-//         }
-//         // not found
-//         auto& assetSources = GetAssetSources();
-//         for (auto sourceIt = assetSources.rbegin(); sourceIt != assetSources.rend(); ++sourceIt)
-//         {
-//             std::vector<uint8_t> source = (*sourceIt)->LoadSource(key);
-//             if (!source.empty())
-//             {
-//                 return AddAsset(GetAssetSerializer<T>()->Deserialize(source, key), key);
-//             }
-//         }
-//         return nullptr;
-//     }
+class YG_API ResourceManager
+{
+public:
+    template <typename T>
+    static Ref<T> AddResource(Handle<T>&& resource, uint64_t key)
+    {
+        auto& resourceMap = GetResourceMap<T>();
+        auto  it          = resourceMap.find(key);
+        if (it == resourceMap.end())
+        {
+            resource.SetSubCallBack([&]() {
+                auto it = resourceMap.find(key);
+                if (it != resourceMap.end() && it->second.GetRefCount() == 1)
+                    resourceMap.erase(key);
+            });
+            auto [resourceIt, result] = resourceMap.emplace(key, std::move(resource));
+            return Ref<T>::Create(resourceIt->second);
+        }
+        return nullptr;
+    }
 
-//     template <typename T>
-//     static void RegisterAssetSerializer(Handle<AssetSerializer<T>>&& serializer)
-//     {
-//         GetAssetSerializer<T>() = std::move(serializer);
-//     }
+    template <typename T, typename... Args>
+    static Ref<T> GetResource(Args&&... args)
+    {
+        auto&    resourceMap = GetResourceMap<T>();
+        uint64_t key         = HashArgs(std::forward<Args>(args)...);
+        auto     it          = resourceMap.find(key);
+        if (it != resourceMap.end())
+        {
+            return Ref<T>::Create(it->second);
+        }
+        // not found
+        return AddResource(T::Create(std::forward<Args>(args)...), key);
+    }
 
-//     static void PushAssetSource(Handle<IAssetSource>&& source) { GetAssetSources().push_back(std::move(source)); }
-//     static void PopAssetSource() { GetAssetSources().pop_back(); }
+protected:
+    template <typename T>
+    static std::unordered_map<uint64_t, Handle<T>>& GetResourceMap()
+    {
+        static std::unordered_map<uint64_t, Handle<T>> map;
+        return map;
+    }
+};
 
-// protected:
-//     static std::vector<Handle<IAssetSource>>& GetAssetSources()
-//     {
-//         static std::vector<Handle<IAssetSource>> sources;
-//         return sources;
-//     }
-
-//     template <typename T>
-//     static Handle<AssetSerializer<T>>& GetAssetSerializer()
-//     {
-//         static Handle<AssetSerializer<T>> serializer = nullptr;
-//         return serializer;
-//     }
-
-//     template <typename T>
-//     static std::unordered_map<std::string, Handle<T>>& GetAssetMap()
-//     {
-//         static std::unordered_map<std::string, Handle<T>> map;
-//         return map;
-//     }
-// };
-    
-// } // namespace Yogi
+} // namespace Yogi

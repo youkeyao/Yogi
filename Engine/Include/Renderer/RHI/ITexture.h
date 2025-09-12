@@ -12,6 +12,8 @@ enum class SampleCountFlagBits : uint8_t
     Count16 = 16
 };
 
+struct TextureDesc;
+
 class YG_API ITexture
 {
 public:
@@ -42,6 +44,8 @@ public:
     virtual uint32_t         GetWidth() const  = 0;
     virtual uint32_t         GetHeight() const = 0;
     virtual ITexture::Format GetFormat() const = 0;
+
+    static Handle<ITexture> Create(const TextureDesc& desc);
 };
 
 struct TextureDesc

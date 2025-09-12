@@ -37,13 +37,13 @@ private:
 
     SceneData m_sceneData;
 
-    Handle<IBuffer> m_vertexBuffer  = nullptr;
-    Handle<IBuffer> m_indexBuffer   = nullptr;
-    Handle<IBuffer> m_uniformBuffer = nullptr;
+    Ref<IBuffer> m_vertexBuffer  = nullptr;
+    Ref<IBuffer> m_indexBuffer   = nullptr;
+    Ref<IBuffer> m_uniformBuffer = nullptr;
 
-    Handle<IRenderPass>            m_renderPass            = nullptr;
-    Handle<IShaderResourceBinding> m_shaderResourceBinding = nullptr;
-    Handle<IFrameBuffer>           m_frameBuffer           = nullptr;
+    Ref<IRenderPass>            m_renderPass            = nullptr;
+    Ref<IShaderResourceBinding> m_shaderResourceBinding = nullptr;
+    Ref<IFrameBuffer>           m_frameBuffer           = nullptr;
 
     std::unordered_map<Ref<IPipeline>, std::vector<uint8_t>>  m_vertices;
     std::unordered_map<Ref<IPipeline>, std::vector<uint32_t>> m_indices;

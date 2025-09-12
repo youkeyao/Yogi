@@ -1,4 +1,5 @@
 #include "Renderer/ForwardRenderSystem.h"
+#include "Resources/ResourceManager/ResourceManager.h"
 #include "Core/Application.h"
 #include "Scene/World.h"
 #include "Math/Vector4.h"
@@ -8,22 +9,26 @@ namespace Yogi
 
 ForwardRenderSystem::ForwardRenderSystem()
 {
-    m_vertexBuffer  = IBuffer::Create(BufferDesc{ MAX_VERTICES_SIZE, BufferUsage::Vertex, BufferAccess::Dynamic });
-    m_indexBuffer   = IBuffer::Create(BufferDesc{ MAX_INDICES, BufferUsage::Index, BufferAccess::Dynamic });
-    m_uniformBuffer = IBuffer::Create(BufferDesc{ sizeof(SceneData), BufferUsage::Uniform, BufferAccess::Dynamic });
+    m_vertexBuffer = ResourceManager::GetResource<IBuffer>(
+        BufferDesc{ MAX_VERTICES_SIZE, BufferUsage::Vertex, BufferAccess::Dynamic });
+    m_indexBuffer =
+        ResourceManager::GetResource<IBuffer>(BufferDesc{ MAX_INDICES, BufferUsage::Index, BufferAccess::Dynamic });
+    m_uniformBuffer = ResourceManager::GetResource<IBuffer>(
+        BufferDesc{ sizeof(SceneData), BufferUsage::Uniform, BufferAccess::Dynamic });
 
     auto& swapChain = Application::GetInstance().GetSwapChain();
 
-    m_renderPass = Yogi::IRenderPass::Create(
+    m_renderPass = ResourceManager::GetResource<IRenderPass>(
         Yogi::RenderPassDesc{ { Yogi::AttachmentDesc{ swapChain->GetColorFormat(), Yogi::AttachmentUsage::Present } },
                               Yogi::AttachmentDesc{ swapChain->GetDepthFormat(),
                                                     Yogi::AttachmentUsage::DepthStencil,
                                                     Yogi::LoadOp::Clear,
                                                     Yogi::StoreOp::DontCare },
                               swapChain->GetNumSamples() });
-    m_shaderResourceBinding = Yogi::IShaderResourceBinding::Create(
-        { Yogi::ShaderResourceAttribute{ 0, 1, Yogi::ShaderResourceType::Buffer, Yogi::ShaderStage::Vertex } });
-    m_shaderResourceBinding->BindBuffer(Ref<IBuffer>::Create(m_uniformBuffer), 0);
+    m_shaderResourceBinding =
+        ResourceManager::GetResource<IShaderResourceBinding>(std::vector<Yogi::ShaderResourceAttribute>{
+            Yogi::ShaderResourceAttribute{ 0, 1, Yogi::ShaderResourceType::Buffer, Yogi::ShaderStage::Vertex } });
+    m_shaderResourceBinding->BindBuffer(m_uniformBuffer, 0);
 }
 
 ForwardRenderSystem::~ForwardRenderSystem()
@@ -31,7 +36,6 @@ ForwardRenderSystem::~ForwardRenderSystem()
     m_vertexBuffer  = nullptr;
     m_indexBuffer   = nullptr;
     m_uniformBuffer = nullptr;
-    m_frameBuffer   = nullptr;
 }
 
 void ForwardRenderSystem::OnUpdate(Timestep ts, World& world)
@@ -51,24 +55,25 @@ void ForwardRenderSystem::OnEvent(Event& e, World& world)
 
 bool ForwardRenderSystem::OnWindowResize(WindowResizeEvent& e, World& world)
 {
-    auto& swapChain     = Application::GetInstance().GetSwapChain();
-    auto  currentTarget = swapChain->GetCurrentTarget();
-    auto  currentDepth  = swapChain->GetCurrentDepth();
+    // auto& swapChain     = Application::GetInstance().GetSwapChain();
+    // auto  currentTarget = swapChain->GetCurrentTarget();
+    // auto  currentDepth  = swapChain->GetCurrentDepth();
 
-    m_frameBuffer = IFrameBuffer::Create(FrameBufferDesc{
-        swapChain->GetWidth(),
-        swapChain->GetHeight(),
-        Ref<IRenderPass>::Create(m_renderPass),
-        { currentTarget },
-        currentDepth,
-    });
+    // m_frameBuffer = ResourceManager::GetResource<IFrameBuffer>(FrameBufferDesc{
+    //     swapChain->GetWidth(),
+    //     swapChain->GetHeight(),
+    //     m_renderPass,
+    //     { currentTarget },
+    //     currentDepth,
+    // });
+
     return false;
 }
 
 void ForwardRenderSystem::RenderCamera(CameraComponent& camera, const TransformComponent& transform, World& world)
 {
-    auto& swapChain     = Application::GetInstance().GetSwapChain();
-    
+    auto& swapChain = Application::GetInstance().GetSwapChain();
+
     Matrix4 viewMatrix = MathUtils::Inverse(transform.Transform);
     Matrix4 projectionMatrix;
     camera.AspectRatio = (float)swapChain->GetWidth() / (float)swapChain->GetHeight();
@@ -88,14 +93,14 @@ void ForwardRenderSystem::RenderCamera(CameraComponent& camera, const TransformC
 
     m_sceneData.ProjectionViewMatrix = projectionMatrix * viewMatrix;
     m_uniformBuffer->UpdateData(&m_sceneData, sizeof(SceneData));
-    
-    auto  currentTarget = swapChain->GetCurrentTarget();
-    auto  currentDepth  = swapChain->GetCurrentDepth();
-    m_frameBuffer       = IFrameBuffer::Create(FrameBufferDesc{
+
+    auto currentTarget = swapChain->GetCurrentTarget();
+    auto currentDepth  = swapChain->GetCurrentDepth();
+    m_frameBuffer = ResourceManager::GetResource<IFrameBuffer>(FrameBufferDesc{
         swapChain->GetWidth(),
         swapChain->GetHeight(),
-        Ref<IRenderPass>::Create(m_renderPass),
-              { currentTarget },
+        m_renderPass,
+        { currentTarget },
         currentDepth,
     });
 
@@ -176,13 +181,13 @@ void ForwardRenderSystem::Flush(const Ref<IPipeline>& pipeline)
         ICommandBuffer::Create(CommandBufferDesc{ CommandBufferUsage::OneTimeSubmit, SubmitQueue::Graphics });
 
     commandBuffer->Begin();
-    commandBuffer->BeginRenderPass(Ref<IFrameBuffer>::Create(m_frameBuffer),
+    commandBuffer->BeginRenderPass(m_frameBuffer,
                                    { Yogi::ClearValue{ 0.1f, 0.1f, 0.1f, 1.0f } },
                                    Yogi::ClearValue{ 1.0f, 0 });
-    commandBuffer->SetVertexBuffer(Ref<IBuffer>::Create(m_vertexBuffer));
-    commandBuffer->SetIndexBuffer(Ref<IBuffer>::Create(m_indexBuffer));
+    commandBuffer->SetVertexBuffer(m_vertexBuffer);
+    commandBuffer->SetIndexBuffer(m_indexBuffer);
     commandBuffer->SetPipeline(pipeline);
-    commandBuffer->SetShaderResourceBinding(Ref<IShaderResourceBinding>::Create(m_shaderResourceBinding));
+    commandBuffer->SetShaderResourceBinding(m_shaderResourceBinding);
     commandBuffer->SetViewport({ 0, 0, (float)swapChain->GetWidth(), (float)swapChain->GetHeight() });
     commandBuffer->SetScissor({ 0, 0, swapChain->GetWidth(), swapChain->GetHeight() });
     commandBuffer->DrawIndexed(m_indexBuffer->GetSize() / sizeof(uint32_t), 1, 0, 0, 0);

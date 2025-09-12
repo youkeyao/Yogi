@@ -142,6 +142,7 @@ target_include_directories( YGEngine
         Include
         ThirdParty/glm
         ThirdParty/entt/src
+        ThirdParty/pfr/include
     PRIVATE
         ${YGWindowInclude}
         ${YGRendererInclude}

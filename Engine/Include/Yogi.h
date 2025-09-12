@@ -45,4 +45,5 @@
 // ---resources-------------------------------
 #include "Resources/AssetManager/AssetManager.h"
 #include "Resources/AssetManager/FileSystemSource.h"
+#include "Resources/ResourceManager/ResourceManager.h"
 // ---------------------------------------------

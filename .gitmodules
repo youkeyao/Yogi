@@ -19,3 +19,6 @@
 [submodule "Engine/ThirdParty/assimp"]
 	path = Engine/ThirdParty/assimp
 	url = https://github.com/assimp/assimp.git
+[submodule "Engine/ThirdParty/pfr"]
+	path = Engine/ThirdParty/pfr
+	url = https://github.com/boostorg/pfr.git
