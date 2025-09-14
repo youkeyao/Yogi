@@ -29,7 +29,7 @@ std::vector<uint8_t> LoadBinaryFile(const std::string& filepath)
 
 FileSystemSource::FileSystemSource(const std::string& rootDir) : m_rootDir(rootDir)
 {
-    AssetManager::RegisterAssetSerializer<Mesh>(Handle<MeshSerializer>::Create());
+    AssetManager::RegisterAssetSerializer<Mesh, MeshSerializer>();
 }
 
 std::vector<uint8_t> FileSystemSource::LoadSource(const std::string& key)

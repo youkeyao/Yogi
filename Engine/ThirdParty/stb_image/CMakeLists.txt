@@ -1,4 +1,12 @@
-project(stb_image)
+project( stb_image )
 
-include_directories( . )
-add_library(stb_image stb_image.cpp)
+if ( BUILD_SHARED_LIBS )
+    add_library( stb_image SHARED stb_image.cpp )
+else()
+    add_library( stb_image STATIC stb_image.cpp )
+endif()
+
+target_include_directories( stb_image
+    PUBLIC
+        .
+)

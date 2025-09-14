@@ -60,7 +60,7 @@ public:
     EventDispatcher(Event& event) : m_event(event) {}
 
     template <typename T, typename... Args, typename F = std::function<bool(T&, Args...)>>
-    bool dispatch(F func, Args&&... args)
+    bool Dispatch(F func, Args&&... args)
     {
         if (m_event.GetEventType() == T::GetStaticType() && !m_event.m_handled)
         {

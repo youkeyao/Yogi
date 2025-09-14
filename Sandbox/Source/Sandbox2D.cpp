@@ -29,7 +29,7 @@ void Sandbox2D::OnAttach()
 {
     YG_PROFILE_FUNCTION();
 
-    Yogi::AssetManager::PushAssetSource(Yogi::Handle<Yogi::FileSystemSource>::Create("Assets/"));
+    Yogi::AssetManager::PushAssetSource<Yogi::FileSystemSource>("Assets/");
 
     auto& swapChain = Yogi::Application::GetInstance().GetSwapChain();
 
@@ -44,8 +44,8 @@ void Sandbox2D::OnAttach()
     m_shaderResourceBinding = Yogi::IShaderResourceBinding::Create(
         { Yogi::ShaderResourceAttribute{ 0, 1, Yogi::ShaderResourceType::Buffer, Yogi::ShaderStage::Vertex } });
 
-    std::vector<Yogi::ShaderDesc> shaders = { { Yogi::ShaderStage::Vertex, ReadFile("BuildShader/Test.vert") },
-                                              { Yogi::ShaderStage::Fragment, ReadFile("BuildShader/Test.frag") } };
+    std::vector<Yogi::ShaderDesc> shaders = { { Yogi::ShaderStage::Vertex, ReadFile("Assets/Shaders/Test.vert") },
+                                              { Yogi::ShaderStage::Fragment, ReadFile("Assets/Shaders/Test.frag") } };
 
     m_pipeline = Yogi::IPipeline::Create(
         Yogi::PipelineDesc{ shaders,
@@ -56,22 +56,19 @@ void Sandbox2D::OnAttach()
                             0,
                             Yogi::PrimitiveTopology::TriangleList });
 
-    m_material = Yogi::Handle<Yogi::Material>::Create(Yogi::Ref<Yogi::IPipeline>::Create(m_pipeline));
-
     m_world = Yogi::Handle<Yogi::World>::Create();
     m_world->AddSystem<Yogi::ForwardRenderSystem>();
 
-    auto entity = m_world->CreateEntity();
-    auto& transform = entity.AddComponent<Yogi::TransformComponent>();
-    transform.Transform.Position = {0, 0, 5};
-    auto& camera = entity.AddComponent<Yogi::CameraComponent>();
+    auto  entity                 = m_world->CreateEntity();
+    auto& transform              = entity.AddComponent<Yogi::TransformComponent>();
+    transform.Transform.Position = { 0, 0, 5 };
+    auto& camera                 = entity.AddComponent<Yogi::CameraComponent>();
 
     m_box = m_world->CreateEntity();
     m_box.AddComponent<Yogi::TransformComponent>();
-    auto& meshRenderer = m_box.AddComponent<Yogi::MeshRendererComponent>();
-    meshRenderer.Mesh = Yogi::AssetManager::GetAsset<Yogi::Mesh>("Meshes/Cube.obj::cube");
-    meshRenderer.Material = Yogi::Ref<Yogi::Material>::Create(m_material);
-
+    auto& meshRenderer    = m_box.AddComponent<Yogi::MeshRendererComponent>();
+    meshRenderer.Mesh     = Yogi::AssetManager::GetAsset<Yogi::Mesh>("Meshes/Cube.obj::cube");
+    meshRenderer.Material = Yogi::ResourceManager::GetResource<Yogi::Material>(Yogi::Ref<Yogi::IPipeline>::Create(m_pipeline));
 
     // m_depth_texture = context->create_texture(
     //     Yogi::TextureDesc{ swap_chain->get_width(), swap_chain->get_height(), 1, 1,
@@ -170,7 +167,7 @@ void Sandbox2D::OnUpdate(Yogi::Timestep ts)
 
     {
         YG_PROFILE_SCOPE("Render draw");
-        auto& transform = m_box.GetComponent<Yogi::TransformComponent>().Transform;
+        auto& transform    = m_box.GetComponent<Yogi::TransformComponent>().Transform;
         transform.Rotation = Yogi::Quaternion::AngleAxis((float)ts * 20.0f, Yogi::Vector3::Up()) * transform.Rotation;
         m_world->OnUpdate(ts);
         // auto&                            swapChain     = Yogi::Application::GetInstance().GetSwapChain();
@@ -246,7 +243,4 @@ void Sandbox2D::OnUpdate(Yogi::Timestep ts)
     // m_particle_system.on_render(m_camera_controller.get_camera());
 }
 
-void Sandbox2D::OnEvent(Yogi::Event& e)
-{
-    m_world->OnEvent(e);
-}
+void Sandbox2D::OnEvent(Yogi::Event& e) { m_world->OnEvent(e); }

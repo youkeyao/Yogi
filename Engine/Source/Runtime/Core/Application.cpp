@@ -1,5 +1,8 @@
 #include "Core/Application.h"
 
+#include "Resources/AssetManager/AssetManager.h"
+#include "Resources/ResourceManager/ResourceManager.h"
+
 namespace Yogi
 {
 
@@ -37,6 +40,9 @@ Application::~Application()
     }
     m_layers.clear();
 
+    AssetManager::Clear();
+    ResourceManager::Clear();
+
     m_swapChain = nullptr;
     m_context   = nullptr;
 }
@@ -64,8 +70,8 @@ void Application::OnEvent(Event& e)
         }
     }
 
-    dispatcher.dispatch<WindowCloseEvent>(YG_BIND_FN(Application::OnWindowClose));
-    dispatcher.dispatch<WindowResizeEvent>(YG_BIND_FN(Application::OnWindowResize));
+    dispatcher.Dispatch<WindowCloseEvent>(YG_BIND_FN(Application::OnWindowClose));
+    dispatcher.Dispatch<WindowResizeEvent>(YG_BIND_FN(Application::OnWindowResize));
 }
 
 void Application::Close() { m_isRunning = false; }

@@ -49,24 +49,13 @@ void ForwardRenderSystem::OnUpdate(Timestep ts, World& world)
 void ForwardRenderSystem::OnEvent(Event& e, World& world)
 {
     EventDispatcher dispatcher(e);
-    dispatcher.dispatch<WindowResizeEvent>(YG_BIND_FN(ForwardRenderSystem::OnWindowResize, std::placeholders::_2),
+    dispatcher.Dispatch<WindowResizeEvent>(YG_BIND_FN(ForwardRenderSystem::OnWindowResize, std::placeholders::_2),
                                            world);
 }
 
 bool ForwardRenderSystem::OnWindowResize(WindowResizeEvent& e, World& world)
 {
-    // auto& swapChain     = Application::GetInstance().GetSwapChain();
-    // auto  currentTarget = swapChain->GetCurrentTarget();
-    // auto  currentDepth  = swapChain->GetCurrentDepth();
-
-    // m_frameBuffer = ResourceManager::GetResource<IFrameBuffer>(FrameBufferDesc{
-    //     swapChain->GetWidth(),
-    //     swapChain->GetHeight(),
-    //     m_renderPass,
-    //     { currentTarget },
-    //     currentDepth,
-    // });
-
+    m_frameBuffers.clear();
     return false;
 }
 
@@ -93,16 +82,6 @@ void ForwardRenderSystem::RenderCamera(CameraComponent& camera, const TransformC
 
     m_sceneData.ProjectionViewMatrix = projectionMatrix * viewMatrix;
     m_uniformBuffer->UpdateData(&m_sceneData, sizeof(SceneData));
-
-    auto currentTarget = swapChain->GetCurrentTarget();
-    auto currentDepth  = swapChain->GetCurrentDepth();
-    m_frameBuffer = ResourceManager::GetResource<IFrameBuffer>(FrameBufferDesc{
-        swapChain->GetWidth(),
-        swapChain->GetHeight(),
-        m_renderPass,
-        { currentTarget },
-        currentDepth,
-    });
 
     // fill vertices and indices
     world.ViewComponents<TransformComponent, MeshRendererComponent>(
@@ -176,14 +155,27 @@ void ForwardRenderSystem::Flush(const Ref<IPipeline>& pipeline)
     vertices.clear();
     indices.clear();
 
-    auto&                  swapChain = Application::GetInstance().GetSwapChain();
+    auto& swapChain = Application::GetInstance().GetSwapChain();
+
+    auto            currentTarget = swapChain->GetCurrentTarget();
+    auto            currentDepth  = swapChain->GetCurrentDepth();
+    FrameBufferDesc desc{
+        swapChain->GetWidth(), swapChain->GetHeight(), m_renderPass, { currentTarget }, currentDepth,
+    };
+    uint64_t key = HashArgs(desc);
+    auto     it  = m_frameBuffers.find(key);
+    if (it == m_frameBuffers.end())
+    {
+        it = m_frameBuffers.insert({ key, ResourceManager::GetResource<IFrameBuffer>(desc) }).first;
+    }
+    auto& frameBuffer = it->second;
+
     Handle<ICommandBuffer> commandBuffer =
         ICommandBuffer::Create(CommandBufferDesc{ CommandBufferUsage::OneTimeSubmit, SubmitQueue::Graphics });
 
     commandBuffer->Begin();
-    commandBuffer->BeginRenderPass(m_frameBuffer,
-                                   { Yogi::ClearValue{ 0.1f, 0.1f, 0.1f, 1.0f } },
-                                   Yogi::ClearValue{ 1.0f, 0 });
+    commandBuffer->BeginRenderPass(
+        frameBuffer, { Yogi::ClearValue{ 0.1f, 0.1f, 0.1f, 1.0f } }, Yogi::ClearValue{ 1.0f, 0 });
     commandBuffer->SetVertexBuffer(m_vertexBuffer);
     commandBuffer->SetIndexBuffer(m_indexBuffer);
     commandBuffer->SetPipeline(pipeline);

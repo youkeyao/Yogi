@@ -26,6 +26,7 @@
 #include <utility>
 #include <vector>
 #include <any>
+#include <typeindex>
 #ifdef __GNUG__
 #    include <cxxabi.h>
 #endif

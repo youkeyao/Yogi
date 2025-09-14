@@ -15,8 +15,8 @@ public:
     Handle& operator=(const Handle& other) = delete;
     Handle(Handle&& other) : m_ptr(other.m_ptr), m_count(other.m_count), m_callBack(other.m_callBack)
     {
-        other.m_ptr   = nullptr;
-        other.m_count = 0;
+        other.m_ptr      = nullptr;
+        other.m_count    = 0;
         other.m_callBack = nullptr;
     }
     Handle& operator=(Handle&& other)
@@ -24,11 +24,11 @@ public:
         if (this != &other)
         {
             Cleanup();
-            m_ptr         = other.m_ptr;
-            m_count       = other.m_count;
-            m_callBack    = other.m_callBack;
-            other.m_ptr   = nullptr;
-            other.m_count = 0;
+            m_ptr            = other.m_ptr;
+            m_count          = other.m_count;
+            m_callBack       = other.m_callBack;
+            other.m_ptr      = nullptr;
+            other.m_count    = 0;
             other.m_callBack = nullptr;
         }
         return *this;
@@ -36,8 +36,8 @@ public:
     template <typename U, typename = std::enable_if_t<std::is_convertible<U*, T*>::value>>
     Handle(Handle<U>&& other) noexcept : m_ptr(other.m_ptr), m_count(other.m_count), m_callBack(other.m_callBack)
     {
-        other.m_ptr   = nullptr;
-        other.m_count = 0;
+        other.m_ptr      = nullptr;
+        other.m_count    = 0;
         other.m_callBack = nullptr;
     }
     ~Handle() { Cleanup(); }
@@ -62,6 +62,14 @@ public:
     inline int  GetRefCount() const { return m_count; }
     inline void SetSubCallBack(std::function<void()> callBack) { m_callBack = callBack; }
 
+    void Cleanup()
+    {
+        if (m_ptr)
+            delete m_ptr;
+        m_ptr   = nullptr;
+        m_count = 0;
+    }
+
     template <typename... Args>
     static Handle<T> Create(Args&&... args)
     {
@@ -70,13 +78,6 @@ public:
 
 private:
     explicit Handle(T* p) : m_ptr(p), m_count(1), m_callBack(nullptr) {}
-    void Cleanup()
-    {
-        if (m_ptr)
-            delete m_ptr;
-        m_ptr   = nullptr;
-        m_count = 0;
-    }
 
 private:
     T*                    m_ptr;

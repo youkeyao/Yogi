@@ -3,6 +3,8 @@
 namespace Yogi
 {
 
+Handle<Material> Material::Create(const Ref<IPipeline>& pipeline) { return Handle<Material>::Create(pipeline); }
+
 Material::Material(const Ref<IPipeline>& pipeline) : m_pipeline(pipeline)
 {
     auto&    vertexLayout = m_pipeline->GetVertexLayout();

@@ -15,11 +15,7 @@ public:
 
 private:
     Yogi::Handle<Yogi::World> m_world = nullptr;
-    Yogi::Entity              m_box = Yogi::Entity::Null();
-
-    Yogi::Handle<Yogi::IBuffer> m_vertexBuffer  = nullptr;
-    Yogi::Handle<Yogi::IBuffer> m_indexBuffer   = nullptr;
-    Yogi::Handle<Yogi::IBuffer> m_uniformBuffer = nullptr;
+    Yogi::Entity              m_box   = Yogi::Entity::Null();
 
     Yogi::Matrix4 m_transform = Yogi::Matrix4::Identity();
 
@@ -27,5 +23,4 @@ private:
     Yogi::Handle<Yogi::IPipeline>              m_pipeline              = nullptr;
     Yogi::Handle<Yogi::ICommandBuffer>         m_commandBuffer         = nullptr;
     Yogi::Handle<Yogi::IShaderResourceBinding> m_shaderResourceBinding = nullptr;
-    Yogi::Handle<Yogi::Material>               m_material              = nullptr;
 };

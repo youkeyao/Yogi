@@ -9,7 +9,6 @@ namespace Yogi
 class YG_API Material
 {
 public:
-    Material(const Ref<IPipeline>& pipeline);
     ~Material();
 
     inline void           SetPipeline(const Ref<IPipeline>& pipeline);
@@ -24,6 +23,12 @@ public:
     inline const std::vector<std::pair<uint32_t, Ref<ITexture>>>& GetTextures() const { return m_textures; }
 
     inline uint8_t* GetData() const { return m_data; }
+
+    static Handle<Material> Create(const Ref<IPipeline>& pipeline);
+
+private:
+    friend class Handle<Material>;
+    Material(const Ref<IPipeline>& pipeline);
 
 private:
     Ref<IPipeline> m_pipeline;
