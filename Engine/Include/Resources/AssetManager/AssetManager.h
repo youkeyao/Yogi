@@ -37,8 +37,7 @@ public:
             return Ref<T>::Create(it->second);
         }
         // not found
-        auto& assetSources = GetAssetSources();
-        for (auto sourceIt = assetSources.rbegin(); sourceIt != assetSources.rend(); ++sourceIt)
+        for (auto sourceIt = s_sources.rbegin(); sourceIt != s_sources.rend(); ++sourceIt)
         {
             std::vector<uint8_t> source = (*sourceIt)->LoadSource(key);
             if (!source.empty())
@@ -52,30 +51,28 @@ public:
     template <typename T, typename SerializerType>
     static void RegisterAssetSerializer()
     {
-        auto& serializers        = GetAssetSerializers();
         void (*deleterFn)(void*) = +[](void* p) {
             delete static_cast<SerializerType*>(p);
         };
-        serializers[typeid(T)] = { new SerializerType(), VoidDeleter(deleterFn) };
+        s_serializers[typeid(T)] = { new SerializerType(), VoidDeleter(deleterFn) };
     }
 
     template <typename T, typename... Args>
     static void PushAssetSource(Args&&... args)
     {
-        GetAssetSources().push_back(Handle<T>::Create(std::forward<Args>(args)...));
+        s_sources.push_back(Handle<T>::Create(std::forward<Args>(args)...));
     }
-    static void PopAssetSource() { GetAssetSources().pop_back(); }
+    static void PopAssetSource() { s_sources.pop_back(); }
 
     static void Clear()
     {
-        GetAssetSources().clear();
-        GetAssetSerializers().clear();
-        auto& maps = GetAssetMaps();
-        for (auto& [type, mapInfo] : maps)
+        s_sources.clear();
+        s_serializers.clear();
+        for (auto& [type, mapInfo] : s_assetMaps)
         {
             mapInfo.CleanupFn(mapInfo.Map.get());
         }
-        maps.clear();
+        s_assetMaps.clear();
     }
 
 protected:
@@ -98,30 +95,11 @@ protected:
         VoidDeleter                        CleanupFn;
     };
 
-    static std::vector<Handle<IAssetSource>>& GetAssetSources()
-    {
-        static std::vector<Handle<IAssetSource>> sources;
-        return sources;
-    }
-
-    static std::unordered_map<std::type_index, std::unique_ptr<void, VoidDeleter>>& GetAssetSerializers()
-    {
-        static std::unordered_map<std::type_index, std::unique_ptr<void, VoidDeleter>> serializers;
-        return serializers;
-    }
-
-    static std::unordered_map<std::type_index, MapInfo>& GetAssetMaps()
-    {
-        static std::unordered_map<std::type_index, MapInfo> maps;
-        return maps;
-    }
-
     template <typename T>
     static AssetSerializer<T>* GetAssetSerializer()
     {
-        auto& serializers = GetAssetSerializers();
-        auto  it          = serializers.find(typeid(T));
-        if (it != serializers.end())
+        auto it = s_serializers.find(typeid(T));
+        if (it != s_serializers.end())
         {
             return static_cast<AssetSerializer<T>*>(it->second.get());
         }
@@ -131,9 +109,8 @@ protected:
     template <typename T>
     static std::unordered_map<std::string, Handle<T>>& GetAssetMap()
     {
-        auto& maps = GetAssetMaps();
-        auto  it   = maps.find(typeid(T));
-        if (it == maps.end())
+        auto it = s_assetMaps.find(typeid(T));
+        if (it == s_assetMaps.end())
         {
             auto* newMap             = new std::unordered_map<std::string, Handle<T>>();
             void (*deleterFn)(void*) = +[](void* p) {
@@ -146,11 +123,16 @@ protected:
                     handle.Cleanup();
                 }
             };
-            maps[typeid(T)] = MapInfo{ { newMap, VoidDeleter(deleterFn) }, VoidDeleter(cleanupFn) };
+            s_assetMaps[typeid(T)] = MapInfo{ { newMap, VoidDeleter(deleterFn) }, VoidDeleter(cleanupFn) };
             return *newMap;
         }
         return *static_cast<std::unordered_map<std::string, Handle<T>>*>(it->second.Map.get());
     }
+
+private:
+    static std::vector<Handle<IAssetSource>>                                       s_sources;
+    static std::unordered_map<std::type_index, std::unique_ptr<void, VoidDeleter>> s_serializers;
+    static std::unordered_map<std::type_index, MapInfo>                            s_assetMaps;
 };
 
 } // namespace Yogi

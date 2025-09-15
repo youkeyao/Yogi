@@ -42,12 +42,11 @@ public:
 
     static void Clear()
     {
-        auto& maps = GetResourceMaps();
-        for (auto& [type, mapInfo] : maps)
+        for (auto& [type, mapInfo] : s_resourceMaps)
         {
             mapInfo.CleanupFn(mapInfo.Map.get());
         }
-        maps.clear();
+        s_resourceMaps.clear();
     }
 
 protected:
@@ -70,18 +69,11 @@ protected:
         VoidDeleter                        CleanupFn;
     };
 
-    static std::unordered_map<std::type_index, MapInfo>& GetResourceMaps()
-    {
-        static std::unordered_map<std::type_index, MapInfo> maps;
-        return maps;
-    }
-
     template <typename T>
     static std::unordered_map<uint64_t, Handle<T>>& GetResourceMap()
     {
-        auto& maps = GetResourceMaps();
-        auto  it   = maps.find(typeid(T));
-        if (it == maps.end())
+        auto it = s_resourceMaps.find(typeid(T));
+        if (it == s_resourceMaps.end())
         {
             auto* newMap             = new std::unordered_map<uint64_t, Handle<T>>();
             void (*deleterFn)(void*) = +[](void* p) {
@@ -94,11 +86,14 @@ protected:
                     handle.Cleanup();
                 }
             };
-            maps[typeid(T)] = MapInfo{ { newMap, VoidDeleter(deleterFn) }, VoidDeleter(cleanupFn) };
+            s_resourceMaps[typeid(T)] = MapInfo{ { newMap, VoidDeleter(deleterFn) }, VoidDeleter(cleanupFn) };
             return *newMap;
         }
         return *static_cast<std::unordered_map<uint64_t, Handle<T>>*>((it->second.Map).get());
     }
+
+private:
+    static std::unordered_map<std::type_index, MapInfo> s_resourceMaps;
 };
 
 } // namespace Yogi
