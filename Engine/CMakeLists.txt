@@ -127,11 +127,11 @@ target_link_libraries( YGEngine
         spdlog
         # Jolt
         ${YGWindowLib}
+        ${YGRendererLib}
     PRIVATE
         stb_image
         # spirv-cross-glsl
         assimp
-        ${YGRendererLib}
 )
 target_precompile_headers( YGEngine
     PUBLIC

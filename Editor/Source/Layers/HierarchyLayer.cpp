@@ -10,6 +10,8 @@ HierarchyLayer::HierarchyLayer(Handle<World>& world, Entity& selectedEntity) :
     m_selectedEntity(selectedEntity)
 {}
 
+HierarchyLayer::~HierarchyLayer() { m_allEntities.clear(); }
+
 void HierarchyLayer::OnUpdate(Timestep ts)
 {
     ImGui::Begin("Hierarchy");
@@ -28,9 +30,9 @@ void HierarchyLayer::OnUpdate(Timestep ts)
 
         float                                           cursor_y = ImGui::GetCursorPosY();
         std::unordered_map<uint32_t, std::list<Entity>> relations;
+        std::list<Entity>                               rootEntities;
         m_allEntities.clear();
-        // m_allEntities.push_back(Entity::Null());
-        m_world->EachEntity([&relations, this](Entity entity) {
+        m_world->EachEntity([&relations, &rootEntities, this](Entity entity) {
             m_allEntities.push_back(entity);
             Entity parent = entity.GetComponent<TransformComponent>().Parent;
             if (parent)
@@ -39,17 +41,12 @@ void HierarchyLayer::OnUpdate(Timestep ts)
             }
             else
             {
-                relations[entity].push_front(entity);
+                rootEntities.push_back(entity);
             }
         });
-        for (auto& [i, list] : relations)
+        for (auto& entity : rootEntities)
         {
-            Entity front = list.front();
-            if (i == (uint32_t)front)
-            {
-                list.pop_front();
-                DrawEntityNode(front, relations);
-            }
+            DrawEntityNode(entity, relations);
         }
 
         // blank space
@@ -181,10 +178,13 @@ void HierarchyLayer::DrawEntityNode(Entity& entity, std::unordered_map<uint32_t,
 
     if (isOpened)
     {
-        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
-        for (auto& child : relations[entity])
+        auto it = relations.find(entity);
+        if (it != relations.end())
         {
-            DrawEntityNode(child, relations);
+            for (auto& child : it->second)
+            {
+                DrawEntityNode(child, relations);
+            }
         }
         ImGui::TreePop();
     }

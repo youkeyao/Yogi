@@ -14,6 +14,5 @@
 #    include "Backends/Renderer/Vulkan/VulkanFrameBuffer.h"
 
 #    define IMGUI_IMPL_VULKAN_NO_PROTOTYPES
-#    include <vulkan/vulkan.h>
 #    include <backends/imgui_impl_vulkan.h>
 #endif

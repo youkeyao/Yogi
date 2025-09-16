@@ -9,7 +9,7 @@ class HierarchyLayer : public Layer
 {
 public:
     HierarchyLayer(Handle<World>& world, Entity& selectedEntity);
-    virtual ~HierarchyLayer() = default;
+    virtual ~HierarchyLayer();
 
     void OnUpdate(Timestep ts) override;
     void OnEvent(Event& event) override;

@@ -24,8 +24,8 @@ struct QueueFamilyIndices
             presentFamily.has_value();
     }
 };
-bool               CheckValidationLayerSupport(const std::vector<const char*>& validationLayers);
-QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface);
+bool                      CheckValidationLayerSupport(const std::vector<const char*>& validationLayers);
+YG_API QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface);
 bool CheckDeviceExtensionSupport(VkPhysicalDevice device, const std::vector<const char*>& deviceExtensions);
 bool IsDeviceSuitable(VkPhysicalDevice device, VkSurfaceKHR surface, const std::vector<const char*>& deviceExtensions);
 
@@ -48,5 +48,7 @@ VkImageLayout         AttachmentUsage2VkImageLayout(AttachmentUsage usage);
 VkAccessFlags         AccessMaskFromImageLayout(VkImageLayout Layout, bool IsDstMask);
 VkPipelineStageFlags  PipelineStageFromImageLayout(VkImageLayout Layout, bool IsDstStage);
 VkShaderStageFlagBits YgShaderStage2VkShaderStage(ShaderStage stage);
+
+YG_API PFN_vkVoidFunction VkLoadFunction(const char* funcName, void* instance);
 
 } // namespace Yogi

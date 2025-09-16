@@ -126,7 +126,7 @@ VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& avai
 }
 VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, const Ref<Window>& window)
 {
-    if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
+    if (capabilities.currentExtent.width != UINT32_MAX)
     {
         return capabilities.currentExtent;
     }
@@ -438,6 +438,11 @@ VkShaderStageFlagBits YgShaderStage2VkShaderStage(ShaderStage stage)
             YG_CORE_ERROR("Vulkan: Unsupported shader stage!");
             return VK_SHADER_STAGE_FLAG_BITS_MAX_ENUM;
     }
+}
+
+PFN_vkVoidFunction VkLoadFunction(const char* funcName, void* instance)
+{
+    return vkGetInstanceProcAddr((VkInstance)instance, funcName);
 }
 
 } // namespace Yogi

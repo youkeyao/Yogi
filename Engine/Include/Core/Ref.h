@@ -13,81 +13,86 @@ class Ref
     friend struct std::hash<Ref<T>>;
 
 public:
-    Ref() : m_handle(nullptr) {}
-    Ref(std::nullptr_t) noexcept : m_handle(nullptr) {}
-    Ref(const Ref& other) : m_handle(other.m_handle)
+    Ref() : m_cb(nullptr) {}
+    Ref(std::nullptr_t) noexcept : m_cb(nullptr) {}
+    Ref(const Ref& other) : m_cb(other.m_cb)
     {
-        if (m_handle)
-            m_handle->AddRef();
+        if (m_cb)
+            m_cb->Count++;
     }
     Ref& operator=(const Ref& other)
     {
         if (this != &other)
         {
             Release();
-            m_handle = other.m_handle;
-            if (m_handle)
-                m_handle->AddRef();
+            m_cb = other.m_cb;
+            if (m_cb)
+                m_cb->Count++;
         }
         return *this;
     }
 
-    Ref(Ref&& other) : m_handle(other.m_handle) { other.m_handle = nullptr; }
+    Ref(Ref&& other) : m_cb(other.m_cb) { other.m_cb = nullptr; }
     Ref& operator=(Ref&& other)
     {
         if (this != &other)
         {
             Release();
-            m_handle       = other.m_handle;
-            other.m_handle = nullptr;
+            m_cb       = other.m_cb;
+            other.m_cb = nullptr;
         }
         return *this;
     }
 
     template <typename U, typename = std::enable_if_t<std::is_convertible<U*, T*>::value>>
-    Ref(const Ref<U>& other) : m_handle(static_cast<Handle<T>*>(other.m_handle))
+    Ref(const Ref<U>& other) : m_cb(static_cast<Handle<T>::ControlBlock*>(other.m_cb))
     {
-        if (m_handle)
-            m_handle->AddRef();
+        if (m_cb)
+            m_cb->Count++;
     }
     template <typename U, typename = std::enable_if_t<std::is_convertible<U*, T*>::value>>
-    Ref(Ref<U>&& other) noexcept : m_handle(reinterpret_cast<Handle<T>*>(other.m_handle))
+    Ref(Ref<U>&& other) noexcept : m_cb(reinterpret_cast<Handle<T>::ControlBlock*>(other.m_cb))
     {
-        other.m_handle = nullptr;
+        other.m_cb = nullptr;
     }
 
     template <typename U, typename = std::enable_if_t<std::is_convertible<T*, U*>::value>>
     static Ref<T> Cast(const Ref<U>& other)
     {
-        return Ref<T>::Create(*(reinterpret_cast<Handle<T>*>(other.m_handle)));
+        return Ref(reinterpret_cast<Handle<T>::ControlBlock*>(other.m_cb));
     }
 
     ~Ref() { Release(); }
 
-    inline T* Get() const { return m_handle->Get(); }
+    inline T* Get() const { return m_cb->Ptr; }
 
-    inline T*       operator->() { return m_handle->operator->(); }
-    inline const T* operator->() const { return m_handle->operator->(); }
+    inline T*       operator->() { return m_cb->Ptr; }
+    inline const T* operator->() const { return m_cb->Ptr; }
 
-    inline T&       operator*() { return *m_handle; }
-    inline const T& operator*() const { return *m_handle; }
+    inline T&       operator*() { return *m_cb->Ptr; }
+    inline const T& operator*() const { return *m_cb->Ptr; }
 
-    inline bool operator==(const Ref& other) const noexcept { return m_handle == other.m_handle; }
+    inline bool operator==(const Ref& other) const noexcept { return m_cb == other.m_cb; }
 
-    inline operator bool() const { return m_handle != nullptr; }
+    inline operator bool() const { return m_cb != nullptr; }
 
-    static Ref Create(const Handle<T>& handle) { return Ref(const_cast<Handle<T>*>(&handle)); }
+    static Ref Create(const Handle<T>& handle) { return Ref(handle.GetCB()); }
 
 private:
-    explicit Ref(Handle<T>* handle) : m_handle(handle) { m_handle->AddRef(); }
+    explicit Ref(Handle<T>::ControlBlock* cb) : m_cb(cb) { m_cb->Count++; }
     void Release()
     {
-        if (m_handle)
-            m_handle->SubRef();
+        if (m_cb)
+        {
+            if (m_cb->CallBackFunc)
+                m_cb->CallBackFunc();
+            if (--m_cb->Count == 0)
+                delete m_cb;
+        }
     }
 
 private:
-    Handle<T>* m_handle;
+    Handle<T>::ControlBlock* m_cb;
 };
 
 } // namespace Yogi
@@ -97,6 +102,6 @@ namespace std
 template <typename T>
 struct hash<Yogi::Ref<T>>
 {
-    size_t operator()(const Yogi::Ref<T>& r) const noexcept { return std::hash<Yogi::Handle<T>*>()(r.m_handle); }
+    size_t operator()(const Yogi::Ref<T>& r) const noexcept { return std::hash<void*>()(r.m_cb); }
 };
 } // namespace std

@@ -85,7 +85,6 @@ void Application::Run()
     {
         YG_PROFILE_SCOPE("RunLoop");
 
-        m_swapChain->AcquireNextImage();
         float time = std::chrono::time_point_cast<std::chrono::microseconds>(std::chrono::steady_clock::now())
                          .time_since_epoch()
                          .count() *
@@ -95,6 +94,8 @@ void Application::Run()
 
         if (!m_isMinimized)
         {
+            m_swapChain->AcquireNextImage();
+
             {
                 YG_PROFILE_SCOPE("LayerStack on_update");
 
@@ -103,9 +104,10 @@ void Application::Run()
                     layer->OnUpdate(timestep);
                 }
             }
+
+            m_swapChain->Present();
         }
 
-        m_swapChain->Present();
         m_window->OnUpdate();
     }
 }

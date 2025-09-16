@@ -68,10 +68,6 @@ public:
     {
         s_sources.clear();
         s_serializers.clear();
-        for (auto& [type, mapInfo] : s_assetMaps)
-        {
-            mapInfo.CleanupFn(mapInfo.Map.get());
-        }
         s_assetMaps.clear();
     }
 
@@ -89,11 +85,7 @@ protected:
         }
     };
 
-    struct MapInfo
-    {
-        std::unique_ptr<void, VoidDeleter> Map;
-        VoidDeleter                        CleanupFn;
-    };
+    using Any = std::unique_ptr<void, VoidDeleter>;
 
     template <typename T>
     static AssetSerializer<T>* GetAssetSerializer()
@@ -116,23 +108,16 @@ protected:
             void (*deleterFn)(void*) = +[](void* p) {
                 delete static_cast<std::unordered_map<std::string, Handle<T>>*>(p);
             };
-            void (*cleanupFn)(void*) = +[](void* p) {
-                auto map = static_cast<std::unordered_map<std::string, Handle<T>>*>(p);
-                for (auto& [key, handle] : *map)
-                {
-                    handle.Cleanup();
-                }
-            };
-            s_assetMaps[typeid(T)] = MapInfo{ { newMap, VoidDeleter(deleterFn) }, VoidDeleter(cleanupFn) };
+            s_assetMaps[typeid(T)] = Any{ newMap, VoidDeleter(deleterFn) };
             return *newMap;
         }
-        return *static_cast<std::unordered_map<std::string, Handle<T>>*>(it->second.Map.get());
+        return *static_cast<std::unordered_map<std::string, Handle<T>>*>(it->second.get());
     }
 
 private:
-    static std::vector<Handle<IAssetSource>>                                       s_sources;
-    static std::unordered_map<std::type_index, std::unique_ptr<void, VoidDeleter>> s_serializers;
-    static std::unordered_map<std::type_index, MapInfo>                            s_assetMaps;
+    static std::vector<Handle<IAssetSource>>        s_sources;
+    static std::unordered_map<std::type_index, Any> s_serializers;
+    static std::unordered_map<std::type_index, Any> s_assetMaps;
 };
 
 } // namespace Yogi

@@ -14,11 +14,6 @@ Handle<IDeviceContext> IDeviceContext::Create(const Ref<Window>& window)
     return Handle<VulkanDeviceContext>::Create(window);
 }
 
-PFN_vkVoidFunction VulkanDeviceContext::VkLoadFunction(VkInstance instance, const char* funcName)
-{
-    return vkGetInstanceProcAddr(instance, funcName);
-}
-
 static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT      messageSeverity,
                                                     VkDebugUtilsMessageTypeFlagsEXT             messageType,
                                                     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,

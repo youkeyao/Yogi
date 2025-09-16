@@ -23,8 +23,8 @@ public:
     ~EditorApp() {}
 
 private:
-    Handle<World> m_world;
     Entity        m_selectedEntity;
+    Handle<World> m_world;
 };
 
 Application* CreateApplication() { return new EditorApp(); }

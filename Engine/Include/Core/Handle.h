@@ -10,64 +10,62 @@ class Handle
     friend class Handle;
 
 public:
-    Handle(std::nullptr_t) noexcept : m_ptr(nullptr), m_count(0), m_callBack(nullptr) {}
+    struct ControlBlock
+    {
+        T*                    Ptr;
+        std::function<void()> CallBackFunc;
+        int                   Count;
+    };
+
+public:
+    Handle(std::nullptr_t) noexcept : m_cb(nullptr) {}
     Handle(const Handle&)                  = delete;
     Handle& operator=(const Handle& other) = delete;
-    Handle(Handle&& other) : m_ptr(other.m_ptr), m_count(other.m_count), m_callBack(other.m_callBack)
-    {
-        other.m_ptr      = nullptr;
-        other.m_count    = 0;
-        other.m_callBack = nullptr;
-    }
+    Handle(Handle&& other) : m_cb(other.m_cb) { other.m_cb = nullptr; }
     Handle& operator=(Handle&& other)
     {
         if (this != &other)
         {
             Cleanup();
-            m_ptr            = other.m_ptr;
-            m_count          = other.m_count;
-            m_callBack       = other.m_callBack;
-            other.m_ptr      = nullptr;
-            other.m_count    = 0;
-            other.m_callBack = nullptr;
+            m_cb       = reinterpret_cast<ControlBlock*>(other.m_cb);
+            other.m_cb = nullptr;
         }
         return *this;
     }
     template <typename U, typename = std::enable_if_t<std::is_convertible<U*, T*>::value>>
-    Handle(Handle<U>&& other) noexcept : m_ptr(other.m_ptr), m_count(other.m_count), m_callBack(other.m_callBack)
+    Handle(Handle<U>&& other) noexcept : m_cb(reinterpret_cast<ControlBlock*>(other.m_cb))
     {
-        other.m_ptr      = nullptr;
-        other.m_count    = 0;
-        other.m_callBack = nullptr;
+        other.m_cb = nullptr;
     }
     ~Handle() { Cleanup(); }
 
-    inline T* Get() const { return m_ptr; }
+    inline T*            Get() const { return m_cb->Ptr; }
+    inline ControlBlock* GetCB() const { return m_cb; }
 
-    inline T*       operator->() { return m_ptr; }
-    inline const T* operator->() const { return m_ptr; }
+    inline T*       operator->() { return m_cb->Ptr; }
+    inline const T* operator->() const { return m_cb->Ptr; }
 
-    inline T&       operator*() { return *m_ptr; }
-    inline const T& operator*() const { return *m_ptr; }
+    inline T&       operator*() { return *(m_cb->Ptr); }
+    inline const T& operator*() const { return *(m_cb->Ptr); }
 
-    inline operator bool() const { return m_ptr != nullptr; }
+    inline operator bool() const { return m_cb != nullptr; }
 
-    inline void AddRef() { ++m_count; }
-    inline void SubRef()
-    {
-        --m_count;
-        if (m_callBack)
-            m_callBack();
-    }
-    inline int  GetRefCount() const { return m_count; }
-    inline void SetSubCallBack(std::function<void()> callBack) { m_callBack = callBack; }
+    inline int  GetRefCount() const { return m_cb->Count; }
+    inline void SetSubCallBack(std::function<void()> callBackFunc) { m_cb->CallBackFunc = callBackFunc; }
 
     void Cleanup()
     {
-        if (m_ptr)
-            delete m_ptr;
-        m_ptr   = nullptr;
-        m_count = 0;
+        if (m_cb)
+        {
+            if (m_cb->Ptr)
+                delete m_cb->Ptr;
+            m_cb->Ptr          = nullptr;
+            m_cb->CallBackFunc = nullptr;
+            if (--m_cb->Count == 0)
+            {
+                delete m_cb;
+            }
+        }
     }
 
     template <typename... Args>
@@ -77,12 +75,10 @@ public:
     }
 
 private:
-    explicit Handle(T* p) : m_ptr(p), m_count(1), m_callBack(nullptr) {}
+    explicit Handle(T* p) : m_cb(new ControlBlock{ p, nullptr, 1 }) {}
 
 private:
-    T*                    m_ptr;
-    std::function<void()> m_callBack;
-    int                   m_count;
+    ControlBlock* m_cb;
 };
 
 } // namespace Yogi

@@ -4,16 +4,13 @@
 namespace Yogi
 {
 
-ImGuiEndLayer::ImGuiEndLayer() : Layer("ImGuiEndLayer")
-{
-    RendererInit();
-}
+ImGuiEndLayer::ImGuiEndLayer() : Layer("ImGuiEndLayer") { RendererInit(); }
 
 ImGuiEndLayer::~ImGuiEndLayer()
 {
     m_commandBuffer->Wait();
     m_commandBuffer = nullptr;
-    m_renderPass = nullptr;
+    m_renderPass    = nullptr;
     m_frameBuffers.clear();
     WindowShutdown();
     RendererShutdown();
@@ -85,12 +82,7 @@ void ImGuiEndLayer::RendererInit()
     initInfo.MSAASamples       = (VkSampleCountFlagBits)swapChain->GetNumSamples();
     initInfo.Allocator         = nullptr;
     initInfo.CheckVkResultFn   = nullptr;
-    ImGui_ImplVulkan_LoadFunctions(
-        VK_API_VERSION_1_2,
-        [](const char* funcName, void* userData) -> PFN_vkVoidFunction {
-            return VulkanDeviceContext::VkLoadFunction((VkInstance)userData, funcName);
-        },
-        initInfo.Instance);
+    ImGui_ImplVulkan_LoadFunctions(0, &VkLoadFunction, initInfo.Instance);
     ImGui_ImplVulkan_Init(&initInfo);
 
     m_commandBuffer = ResourceManager::GetResource<ICommandBuffer>(
@@ -117,8 +109,7 @@ void ImGuiEndLayer::RendererDraw()
 
     m_commandBuffer->Wait();
     m_commandBuffer->Begin();
-    m_commandBuffer->BeginRenderPass(
-        frameBuffer, { ClearValue{ 0.1f, 0.1f, 0.1f, 1.0f } }, ClearValue{ 1.0f, 0 });
+    m_commandBuffer->BeginRenderPass(frameBuffer, { ClearValue{ 0.1f, 0.1f, 0.1f, 1.0f } }, ClearValue{ 1.0f, 0 });
     ImGui_ImplVulkan_RenderDrawData(mainDrawData,
                                     static_cast<VulkanCommandBuffer*>(m_commandBuffer.Get())->GetVkCommandBuffer());
     m_commandBuffer->EndRenderPass();

@@ -40,14 +40,7 @@ public:
         return AddResource(T::Create(std::forward<Args>(args)...), key);
     }
 
-    static void Clear()
-    {
-        for (auto& [type, mapInfo] : s_resourceMaps)
-        {
-            mapInfo.CleanupFn(mapInfo.Map.get());
-        }
-        s_resourceMaps.clear();
-    }
+    static void Clear() { s_resourceMaps.clear(); }
 
 protected:
     struct VoidDeleter
@@ -63,11 +56,7 @@ protected:
         }
     };
 
-    struct MapInfo
-    {
-        std::unique_ptr<void, VoidDeleter> Map;
-        VoidDeleter                        CleanupFn;
-    };
+    using Any = std::unique_ptr<void, VoidDeleter>;
 
     template <typename T>
     static std::unordered_map<uint64_t, Handle<T>>& GetResourceMap()
@@ -79,21 +68,14 @@ protected:
             void (*deleterFn)(void*) = +[](void* p) {
                 delete static_cast<std::unordered_map<uint64_t, Handle<T>>*>(p);
             };
-            void (*cleanupFn)(void*) = +[](void* p) {
-                auto map = static_cast<std::unordered_map<uint64_t, Handle<T>>*>(p);
-                for (auto& [key, handle] : *map)
-                {
-                    handle.Cleanup();
-                }
-            };
-            s_resourceMaps[typeid(T)] = MapInfo{ { newMap, VoidDeleter(deleterFn) }, VoidDeleter(cleanupFn) };
+            s_resourceMaps[typeid(T)] = { newMap, VoidDeleter(deleterFn) };
             return *newMap;
         }
-        return *static_cast<std::unordered_map<uint64_t, Handle<T>>*>((it->second.Map).get());
+        return *static_cast<std::unordered_map<uint64_t, Handle<T>>*>((it->second).get());
     }
 
 private:
-    static std::unordered_map<std::type_index, MapInfo> s_resourceMaps;
+    static std::unordered_map<std::type_index, Any> s_resourceMaps;
 };
 
 } // namespace Yogi
