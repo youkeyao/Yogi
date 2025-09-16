@@ -8,8 +8,6 @@ public:
     Sandbox2D();
     virtual ~Sandbox2D() = default;
 
-    void OnAttach() override;
-    void OnDetach() override;
     void OnUpdate(Yogi::Timestep ts) override;
     void OnEvent(Yogi::Event& event) override;
 

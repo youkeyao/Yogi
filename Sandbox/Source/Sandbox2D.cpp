@@ -1,10 +1,5 @@
 #include "Sandbox2D.h"
 
-// #include <glm/gtc/matrix_transform.hpp>
-// #include <glm/gtc/type_ptr.hpp>
-
-Sandbox2D::Sandbox2D() : Layer("Sandbox 2D") {}
-
 std::vector<uint32_t> ReadFile(const std::string& filepath)
 {
     std::vector<uint32_t> buffer;
@@ -25,7 +20,7 @@ std::vector<uint32_t> ReadFile(const std::string& filepath)
     return buffer;
 }
 
-void Sandbox2D::OnAttach()
+Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
 {
     YG_PROFILE_FUNCTION();
 
@@ -66,90 +61,11 @@ void Sandbox2D::OnAttach()
 
     m_box = m_world->CreateEntity();
     m_box.AddComponent<Yogi::TransformComponent>();
-    auto& meshRenderer    = m_box.AddComponent<Yogi::MeshRendererComponent>();
-    meshRenderer.Mesh     = Yogi::AssetManager::GetAsset<Yogi::Mesh>("Meshes/Cube.obj::cube");
-    meshRenderer.Material = Yogi::ResourceManager::GetResource<Yogi::Material>(Yogi::Ref<Yogi::IPipeline>::Create(m_pipeline));
-
-    // m_depth_texture = context->create_texture(
-    //     Yogi::TextureDesc{ swap_chain->get_width(), swap_chain->get_height(), 1, 1,
-    //     Yogi::ITexture::Format::D32_FLOAT,
-    //                        Yogi::ITexture::Usage::DepthStencil });
-    // m_pipeline = context->create_pipeline(
-    //     Yogi::PipelineDesc{
-    //         shaders,
-    //         { Yogi::VertexAttribute{ "in_position", 0, 12, Yogi::ShaderElementType::Float3 },
-    //           Yogi::VertexAttribute{ "in_color", 12, 15, Yogi::ShaderElementType::Float4 } },
-    //         { Yogi::ITexture::Format::R8G8B8A8_SRGB },
-    //         Yogi::ITexture::Format::D32_FLOAT,
-    //         Yogi::PrimitiveTopology::TriangleList
-    // });
-
-    // m_scene                        = Yogi::CreateScope<Yogi::Scene>();
-    // Yogi::Ref<Yogi::Mesh>     quad = Yogi::MeshManager::get_mesh("quad");
-    // Yogi::Ref<Yogi::Material> mat1 = Yogi::MaterialManager::get_material("default");
-
-    // m_scene->add_system<Yogi::RenderSystem>();
-    // m_scene->add_system<Yogi::PhysicsSystem>();
-
-    // checker                                                     = m_scene->create_entity();
-    // checker.add_component<Yogi::TransformComponent>().transform = glm::translate(glm::mat4(1.0f), {0, -0.3, 0});
-    // checker.add_component<Yogi::MeshRendererComponent>(quad, mat1);
-
-    // Yogi::Entity e                                        = m_scene->create_entity();
-    // e.add_component<Yogi::TransformComponent>().transform = glm::translate(glm::mat4(1.0f), {0, 0, 0.05});
-    // e.add_component<Yogi::MeshRendererComponent>(quad, mat1);
-
-    // e = m_scene->create_entity();
-    // e.add_component<Yogi::TransformComponent>().transform =
-    //     glm::inverse(glm::lookAt(glm::vec3{2, 1, 2}, glm::vec3{0, 0, 0}, glm::vec3{0, 1, 0}));
-    // auto& camera        = e.add_component<Yogi::CameraComponent>();
-    // camera.aspect_ratio = 1280.0f / 720.0f;
-    // camera.is_ortho     = false;
-
-    // e                                                     = m_scene->create_entity();
-    // e.add_component<Yogi::TransformComponent>().transform = glm::translate(glm::mat4(1.0f), {0.4, 0, 0.1});
-    // e.add_component<Yogi::MeshRendererComponent>(quad, mat1);
-
-    // for (int32_t i = 0; i < 100; i++)
-    // {
-    //     for (int32_t j = 0; j < 100; j++)
-    //     {
-    //         e = m_scene->create_entity();
-    //         e.add_component<Yogi::TransformComponent>().transform =
-    //             glm::translate(glm::mat4(1.0f), glm::vec3(0.02 * i - 1, 0.02 * j - 1, 0.11)) *
-    //             glm::scale(glm::mat4(1.0f), glm::vec3(0.01, 0.01, 0.1));
-    //         e.add_component<Yogi::MeshRendererComponent>(quad, mat1);
-    //     }
-    // }
-
-    // e                                                     = m_scene->create_entity();
-    // e.add_component<Yogi::TransformComponent>().transform = glm::translate(glm::mat4(1.0f), glm::vec3(0, 0, 1));
-    // e.add_component<Yogi::PointLightComponent>();
-
-    // e                                                     = m_scene->create_entity();
-    // e.add_component<Yogi::TransformComponent>().transform = glm::translate(glm::mat4(1.0f), glm::vec3(0, 0, 5));
-    // e.add_component<Yogi::DirectionalLightComponent>();
-
-    // e = m_scene->create_entity();
-    // e.add_component<Yogi::TransformComponent>();
-    // e.add_component<Yogi::SkyboxComponent>().material = Yogi::MaterialManager::get_material("skybox");
-
-    // e = m_scene->create_entity();
-    // e.add_component<Yogi::TransformComponent>().transform =
-    //     glm::translate(glm::mat4(1.0f), glm::vec3(0, 0.5, 1)) * glm::scale(glm::mat4(1.0f), glm::vec3(0.5f));
-    // e.add_component<Yogi::MeshRendererComponent>(Yogi::MeshManager::get_mesh("cube"), mat1);
-    // e.add_component<Yogi::RigidBodyComponent>();
-
-    // e = m_scene->create_entity();
-    // e.add_component<Yogi::TransformComponent>().transform =
-    //     glm::rotate(glm::mat4(1.0f), glm::radians(-10.0f), glm::vec3(1, 0, 0)) *
-    //     glm::translate(glm::mat4(1.0f), glm::vec3(0, -1.0f, 0)) *
-    //     glm::scale(glm::mat4(1.0f), glm::vec3(4.0f, 1.0f, 4.0f));
-    // e.add_component<Yogi::MeshRendererComponent>(Yogi::MeshManager::get_mesh("cube"), mat1);
-    // e.add_component<Yogi::RigidBodyComponent>().is_static = true;
+    auto& meshRenderer = m_box.AddComponent<Yogi::MeshRendererComponent>();
+    meshRenderer.Mesh  = Yogi::AssetManager::GetAsset<Yogi::Mesh>("Meshes/Cube.obj::cube");
+    meshRenderer.Material =
+        Yogi::ResourceManager::GetResource<Yogi::Material>(Yogi::Ref<Yogi::IPipeline>::Create(m_pipeline));
 }
-
-void Sandbox2D::OnDetach() { YG_PROFILE_FUNCTION(); }
 
 void Sandbox2D::OnUpdate(Yogi::Timestep ts)
 {

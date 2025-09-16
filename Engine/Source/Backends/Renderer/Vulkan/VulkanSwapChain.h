@@ -28,12 +28,12 @@ public:
     void Present() override;
     void Resize(uint32_t width, uint32_t height) override;
 
-    inline VkFence GetVkRenderCommandFence() const { return m_renderCommandFences[m_currentFrame]; }
+    inline uint32_t GetImageCount() const { return m_colorTextures.size(); }
+    inline VkFence  GetVkRenderCommandFence() const { return m_renderCommandFences[m_currentFrame]; }
 
 private:
     void CleanupSwapChain();
     void RecreateSwapChain();
-    void CreateVkSurface();
     void CreateVkSwapChain();
     void CreateVkSyncObjects();
 
@@ -43,7 +43,6 @@ private:
     uint32_t m_currentFrame = 0;
     uint32_t m_imageIndex   = 0;
 
-    VkSurfaceKHR   m_surface      = VK_NULL_HANDLE;
     VkSwapchainKHR m_swapChain    = VK_NULL_HANDLE;
     VkQueue        m_presentQueue = VK_NULL_HANDLE;
 

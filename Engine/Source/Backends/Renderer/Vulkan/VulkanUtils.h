@@ -1,11 +1,12 @@
 #pragma once
 
-#include <volk.h>
-
 #include "Core/Window.h"
 #include "Renderer/RHI/ITexture.h"
 #include "Renderer/RHI/IRenderPass.h"
 #include "Renderer/RHI/IPipeline.h"
+
+#define VK_NO_PROTOTYPES
+#include <vulkan/vulkan.h>
 
 namespace Yogi
 {
@@ -13,14 +14,20 @@ namespace Yogi
 struct QueueFamilyIndices
 {
     std::optional<uint32_t> graphicsFamily;
+    std::optional<uint32_t> computeFamily;
+    std::optional<uint32_t> transferFamily;
     std::optional<uint32_t> presentFamily;
 
-    bool isComplete() { return graphicsFamily.has_value() && presentFamily.has_value(); }
+    bool isComplete()
+    {
+        return graphicsFamily.has_value() && computeFamily.has_value() && transferFamily.has_value() &&
+            presentFamily.has_value();
+    }
 };
 bool               CheckValidationLayerSupport(const std::vector<const char*>& validationLayers);
-QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device);
+QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface);
 bool CheckDeviceExtensionSupport(VkPhysicalDevice device, const std::vector<const char*>& deviceExtensions);
-bool IsDeviceSuitable(VkPhysicalDevice device, const std::vector<const char*>& deviceExtensions);
+bool IsDeviceSuitable(VkPhysicalDevice device, VkSurfaceKHR surface, const std::vector<const char*>& deviceExtensions);
 
 struct SwapChainSupportDetails
 {

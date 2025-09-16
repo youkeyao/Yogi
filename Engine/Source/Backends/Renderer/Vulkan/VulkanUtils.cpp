@@ -1,5 +1,7 @@
 #include "VulkanUtils.h"
 
+#include <volk.h>
+
 namespace Yogi
 {
 
@@ -27,7 +29,7 @@ bool CheckValidationLayerSupport(const std::vector<const char*>& validationLayer
     }
     return true;
 }
-QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device)
+QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface)
 {
     QueueFamilyIndices indices;
     uint32_t           queueFamilyCount = 0;
@@ -41,7 +43,28 @@ QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device)
         {
             indices.graphicsFamily = i;
         }
-        indices.presentFamily = i;
+        if (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT && !(queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT))
+        {
+            indices.computeFamily = i;
+        }
+        if (!indices.computeFamily.has_value() && (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT))
+        {
+            indices.computeFamily = i;
+        }
+        if (queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT && !(queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT))
+        {
+            indices.transferFamily = i;
+        }
+        if (!indices.transferFamily.has_value() && (queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT))
+        {
+            indices.transferFamily = i;
+        }
+        VkBool32 presentSupport = false;
+        vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
+        if (presentSupport)
+        {
+            indices.presentFamily = i;
+        }
         if (indices.isComplete())
         {
             break;
@@ -63,9 +86,9 @@ bool CheckDeviceExtensionSupport(VkPhysicalDevice device, const std::vector<cons
     }
     return requiredExtensions.empty();
 }
-bool IsDeviceSuitable(VkPhysicalDevice device, const std::vector<const char*>& deviceExtensions)
+bool IsDeviceSuitable(VkPhysicalDevice device, VkSurfaceKHR surface, const std::vector<const char*>& deviceExtensions)
 {
-    QueueFamilyIndices indices             = FindQueueFamilies(device);
+    QueueFamilyIndices indices             = FindQueueFamilies(device, surface);
     bool               extensionsSupported = CheckDeviceExtensionSupport(device, deviceExtensions);
     return indices.isComplete() && extensionsSupported;
 }
@@ -178,7 +201,7 @@ ITexture::Format VkFormat2YgTextureFormat(VkFormat format)
             return ITexture::Format::D24_UNORM_S8_UINT;
         default:
             YG_CORE_ERROR("Vulkan: Unsupported Vk texture format!");
-            return ITexture::Format::None;
+            return ITexture::Format::NONE;
     }
 }
 

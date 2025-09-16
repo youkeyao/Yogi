@@ -3,6 +3,8 @@
 #include "VulkanShaderResourceBinding.h"
 #include "VulkanUtils.h"
 
+#include <volk.h>
+
 namespace Yogi
 {
 

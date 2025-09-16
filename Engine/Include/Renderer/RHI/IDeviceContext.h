@@ -19,7 +19,7 @@ public:
 
     virtual void WaitIdle() = 0;
 
-    static Handle<IDeviceContext> Create();
+    static Handle<IDeviceContext> Create(const Ref<Window>& window);
 };
 
 } // namespace Yogi

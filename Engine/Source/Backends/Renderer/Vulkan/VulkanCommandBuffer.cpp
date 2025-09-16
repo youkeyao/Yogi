@@ -4,6 +4,8 @@
 #include "VulkanBuffer.h"
 #include "VulkanShaderResourceBinding.h"
 
+#include <volk.h>
+
 namespace Yogi
 {
 
@@ -57,8 +59,10 @@ void VulkanCommandBuffer::End()
 
 void VulkanCommandBuffer::Submit()
 {
-    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
-    VulkanSwapChain* swapChain = static_cast<VulkanSwapChain*>(Application::GetInstance().GetSwapChain().Get());
+    YG_PROFILE_FUNCTION();
+
+    VulkanDeviceContext* context   = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VulkanSwapChain*     swapChain = static_cast<VulkanSwapChain*>(Application::GetInstance().GetSwapChain().Get());
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -69,11 +73,10 @@ void VulkanCommandBuffer::Submit()
     switch (m_queue)
     {
         case SubmitQueue::Graphics:
-            result =
-                vkQueueSubmit(context->GetGraphicsQueue(), 1, &submitInfo, swapChain->GetVkRenderCommandFence());
+            result = vkQueueSubmit(context->GetGraphicsQueue(), 1, &submitInfo, swapChain->GetVkRenderCommandFence());
             break;
         case SubmitQueue::Compute:
-            // To be implemented
+            // Todo: To be implemented
             YG_CORE_ASSERT(false, "Compute queue submission not implemented yet!");
             break;
         case SubmitQueue::Transfer:
@@ -87,6 +90,8 @@ void VulkanCommandBuffer::Submit()
 
 void VulkanCommandBuffer::Wait()
 {
+    YG_PROFILE_FUNCTION();
+
     VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
 
     switch (m_queue)
@@ -106,14 +111,14 @@ void VulkanCommandBuffer::Wait()
     }
 }
 
-void VulkanCommandBuffer::BeginRenderPass(const Ref<IFrameBuffer>&      frameBuffer,
+void VulkanCommandBuffer::BeginRenderPass(const Ref<IFrameBuffer>&       frameBuffer,
                                           const std::vector<ClearValue>& colorClearValues,
                                           const ClearValue&              depthClearValue)
 {
     Ref<VulkanFrameBuffer> vkFrameBuffer = Ref<VulkanFrameBuffer>::Cast(frameBuffer);
     Ref<VulkanRenderPass>  vkRenderPass  = Ref<VulkanRenderPass>::Cast(vkFrameBuffer->GetRenderPass());
-    SampleCountFlagBits     numSamples    = vkRenderPass->GetNumSamples();
-    VkRenderPassBeginInfo   renderPassInfo{};
+    SampleCountFlagBits    numSamples    = vkRenderPass->GetNumSamples();
+    VkRenderPassBeginInfo  renderPassInfo{};
     renderPassInfo.sType             = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     renderPassInfo.renderPass        = vkRenderPass->GetVkRenderPass();
     renderPassInfo.framebuffer       = vkFrameBuffer->GetVkFrameBuffer();
@@ -132,8 +137,11 @@ void VulkanCommandBuffer::BeginRenderPass(const Ref<IFrameBuffer>&      frameBuf
             vkClearValues.push_back(vkClearValue);
         }
     }
-    vkClearValues.push_back(VkClearValue{
-        depthClearValue.Color[0], depthClearValue.Color[1], depthClearValue.Color[2], depthClearValue.Color[3] });
+    if (vkFrameBuffer->GetDepthAttachment())
+    {
+        vkClearValues.push_back(VkClearValue{
+            depthClearValue.Color[0], depthClearValue.Color[1], depthClearValue.Color[2], depthClearValue.Color[3] });
+    }
     renderPassInfo.clearValueCount = static_cast<uint32_t>(vkClearValues.size());
     renderPassInfo.pClearValues    = vkClearValues.data();
     vkCmdBeginRenderPass(m_commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
@@ -150,8 +158,8 @@ void VulkanCommandBuffer::SetPipeline(const Ref<IPipeline>& pipeline)
 void VulkanCommandBuffer::SetVertexBuffer(const Ref<IBuffer>& buffer, uint32_t offset)
 {
     Ref<VulkanBuffer> vkBuffer        = Ref<VulkanBuffer>::Cast(buffer);
-    VkBuffer           vertexBuffers[] = { vkBuffer->GetVkBuffer() };
-    VkDeviceSize       offsets[]       = { offset };
+    VkBuffer          vertexBuffers[] = { vkBuffer->GetVkBuffer() };
+    VkDeviceSize      offsets[]       = { offset };
     vkCmdBindVertexBuffers(m_commandBuffer, 0, 1, vertexBuffers, offsets);
 }
 

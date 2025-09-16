@@ -10,7 +10,7 @@ namespace Yogi
 class VulkanDeviceContext : public IDeviceContext
 {
 public:
-    VulkanDeviceContext();
+    VulkanDeviceContext(const Ref<Window>& window);
     virtual ~VulkanDeviceContext();
 
     void WaitIdle() override;
@@ -18,15 +18,20 @@ public:
     VkDescriptorSet AllocateVkDescriptorSet(VkDescriptorSetLayout layout);
 
     inline VkInstance       GetVkInstance() const { return m_instance; }
+    inline VkSurfaceKHR     GetVkSurface() const { return m_surface; }
     inline VkPhysicalDevice GetVkPhysicalDevice() const { return m_physicalDevice; }
     inline VkDevice         GetVkDevice() const { return m_device; }
     inline VkCommandPool    GetVkCommandPool() const { return m_commandPool; }
+    inline VkDescriptorPool GetVkDescriptorPool() const { return m_descriptorPools.back(); }
 
     inline VkQueue GetGraphicsQueue() const { return m_graphicsQueue; }
     inline VkQueue GetTransferQueue() const { return m_transferQueue; }
 
+    static PFN_vkVoidFunction VkLoadFunction(VkInstance instance, const char* funcName);
+
 private:
     void CreateVkInstance();
+    void CreateVkSurface(const Ref<Window>& window);
     void PickPhysicalDevice();
     void CreateLogicalDevice();
     void CreateCommandPool();
@@ -38,6 +43,7 @@ protected:
                                                   VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME };
 
     VkInstance       m_instance;
+    VkSurfaceKHR     m_surface        = VK_NULL_HANDLE;
     VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
     VkDevice         m_device;
 

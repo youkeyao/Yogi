@@ -43,6 +43,7 @@ private:
 
     Ref<IRenderPass>            m_renderPass            = nullptr;
     Ref<IShaderResourceBinding> m_shaderResourceBinding = nullptr;
+    Ref<ICommandBuffer>         m_commandBuffer         = nullptr;
 
     std::unordered_map<uint64_t, Ref<IFrameBuffer>>           m_frameBuffers;
     std::unordered_map<Ref<IPipeline>, std::vector<uint8_t>>  m_vertices;

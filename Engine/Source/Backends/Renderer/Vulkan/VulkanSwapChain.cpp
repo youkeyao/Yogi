@@ -1,9 +1,7 @@
 #include "VulkanSwapChain.h"
 #include "VulkanCommandBuffer.h"
 
-#ifdef YG_WINDOW_GLFW
-#    include <GLFW/glfw3.h>
-#endif
+#include <volk.h>
 
 namespace Yogi
 {
@@ -18,7 +16,6 @@ VulkanSwapChain::VulkanSwapChain(const SwapChainDesc& desc) :
     m_numSamples(desc.NumSamples),
     m_window(desc.Window)
 {
-    CreateVkSurface();
     CreateVkSwapChain();
     CreateVkSyncObjects();
 }
@@ -34,7 +31,6 @@ VulkanSwapChain::~VulkanSwapChain()
         vkDestroySemaphore(context->GetVkDevice(), m_renderFinishedSemaphores[i], nullptr);
         vkDestroyFence(context->GetVkDevice(), m_renderCommandFences[i], nullptr);
     }
-    vkDestroySurfaceKHR(context->GetVkInstance(), m_surface, nullptr);
 }
 
 void VulkanSwapChain::AcquireNextImage()
@@ -53,6 +49,8 @@ void VulkanSwapChain::AcquireNextImage()
 
 void VulkanSwapChain::Present()
 {
+    YG_PROFILE_FUNCTION();
+
     VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
     VkDevice             device  = context->GetVkDevice();
 
@@ -113,32 +111,14 @@ void VulkanSwapChain::CleanupSwapChain()
     }
 }
 
-void VulkanSwapChain::CreateVkSurface()
-{
-    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
-
-    if (m_surface != VK_NULL_HANDLE)
-    {
-        vkDestroySurfaceKHR(context->GetVkInstance(), m_surface, NULL);
-        m_surface = VK_NULL_HANDLE;
-    }
-
-    VkResult result = VK_ERROR_INITIALIZATION_FAILED;
-#ifdef YG_WINDOW_GLFW
-    result = glfwCreateWindowSurface(
-        context->GetVkInstance(), (GLFWwindow*)m_window->GetNativeWindow(), nullptr, &m_surface);
-#endif
-
-    YG_CORE_ASSERT(result == VK_SUCCESS && m_surface != VK_NULL_HANDLE, "Vulkan: Failed to create window surface!");
-}
-
 void VulkanSwapChain::CreateVkSwapChain()
 {
     VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
     VkPhysicalDevice     physicalDevice = context->GetVkPhysicalDevice();
     VkDevice             device         = context->GetVkDevice();
+    VkSurfaceKHR         surface        = context->GetVkSurface();
 
-    SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(physicalDevice, m_surface);
+    SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(physicalDevice, surface);
     VkSurfaceFormatKHR      surfaceFormat    = swapChainSupport.formats[0];
     VkFormat                targetFormat     = YgTextureFormat2VkFormat(m_colorFormat);
     for (const auto& availableFormat : swapChainSupport.formats)
@@ -161,7 +141,7 @@ void VulkanSwapChain::CreateVkSwapChain()
 
     VkSwapchainCreateInfoKHR createInfo{};
     createInfo.sType   = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-    createInfo.surface = m_surface;
+    createInfo.surface = surface;
 
     createInfo.minImageCount    = imageCount;
     createInfo.imageFormat      = surfaceFormat.format;
@@ -170,7 +150,7 @@ void VulkanSwapChain::CreateVkSwapChain()
     createInfo.imageArrayLayers = 1;
     createInfo.imageUsage       = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-    QueueFamilyIndices indices              = FindQueueFamilies(physicalDevice);
+    QueueFamilyIndices indices              = FindQueueFamilies(physicalDevice, surface);
     uint32_t           queueFamilyIndices[] = { indices.graphicsFamily.value(), indices.presentFamily.value() };
 
     if (indices.graphicsFamily != indices.presentFamily)
@@ -208,8 +188,8 @@ void VulkanSwapChain::CreateVkSwapChain()
     m_depthTextures.clear();
     for (size_t i = 0; i < swapChainImages.size(); ++i)
     {
-        m_depthTextures.emplace_back(Handle<VulkanTexture>::Create(Yogi::TextureDesc{
-            extent.width, extent.height, 1, m_depthFormat, Yogi::ITexture::Usage::DepthStencil, m_numSamples }));
+        m_depthTextures.emplace_back(Handle<VulkanTexture>::Create(
+            TextureDesc{ extent.width, extent.height, 1, m_depthFormat, ITexture::Usage::DepthStencil, m_numSamples }));
     }
 }
 
@@ -240,7 +220,7 @@ void VulkanSwapChain::CreateVkSyncObjects()
                        "Vulkan: Failed to create in-flight fence!");
     }
 
-    QueueFamilyIndices indices = FindQueueFamilies(physicalDevice);
+    QueueFamilyIndices indices = FindQueueFamilies(physicalDevice, context->GetVkSurface());
     vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &m_presentQueue);
 }
 

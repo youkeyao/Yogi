@@ -12,14 +12,7 @@ static void GLFWErrorCallback(int error, const char* description)
 
 Handle<Window> Window::Create(const WindowProps& props) { return Handle<WindowGLFW>::Create(props); }
 
-WindowGLFW::WindowGLFW(const WindowProps& props)
-{
-    m_data.Title  = props.Title;
-    m_data.Width  = props.Width;
-    m_data.Height = props.Height;
-}
-
-void WindowGLFW::Init()
+WindowGLFW::WindowGLFW(const WindowProps& props) : m_data({ props.Title, props.Width, props.Height })
 {
     YG_CORE_INFO("Creating GLFW Window {0} ({1} {2})", m_data.Title, m_data.Width, m_data.Height);
 
@@ -122,7 +115,5 @@ WindowGLFW::~WindowGLFW()
 }
 
 void WindowGLFW::OnUpdate() { glfwPollEvents(); }
-
-void WindowGLFW::WaitEvents() { glfwPollEvents(); }
 
 } // namespace Yogi

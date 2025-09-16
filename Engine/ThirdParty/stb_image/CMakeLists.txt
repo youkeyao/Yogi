@@ -6,7 +6,4 @@ else()
     add_library( stb_image STATIC stb_image.cpp )
 endif()
 
-target_include_directories( stb_image
-    PUBLIC
-        .
-)
+target_include_directories( stb_image PUBLIC . )

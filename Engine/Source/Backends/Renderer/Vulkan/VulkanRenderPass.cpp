@@ -2,6 +2,8 @@
 #include "Renderer/RHI/IRenderPass.h"
 #include "VulkanDeviceContext.h"
 
+#include <volk.h>
+
 namespace Yogi
 {
 
@@ -74,7 +76,7 @@ void VulkanRenderPass::CreateVkRenderPass()
     subpass.pColorAttachments       = colorAttachmentRefs.data();
     subpass.pResolveAttachments     = resolveAttachmentRefs.data();
     subpass.pDepthStencilAttachment = nullptr;
-    if (m_depthAttachment.Format != ITexture::Format::None)
+    if (m_depthAttachment.Format != ITexture::Format::NONE)
     {
         depthAttachment.format  = YgTextureFormat2VkFormat(m_depthAttachment.Format);
         depthAttachment.samples = (VkSampleCountFlagBits)m_numSamples;

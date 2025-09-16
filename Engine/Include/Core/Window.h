@@ -19,9 +19,7 @@ public:
 
     virtual ~Window() = default;
 
-    virtual void Init()       = 0;
-    virtual void OnUpdate()   = 0;
-    virtual void WaitEvents() = 0;
+    virtual void OnUpdate() = 0;
 
     virtual void SetEventCallback(const EventCallbackFn& callback) = 0;
 

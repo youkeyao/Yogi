@@ -22,3 +22,9 @@
 [submodule "Engine/ThirdParty/pfr"]
 	path = Engine/ThirdParty/pfr
 	url = https://github.com/boostorg/pfr.git
+[submodule "Editor/ThirdParty/imgui"]
+	path = Editor/ThirdParty/imgui
+	url = https://github.com/ocornut/imgui.git
+[submodule "Editor/ThirdParty/ImGuizmo"]
+	path = Editor/ThirdParty/ImGuizmo
+	url = https://github.com/CedricGuillemet/ImGuizmo.git

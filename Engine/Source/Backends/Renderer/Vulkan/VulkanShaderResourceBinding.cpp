@@ -3,6 +3,8 @@
 #include "VulkanTexture.h"
 #include "VulkanUtils.h"
 
+#include <volk.h>
+
 namespace Yogi
 {
 

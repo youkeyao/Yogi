@@ -1,10 +1,23 @@
 #include "VulkanDeviceContext.h"
 #include "VulkanSwapChain.h"
 
+#include <volk.h>
+#ifdef YG_WINDOW_GLFW
+#    include <GLFW/glfw3.h>
+#endif
+
 namespace Yogi
 {
 
-Handle<IDeviceContext> IDeviceContext::Create() { return Handle<VulkanDeviceContext>::Create(); }
+Handle<IDeviceContext> IDeviceContext::Create(const Ref<Window>& window)
+{
+    return Handle<VulkanDeviceContext>::Create(window);
+}
+
+PFN_vkVoidFunction VulkanDeviceContext::VkLoadFunction(VkInstance instance, const char* funcName)
+{
+    return vkGetInstanceProcAddr(instance, funcName);
+}
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT      messageSeverity,
                                                     VkDebugUtilsMessageTypeFlagsEXT             messageType,
@@ -23,10 +36,11 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityF
     return VK_FALSE;
 }
 
-VulkanDeviceContext::VulkanDeviceContext()
+VulkanDeviceContext::VulkanDeviceContext(const Ref<Window>& window)
 {
     volkInitialize();
     CreateVkInstance();
+    CreateVkSurface(window);
     PickPhysicalDevice();
     CreateLogicalDevice();
     CreateCommandPool();
@@ -50,6 +64,7 @@ VulkanDeviceContext::~VulkanDeviceContext()
     vkDestroyDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
 #endif
 
+    vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
     vkDestroyInstance(m_instance, nullptr);
 }
 
@@ -91,15 +106,14 @@ void VulkanDeviceContext::CreateVkInstance()
     createInfo.pApplicationInfo = &appInfo;
 
     std::vector<const char*> extensions;
-    extensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
-#ifdef YG_PLATFORM_WIN32
-    extensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
-#elif YG_PLATFORM_MACOS
-    extensions.push_back(VK_EXT_METAL_SURFACE_EXTENSION_NAME);
-#elif YG_PLATFORM_LINUX
-    extensions.push_back(VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME);
-    extensions.push_back(VK_KHR_XLIB_SURFACE_EXTENSION_NAME);
-    extensions.push_back(VK_KHR_XCB_SURFACE_EXTENSION_NAME);
+#ifdef YG_WINDOW_GLFW
+    uint32_t     glfwExtensionCount = 0;
+    const char** glfwExtensions;
+    glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+    for (uint32_t i = 0; i < glfwExtensionCount; i++)
+    {
+        extensions.push_back(glfwExtensions[i]);
+    }
 #endif
 
 #ifdef YG_DEBUG
@@ -143,6 +157,16 @@ void VulkanDeviceContext::CreateVkInstance()
 #endif
 }
 
+void VulkanDeviceContext::CreateVkSurface(const Ref<Window>& window)
+{
+    VkResult result = VK_ERROR_INITIALIZATION_FAILED;
+#ifdef YG_WINDOW_GLFW
+    result = glfwCreateWindowSurface(m_instance, (GLFWwindow*)window->GetNativeWindow(), nullptr, &m_surface);
+#endif
+
+    YG_CORE_ASSERT(result == VK_SUCCESS && m_surface != VK_NULL_HANDLE, "Vulkan: Failed to create window surface!");
+}
+
 void VulkanDeviceContext::PickPhysicalDevice()
 {
     uint32_t deviceCount = 0;
@@ -154,7 +178,7 @@ void VulkanDeviceContext::PickPhysicalDevice()
 
     for (const VkPhysicalDevice& device : devices)
     {
-        if (IsDeviceSuitable(device, DeviceExtensions))
+        if (IsDeviceSuitable(device, m_surface, DeviceExtensions))
         {
             m_physicalDevice = device;
             break;
@@ -166,10 +190,13 @@ void VulkanDeviceContext::PickPhysicalDevice()
 
 void VulkanDeviceContext::CreateLogicalDevice()
 {
-    QueueFamilyIndices indices = FindQueueFamilies(m_physicalDevice);
+    QueueFamilyIndices indices = FindQueueFamilies(m_physicalDevice, m_surface);
 
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-    std::set<uint32_t> uniqueQueueFamilies = { indices.graphicsFamily.value(), indices.presentFamily.value() };
+    std::set<uint32_t>                   uniqueQueueFamilies = { indices.graphicsFamily.value(),
+                                                                 indices.computeFamily.value(),
+                                                                 indices.transferFamily.value(),
+                                                                 indices.presentFamily.value() };
 
     float queuePriority = 1.0f;
     for (uint32_t queueFamily : uniqueQueueFamilies)
@@ -209,12 +236,12 @@ void VulkanDeviceContext::CreateLogicalDevice()
     volkLoadDevice(m_device);
 
     vkGetDeviceQueue(m_device, indices.graphicsFamily.value(), 0, &m_graphicsQueue);
-    vkGetDeviceQueue(m_device, indices.graphicsFamily.value(), 0, &m_transferQueue);
+    vkGetDeviceQueue(m_device, indices.transferFamily.value(), 0, &m_transferQueue);
 }
 
 void VulkanDeviceContext::CreateCommandPool()
 {
-    QueueFamilyIndices indices = FindQueueFamilies(m_physicalDevice);
+    QueueFamilyIndices indices = FindQueueFamilies(m_physicalDevice, m_surface);
 
     VkCommandPoolCreateInfo poolInfo{};
     poolInfo.sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;

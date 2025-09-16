@@ -28,7 +28,7 @@ public:
         R32_FLOAT,
         D32_FLOAT,
         D24_UNORM_S8_UINT,
-        None,
+        NONE,
     };
 
     enum class Usage

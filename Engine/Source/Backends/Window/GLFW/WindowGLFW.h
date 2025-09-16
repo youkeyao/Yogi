@@ -17,9 +17,7 @@ public:
     WindowGLFW(const WindowProps& props);
     virtual ~WindowGLFW();
 
-    void Init() override;
     void OnUpdate() override;
-    void WaitEvents() override;
 
     inline void SetEventCallback(const EventCallbackFn& callback) override { m_data.EventCallback = callback; };
 

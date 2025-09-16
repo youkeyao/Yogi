@@ -2,6 +2,8 @@
 #include <stdexcept>
 #include <cstring>
 
+#include <volk.h>
+
 namespace Yogi
 {
 

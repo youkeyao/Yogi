@@ -37,6 +37,7 @@ public:
         return component;
     }
 
+    operator bool() const { return m_entityHandle != entt::null; }
     operator uint32_t() const { return (uint32_t)m_entityHandle; }
     bool operator==(const Entity& other) const
     {

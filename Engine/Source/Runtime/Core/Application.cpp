@@ -10,17 +10,16 @@ Application* Application::s_instance = nullptr;
 
 Application::Application(const std::string& name)
 {
-    Yogi::Log::Init();
+    Log::Init();
     YG_PROFILE_FUNCTION();
 
     YG_CORE_ASSERT(!s_instance, "Application already exists!");
     s_instance = this;
 
     m_window = Window::Create(WindowProps{ name, 1280, 720 });
-    m_window->Init();
     m_window->SetEventCallback(YG_BIND_FN(Application::OnEvent));
 
-    m_context   = IDeviceContext::Create();
+    m_context   = IDeviceContext::Create(Ref<Window>::Create(m_window));
     m_swapChain = ISwapChain::Create(SwapChainDesc{ m_window->GetWidth(),
                                                     m_window->GetHeight(),
                                                     ITexture::Format::R8G8B8A8_SRGB,
@@ -35,7 +34,6 @@ Application::~Application()
 
     for (auto& layer : m_layers)
     {
-        layer->OnDetach();
         layer = nullptr;
     }
     m_layers.clear();
@@ -52,7 +50,6 @@ void Application::PushLayer(Handle<Layer>&& layer)
     YG_PROFILE_FUNCTION();
 
     m_layers.push_back(std::move(layer));
-    m_layers.back()->OnAttach();
 }
 
 void Application::OnEvent(Event& e)

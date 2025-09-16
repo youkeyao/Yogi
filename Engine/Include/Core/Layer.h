@@ -12,8 +12,6 @@ public:
     Layer(const std::string& name = "Layer") : m_debugName(name) {}
     virtual ~Layer() = default;
 
-    virtual void OnAttach()            = 0;
-    virtual void OnDetach()            = 0;
     virtual void OnUpdate(Timestep ts) = 0;
     virtual void OnEvent(Event& e)     = 0;
 
