@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Yogi.h>
+
 namespace Yogi
 {
 

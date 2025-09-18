@@ -1,8 +1,5 @@
 #pragma once
 
-namespace Yogi
-{
-
 constexpr uint32_t fnv1a_32(const char* str, std::size_t n)
 {
     uint32_t hash = 2166136261u; // offset basis
@@ -17,35 +14,37 @@ constexpr uint32_t fnv1a_32(const char* str, std::size_t n)
 template <typename T>
 constexpr std::string_view GetTypeName()
 {
-#if defined(__clang__)
-    constexpr std::string_view p      = __PRETTY_FUNCTION__; // e.g. "std::string_view Yogi::GetTypeName() [T = int]"
-    constexpr std::string_view prefix = "std::string_view Yogi::GetTypeName() [T = ";
-    constexpr std::string_view suffix = "]";
-#elif defined(__GNUC__)
-    constexpr std::string_view p =
-        __PRETTY_FUNCTION__; // e.g. "constexpr std::string_view Yogi::GetTypeName() [with T = int]"
-    constexpr std::string_view prefix = "constexpr std::string_view Yogi::GetTypeName() [with T = ";
-    constexpr std::string_view suffix = "]";
+#if defined(__clang__) || defined(__GNUC__)
+    constexpr std::string_view sig = __PRETTY_FUNCTION__;
+    constexpr std::string_view key = "T = ";
+    const auto                 pos = sig.find(key);
+    if (pos == std::string_view::npos)
+        return sig;
+    const auto  start  = pos + key.size();
+    std::size_t end    = sig.size();
+    std::size_t endpos = sig.find(';', start);
+    if (endpos != std::string_view::npos)
+        end = endpos < end ? endpos : end;
+    endpos = sig.find(']', start);
+    if (endpos != std::string_view::npos)
+        end = endpos < end ? endpos : end;
+    return sig.substr(start, end - start);
 #elif defined(_MSC_VER)
-    constexpr std::string_view p =
-        __FUNCSIG__; // e.g. "class std::basic_string_view<char,struct std::char_traits<char> > __cdecl GetTypeName<int>(void)"
-    constexpr std::string_view prefix =
-        "class std::basic_string_view<char,struct std::char_traits<char> > __cdecl GetTypeName<";
-    constexpr std::string_view suffix = ">(void)";
+    constexpr std::string_view sig = __FUNCSIG__;
+    // find the first '<' and last '>'
+    const auto first_lt = sig.find('<');
+    const auto last_gt  = sig.rfind('>');
+    if (first_lt == std::string_view::npos || last_gt == std::string_view::npos || last_gt <= first_lt)
+        return sig;
+    return sig.substr(first_lt + 1, last_gt - first_lt - 1);
 #else
 #    error "Unsupported compiler"
 #endif
-
-    const auto start = p.find(prefix) + prefix.size();
-    const auto end   = p.rfind(suffix);
-    return p.substr(start, end - start);
 }
 
 template <typename T>
 constexpr uint32_t GetTypeHash()
 {
-    constexpr auto name = GetTypeName<T>();
+    constexpr auto name = GetTypeName<std::remove_cv_t<std::remove_reference_t<T>>>();
     return fnv1a_32(name.data(), name.size());
 }
-
-} // namespace Yogi

@@ -24,7 +24,7 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
 {
     YG_PROFILE_FUNCTION();
 
-    Yogi::AssetManager::PushAssetSource<Yogi::FileSystemSource>("Assets/");
+    Yogi::AssetManager::PushAssetSource<Yogi::FileSystemSource>(".");
 
     auto& swapChain = Yogi::Application::GetInstance().GetSwapChain();
 
@@ -62,7 +62,7 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
     m_box = m_world->CreateEntity();
     m_box.AddComponent<Yogi::TransformComponent>();
     auto& meshRenderer = m_box.AddComponent<Yogi::MeshRendererComponent>();
-    meshRenderer.Mesh  = Yogi::AssetManager::GetAsset<Yogi::Mesh>("Meshes/Cube.obj::cube");
+    meshRenderer.Mesh  = Yogi::AssetManager::GetAsset<Yogi::Mesh>("Assets/Meshes/Cube.obj::cube");
     meshRenderer.Material =
         Yogi::ResourceManager::GetResource<Yogi::Material>(Yogi::Ref<Yogi::IPipeline>::Create(m_pipeline));
 }

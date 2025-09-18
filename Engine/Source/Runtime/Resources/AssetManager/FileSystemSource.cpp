@@ -36,7 +36,7 @@ std::vector<uint8_t> FileSystemSource::LoadSource(const std::string& key)
 {
     size_t sepPos = key.find("::");
 
-    std::string filepath = "";
+    std::filesystem::path filepath;
     if (sepPos == std::string::npos)
     {
         filepath = m_rootDir / key;
@@ -45,7 +45,7 @@ std::vector<uint8_t> FileSystemSource::LoadSource(const std::string& key)
     {
         filepath = m_rootDir / key.substr(0, sepPos);
     }
-    return LoadBinaryFile(filepath);
+    return LoadBinaryFile(filepath.string());
 }
 
 } // namespace Yogi
