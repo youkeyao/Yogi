@@ -13,7 +13,7 @@ public:
     std::vector<uint8_t> LoadSource(const std::string& key) override;
 
 private:
-    std::string m_rootDir;
+    std::filesystem::path m_rootDir;
 };
 
 } // namespace Yogi

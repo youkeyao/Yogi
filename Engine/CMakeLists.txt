@@ -125,13 +125,13 @@ endif()
 target_link_libraries( YGEngine
     PUBLIC
         spdlog
+        assimp
         # Jolt
         ${YGWindowLib}
         ${YGRendererLib}
     PRIVATE
         stb_image
         # spirv-cross-glsl
-        assimp
 )
 target_precompile_headers( YGEngine
     PUBLIC

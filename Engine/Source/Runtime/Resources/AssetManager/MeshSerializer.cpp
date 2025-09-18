@@ -69,7 +69,6 @@ Handle<Mesh> MeshSerializer::Deserialize(const std::vector<uint8_t>& binary, con
     Assimp::Importer importer;
     const aiScene*   scene = importer.ReadFileFromMemory(
         binary.data(), binary.size(), aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenNormals, ext.c_str());
-    // check for errors
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
     {
         YG_CORE_ERROR("ERROR::ASSIMP:: {0}", importer.GetErrorString());

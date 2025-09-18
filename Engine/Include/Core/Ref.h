@@ -73,6 +73,7 @@ public:
     inline const T& operator*() const { return *m_cb->Ptr; }
 
     inline bool operator==(const Ref& other) const noexcept { return m_cb == other.m_cb; }
+    inline bool operator==(const Handle<T>& handle) const noexcept { return m_cb == handle.GetCB(); }
 
     inline operator bool() const { return m_cb != nullptr; }
 

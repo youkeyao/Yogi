@@ -1,5 +1,9 @@
 #include "Layers/HierarchyLayer.h"
 
+#include "Reflect/ComponentManager.h"
+
+#include "Registry/AssetRegistry.h"
+
 #include <imgui.h>
 
 namespace Yogi
@@ -28,9 +32,9 @@ void HierarchyLayer::OnUpdate(Timestep ts)
             ImGui::EndPopup();
         }
 
-        float                                           cursor_y = ImGui::GetCursorPosY();
-        std::unordered_map<uint32_t, std::list<Entity>> relations;
-        std::list<Entity>                               rootEntities;
+        float                                             cursor_y = ImGui::GetCursorPosY();
+        std::unordered_map<uint32_t, std::vector<Entity>> relations;
+        std::vector<Entity>                               rootEntities;
         m_allEntities.clear();
         m_world->EachEntity([&relations, &rootEntities, this](Entity entity) {
             m_allEntities.push_back(entity);
@@ -80,13 +84,14 @@ void HierarchyLayer::OnUpdate(Timestep ts)
             ImGui::OpenPopup("AddComponent");
         if (ImGui::BeginPopup("AddComponent"))
         {
-            // ComponentManager::each_component_type([this](std::string component_name) {
-            //     if (ImGui::MenuItem(component_name.c_str()))
-            //     {
-            //         ComponentManager::add_component(m_selectedEntity, component_name);
-            //         ImGui::CloseCurrentPopup();
-            //     }
-            // });
+            ComponentManager::EachComponentType([this](ComponentType& componentType) {
+                std::string& componentName = componentType.Name;
+                if (ImGui::MenuItem(componentName.c_str()))
+                {
+                    ComponentManager::AddComponent(m_selectedEntity, componentType.TypeHash);
+                    ImGui::CloseCurrentPopup();
+                }
+            });
             ImGui::EndPopup();
         }
     }
@@ -126,7 +131,8 @@ bool HierarchyLayer::CheckEntityParent(Entity& entity, Entity& parent)
     return (target != Entity::Null());
 }
 
-void HierarchyLayer::DeleteEntityAndChildren(Entity& entity, std::unordered_map<uint32_t, std::list<Entity>>& relations)
+void HierarchyLayer::DeleteEntityAndChildren(Entity&                                            entity,
+                                             std::unordered_map<uint32_t, std::vector<Entity>>& relations)
 {
     for (auto& child : relations[entity])
     {
@@ -135,7 +141,7 @@ void HierarchyLayer::DeleteEntityAndChildren(Entity& entity, std::unordered_map<
     m_world->DeleteEntity(entity);
 }
 
-void HierarchyLayer::DrawEntityNode(Entity& entity, std::unordered_map<uint32_t, std::list<Entity>>& relations)
+void HierarchyLayer::DrawEntityNode(Entity& entity, std::unordered_map<uint32_t, std::vector<Entity>>& relations)
 {
     auto& tag = entity.GetComponent<TagComponent>().Tag;
 
@@ -190,7 +196,188 @@ void HierarchyLayer::DrawEntityNode(Entity& entity, std::unordered_map<uint32_t,
     }
 }
 
-void HierarchyLayer::DrawComponents() {}
+void HierarchyLayer::DrawComponents()
+{
+    m_selectedEntity.EachComponent([this](uint32_t typeHash, void* component) {
+        ComponentType      componentType = ComponentManager::GetComponentType(typeHash);
+        ImGuiTreeNodeFlags flags         = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed |
+            ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_FramePadding;
+        bool is_opened = ImGui::TreeNodeEx(component, flags, "%s", componentType.Name.c_str());
+        if (ImGui::BeginPopupContextItem())
+        {
+            if (ImGui::MenuItem("Delete Component"))
+            {
+                ComponentManager::RemoveComponent(m_selectedEntity, componentType.TypeHash);
+            }
+            ImGui::EndPopup();
+        }
+        if (is_opened)
+        {
+            for (auto& field : componentType.Fields)
+            {
+                if (field.TypeHash == GetTypeHash<bool>())
+                {
+                    bool* is = reinterpret_cast<bool*>((uint8_t*)component + field.Offset);
+                    ImGui::Checkbox(field.Name.c_str(), is);
+                }
+                else if (field.TypeHash == GetTypeHash<int>())
+                {
+                    int* i = reinterpret_cast<int*>((uint8_t*)component + field.Offset);
+                    ImGui::InputInt(field.Name.c_str(), i);
+                }
+                else if (field.TypeHash == GetTypeHash<std::string>())
+                {
+                    std::string& str = *reinterpret_cast<std::string*>((uint8_t*)component + field.Offset);
+                    char         buffer[256];
+                    memset(buffer, 0, sizeof(buffer));
+                    strcpy(buffer, str.c_str());
+                    if (ImGui::InputText(field.Name.c_str(), buffer, sizeof(buffer)))
+                    {
+                        str = std::string{ buffer };
+                    }
+                }
+                else if (field.TypeHash == GetTypeHash<float>())
+                {
+                    float* f = reinterpret_cast<float*>((uint8_t*)component + field.Offset);
+                    ImGui::InputFloat(field.Name.c_str(), f, 0.25f);
+                }
+                else if (field.TypeHash == GetTypeHash<Vector2>())
+                {
+                    Vector2& vec2 = *reinterpret_cast<Vector2*>((uint8_t*)component + field.Offset);
+                    ImGui::DragFloat2(field.Name.c_str(), &vec2.x, 0.25f);
+                }
+                else if (field.TypeHash == GetTypeHash<Vector3>())
+                {
+                    Vector3& vec3 = *reinterpret_cast<Vector3*>((uint8_t*)component + field.Offset);
+                    ImGui::DragFloat3(field.Name.c_str(), &vec3.x, 0.25f);
+                }
+                else if (field.TypeHash == GetTypeHash<Vector4>())
+                {
+                    Vector4& vec4 = *reinterpret_cast<Vector4*>((uint8_t*)component + field.Offset);
+                    ImGui::DragFloat4(field.Name.c_str(), &vec4.x, 0.25f);
+                }
+                else if (field.TypeHash == GetTypeHash<Color>())
+                {
+                    Color& color = *reinterpret_cast<Color*>((uint8_t*)component + field.Offset);
+                    ImGui::ColorEdit4(field.Name.c_str(), &color.r, ImGuiColorEditFlags_Float);
+                }
+                else if (field.TypeHash == GetTypeHash<Transform>())
+                {
+                    Transform& transform = *reinterpret_cast<Transform*>((uint8_t*)component + field.Offset);
+                    ImGui::DragFloat3("Position", &transform.Position.x, 0.25f);
+                    ImGui::DragFloat3("Rotation", &transform.Rotation.x, 0.25f);
+                    ImGui::DragFloat3("Scale", &transform.Scale.x, 0.25f);
+                }
+                else if (field.TypeHash == GetTypeHash<Entity>())
+                {
+                    Entity& entity = *reinterpret_cast<Entity*>((uint8_t*)component + field.Offset);
+                    if (ImGui::BeginCombo(field.Name.c_str(),
+                                          entity ? entity.GetComponent<TagComponent>().Tag.c_str() : "None"))
+                    {
+                        // Set Null
+                        if (ImGui::Selectable("None", !entity))
+                        {
+                            entity = Entity::Null();
+                        }
+                        // Set other entities
+                        for (auto e : m_allEntities)
+                        {
+                            ImGui::PushID((uint32_t)e);
+                            const char* name       = e.GetComponent<TagComponent>().Tag.c_str();
+                            bool        isSelected = entity == e;
+                            if (ImGui::Selectable(name, isSelected))
+                            {
+                                entity = e;
+                                if (CheckEntityParent(entity, m_selectedEntity))
+                                {
+                                    entity = Entity::Null();
+                                }
+                            }
+                            ImGui::PopID();
+                        }
+                        ImGui::EndCombo();
+                    }
+                }
+                else if (field.TypeHash == GetTypeHash<Ref<Mesh>>())
+                {
+                    Ref<Mesh>&  mesh     = *reinterpret_cast<Ref<Mesh>*>((uint8_t*)component + field.Offset);
+                    auto&       assetMap = AssetManager::GetAssetMap<Mesh>();
+                    std::string meshKey;
+                    for (const auto& [key, value] : assetMap)
+                    {
+                        if (value == mesh)
+                        {
+                            meshKey = key;
+                            break;
+                        }
+                    }
+                    if (ImGui::BeginCombo(field.Name.c_str(), meshKey.c_str()))
+                    {
+                        for (auto& key : AssetRegistry::GetKeys<Mesh>())
+                        {
+                            if (ImGui::Selectable(key.c_str(), meshKey == key))
+                            {
+                                mesh = AssetManager::GetAsset<Mesh>(key);
+                            }
+                        }
+                        ImGui::EndCombo();
+                    }
+                }
+                // else if (value.type_hash == typeid(Ref<Material>).hash_code())
+                // {
+                //     Ref<Material>& material = *(Ref<Material>*)((uint8_t*)component + value.offset);
+                //     if (ImGui::BeginCombo(key.c_str(), (material->get_name()).c_str()))
+                //     {
+                //         MaterialManager::each_material([&](const Ref<Material>& each_material) {
+                //             bool is_selected = material == each_material;
+                //             if (ImGui::Selectable(each_material->get_name().c_str(), is_selected))
+                //             {
+                //                 material = each_material;
+                //             }
+                //         });
+                //         ImGui::EndCombo();
+                //     }
+                // }
+                // else if (value.type_hash == typeid(Ref<RenderTexture>).hash_code())
+                // {
+                //     Ref<RenderTexture>& texture = *(Ref<RenderTexture>*)((uint8_t*)component + value.offset);
+                //     if (ImGui::BeginCombo(key.c_str(), texture ? (texture->get_name()).c_str() : "None"))
+                //     {
+                //         TextureManager::each_render_texture([&](const Ref<RenderTexture>& each_texture) {
+                //             bool is_selected = texture == each_texture;
+                //             if (ImGui::Selectable(each_texture->get_name().c_str(), is_selected))
+                //             {
+                //                 texture = each_texture;
+                //             }
+                //         });
+                //         if (ImGui::Selectable("None", texture == nullptr))
+                //         {
+                //             texture = nullptr;
+                //         }
+                //         ImGui::EndCombo();
+                //     }
+                // }
+                // else if (value.type_hash == typeid(ColliderType).hash_code())
+                // {
+                //     ColliderType&            type       = *(ColliderType*)((uint8_t*)component + value.offset);
+                //     std::vector<std::string> type_names = { "box", "sphere", "capsule" };
+                //     if (ImGui::BeginCombo(key.c_str(), type_names[(int)type].c_str()))
+                //     {
+                //         for (int i = 0; i < type_names.size(); i++)
+                //         {
+                //             if (ImGui::Selectable(type_names[i].c_str(), type == i))
+                //             {
+                //                 type = (ColliderType)i;
+                //             }
+                //         }
+                //         ImGui::EndCombo();
+                //     }
+                // }
+            }
+            ImGui::TreePop();
+        }
+    });
+}
 
 void HierarchyLayer::DrawSystems() {}
 

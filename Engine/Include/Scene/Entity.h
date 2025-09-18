@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Core/Type.h"
+
 #include <entt/entity/registry.hpp>
 
 namespace Yogi
@@ -14,27 +16,40 @@ public:
     template <typename T, typename... Args>
     T& AddComponent(Args&&... args)
     {
-        if (m_registry->any_of<T>(m_entityHandle))
+        entt::storage<T>& pool = m_registry->storage<T>(GetTypeHash<T>());
+        if (pool.contains(m_entityHandle))
         {
             return GetComponent<T>();
         }
-        T& component = m_registry->emplace<T>(m_entityHandle, std::forward<Args>(args)...);
-        return component;
+        return *reinterpret_cast<T*>(&pool.emplace(m_entityHandle, std::forward<Args>(args)...));
     }
 
     template <typename T>
     void RemoveComponent()
     {
-        YG_CORE_ASSERT(m_registry->any_of<T>(m_entityHandle), "Entity remove invalid component!");
-        m_registry->erase<T>(m_entityHandle);
+        entt::storage<T>& pool = m_registry->storage<T>(GetTypeHash<T>());
+        YG_CORE_ASSERT(pool.contains(m_entityHandle), "Entity remove invalid component!");
+        return pool.erase(m_entityHandle);
     }
 
     template <typename T>
     T& GetComponent()
     {
-        YG_CORE_ASSERT(m_registry->any_of<T>(m_entityHandle), "Entity get invalid component!");
-        T& component = m_registry->get<T>(m_entityHandle);
-        return component;
+        entt::storage<T>& pool = m_registry->storage<T>(GetTypeHash<T>());
+        YG_CORE_ASSERT(pool.contains(m_entityHandle), "Entity get invalid component!");
+        return *reinterpret_cast<T*>(pool.value(m_entityHandle));
+    }
+
+    template <typename F>
+    void EachComponent(F&& func)
+    {
+        for (auto [id, storage] : m_registry->storage())
+        {
+            if (storage.contains(m_entityHandle))
+            {
+                func(id, storage.value(m_entityHandle));
+            }
+        }
     }
 
     operator bool() const { return m_entityHandle != entt::null; }

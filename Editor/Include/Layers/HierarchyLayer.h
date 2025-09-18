@@ -16,9 +16,9 @@ public:
 
 private:
     bool CheckEntityParent(Entity& entity, Entity& parent);
-    void DeleteEntityAndChildren(Entity& entity, std::unordered_map<uint32_t, std::list<Entity>>& relations);
+    void DeleteEntityAndChildren(Entity& entity, std::unordered_map<uint32_t, std::vector<Entity>>& relations);
 
-    void DrawEntityNode(Entity& entity, std::unordered_map<uint32_t, std::list<Entity>>& relations);
+    void DrawEntityNode(Entity& entity, std::unordered_map<uint32_t, std::vector<Entity>>& relations);
     void DrawComponents();
     void DrawSystems();
 

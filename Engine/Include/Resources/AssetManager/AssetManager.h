@@ -64,10 +64,25 @@ public:
     }
     static void PopAssetSource() { s_sources.pop_back(); }
 
+    template <typename T>
+    static std::unordered_map<std::string, Handle<T>>& GetAssetMap()
+    {
+        auto it = s_assetMaps.find(typeid(T));
+        if (it == s_assetMaps.end())
+        {
+            auto* newMap             = new std::unordered_map<std::string, Handle<T>>();
+            void (*deleterFn)(void*) = +[](void* p) {
+                delete static_cast<std::unordered_map<std::string, Handle<T>>*>(p);
+            };
+            s_assetMaps[typeid(T)] = Any{ newMap, VoidDeleter(deleterFn) };
+            return *newMap;
+        }
+        return *static_cast<std::unordered_map<std::string, Handle<T>>*>(it->second.get());
+    }
+
     static void Clear()
     {
         s_sources.clear();
-        s_serializers.clear();
         s_assetMaps.clear();
     }
 
@@ -96,22 +111,6 @@ protected:
             return static_cast<AssetSerializer<T>*>(it->second.get());
         }
         return nullptr;
-    }
-
-    template <typename T>
-    static std::unordered_map<std::string, Handle<T>>& GetAssetMap()
-    {
-        auto it = s_assetMaps.find(typeid(T));
-        if (it == s_assetMaps.end())
-        {
-            auto* newMap             = new std::unordered_map<std::string, Handle<T>>();
-            void (*deleterFn)(void*) = +[](void* p) {
-                delete static_cast<std::unordered_map<std::string, Handle<T>>*>(p);
-            };
-            s_assetMaps[typeid(T)] = Any{ newMap, VoidDeleter(deleterFn) };
-            return *newMap;
-        }
-        return *static_cast<std::unordered_map<std::string, Handle<T>>*>(it->second.get());
     }
 
 private:

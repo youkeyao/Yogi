@@ -22,7 +22,7 @@ Application::Application(const std::string& name)
     m_context   = IDeviceContext::Create(Ref<Window>::Create(m_window));
     m_swapChain = ISwapChain::Create(SwapChainDesc{ m_window->GetWidth(),
                                                     m_window->GetHeight(),
-                                                    ITexture::Format::R8G8B8A8_SRGB,
+                                                    ITexture::Format::B8G8R8A8_UNORM,
                                                     ITexture::Format::D32_FLOAT,
                                                     SampleCountFlagBits::Count4,
                                                     Ref<Window>::Create(m_window) });

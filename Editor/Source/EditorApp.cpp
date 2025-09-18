@@ -1,6 +1,11 @@
 #include <Yogi.h>
 
 #include "Core/EntryPoint.h"
+
+#include "Reflect/ComponentManager.h"
+
+#include "Registry/AssetRegistry.h"
+
 #include "Layers/ImGuiBeginLayer.h"
 #include "Layers/ImGuiEndLayer.h"
 #include "Layers/ViewportLayer.h"
@@ -14,13 +19,23 @@ class EditorApp : public Application
 public:
     EditorApp() : Application("Yogi Editor"), m_world(Handle<World>::Create()), m_selectedEntity(Entity::Null())
     {
+        ComponentManager::Init();
+
+        AssetManager::PushAssetSource<FileSystemSource>(".");
+        AssetRegistry::Init();
+        AssetRegistry::Scan("Assets/");
+
         PushLayer(Handle<ImGuiBeginLayer>::Create());
         PushLayer(Handle<ViewportLayer>::Create(m_world, m_selectedEntity));
         PushLayer(Handle<HierarchyLayer>::Create(m_world, m_selectedEntity));
         PushLayer(Handle<ImGuiEndLayer>::Create());
     }
 
-    ~EditorApp() {}
+    ~EditorApp()
+    {
+        ComponentManager::Clear();
+        AssetRegistry::Clear();
+    }
 
 private:
     Entity        m_selectedEntity;

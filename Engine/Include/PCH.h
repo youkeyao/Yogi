@@ -51,32 +51,4 @@ namespace Yogi
 
 #define YG_BIND_FN(x, ...) std::bind(&x, this, std::placeholders::_1, ##__VA_ARGS__)
 
-template <typename Type>
-auto GetTypeName()
-{
-    int status = -1;
-#ifdef __GNUG__
-    char* demangled = abi::__cxa_demangle(typeid(Type).name(), nullptr, nullptr, &status);
-    if (status == 0)
-    {
-        std::string className = demangled;
-        free(demangled);
-        return className;
-    }
-    else
-    {
-        free(demangled);
-        return std::string(typeid(Type).name());
-    }
-#elif defined(_MSC_VER)
-    std::string name = typeid(Type).name();
-    size_t      pos  = name.find(' ');
-    if (pos != std::string::npos)
-    {
-        return name.substr(pos + 1);
-    }
-    return name;
-#endif
-}
-
 } // namespace Yogi

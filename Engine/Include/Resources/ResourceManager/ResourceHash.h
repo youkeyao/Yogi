@@ -10,7 +10,7 @@ concept StdHashable = requires(T v) {
     { std::hash<T>{}(v) } -> std::convertible_to<size_t>;
 };
 
-static void HashCombine(uint64_t& seed, uint64_t value)
+constexpr void HashCombine(uint64_t& seed, uint64_t value)
 {
     seed ^= value + 0x9e3779b97f4a7c15ULL + (seed << 6) + (seed >> 2);
 }
@@ -37,7 +37,7 @@ struct UniversalHash
 };
 
 template <typename... Args>
-static uint64_t HashArgs(Args&&... args)
+constexpr uint64_t HashArgs(Args&&... args)
 {
     uint64_t seed = 0;
     (HashCombine(seed, UniversalHash<std::decay_t<Args>>{}(std::forward<Args>(args))), ...);

@@ -17,7 +17,7 @@ public:
     template <typename T>
     void AddSystem()
     {
-        std::string systemName = GetTypeName<T>();
+        std::string_view systemName = GetTypeName<T>();
         for (auto& [name, system] : m_systems)
         {
             if (name == systemName)
@@ -31,7 +31,7 @@ public:
     template <typename T>
     void RemoveSystem()
     {
-        std::string systemName = GetTypeName<T>();
+        std::string_view systemName = GetTypeName<T>();
         for (auto iter = m_systems.begin(); iter != m_systems.end(); iter++)
         {
             auto& [name, system] = *iter;
@@ -59,7 +59,7 @@ public:
     void   DeleteEntity(Entity entity);
 
     void EachEntity(std::function<void(Entity)>&& func);
-    void EachSystem(std::function<void(std::string)>&& func);
+    void EachSystem(std::function<void(std::string_view)>&& func);
 
     void ChangeSystemOrder(uint32_t old_index, uint32_t new_index);
 
@@ -67,8 +67,8 @@ public:
     void OnEvent(Event& e);
 
 private:
-    Handle<entt::registry>                                  m_registry;
-    std::vector<std::pair<std::string, Handle<SystemBase>>> m_systems;
+    Handle<entt::registry>                                       m_registry;
+    std::vector<std::pair<std::string_view, Handle<SystemBase>>> m_systems;
 };
 
 } // namespace Yogi

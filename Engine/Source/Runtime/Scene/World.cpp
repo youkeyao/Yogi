@@ -31,7 +31,7 @@ void World::EachEntity(std::function<void(Entity)>&& func)
     }
 }
 
-void World::EachSystem(std::function<void(std::string)>&& func)
+void World::EachSystem(std::function<void(std::string_view)>&& func)
 {
     for (int32_t i = 0; i < m_systems.size(); i++)
     {

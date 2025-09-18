@@ -5,6 +5,10 @@
 #include "Core/Input.h"
 #include "Core/Layer.h"
 #include "Core/Timestep.h"
+#include "Core/Type.h"
+// --------------------------------------------
+
+// ---events-----------------------------------
 #include "Events/ApplicationEvent.h"
 #include "Events/Event.h"
 #include "Events/KeyCodes.h"
@@ -17,6 +21,8 @@
 #include "Math/Vector2.h"
 #include "Math/Vector3.h"
 #include "Math/Vector4.h"
+#include "Math/Quaternion.h"
+#include "Math/Color.h"
 #include "Math/Matrix4.h"
 #include "Math/MathUtils.h"
 // ----------------------------------------------

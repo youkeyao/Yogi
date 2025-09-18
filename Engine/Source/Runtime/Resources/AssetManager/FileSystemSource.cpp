@@ -39,11 +39,11 @@ std::vector<uint8_t> FileSystemSource::LoadSource(const std::string& key)
     std::string filepath = "";
     if (sepPos == std::string::npos)
     {
-        filepath = m_rootDir + key;
+        filepath = m_rootDir / key;
     }
     else
     {
-        filepath = m_rootDir + key.substr(0, sepPos);
+        filepath = m_rootDir / key.substr(0, sepPos);
     }
     return LoadBinaryFile(filepath);
 }
