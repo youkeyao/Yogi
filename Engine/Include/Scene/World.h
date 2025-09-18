@@ -46,12 +46,12 @@ public:
     template <typename... Args, typename F = std::function<void(Args&&...)>>
     void ViewComponents(F&& func)
     {
-        auto view = m_registry->view<Args...>();
-        for (auto entity : view)
-        {
+        entt::view<entt::get_t<Args...>> view;
+        ((view.storage(m_registry->storage<Args>(GetTypeHash<Args>()))), ...);
+        view.each([this, func](entt::entity entity, Args&... args) {
             Entity e(entity, Ref<entt::registry>::Create(m_registry));
-            std::apply([&](auto&... args) { func(e, args...); }, view.get(entity));
-        }
+            func(e, args...);
+        });
     }
 
     Entity CreateEntity(uint32_t hint = 0);

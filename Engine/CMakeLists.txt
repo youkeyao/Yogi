@@ -96,6 +96,9 @@ set( ASSIMP_INSTALL OFF )
 set( ASSIMP_BUILD_TESTS OFF )
 set( ASSIMP_BUILD_ZLIB ON )
 add_subdirectory( ThirdParty/assimp )
+if ( CMAKE_CXX_COMPILER_ID STREQUAL "GNU" )
+    target_compile_options( assimp PRIVATE -Wno-array-bounds )
+endif()
 # add_subdirectory( vendor/JoltPhysics/Build )
 
 file( GLOB_RECURSE

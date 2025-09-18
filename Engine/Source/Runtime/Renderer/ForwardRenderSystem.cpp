@@ -33,6 +33,8 @@ ForwardRenderSystem::ForwardRenderSystem()
 
 ForwardRenderSystem::~ForwardRenderSystem()
 {
+    m_commandBuffer->Wait();
+    m_commandBuffer = nullptr;
     m_vertexBuffer  = nullptr;
     m_indexBuffer   = nullptr;
     m_uniformBuffer = nullptr;

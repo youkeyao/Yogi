@@ -7,3 +7,6 @@ else()
 endif()
 
 target_include_directories( stb_image PUBLIC . )
+set_target_properties( stb_image PROPERTIES
+    DEBUG_POSTFIX "d"
+)

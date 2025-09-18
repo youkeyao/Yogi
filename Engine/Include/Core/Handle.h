@@ -53,6 +53,14 @@ public:
     inline int  GetRefCount() const { return m_cb->Count; }
     inline void SetSubCallBack(std::function<void()> callBackFunc) { m_cb->CallBackFunc = callBackFunc; }
 
+    template <typename... Args>
+    static Handle<T> Create(Args&&... args)
+    {
+        return Handle(new T(std::forward<Args>(args)...));
+    }
+
+private:
+    explicit Handle(T* p) : m_cb(new ControlBlock{ p, nullptr, 1 }) {}
     void Cleanup()
     {
         if (m_cb)
@@ -67,15 +75,6 @@ public:
             }
         }
     }
-
-    template <typename... Args>
-    static Handle<T> Create(Args&&... args)
-    {
-        return Handle(new T(std::forward<Args>(args)...));
-    }
-
-private:
-    explicit Handle(T* p) : m_cb(new ControlBlock{ p, nullptr, 1 }) {}
 
 private:
     ControlBlock* m_cb;

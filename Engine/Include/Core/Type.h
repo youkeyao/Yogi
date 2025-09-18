@@ -30,13 +30,19 @@ constexpr std::string_view GetTypeName()
         end = endpos < end ? endpos : end;
     return sig.substr(start, end - start);
 #elif defined(_MSC_VER)
-    constexpr std::string_view sig = __FUNCSIG__;
-    // find the first '<' and last '>'
-    const auto first_lt = sig.find('<');
-    const auto last_gt  = sig.rfind('>');
-    if (first_lt == std::string_view::npos || last_gt == std::string_view::npos || last_gt <= first_lt)
+    constexpr std::string_view sig     = __FUNCSIG__;
+    constexpr std::string_view key     = "GetTypeName<";
+    const auto                 pos     = sig.find(key);
+    if (pos == std::string_view::npos)
         return sig;
-    return sig.substr(first_lt + 1, last_gt - first_lt - 1);
+    auto start = pos + key.size();
+    const auto blank = sig.find(' ', start);
+    if (blank != std::string_view::npos)
+        start = blank + 1;
+    const auto end   = sig.find('>', start);
+    if (end == std::string_view::npos)
+        return sig;
+    return sig.substr(start, end - start);
 #else
 #    error "Unsupported compiler"
 #endif
