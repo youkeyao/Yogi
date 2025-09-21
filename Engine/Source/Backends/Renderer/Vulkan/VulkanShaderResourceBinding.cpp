@@ -90,7 +90,7 @@ void VulkanShaderResourceBinding::BindBuffer(const Ref<IBuffer>& buffer, int bin
 
 void VulkanShaderResourceBinding::BindTexture(const Ref<ITexture>& texture, int binding, int slot)
 {
-    Ref<VulkanTexture>   vkTexture = Ref<VulkanTexture>::Cast(texture);
+    Ref<VulkanTexture>    vkTexture = Ref<VulkanTexture>::Cast(texture);
     VkDescriptorImageInfo imageInfo{};
     imageInfo.imageView   = vkTexture->GetVkImageView();
     imageInfo.sampler     = vkTexture->GetVkSampler();

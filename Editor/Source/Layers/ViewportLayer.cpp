@@ -7,6 +7,7 @@ namespace Yogi
 {
 
 ViewportLayer::ViewportLayer(Handle<World>& world, Entity& selectedEntity) :
+    Layer("Viewport Layer"),
     m_world(world),
     m_selectedEntity(selectedEntity)
 {}

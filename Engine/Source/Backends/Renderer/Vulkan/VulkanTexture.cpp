@@ -1,5 +1,6 @@
 #include "VulkanTexture.h"
 #include "VulkanCommandBuffer.h"
+#include "VulkanBuffer.h"
 
 #include <volk.h>
 
@@ -60,6 +61,41 @@ VulkanTexture::~VulkanTexture()
     }
     if (m_imageMemory != VK_NULL_HANDLE)
         vkFreeMemory(device, m_imageMemory, nullptr);
+}
+
+void VulkanTexture::SetData(void* data, uint32_t size)
+{
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VkDevice             device  = context->GetVkDevice();
+
+    VulkanCommandBuffer commandBuffer({ CommandBufferUsage::OneTimeSubmit, SubmitQueue::Transfer });
+    commandBuffer.Begin();
+    commandBuffer.TransitionImageLayout(
+        m_image, m_usage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+    VkBufferImageCopy region{};
+    region.bufferOffset                    = 0;
+    region.bufferRowLength                 = 0;
+    region.bufferImageHeight               = 0;
+    region.imageSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.imageSubresource.mipLevel       = 0;
+    region.imageSubresource.baseArrayLayer = 0;
+    region.imageSubresource.layerCount     = 1;
+    region.imageOffset                     = { 0, 0, 0 };
+    region.imageExtent                     = { m_width, m_height, 1 };
+    VulkanBuffer stagingBuffer(BufferDesc{ size, BufferUsage::Staging, BufferAccess::Dynamic });
+    stagingBuffer.UpdateData(data, size);
+    vkCmdCopyBufferToImage(commandBuffer.GetVkCommandBuffer(),
+                           stagingBuffer.GetVkBuffer(),
+                           m_image,
+                           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                           1,
+                           &region);
+
+    commandBuffer.TransitionImageLayout(
+        m_image, m_usage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    commandBuffer.End();
+    commandBuffer.Submit();
 }
 
 // ----------------------------------------------------------------------------------------------

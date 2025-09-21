@@ -1,6 +1,7 @@
 #include "Layers/HierarchyLayer.h"
 
 #include "Reflect/ComponentManager.h"
+#include "Reflect/SystemManager.h"
 
 #include "Registry/AssetRegistry.h"
 
@@ -10,6 +11,7 @@ namespace Yogi
 {
 
 HierarchyLayer::HierarchyLayer(Handle<World>& world, Entity& selectedEntity) :
+    Layer("Hierarchy Layer"),
     m_world(world),
     m_selectedEntity(selectedEntity)
 {}
@@ -105,13 +107,13 @@ void HierarchyLayer::OnUpdate(Timestep ts)
             ImGui::OpenPopup("AddSystem");
         if (ImGui::BeginPopup("AddSystem"))
         {
-            // SystemManager::each_system_type([this](std::string system_name) {
-            //     if (ImGui::MenuItem(system_name.c_str()))
-            //     {
-            //         SystemManager::add_system(m_world, system_name);
-            //         ImGui::CloseCurrentPopup();
-            //     }
-            // });
+            SystemManager::EachSystemType([this](const std::string& systemName, uint32_t typeHash) {
+                if (ImGui::MenuItem(systemName.c_str()))
+                {
+                    SystemManager::AddSystem(*m_world, typeHash);
+                    ImGui::CloseCurrentPopup();
+                }
+            });
             ImGui::EndPopup();
         }
     }
@@ -300,17 +302,8 @@ void HierarchyLayer::DrawComponents()
                 }
                 else if (field.TypeHash == GetTypeHash<Ref<Mesh>>())
                 {
-                    Ref<Mesh>&  mesh     = *reinterpret_cast<Ref<Mesh>*>((uint8_t*)component + field.Offset);
-                    auto&       assetMap = AssetManager::GetAssetMap<Mesh>();
-                    std::string meshKey;
-                    for (const auto& [key, value] : assetMap)
-                    {
-                        if (value == mesh)
-                        {
-                            meshKey = key;
-                            break;
-                        }
-                    }
+                    Ref<Mesh>&  mesh    = *reinterpret_cast<Ref<Mesh>*>((uint8_t*)component + field.Offset);
+                    std::string meshKey = AssetRegistry::GetKey<Mesh>(mesh);
                     if (ImGui::BeginCombo(field.Name.c_str(), meshKey.c_str()))
                     {
                         for (auto& key : AssetRegistry::GetKeys<Mesh>())
@@ -379,6 +372,45 @@ void HierarchyLayer::DrawComponents()
     });
 }
 
-void HierarchyLayer::DrawSystems() {}
+void HierarchyLayer::DrawSystems()
+{
+    uint32_t index = 0;
+    m_world->EachSystem([this, &index](uint32_t systemHash) {
+        std::string        systemName = SystemManager::GetSystemName(systemHash);
+        ImGuiTreeNodeFlags flags      = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed |
+            ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_FramePadding;
+        bool is_opened = ImGui::TreeNodeEx(systemName.data(), flags);
+        if (ImGui::BeginPopupContextItem())
+        {
+            if (ImGui::MenuItem("Delete System"))
+            {
+                SystemManager::RemoveSystem(*m_world, systemHash);
+            }
+            ImGui::EndPopup();
+        }
+
+        if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None))
+        {
+            ImGui::SetDragDropPayload("system", &index, sizeof(Entity));
+            ImGui::EndDragDropSource();
+        }
+        if (ImGui::BeginDragDropTarget())
+        {
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("system"))
+            {
+                uint32_t old_index = *(uint32_t*)payload->Data;
+                m_world->ChangeSystemOrder(old_index, index);
+            }
+            ImGui::EndDragDropTarget();
+        }
+
+        if (is_opened)
+        {
+            ImGui::TreePop();
+        }
+
+        index++;
+    });
+}
 
 } // namespace Yogi

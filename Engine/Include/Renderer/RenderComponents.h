@@ -9,10 +9,9 @@ namespace Yogi
 
 struct CameraComponent
 {
-    float Fov         = 45.0f;
-    float AspectRatio = 1.0f;
-    float ZoomLevel   = 1.0f;
-    bool  IsOrtho     = false;
+    float Fov       = 45.0f;
+    float ZoomLevel = 1.0f;
+    bool  IsOrtho   = false;
 };
 
 struct MeshRendererComponent

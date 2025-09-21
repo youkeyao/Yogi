@@ -187,6 +187,10 @@ ITexture::Format VkFormat2YgTextureFormat(VkFormat format)
 {
     switch (format)
     {
+        case VK_FORMAT_R8G8B8_UNORM:
+            return ITexture::Format::R8G8B8_UNORM;
+        case VK_FORMAT_R8G8B8_SRGB:
+            return ITexture::Format::R8G8B8_SRGB;
         case VK_FORMAT_R8G8B8A8_UNORM:
             return ITexture::Format::R8G8B8A8_UNORM;
         case VK_FORMAT_R8G8B8A8_SRGB:

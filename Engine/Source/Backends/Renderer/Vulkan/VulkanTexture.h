@@ -17,6 +17,8 @@ public:
     inline uint32_t         GetHeight() const override { return m_height; }
     inline ITexture::Format GetFormat() const override { return m_format; }
 
+    void SetData(void* data, uint32_t size) override;
+
     inline VkImage     GetVkImage() const { return m_image; }
     inline VkImageView GetVkImageView() const { return m_imageView; }
     inline VkSampler   GetVkSampler() const { return m_sampler; }

@@ -6,7 +6,10 @@
 namespace Yogi
 {
 
-Handle<IFrameBuffer> IFrameBuffer::Create(const FrameBufferDesc& desc) { return Handle<VulkanFrameBuffer>::Create(desc); }
+Handle<IFrameBuffer> IFrameBuffer::Create(const FrameBufferDesc& desc)
+{
+    return Handle<VulkanFrameBuffer>::Create(desc);
+}
 
 VulkanFrameBuffer::VulkanFrameBuffer(const FrameBufferDesc& desc) :
     m_width(desc.Width),

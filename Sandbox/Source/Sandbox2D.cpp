@@ -1,9 +1,9 @@
 #include "Sandbox2D.h"
 
-std::vector<uint32_t> ReadFile(const std::string& filepath)
+std::vector<uint8_t> ReadFile(const std::string& filepath)
 {
-    std::vector<uint32_t> buffer;
-    std::ifstream         in(filepath, std::ios::ate | std::ios::binary);
+    std::vector<uint8_t> buffer;
+    std::ifstream        in(filepath, std::ios::ate | std::ios::binary);
 
     if (!in.is_open())
     {
@@ -12,9 +12,9 @@ std::vector<uint32_t> ReadFile(const std::string& filepath)
     }
 
     in.seekg(0, std::ios::end);
-    buffer.resize(in.tellg() / sizeof(uint32_t));
+    buffer.resize(in.tellg() / sizeof(uint8_t));
     in.seekg(0, std::ios::beg);
-    in.read((char*)buffer.data(), buffer.size() * sizeof(uint32_t));
+    in.read((char*)buffer.data(), buffer.size() * sizeof(uint8_t));
     in.close();
 
     return buffer;
@@ -40,8 +40,12 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
         Yogi::ResourceManager::GetResource<Yogi::IShaderResourceBinding>(std::vector<Yogi::ShaderResourceAttribute>{
             Yogi::ShaderResourceAttribute{ 0, 1, Yogi::ShaderResourceType::Buffer, Yogi::ShaderStage::Vertex } });
 
-    std::vector<Yogi::ShaderDesc> shaders = { { Yogi::ShaderStage::Vertex, ReadFile("Assets/Shaders/Test.vert") },
-                                              { Yogi::ShaderStage::Fragment, ReadFile("Assets/Shaders/Test.frag") } };
+    Yogi::Handle<Yogi::ShaderDesc> vertexShader =
+        Yogi::Handle<Yogi::ShaderDesc>::Create(Yogi::ShaderStage::Vertex, ReadFile("Assets/Shaders/Test.vert"));
+    Yogi::Handle<Yogi::ShaderDesc> fragmentShader =
+        Yogi::Handle<Yogi::ShaderDesc>::Create(Yogi::ShaderStage::Fragment, ReadFile("Assets/Shaders/Test.frag"));
+    std::vector<Yogi::Ref<Yogi::ShaderDesc>> shaders = { Yogi::Ref<Yogi::ShaderDesc>::Create(vertexShader),
+                                                         Yogi::Ref<Yogi::ShaderDesc>::Create(fragmentShader) };
 
     auto pipeline = Yogi::ResourceManager::GetResource<Yogi::IPipeline>(
         Yogi::PipelineDesc{ shaders,

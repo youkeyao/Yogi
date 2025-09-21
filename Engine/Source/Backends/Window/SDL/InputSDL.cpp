@@ -23,7 +23,7 @@ std::pair<float, float> Input::get_mouse_position()
 {
     int32_t x_pos, y_pos;
     SDL_GetMouseState(&x_pos, &y_pos);
-    return {float(x_pos), float(y_pos)};
+    return { float(x_pos), float(y_pos) };
 }
 
 float Input::get_mouse_x() { return get_mouse_position().first; }

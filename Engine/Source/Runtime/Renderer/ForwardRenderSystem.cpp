@@ -70,11 +70,11 @@ void ForwardRenderSystem::RenderCamera(CameraComponent& camera, const TransformC
 
     Matrix4 viewMatrix = MathUtils::Inverse(transform.Transform);
     Matrix4 projectionMatrix;
-    camera.AspectRatio = (float)swapChain->GetWidth() / (float)swapChain->GetHeight();
+    float   aspectRatio = (float)swapChain->GetWidth() / (float)swapChain->GetHeight();
     if (camera.IsOrtho)
     {
-        projectionMatrix = MathUtils::Orthographic(-camera.AspectRatio * camera.ZoomLevel,
-                                                   camera.AspectRatio * camera.ZoomLevel,
+        projectionMatrix = MathUtils::Orthographic(-aspectRatio * camera.ZoomLevel,
+                                                   aspectRatio * camera.ZoomLevel,
                                                    -camera.ZoomLevel,
                                                    camera.ZoomLevel,
                                                    -1.0f,
@@ -82,7 +82,7 @@ void ForwardRenderSystem::RenderCamera(CameraComponent& camera, const TransformC
     }
     else
     {
-        projectionMatrix = MathUtils::Perspective(camera.Fov, camera.AspectRatio, 0.1f, 100.0f);
+        projectionMatrix = MathUtils::Perspective(camera.Fov, aspectRatio, 0.1f, 100.0f);
     }
 
     m_sceneData.ProjectionViewMatrix = projectionMatrix * viewMatrix;
@@ -98,7 +98,7 @@ void ForwardRenderSystem::RenderCamera(CameraComponent& camera, const TransformC
             std::vector<uint8_t>&  vertices = m_vertices[pipeline];
             std::vector<uint32_t>& indices  = m_indices[pipeline];
 
-            std::vector<VertexAttribute> vertexLayout = pipeline->GetVertexLayout();
+            std::vector<VertexAttribute> vertexLayout = pipeline->GetDesc().VertexLayout;
             uint32_t                     vertexStride = vertexLayout.back().Offset + vertexLayout.back().Size;
             if (vertices.size() + vertexStride * mesh->GetVertices().size() > MAX_VERTICES_SIZE)
             {

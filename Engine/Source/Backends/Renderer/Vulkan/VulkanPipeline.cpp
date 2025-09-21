@@ -12,7 +12,7 @@ Handle<IPipeline> IPipeline::Create(const PipelineDesc& desc) { return Handle<Vu
 
 VulkanPipeline::VulkanPipeline(const PipelineDesc& desc)
 {
-    m_vertexLayout = desc.VertexLayout;
+    m_desc = desc;
     CreateVkPipeline(desc);
 }
 
@@ -37,20 +37,20 @@ void VulkanPipeline::CreateVkPipeline(const PipelineDesc& desc)
     {
         VkShaderModuleCreateInfo moduleCreateInfo{};
         moduleCreateInfo.sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-        moduleCreateInfo.codeSize = shader.Code.size() * sizeof(uint32_t);
-        moduleCreateInfo.pCode    = reinterpret_cast<const uint32_t*>(shader.Code.data());
+        moduleCreateInfo.codeSize = shader->Code.size();
+        moduleCreateInfo.pCode    = reinterpret_cast<const uint32_t*>(shader->Code.data());
 
         VkShaderModule shaderModule;
         if (vkCreateShaderModule(device, &moduleCreateInfo, nullptr, &shaderModule) != VK_SUCCESS)
         {
-            YG_CORE_ERROR("Vulkan: Failed to create {0} shader module!", (int)shader.Stage);
+            YG_CORE_ERROR("Vulkan: Failed to create {0} shader module!", (int)shader->Stage);
             continue;
         }
         shaderModules.push_back(shaderModule);
 
         VkPipelineShaderStageCreateInfo stageInfo{};
         stageInfo.sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        stageInfo.stage  = YgShaderStage2VkShaderStage(shader.Stage);
+        stageInfo.stage  = YgShaderStage2VkShaderStage(shader->Stage);
         stageInfo.module = shaderModule;
         stageInfo.pName  = "main";
         shaderStages.push_back(stageInfo);
@@ -62,7 +62,7 @@ void VulkanPipeline::CreateVkPipeline(const PipelineDesc& desc)
     bindingDesc.binding   = 0;
     bindingDesc.stride    = 0;
     bindingDesc.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-    for (const auto& attr : m_vertexLayout)
+    for (const auto& attr : desc.VertexLayout)
     {
         VkVertexInputAttributeDescription vkAttr{};
         vkAttr.binding  = 0;

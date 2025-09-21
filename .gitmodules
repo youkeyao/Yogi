@@ -22,6 +22,9 @@
 [submodule "Engine/ThirdParty/pfr"]
 	path = Engine/ThirdParty/pfr
 	url = https://github.com/boostorg/pfr.git
+[submodule "Engine/ThirdParty/zpp_bits"]
+	path = Engine/ThirdParty/zpp_bits
+	url = https://github.com/eyalz800/zpp_bits.git
 [submodule "Editor/ThirdParty/imgui"]
 	path = Editor/ThirdParty/imgui
 	url = https://github.com/ocornut/imgui.git

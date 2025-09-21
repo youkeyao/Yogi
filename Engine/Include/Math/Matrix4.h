@@ -33,10 +33,7 @@ struct Matrix4 : public glm::mat4
         return glm::rotate(glm::mat4(1.0f), glm::radians(angle), glm::vec3(axis.x, axis.y, axis.z));
     }
 
-    static Matrix4 Rotation(const Quaternion& quaternion)
-    {
-        return glm::mat4_cast(quaternion);
-    }
+    static Matrix4 Rotation(const Quaternion& quaternion) { return glm::mat4_cast(quaternion); }
 
     static Matrix4 Scale(const Vector3& scale)
     {

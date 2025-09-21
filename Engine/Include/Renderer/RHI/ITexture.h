@@ -19,6 +19,8 @@ class YG_API ITexture
 public:
     enum class Format
     {
+        R8G8B8_UNORM,
+        R8G8B8_SRGB,
         R8G8B8A8_UNORM,
         R8G8B8A8_SRGB,
         B8G8R8A8_UNORM,
@@ -44,6 +46,8 @@ public:
     virtual uint32_t         GetWidth() const  = 0;
     virtual uint32_t         GetHeight() const = 0;
     virtual ITexture::Format GetFormat() const = 0;
+
+    virtual void SetData(void* data, uint32_t size) = 0;
 
     static Handle<ITexture> Create(const TextureDesc& desc);
 };

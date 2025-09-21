@@ -149,6 +149,7 @@ target_include_directories( YGEngine
     PRIVATE
         ${YGWindowInclude}
         ${YGRendererInclude}
+        ThirdParty/zpp_bits
         # ThirdParty/JoltPhysics
         # ThirdParty/SPIRV-Cross
         # ThirdParty/stb_image

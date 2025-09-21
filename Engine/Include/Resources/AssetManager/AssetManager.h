@@ -48,6 +48,17 @@ public:
         return nullptr;
     }
 
+    template <typename T>
+    static void SaveAsset(const Ref<T>& asset, const std::string& key, int sourceIndex = 0)
+    {
+        if (sourceIndex < 0 || sourceIndex >= static_cast<int>(s_sources.size()))
+        {
+            YG_CORE_ERROR("Invalid AssetSource index: {0}", sourceIndex);
+            return;
+        }
+        s_sources[sourceIndex]->SaveSource(key, GetAssetSerializer<T>()->Serialize(asset, key));
+    }
+
     template <typename T, typename SerializerType>
     static void RegisterAssetSerializer()
     {
@@ -63,6 +74,16 @@ public:
         s_sources.push_back(Handle<T>::Create(std::forward<Args>(args)...));
     }
     static void PopAssetSource() { s_sources.pop_back(); }
+
+    static Ref<IAssetSource> GetAssetSource(int sourceIndex = 0)
+    {
+        if (sourceIndex < 0 || sourceIndex >= static_cast<int>(s_sources.size()))
+        {
+            YG_CORE_ERROR("Invalid AssetSource index: {0}", sourceIndex);
+            return nullptr;
+        }
+        return Ref<IAssetSource>::Create(s_sources[sourceIndex]);
+    }
 
     template <typename T>
     static std::unordered_map<std::string, Handle<T>>& GetAssetMap()

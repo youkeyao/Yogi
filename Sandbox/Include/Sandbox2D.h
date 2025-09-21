@@ -16,9 +16,4 @@ private:
     Yogi::Entity              m_box   = Yogi::Entity::Null();
 
     Yogi::Matrix4 m_transform = Yogi::Matrix4::Identity();
-
-    Yogi::Handle<Yogi::IRenderPass>            m_renderPass            = nullptr;
-    Yogi::Handle<Yogi::IPipeline>              m_pipeline              = nullptr;
-    Yogi::Handle<Yogi::ICommandBuffer>         m_commandBuffer         = nullptr;
-    Yogi::Handle<Yogi::IShaderResourceBinding> m_shaderResourceBinding = nullptr;
 };

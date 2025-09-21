@@ -36,13 +36,33 @@ void RegisterMeshes(const std::filesystem::path& path, std::unordered_map<uint32
         ProcessNode(scene->mRootNode, scene, path.string(), keyMaps[GetTypeHash<Mesh>()]);
     }
 }
+void RegisterMaterials(const std::filesystem::path&                            path,
+                       std::unordered_map<uint32_t, std::vector<std::string>>& keyMaps)
+{
+    if (path.extension().string() == ".mat")
+    {
+        keyMaps[GetTypeHash<Material>()].push_back(path.string());
+    }
+}
+void RegisterShaders(const std::filesystem::path& path, std::unordered_map<uint32_t, std::vector<std::string>>& keyMaps)
+{
+    if (path.extension().string() == ".vert" || path.extension().string() == ".frag")
+    {
+        keyMaps[GetTypeHash<ShaderDesc>()].push_back((path.parent_path() / path.stem()).string());
+    }
+}
 
 // --------------------------------------------------------------------------------
 
 std::vector<AssetRegistry::RegisterKeyFunc>            AssetRegistry::s_registerKeyFuncs;
 std::unordered_map<uint32_t, std::vector<std::string>> AssetRegistry::s_keyMaps;
 
-void AssetRegistry::Init() { Register(&RegisterMeshes); }
+void AssetRegistry::Init()
+{
+    Register(&RegisterMeshes);
+    Register(&RegisterMaterials);
+    Register(&RegisterShaders);
+}
 
 void AssetRegistry::Scan(const std::string& rootDir)
 {

@@ -13,7 +13,7 @@ struct SwapChainDesc
     ITexture::Format    ColorFormat;
     ITexture::Format    DepthFormat;
     SampleCountFlagBits NumSamples;
-    Ref<Window>        Window;
+    Ref<Window>         Window;
 };
 
 class YG_API ISwapChain

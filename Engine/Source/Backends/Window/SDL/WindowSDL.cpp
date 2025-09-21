@@ -29,11 +29,19 @@ void WindowSDL::init()
     YG_CORE_ASSERT(success >= 0, "Could not initialize SDL!");
 
 #if YG_RENDERER_OPENGL
-    m_window = SDL_CreateWindow(m_data.title.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, m_data.width,
-                                m_data.height, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+    m_window = SDL_CreateWindow(m_data.title.c_str(),
+                                SDL_WINDOWPOS_CENTERED,
+                                SDL_WINDOWPOS_CENTERED,
+                                m_data.width,
+                                m_data.height,
+                                SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
 #elif YG_RENDERER_VULKAN
-    m_window = SDL_CreateWindow(m_data.title.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, m_data.width,
-                                m_data.height, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
+    m_window = SDL_CreateWindow(m_data.title.c_str(),
+                                SDL_WINDOWPOS_CENTERED,
+                                SDL_WINDOWPOS_CENTERED,
+                                m_data.width,
+                                m_data.height,
+                                SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
 #endif
 
     m_context = GraphicsContext::create(this);

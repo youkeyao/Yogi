@@ -39,8 +39,8 @@ enum class PipelineType : uint8_t
 
 struct ShaderDesc
 {
-    ShaderStage           Stage; // Shader stage (vertex, fragment, compute)
-    std::vector<uint32_t> Code;  // SPIR-V bytecode
+    ShaderStage          Stage; // Shader stage (vertex, fragment, compute)
+    std::vector<uint8_t> Code;  // SPIR-V bytecode
 };
 
 struct VertexAttribute
@@ -53,7 +53,7 @@ struct VertexAttribute
 
 struct PipelineDesc
 {
-    std::vector<ShaderDesc>      Shaders;
+    std::vector<Ref<ShaderDesc>> Shaders;
     std::vector<VertexAttribute> VertexLayout;
     Ref<IShaderResourceBinding>  ShaderResourceBinding;
     Ref<IRenderPass>             RenderPass;
@@ -66,12 +66,12 @@ class YG_API IPipeline
 public:
     virtual ~IPipeline() = default;
 
-    const std::vector<VertexAttribute>& GetVertexLayout() const { return m_vertexLayout; }
+    const PipelineDesc& GetDesc() const { return m_desc; }
 
     static Handle<IPipeline> Create(const PipelineDesc& desc);
 
 protected:
-    std::vector<VertexAttribute> m_vertexLayout;
+    PipelineDesc m_desc;
 };
 
 } // namespace Yogi

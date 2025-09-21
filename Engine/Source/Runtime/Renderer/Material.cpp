@@ -7,9 +7,9 @@ Handle<Material> Material::Create(const Ref<IPipeline>& pipeline) { return Handl
 
 Material::Material(const Ref<IPipeline>& pipeline) : m_pipeline(pipeline)
 {
-    auto&    vertexLayout = m_pipeline->GetVertexLayout();
+    auto&    vertexLayout = m_pipeline->GetDesc().VertexLayout;
     uint32_t stride       = vertexLayout.back().Offset + vertexLayout.back().Size;
-    m_data                = new uint8_t[stride];
+    m_data.resize(stride);
     for (auto& element : vertexLayout)
     {
         if (element.Name == "a_Position")
@@ -34,7 +34,5 @@ Material::Material(const Ref<IPipeline>& pipeline) : m_pipeline(pipeline)
         }
     }
 }
-
-Material::~Material() { delete m_data; }
 
 } // namespace Yogi
