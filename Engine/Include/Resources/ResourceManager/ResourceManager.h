@@ -5,6 +5,33 @@
 namespace Yogi
 {
 
+template <typename T>
+class ResourceControlBlock : public Handle<T>::ControlBlock
+{
+public:
+    ResourceControlBlock(T* p, int count, std::function<void()> callBackFunc) :
+        Handle<T>::ControlBlock(p, count),
+        m_callBackFunc(callBackFunc)
+    {}
+    void SubRef() override
+    {
+        --this->m_count;
+        if (this->m_count == 1 && m_callBackFunc)
+            m_callBackFunc();
+    }
+
+    void Release() override
+    {
+        if (this->m_ptr)
+            delete this->m_ptr;
+        this->m_ptr    = nullptr;
+        m_callBackFunc = nullptr;
+    }
+
+private:
+    std::function<void()> m_callBackFunc;
+};
+
 class YG_API ResourceManager
 {
 public:
@@ -15,11 +42,13 @@ public:
         auto  it          = resourceMap.find(key);
         if (it == resourceMap.end())
         {
-            resource.SetSubCallBack([&resourceMap, key]() {
+            T* ptr = resource.Get();
+            delete resource.GetCB();
+            resource.SetCB(new ResourceControlBlock<T>(ptr, 1, [&resourceMap, key]() {
                 auto it = resourceMap.find(key);
                 if (it != resourceMap.end() && it->second.GetRefCount() == 1)
                     resourceMap.erase(it);
-            });
+            }));
             auto [resourceIt, result] = resourceMap.emplace(key, std::move(resource));
             return Ref<T>::Create(resourceIt->second);
         }

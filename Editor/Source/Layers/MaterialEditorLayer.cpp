@@ -20,7 +20,7 @@ void MaterialEditorLayer::OnUpdate(Timestep ts)
         auto pipelineDesc = m_material->GetPipeline()->GetDesc();
         for (auto& shader : pipelineDesc.Shaders)
         {
-            std::string shaderKey = AssetRegistry::GetKey<ShaderDesc>(shader);
+            std::string shaderKey = AssetManager::GetAssetKey(shader);
             if (ImGui::BeginCombo(shaderKey.c_str(), shaderKey.c_str()))
             {
                 for (auto& key : AssetRegistry::GetKeys<ShaderDesc>())
@@ -62,7 +62,7 @@ void MaterialEditorLayer::OnUpdate(Timestep ts)
             else if (element.Name.substr(0, 4) == "TEX_")
             {
                 Ref<ITexture> texture    = textures[textureIndex].second;
-                std::string   textureKey = texture ? AssetRegistry::GetKey<ITexture>(texture) : "None";
+                std::string   textureKey = texture ? AssetManager::GetAssetKey(texture) : "None";
                 if (ImGui::BeginCombo(element.Name.c_str(), textureKey.c_str()))
                 {
                     // TextureManager::each_texture([&](const Ref<Texture2D>& each_texture) {

@@ -10,11 +10,27 @@ class Handle
     friend class Handle;
 
 public:
-    struct ControlBlock
+    class ControlBlock
     {
-        T*                    Ptr;
-        std::function<void()> CallBackFunc;
-        int                   Count;
+    public:
+        ControlBlock(T* p, int count) : m_ptr(p), m_count(count) {}
+        virtual ~ControlBlock() = default;
+
+        int GetRefCount() const { return m_count; }
+        T*  Ptr() const { return m_ptr; }
+
+        virtual void AddRef() { ++m_count; }
+        virtual void SubRef() { --m_count; }
+        virtual void Release()
+        {
+            if (m_ptr)
+                delete m_ptr;
+            m_ptr = nullptr;
+        }
+
+    protected:
+        T*  m_ptr;
+        int m_count;
     };
 
 public:
@@ -39,19 +55,19 @@ public:
     }
     ~Handle() { Cleanup(); }
 
-    inline T*            Get() const { return m_cb->Ptr; }
+    inline T*            Get() const { return m_cb->Ptr(); }
     inline ControlBlock* GetCB() const { return m_cb; }
+    inline void          SetCB(ControlBlock* cb) { m_cb = cb; }
 
-    inline T*       operator->() { return m_cb->Ptr; }
-    inline const T* operator->() const { return m_cb->Ptr; }
+    inline T*       operator->() { return m_cb->Ptr(); }
+    inline const T* operator->() const { return m_cb->Ptr(); }
 
-    inline T&       operator*() { return *(m_cb->Ptr); }
-    inline const T& operator*() const { return *(m_cb->Ptr); }
+    inline T&       operator*() { return *(m_cb->Ptr()); }
+    inline const T& operator*() const { return *(m_cb->Ptr()); }
 
     inline operator bool() const { return m_cb != nullptr; }
 
-    inline int  GetRefCount() const { return m_cb->Count; }
-    inline void SetSubCallBack(std::function<void()> callBackFunc) { m_cb->CallBackFunc = callBackFunc; }
+    inline int GetRefCount() const { return m_cb->GetRefCount(); }
 
     template <typename... Args>
     static Handle<T> Create(Args&&... args)
@@ -60,16 +76,14 @@ public:
     }
 
 private:
-    explicit Handle(T* p) : m_cb(new ControlBlock{ p, nullptr, 1 }) {}
+    explicit Handle(T* p) : m_cb(new ControlBlock(p, 1)) {}
     void Cleanup()
     {
         if (m_cb)
         {
-            if (m_cb->Ptr)
-                delete m_cb->Ptr;
-            m_cb->Ptr          = nullptr;
-            m_cb->CallBackFunc = nullptr;
-            if (--m_cb->Count == 0)
+            m_cb->Release();
+            m_cb->SubRef();
+            if (m_cb->GetRefCount() == 0)
             {
                 delete m_cb;
             }

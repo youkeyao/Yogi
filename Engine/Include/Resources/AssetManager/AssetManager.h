@@ -6,6 +6,38 @@
 namespace Yogi
 {
 
+template <typename T>
+class AssetControlBlock : public Handle<T>::ControlBlock
+{
+public:
+    AssetControlBlock(T* p, int count, std::function<void()> callBackFunc, const std::string& key) :
+        Handle<T>::ControlBlock(p, count),
+        m_callBackFunc(callBackFunc),
+        m_key(key)
+    {}
+
+    inline std::string GetKey() { return m_key; }
+
+    void SubRef() override
+    {
+        --this->m_count;
+        if (this->m_count == 1 && m_callBackFunc)
+            m_callBackFunc();
+    }
+
+    void Release() override
+    {
+        if (this->m_ptr)
+            delete this->m_ptr;
+        this->m_ptr    = nullptr;
+        m_callBackFunc = nullptr;
+    }
+
+private:
+    std::function<void()> m_callBackFunc;
+    std::string           m_key;
+};
+
 class YG_API AssetManager
 {
 public:
@@ -16,11 +48,17 @@ public:
         auto  it       = assetMap.find(key);
         if (it == assetMap.end())
         {
-            asset.SetSubCallBack([&assetMap, key]() {
-                auto it = assetMap.find(key);
-                if (it != assetMap.end() && it->second.GetRefCount() == 1)
-                    assetMap.erase(it);
-            });
+            T* ptr = asset.Get();
+            delete asset.GetCB();
+            asset.SetCB(new AssetControlBlock<T>(
+                ptr,
+                1,
+                [&assetMap, key]() {
+                    auto it = assetMap.find(key);
+                    if (it != assetMap.end() && it->second.GetRefCount() == 1)
+                        assetMap.erase(it);
+                },
+                key));
             auto [assetIt, result] = assetMap.emplace(key, std::move(asset));
             return Ref<T>::Create(assetIt->second);
         }
@@ -57,6 +95,13 @@ public:
             return;
         }
         s_sources[sourceIndex]->SaveSource(key, GetAssetSerializer<T>()->Serialize(asset, key));
+    }
+
+    template <typename T>
+    static std::string GetAssetKey(const Ref<T>& asset)
+    {
+        AssetControlBlock<T>* cb = dynamic_cast<AssetControlBlock<T>*>(asset.GetCB());
+        return cb ? cb->GetKey() : "";
     }
 
     template <typename T, typename SerializerType>

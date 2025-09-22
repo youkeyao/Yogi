@@ -23,20 +23,6 @@ public:
         return s_keyMaps[GetTypeHash<T>()];
     }
 
-    template <typename T>
-    static std::string GetKey(const Ref<T>& asset)
-    {
-        auto& assetMap = AssetManager::GetAssetMap<T>();
-        for (const auto& [key, value] : assetMap)
-        {
-            if (value == asset)
-            {
-                return key;
-            }
-        }
-        return "";
-    }
-
 private:
     static std::vector<RegisterKeyFunc>                           s_registerKeyFuncs;
     static std::unordered_map<uint32_t, std::vector<std::string>> s_keyMaps;

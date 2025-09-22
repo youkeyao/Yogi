@@ -303,7 +303,7 @@ void HierarchyLayer::DrawComponents()
                 else if (field.TypeHash == GetTypeHash<Ref<Mesh>>())
                 {
                     Ref<Mesh>&  mesh    = *reinterpret_cast<Ref<Mesh>*>((uint8_t*)component + field.Offset);
-                    std::string meshKey = AssetRegistry::GetKey<Mesh>(mesh);
+                    std::string meshKey = AssetManager::GetAssetKey(mesh);
                     if (ImGui::BeginCombo(field.Name.c_str(), meshKey.c_str()))
                     {
                         for (auto& key : AssetRegistry::GetKeys<Mesh>())

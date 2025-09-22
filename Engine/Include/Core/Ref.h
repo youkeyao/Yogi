@@ -18,7 +18,7 @@ public:
     Ref(const Ref& other) : m_cb(other.m_cb)
     {
         if (m_cb)
-            m_cb->Count++;
+            m_cb->AddRef();
     }
     Ref& operator=(const Ref& other)
     {
@@ -27,7 +27,7 @@ public:
             Release();
             m_cb = other.m_cb;
             if (m_cb)
-                m_cb->Count++;
+                m_cb->AddRef();
         }
         return *this;
     }
@@ -64,13 +64,14 @@ public:
 
     ~Ref() { Release(); }
 
-    inline T* Get() const { return m_cb->Ptr; }
+    inline T*                       Get() const { return m_cb->Ptr(); }
+    inline Handle<T>::ControlBlock* GetCB() const { return m_cb; }
 
-    inline T*       operator->() { return m_cb->Ptr; }
-    inline const T* operator->() const { return m_cb->Ptr; }
+    inline T*       operator->() { return m_cb->Ptr(); }
+    inline const T* operator->() const { return m_cb->Ptr(); }
 
-    inline T&       operator*() { return *m_cb->Ptr; }
-    inline const T& operator*() const { return *m_cb->Ptr; }
+    inline T&       operator*() { return *m_cb->Ptr(); }
+    inline const T& operator*() const { return *m_cb->Ptr(); }
 
     inline bool operator==(const Ref& other) const noexcept { return m_cb == other.m_cb; }
     inline bool operator==(const Handle<T>& handle) const noexcept { return m_cb == handle.GetCB(); }
@@ -80,15 +81,16 @@ public:
     static Ref Create(const Handle<T>& handle) { return Ref(handle.GetCB()); }
 
 private:
-    explicit Ref(Handle<T>::ControlBlock* cb) : m_cb(cb) { m_cb->Count++; }
+    explicit Ref(Handle<T>::ControlBlock* cb) : m_cb(cb) { m_cb->AddRef(); }
     void Release()
     {
         if (m_cb)
         {
-            if (m_cb->CallBackFunc)
-                m_cb->CallBackFunc();
-            if (--m_cb->Count == 0)
+            m_cb->SubRef();
+            if (m_cb->GetRefCount() == 0)
+            {
                 delete m_cb;
+            }
         }
     }
 
