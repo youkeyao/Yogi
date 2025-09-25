@@ -25,8 +25,8 @@ void ContentBrowserLayer::OnUpdate(Timestep ts)
     {
         if (ImGui::MenuItem("Create Material"))
         {
-            Ref<IPipeline>   pipeline = AssetManager::GetAsset<IPipeline>("Assets/Shaders/Flat");
-            Handle<Material> material = Material::Create(pipeline);
+            // Ref<IPipeline>   pipeline = AssetManager::GetAsset<IPipeline>("Assets/Shaders/Flat");
+            Handle<Material> material = Material::Create();
             std::string      name     = "NewMaterial";
             while (std::filesystem::exists(m_baseDirectory / m_relativeDirectory / (name + ".mat")))
             {

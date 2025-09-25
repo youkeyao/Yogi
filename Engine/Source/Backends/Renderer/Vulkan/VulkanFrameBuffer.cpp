@@ -41,7 +41,7 @@ void VulkanFrameBuffer::CreateVkFrameBuffer()
     VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
     Cleanup();
 
-    SampleCountFlagBits      numSamples = m_renderPass->GetNumSamples();
+    SampleCountFlagBits      numSamples = m_renderPass->GetDesc().NumSamples;
     std::vector<VkImageView> attachments;
     for (int i = 0; i < m_colorAttachments.size(); ++i)
     {

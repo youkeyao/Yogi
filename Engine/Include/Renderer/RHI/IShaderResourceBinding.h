@@ -39,4 +39,11 @@ public:
     static Handle<IShaderResourceBinding> Create(const std::vector<ShaderResourceAttribute>& shaderResourceLayout);
 };
 
+template <>
+template <typename... Args>
+inline Handle<IShaderResourceBinding> Handle<IShaderResourceBinding>::Create(Args&&... args)
+{
+    return IShaderResourceBinding::Create(std::forward<Args>(args)...);
+}
+
 } // namespace Yogi

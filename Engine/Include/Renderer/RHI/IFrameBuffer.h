@@ -28,4 +28,11 @@ public:
     static Handle<IFrameBuffer> Create(const FrameBufferDesc& desc);
 };
 
+template <>
+template <typename... Args>
+Handle<IFrameBuffer> Handle<IFrameBuffer>::Create(Args&&... args)
+{
+    return IFrameBuffer::Create(std::forward<Args>(args)...);
+}
+
 } // namespace Yogi

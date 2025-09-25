@@ -68,7 +68,8 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
     m_box.AddComponent<Yogi::TransformComponent>();
     auto& meshRenderer    = m_box.AddComponent<Yogi::MeshRendererComponent>();
     meshRenderer.Mesh     = Yogi::AssetManager::GetAsset<Yogi::Mesh>("Assets/Meshes/Cube.obj::cube");
-    meshRenderer.Material = Yogi::ResourceManager::GetResource<Yogi::Material>(pipeline);
+    meshRenderer.Material = Yogi::ResourceManager::GetResource<Yogi::Material>();
+    meshRenderer.Material->SetPipeline(pipeline);
 }
 
 Sandbox2D::~Sandbox2D() { m_world = nullptr; }

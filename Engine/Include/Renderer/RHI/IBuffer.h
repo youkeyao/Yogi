@@ -43,4 +43,11 @@ public:
     static Handle<IBuffer> Create(const BufferDesc& desc);
 };
 
+template <>
+template <typename... Args>
+inline Handle<IBuffer> Handle<IBuffer>::Create(Args&&... args)
+{
+    return IBuffer::Create(std::forward<Args>(args)...);
+}
+
 } // namespace Yogi

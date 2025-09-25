@@ -1,4 +1,4 @@
-#include "Resources/AssetManager/MeshSerializer.h"
+#include "Resources/AssetManager/Serializer/MeshSerializer.h"
 
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>

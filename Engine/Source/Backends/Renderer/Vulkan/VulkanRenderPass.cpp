@@ -9,11 +9,9 @@ namespace Yogi
 
 Handle<IRenderPass> IRenderPass::Create(const RenderPassDesc& desc) { return Handle<VulkanRenderPass>::Create(desc); }
 
-VulkanRenderPass::VulkanRenderPass(const RenderPassDesc& desc) :
-    m_colorAttachments(desc.ColorAttachments),
-    m_depthAttachment(desc.DepthAttachment),
-    m_numSamples(desc.NumSamples)
+VulkanRenderPass::VulkanRenderPass(const RenderPassDesc& desc)
 {
+    m_desc = desc;
     CreateVkRenderPass();
 }
 
@@ -37,11 +35,11 @@ void VulkanRenderPass::CreateVkRenderPass()
     std::vector<VkAttachmentDescription> allAttachments;
     std::vector<VkAttachmentReference>   colorAttachmentRefs;
     std::vector<VkAttachmentReference>   resolveAttachmentRefs;
-    for (auto& attachment : m_colorAttachments)
+    for (auto& attachment : m_desc.ColorAttachments)
     {
         VkAttachmentDescription colorAttachment{};
         colorAttachment.format  = YgTextureFormat2VkFormat(attachment.Format);
-        colorAttachment.samples = (VkSampleCountFlagBits)m_numSamples;
+        colorAttachment.samples = (VkSampleCountFlagBits)m_desc.NumSamples;
         colorAttachment.loadOp  = attachment.ColorLoadOp == LoadOp::Clear ? VK_ATTACHMENT_LOAD_OP_CLEAR :
              attachment.ColorLoadOp == LoadOp::Load                       ? VK_ATTACHMENT_LOAD_OP_LOAD :
                                                                             VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -59,7 +57,7 @@ void VulkanRenderPass::CreateVkRenderPass()
         allAttachments.push_back(colorAttachment);
         colorAttachmentRefs.push_back(colorAttachmentRef);
 
-        if (m_numSamples > SampleCountFlagBits::Count1)
+        if (m_desc.NumSamples > SampleCountFlagBits::Count1)
         {
             colorAttachment.samples       = VK_SAMPLE_COUNT_1_BIT;
             colorAttachmentRef.attachment = static_cast<uint32_t>(allAttachments.size());
@@ -76,15 +74,16 @@ void VulkanRenderPass::CreateVkRenderPass()
     subpass.pColorAttachments       = colorAttachmentRefs.data();
     subpass.pResolveAttachments     = resolveAttachmentRefs.data();
     subpass.pDepthStencilAttachment = nullptr;
-    if (m_depthAttachment.Format != ITexture::Format::NONE)
+    if (m_desc.DepthAttachment.Format != ITexture::Format::NONE)
     {
-        depthAttachment.format  = YgTextureFormat2VkFormat(m_depthAttachment.Format);
-        depthAttachment.samples = (VkSampleCountFlagBits)m_numSamples;
-        depthAttachment.loadOp  = m_depthAttachment.ColorLoadOp == LoadOp::Clear ? VK_ATTACHMENT_LOAD_OP_CLEAR :
-             m_depthAttachment.ColorLoadOp == LoadOp::Load                       ? VK_ATTACHMENT_LOAD_OP_LOAD :
-                                                                                   VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        depthAttachment.storeOp = m_depthAttachment.ColorStoreOp == StoreOp::Store ? VK_ATTACHMENT_STORE_OP_STORE :
-                                                                                     VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depthAttachment.format  = YgTextureFormat2VkFormat(m_desc.DepthAttachment.Format);
+        depthAttachment.samples = (VkSampleCountFlagBits)m_desc.NumSamples;
+        depthAttachment.loadOp  = m_desc.DepthAttachment.ColorLoadOp == LoadOp::Clear ? VK_ATTACHMENT_LOAD_OP_CLEAR :
+             m_desc.DepthAttachment.ColorLoadOp == LoadOp::Load                       ? VK_ATTACHMENT_LOAD_OP_LOAD :
+                                                                                        VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        depthAttachment.storeOp = m_desc.DepthAttachment.ColorStoreOp == StoreOp::Store ?
+            VK_ATTACHMENT_STORE_OP_STORE :
+            VK_ATTACHMENT_STORE_OP_DONT_CARE;
         depthAttachment.stencilLoadOp   = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         depthAttachment.stencilStoreOp  = VK_ATTACHMENT_STORE_OP_DONT_CARE;
         depthAttachment.initialLayout   = VK_IMAGE_LAYOUT_UNDEFINED;

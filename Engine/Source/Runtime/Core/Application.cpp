@@ -19,13 +19,13 @@ Application::Application(const std::string& name)
     m_window = Window::Create(WindowProps{ name, 1280, 720 });
     m_window->SetEventCallback(YG_BIND_FN(Application::OnEvent));
 
-    m_context   = IDeviceContext::Create(Ref<Window>::Create(m_window));
-    m_swapChain = ISwapChain::Create(SwapChainDesc{ m_window->GetWidth(),
-                                                    m_window->GetHeight(),
-                                                    ITexture::Format::B8G8R8A8_UNORM,
-                                                    ITexture::Format::D32_FLOAT,
-                                                    SampleCountFlagBits::Count4,
-                                                    Ref<Window>::Create(m_window) });
+    m_context   = Handle<IDeviceContext>::Create(Ref<Window>::Create(m_window));
+    m_swapChain = Handle<ISwapChain>::Create(SwapChainDesc{ m_window->GetWidth(),
+                                                            m_window->GetHeight(),
+                                                            ITexture::Format::B8G8R8A8_UNORM,
+                                                            ITexture::Format::D32_FLOAT,
+                                                            SampleCountFlagBits::Count4,
+                                                            Ref<Window>::Create(m_window) });
 }
 
 Application::~Application()

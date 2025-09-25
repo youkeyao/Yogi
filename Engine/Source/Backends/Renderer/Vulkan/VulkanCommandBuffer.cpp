@@ -117,7 +117,7 @@ void VulkanCommandBuffer::BeginRenderPass(const Ref<IFrameBuffer>&       frameBu
 {
     Ref<VulkanFrameBuffer> vkFrameBuffer = Ref<VulkanFrameBuffer>::Cast(frameBuffer);
     Ref<VulkanRenderPass>  vkRenderPass  = Ref<VulkanRenderPass>::Cast(vkFrameBuffer->GetRenderPass());
-    SampleCountFlagBits    numSamples    = vkRenderPass->GetNumSamples();
+    SampleCountFlagBits    numSamples    = vkRenderPass->GetDesc().NumSamples;
     VkRenderPassBeginInfo  renderPassInfo{};
     renderPassInfo.sType             = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     renderPassInfo.renderPass        = vkRenderPass->GetVkRenderPass();

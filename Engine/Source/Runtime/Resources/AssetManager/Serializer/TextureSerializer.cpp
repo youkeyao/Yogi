@@ -1,4 +1,4 @@
-#include "Resources/AssetManager/TextureSerializer.h"
+#include "Resources/AssetManager/Serializer/TextureSerializer.h"
 
 #include <stb_image.h>
 
@@ -15,7 +15,7 @@ Handle<ITexture> TextureSerializer::Deserialize(const std::vector<uint8_t>& bina
         return nullptr;
     }
 
-    Handle<ITexture> texture = ITexture::Create(TextureDesc{
+    Handle<ITexture> texture = Handle<ITexture>::Create(TextureDesc{
         (uint32_t)width,
         (uint32_t)height,
         1,

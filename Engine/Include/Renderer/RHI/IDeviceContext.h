@@ -22,4 +22,11 @@ public:
     static Handle<IDeviceContext> Create(const Ref<Window>& window);
 };
 
+template <>
+template <typename... Args>
+Handle<IDeviceContext> Handle<IDeviceContext>::Create(Args&&... args)
+{
+    return IDeviceContext::Create(std::forward<Args>(args)...);
+}
+
 } // namespace Yogi

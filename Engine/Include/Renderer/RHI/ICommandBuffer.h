@@ -85,4 +85,11 @@ public:
     static Handle<ICommandBuffer> Create(const CommandBufferDesc& desc);
 };
 
+template <>
+template <typename... Args>
+inline Handle<ICommandBuffer> Handle<ICommandBuffer>::Create(Args&&... args)
+{
+    return ICommandBuffer::Create(std::forward<Args>(args)...);
+}
+
 } // namespace Yogi

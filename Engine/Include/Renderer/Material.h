@@ -11,7 +11,7 @@ class YG_API Material
 public:
     ~Material() = default;
 
-    inline void           SetPipeline(const Ref<IPipeline>& pipeline) { m_pipeline = pipeline; }
+    void                  SetPipeline(const Ref<IPipeline>& pipeline);
     inline Ref<IPipeline> GetPipeline() const { return m_pipeline; }
 
     inline int GetPositionOffset() const { return m_positionOffset; }
@@ -22,13 +22,14 @@ public:
     inline void SetTexture(uint32_t index, const Ref<ITexture>& texture) { m_textures[index].second = texture; }
     inline const std::vector<std::pair<uint32_t, Ref<ITexture>>>& GetTextures() const { return m_textures; }
 
-    inline std::vector<uint8_t>& GetData() { return m_data; }
+    inline void                        SetData(const std::vector<uint8_t>& data) { m_data = data; }
+    inline const std::vector<uint8_t>& GetData() const { return m_data; }
 
-    static Handle<Material> Create(const Ref<IPipeline>& pipeline);
+    static Handle<Material> Create();
 
 protected:
     friend Handle<Material>;
-    Material(const Ref<IPipeline>& pipeline);
+    Material() = default;
 
 private:
     Ref<IPipeline>       m_pipeline;

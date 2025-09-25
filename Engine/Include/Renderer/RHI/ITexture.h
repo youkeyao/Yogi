@@ -62,4 +62,11 @@ struct TextureDesc
     SampleCountFlagBits NumSamples = SampleCountFlagBits::Count1;
 };
 
+template <>
+template <typename... Args>
+Handle<ITexture> Handle<ITexture>::Create(Args&&... args)
+{
+    return ITexture::Create(std::forward<Args>(args)...);
+}
+
 } // namespace Yogi

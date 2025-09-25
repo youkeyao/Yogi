@@ -1,9 +1,10 @@
 #include "Resources/AssetManager/FileSystemSource.h"
 #include "Resources/AssetManager/AssetManager.h"
-#include "Resources/AssetManager/MeshSerializer.h"
-#include "Resources/AssetManager/MaterialSerializer.h"
-#include "Resources/AssetManager/TextureSerializer.h"
-#include "Resources/AssetManager/ShaderSerializer.h"
+#include "Resources/AssetManager/Serializer/MeshSerializer.h"
+#include "Resources/AssetManager/Serializer/MaterialSerializer.h"
+#include "Resources/AssetManager/Serializer/TextureSerializer.h"
+#include "Resources/AssetManager/Serializer/ShaderSerializer.h"
+#include "Resources/AssetManager/Serializer/RenderPassSerializer.h"
 
 namespace Yogi
 {
@@ -36,6 +37,7 @@ FileSystemSource::FileSystemSource(const std::string& rootDir) : m_rootDir(rootD
     AssetManager::RegisterAssetSerializer<Material, MaterialSerializer>();
     AssetManager::RegisterAssetSerializer<ITexture, TextureSerializer>();
     AssetManager::RegisterAssetSerializer<ShaderDesc, ShaderSerializer>();
+    AssetManager::RegisterAssetSerializer<IRenderPass, RenderPassSerializer>();
 }
 
 std::vector<uint8_t> FileSystemSource::LoadSource(const std::string& key)

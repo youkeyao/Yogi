@@ -66,7 +66,7 @@ public:
             return Ref<T>::Create(it->second);
         }
         // not found
-        return AddResource(T::Create(std::forward<Args>(args)...), key);
+        return AddResource(Handle<T>::Create(std::forward<Args>(args)...), key);
     }
 
     static void Clear() { s_resourceMaps.clear(); }

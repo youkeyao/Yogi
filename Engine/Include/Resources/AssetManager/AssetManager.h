@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Resources/AssetManager/IAssetSource.h"
-#include "Resources/AssetManager/AssetSerializer.h"
+#include "Resources/AssetManager/Serializer/AssetSerializer.h"
 
 namespace Yogi
 {

@@ -12,10 +12,6 @@ public:
     VulkanRenderPass(const RenderPassDesc& desc);
     virtual ~VulkanRenderPass();
 
-    inline const std::vector<AttachmentDesc>& GetColorAttachments() const override { return m_colorAttachments; }
-    inline AttachmentDesc                     GetDepthAttachment() const override { return m_depthAttachment; }
-    inline SampleCountFlagBits                GetNumSamples() const override { return m_numSamples; }
-
     inline VkRenderPass GetVkRenderPass() const { return m_RenderPass; }
 
 private:
@@ -23,10 +19,6 @@ private:
 
 private:
     VkRenderPass m_RenderPass = VK_NULL_HANDLE;
-
-    std::vector<AttachmentDesc> m_colorAttachments;
-    AttachmentDesc              m_depthAttachment;
-    SampleCountFlagBits         m_numSamples;
 };
 
 } // namespace Yogi

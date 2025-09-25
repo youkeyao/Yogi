@@ -37,4 +37,11 @@ public:
     static Handle<ISwapChain> Create(const SwapChainDesc& desc);
 };
 
+template <>
+template <typename... Args>
+Handle<ISwapChain> Handle<ISwapChain>::Create(Args&&... args)
+{
+    return ISwapChain::Create(std::forward<Args>(args)...);
+}
+
 } // namespace Yogi

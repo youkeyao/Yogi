@@ -3,10 +3,12 @@
 namespace Yogi
 {
 
-Handle<Material> Material::Create(const Ref<IPipeline>& pipeline) { return Handle<Material>::Create(pipeline); }
+Handle<Material> Material::Create() { return Handle<Material>::Create(); }
 
-Material::Material(const Ref<IPipeline>& pipeline) : m_pipeline(pipeline)
+void Material::SetPipeline(const Ref<IPipeline>& pipeline)
 {
+    m_pipeline = pipeline;
+
     auto&    vertexLayout = m_pipeline->GetDesc().VertexLayout;
     uint32_t stride       = vertexLayout.back().Offset + vertexLayout.back().Size;
     m_data.resize(stride);

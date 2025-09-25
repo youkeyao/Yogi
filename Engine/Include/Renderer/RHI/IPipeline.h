@@ -74,4 +74,11 @@ protected:
     PipelineDesc m_desc;
 };
 
+template <>
+template <typename... Args>
+inline Handle<IPipeline> Handle<IPipeline>::Create(Args&&... args)
+{
+    return IPipeline::Create(std::forward<Args>(args)...);
+}
+
 } // namespace Yogi

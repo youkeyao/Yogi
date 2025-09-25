@@ -47,11 +47,19 @@ class YG_API IRenderPass
 public:
     virtual ~IRenderPass() = default;
 
-    virtual const std::vector<AttachmentDesc>& GetColorAttachments() const = 0;
-    virtual AttachmentDesc                     GetDepthAttachment() const  = 0;
-    virtual SampleCountFlagBits                GetNumSamples() const       = 0;
+    const RenderPassDesc& GetDesc() const { return m_desc; }
 
     static Handle<IRenderPass> Create(const RenderPassDesc& desc);
+
+protected:
+    RenderPassDesc m_desc;
 };
+
+template<>
+template<typename... Args>
+Handle<IRenderPass> Handle<IRenderPass>::Create(Args&&... args)
+{
+    return Handle<IRenderPass>(IRenderPass::Create(std::forward<Args>(args)...));
+}
 
 } // namespace Yogi

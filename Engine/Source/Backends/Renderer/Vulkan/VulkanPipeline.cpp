@@ -116,7 +116,7 @@ void VulkanPipeline::CreateVkPipeline(const PipelineDesc& desc)
     VkPipelineMultisampleStateCreateInfo multisampling{};
     multisampling.sType                = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     multisampling.sampleShadingEnable  = VK_FALSE;
-    multisampling.rasterizationSamples = (VkSampleCountFlagBits)(desc.RenderPass->GetNumSamples());
+    multisampling.rasterizationSamples = (VkSampleCountFlagBits)(desc.RenderPass->GetDesc().NumSamples);
 
     // --- Color blend ---
     VkPipelineColorBlendAttachmentState colorBlendAttachment{};
