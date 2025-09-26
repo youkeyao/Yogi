@@ -10,7 +10,7 @@ namespace Yogi
 // Project Directory
 ContentBrowserLayer::ContentBrowserLayer() :
     Layer("Content Browser Layer"),
-    m_baseDirectory("Assets/"),
+    m_baseDirectory("."),
     m_relativeDirectory(".")
 {}
 
@@ -32,7 +32,24 @@ void ContentBrowserLayer::OnUpdate(Timestep ts)
             {
                 name = "_" + name;
             }
-            AssetManager::SaveAsset(Ref<Material>::Create(material), (m_relativeDirectory / (name + ".mat")).string());
+            AssetManager::SaveAsset(Ref<Material>::Create(material),
+                                    (m_relativeDirectory / (name + ".mat")).lexically_normal().string());
+        }
+        if (ImGui::MenuItem("Create Render Pass"))
+        {
+            auto&               swapChain  = Application::GetInstance().GetSwapChain();
+            Handle<IRenderPass> renderPass = Handle<IRenderPass>::Create(RenderPassDesc{
+                { AttachmentDesc{ swapChain->GetColorFormat(), AttachmentUsage::Present } },
+                AttachmentDesc{
+                    swapChain->GetDepthFormat(), AttachmentUsage::DepthStencil, LoadOp::Clear, StoreOp::DontCare },
+                swapChain->GetNumSamples() });
+            std::string         name       = "NewRenderPass";
+            while (std::filesystem::exists(m_baseDirectory / m_relativeDirectory / (name + ".rp")))
+            {
+                name = "_" + name;
+            }
+            AssetManager::SaveAsset(Ref<IRenderPass>::Create(renderPass),
+                                    (m_relativeDirectory / (name + ".rp")).lexically_normal().string());
         }
         ImGui::EndPopup();
     }
@@ -99,7 +116,7 @@ void ContentBrowserLayer::OnUpdate(Timestep ts)
 
         if (ImGui::BeginDragDropSource())
         {
-            auto itemPath = path.lexically_normal().string();
+            auto itemPath = path.lexically_normal().generic_string();
             ImGui::SetDragDropPayload("ContentBrowserItem", itemPath.data(), itemPath.size() + 1);
             ImGui::EndDragDropSource();
         }

@@ -136,7 +136,7 @@ void MaterialEditorLayer::OnUpdate(Timestep ts)
             std::filesystem::path fpath = path;
             if (fpath.extension().string() == ".mat")
             {
-                m_key      = fpath.generic_string();
+                m_key      = path;
                 m_material = AssetManager::GetAsset<Material>(m_key);
             }
         }

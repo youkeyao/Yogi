@@ -27,9 +27,6 @@
 #include <vector>
 #include <any>
 #include <typeindex>
-#ifdef __GNUG__
-#    include <cxxabi.h>
-#endif
 
 #ifdef YG_SHARED_LIB
 #    ifdef YG_EXPORT

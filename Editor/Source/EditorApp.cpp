@@ -13,6 +13,7 @@
 #include "Layers/HierarchyLayer.h"
 #include "Layers/MaterialEditorLayer.h"
 #include "Layers/ContentBrowserLayer.h"
+#include "Layers/RenderPassEditorLayer.h"
 
 namespace Yogi
 {
@@ -27,13 +28,14 @@ public:
 
         AssetManager::PushAssetSource<FileSystemSource>(".");
         AssetRegistry::Init();
-        AssetRegistry::Scan("Assets/");
+        AssetRegistry::Scan(".");
 
         PushLayer(Handle<ImGuiBeginLayer>::Create());
         PushLayer(Handle<ViewportLayer>::Create(m_world, m_selectedEntity));
         PushLayer(Handle<HierarchyLayer>::Create(m_world, m_selectedEntity));
         PushLayer(Handle<MaterialEditorLayer>::Create());
         PushLayer(Handle<ContentBrowserLayer>::Create());
+        PushLayer(Handle<RenderPassEditorLayer>::Create());
         PushLayer(Handle<ImGuiEndLayer>::Create());
     }
 

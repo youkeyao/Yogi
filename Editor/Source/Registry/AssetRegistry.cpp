@@ -68,19 +68,14 @@ void AssetRegistry::Scan(const std::string& rootDir)
 {
     if (std::filesystem::is_directory(rootDir))
     {
-        for (auto& directory_entry : std::filesystem::directory_iterator(rootDir))
+        for (auto& entry : std::filesystem::recursive_directory_iterator(rootDir))
         {
-            const auto& path = directory_entry.path();
-
-            if (directory_entry.is_directory())
+            if (entry.is_regular_file())
             {
-                Scan(path.string());
-            }
-            else
-            {
+                std::filesystem::path relPath = std::filesystem::relative(entry.path(), rootDir);
                 for (auto& func : s_registerKeyFuncs)
                 {
-                    func(path, s_keyMaps);
+                    func(relPath, s_keyMaps);
                 }
             }
         }

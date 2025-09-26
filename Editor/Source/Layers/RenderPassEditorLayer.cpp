@@ -7,6 +7,13 @@
 namespace Yogi
 {
 
+const char* TextureFormatStr[]   = { "R8G8B8_UNORM",   "R8G8B8_SRGB",   "R8G8B8A8_UNORM",     "R8G8B8A8_SRGB",
+                                     "B8G8R8A8_UNORM", "B8G8R8A8_SRGB", "R32G32B32A32_FLOAT", "R32G32B32_FLOAT",
+                                     "R32_FLOAT",      "D32_FLOAT",     "D24_UNORM_S8_UINT",  "NONE" };
+const char* AttachmentUsageStr[] = { "Color", "DepthStencil", "Resolve", "Present", "ShaderRead" };
+const char* LoadOpStr[]          = { "Load", "Clear", "DontCare" };
+const char* StoreOpStr[]         = { "Store", "DontCare" };
+
 RenderPassEditorLayer::RenderPassEditorLayer() : Layer("RenderPass Editor Layer") {}
 
 void RenderPassEditorLayer::OnUpdate(Timestep ts)
@@ -16,8 +23,15 @@ void RenderPassEditorLayer::OnUpdate(Timestep ts)
 
     if (m_renderPass)
     {
+        ImGui::LabelText("", "%s", m_key.c_str());
         ImGui::Separator();
-        
+        auto renderPassDesc = m_renderPass->GetDesc();
+        for (auto& colorAttachment : renderPassDesc.ColorAttachments)
+        {
+            OnAttachment(colorAttachment);
+        }
+        OnAttachment(renderPassDesc.DepthAttachment);
+        ImGui::LabelText("", "%d", (uint8_t)renderPassDesc.NumSamples);
     }
 
     // blank space
@@ -35,7 +49,7 @@ void RenderPassEditorLayer::OnUpdate(Timestep ts)
             std::filesystem::path fpath = path;
             if (fpath.extension().string() == ".rp")
             {
-                m_key      = fpath.generic_string();
+                m_key        = path;
                 m_renderPass = AssetManager::GetAsset<IRenderPass>(m_key);
             }
         }
@@ -46,5 +60,15 @@ void RenderPassEditorLayer::OnUpdate(Timestep ts)
 }
 
 void RenderPassEditorLayer::OnEvent(Event& event) {}
+
+// --------------------------------------------------------------------------
+
+void RenderPassEditorLayer::OnAttachment(AttachmentDesc& attachment)
+{
+    ImGui::LabelText("", "%s", TextureFormatStr[(uint8_t)attachment.Format]);
+    ImGui::LabelText("", "%s", AttachmentUsageStr[(uint8_t)attachment.Usage]);
+    ImGui::LabelText("", "%s", LoadOpStr[(uint8_t)attachment.ColorLoadOp]);
+    ImGui::LabelText("", "%s", StoreOpStr[(uint8_t)attachment.ColorStoreOp]);
+}
 
 } // namespace Yogi

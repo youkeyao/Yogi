@@ -14,6 +14,9 @@ public:
     void OnUpdate(Timestep ts) override;
     void OnEvent(Event& event) override;
 
+protected:
+    void OnAttachment(AttachmentDesc& attachment);
+
 private:
     Ref<IRenderPass> m_renderPass;
     std::string   m_key;
