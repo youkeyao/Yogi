@@ -17,6 +17,8 @@ Handle<IShaderResourceBinding> IShaderResourceBinding::Create(
 VulkanShaderResourceBinding::VulkanShaderResourceBinding(
     const std::vector<ShaderResourceAttribute>& shaderResourceLayout)
 {
+    m_layout = shaderResourceLayout;
+
     VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
     VkDevice             device  = context->GetVkDevice();
 

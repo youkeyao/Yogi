@@ -19,13 +19,13 @@ ImGuiBeginLayer::ImGuiBeginLayer() : Layer("ImGuiBeginLayer")
 
     float font_size = 18.0f;
     float icon_size = 64.0f;
-    io.Fonts->AddFontFromFileTTF("Assets/Fonts/opensans/OpenSans-Regular.ttf", font_size);
+    io.Fonts->AddFontFromFileTTF("EngineAssets/Fonts/opensans/OpenSans-Regular.ttf", font_size);
     static const ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
     ImFontConfig         icons_config;
     icons_config.MergeMode  = true;
     icons_config.PixelSnapH = true;
     io.FontDefault          = io.Fonts->AddFontFromFileTTF(
-        "Assets/Fonts/FontAwesome4/FontAwesome4.ttf", icon_size, &icons_config, icons_ranges);
+        "EngineAssets/Fonts/FontAwesome4/FontAwesome4.ttf", icon_size, &icons_config, icons_ranges);
 
     ImGui::StyleColorsDark();
     ImGuiStyle& style = ImGui::GetStyle();

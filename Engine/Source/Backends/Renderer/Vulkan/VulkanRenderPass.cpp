@@ -40,11 +40,11 @@ void VulkanRenderPass::CreateVkRenderPass()
         VkAttachmentDescription colorAttachment{};
         colorAttachment.format  = YgTextureFormat2VkFormat(attachment.Format);
         colorAttachment.samples = (VkSampleCountFlagBits)m_desc.NumSamples;
-        colorAttachment.loadOp  = attachment.ColorLoadOp == LoadOp::Clear ? VK_ATTACHMENT_LOAD_OP_CLEAR :
-             attachment.ColorLoadOp == LoadOp::Load                       ? VK_ATTACHMENT_LOAD_OP_LOAD :
-                                                                            VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        colorAttachment.loadOp  = attachment.LoadAction == LoadOp::Clear ? VK_ATTACHMENT_LOAD_OP_CLEAR :
+             attachment.LoadAction == LoadOp::Load                       ? VK_ATTACHMENT_LOAD_OP_LOAD :
+                                                                           VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         colorAttachment.storeOp =
-            attachment.ColorStoreOp == StoreOp::Store ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE;
+            attachment.StoreAction == StoreOp::Store ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE;
         colorAttachment.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
         colorAttachment.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -78,10 +78,10 @@ void VulkanRenderPass::CreateVkRenderPass()
     {
         depthAttachment.format  = YgTextureFormat2VkFormat(m_desc.DepthAttachment.Format);
         depthAttachment.samples = (VkSampleCountFlagBits)m_desc.NumSamples;
-        depthAttachment.loadOp  = m_desc.DepthAttachment.ColorLoadOp == LoadOp::Clear ? VK_ATTACHMENT_LOAD_OP_CLEAR :
-             m_desc.DepthAttachment.ColorLoadOp == LoadOp::Load                       ? VK_ATTACHMENT_LOAD_OP_LOAD :
-                                                                                        VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        depthAttachment.storeOp = m_desc.DepthAttachment.ColorStoreOp == StoreOp::Store ?
+        depthAttachment.loadOp  = m_desc.DepthAttachment.LoadAction == LoadOp::Clear ? VK_ATTACHMENT_LOAD_OP_CLEAR :
+             m_desc.DepthAttachment.LoadAction == LoadOp::Load                       ? VK_ATTACHMENT_LOAD_OP_LOAD :
+                                                                                       VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        depthAttachment.storeOp = m_desc.DepthAttachment.StoreAction == StoreOp::Store ?
             VK_ATTACHMENT_STORE_OP_STORE :
             VK_ATTACHMENT_STORE_OP_DONT_CARE;
         depthAttachment.stencilLoadOp   = VK_ATTACHMENT_LOAD_OP_DONT_CARE;

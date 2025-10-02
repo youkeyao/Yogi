@@ -36,7 +36,12 @@ public:
     virtual void BindBuffer(const Ref<IBuffer>& buffer, int binding, int slot = 0)    = 0;
     virtual void BindTexture(const Ref<ITexture>& texture, int binding, int slot = 0) = 0;
 
+    const std::vector<ShaderResourceAttribute>& GetLayout() const { return m_layout; }
+
     static Handle<IShaderResourceBinding> Create(const std::vector<ShaderResourceAttribute>& shaderResourceLayout);
+
+protected:
+    std::vector<ShaderResourceAttribute> m_layout;
 };
 
 template <>

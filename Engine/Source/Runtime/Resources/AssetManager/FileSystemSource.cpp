@@ -5,6 +5,7 @@
 #include "Resources/AssetManager/Serializer/TextureSerializer.h"
 #include "Resources/AssetManager/Serializer/ShaderSerializer.h"
 #include "Resources/AssetManager/Serializer/RenderPassSerializer.h"
+#include "Resources/AssetManager/Serializer/PipelineSerializer.h"
 
 namespace Yogi
 {
@@ -38,6 +39,7 @@ FileSystemSource::FileSystemSource(const std::string& rootDir) : m_rootDir(rootD
     AssetManager::RegisterAssetSerializer<ITexture, TextureSerializer>();
     AssetManager::RegisterAssetSerializer<ShaderDesc, ShaderSerializer>();
     AssetManager::RegisterAssetSerializer<IRenderPass, RenderPassSerializer>();
+    AssetManager::RegisterAssetSerializer<IPipeline, PipelineSerializer>();
 }
 
 std::vector<uint8_t> FileSystemSource::LoadSource(const std::string& key)

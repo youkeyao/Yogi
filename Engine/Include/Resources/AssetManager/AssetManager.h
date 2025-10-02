@@ -42,25 +42,28 @@ class YG_API AssetManager
 {
 public:
     template <typename T>
-    static Ref<T> AddAsset(Handle<T>&& asset, const std::string& key)
+    static Ref<T> SetAsset(Handle<T>&& asset, const std::string& key)
     {
         auto& assetMap = GetAssetMap<T>();
-        auto  it       = assetMap.find(key);
-        if (it == assetMap.end())
+        T*    ptr      = asset.Get();
+        delete asset.GetCB();
+        asset.SetCB(new AssetControlBlock<T>(
+            ptr,
+            1,
+            [&assetMap, key]() {
+                auto it = assetMap.find(key);
+                if (it != assetMap.end() && it->second.GetRefCount() == 1)
+                    assetMap.erase(it);
+            },
+            key));
+        auto it = assetMap.find(key);
+        if (it != assetMap.end())
         {
-            T* ptr = asset.Get();
-            delete asset.GetCB();
-            asset.SetCB(new AssetControlBlock<T>(
-                ptr,
-                1,
-                [&assetMap, key]() {
-                    auto it = assetMap.find(key);
-                    if (it != assetMap.end() && it->second.GetRefCount() == 1)
-                        assetMap.erase(it);
-                },
-                key));
-            auto [assetIt, result] = assetMap.emplace(key, std::move(asset));
-            return Ref<T>::Create(assetIt->second);
+            it->second = std::move(asset);
+        }
+        else
+        {
+            it = assetMap.emplace(key, std::move(asset)).first;
         }
         return Ref<T>::Create(it->second);
     }
@@ -80,7 +83,7 @@ public:
             std::vector<uint8_t> source = (*sourceIt)->LoadSource(key);
             if (!source.empty())
             {
-                return AddAsset(GetAssetSerializer<T>()->Deserialize(source, key), key);
+                return SetAsset(GetAssetSerializer<T>()->Deserialize(source, key), key);
             }
         }
         return nullptr;

@@ -9,6 +9,7 @@ namespace Yogi
 class YG_API Material
 {
 public:
+    Material()  = default;
     ~Material() = default;
 
     void                  SetPipeline(const Ref<IPipeline>& pipeline);
@@ -24,12 +25,6 @@ public:
 
     inline void                        SetData(const std::vector<uint8_t>& data) { m_data = data; }
     inline const std::vector<uint8_t>& GetData() const { return m_data; }
-
-    static Handle<Material> Create();
-
-protected:
-    friend Handle<Material>;
-    Material() = default;
 
 private:
     Ref<IPipeline>       m_pipeline;

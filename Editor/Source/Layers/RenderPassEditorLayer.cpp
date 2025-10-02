@@ -1,18 +1,11 @@
 #include "Layers/RenderPassEditorLayer.h"
-
 #include "Registry/AssetRegistry.h"
+#include "Utils/ImGuiEnumCombo.h"
 
 #include <imgui.h>
 
 namespace Yogi
 {
-
-const char* TextureFormatStr[]   = { "R8G8B8_UNORM",   "R8G8B8_SRGB",   "R8G8B8A8_UNORM",     "R8G8B8A8_SRGB",
-                                     "B8G8R8A8_UNORM", "B8G8R8A8_SRGB", "R32G32B32A32_FLOAT", "R32G32B32_FLOAT",
-                                     "R32_FLOAT",      "D32_FLOAT",     "D24_UNORM_S8_UINT",  "NONE" };
-const char* AttachmentUsageStr[] = { "Color", "DepthStencil", "Resolve", "Present", "ShaderRead" };
-const char* LoadOpStr[]          = { "Load", "Clear", "DontCare" };
-const char* StoreOpStr[]         = { "Store", "DontCare" };
 
 RenderPassEditorLayer::RenderPassEditorLayer() : Layer("RenderPass Editor Layer") {}
 
@@ -23,15 +16,53 @@ void RenderPassEditorLayer::OnUpdate(Timestep ts)
 
     if (m_renderPass)
     {
-        ImGui::LabelText("", "%s", m_key.c_str());
+        ImGui::TextUnformatted(m_key.c_str());
         ImGui::Separator();
         auto renderPassDesc = m_renderPass->GetDesc();
-        for (auto& colorAttachment : renderPassDesc.ColorAttachments)
+        bool changed        = false;
+        if (ImGui::TreeNode("Color Attachments"))
         {
-            OnAttachment(colorAttachment);
+            for (int i = 0; i < renderPassDesc.ColorAttachments.size(); i++)
+            {
+                if (ImGui::TreeNodeEx(("ColorAttachment " + std::to_string(i)).c_str()))
+                {
+                    changed |= ImGuiAttachment(renderPassDesc.ColorAttachments[i]);
+                    if (ImGui::Button(("Remove##" + std::to_string(i)).c_str()))
+                    {
+                        changed |= true;
+                        renderPassDesc.ColorAttachments.erase(renderPassDesc.ColorAttachments.begin() + i);
+                        ImGui::TreePop();
+                        break;
+                    }
+                    ImGui::TreePop();
+                }
+            }
+            if (ImGui::Button("Add Color Attachment"))
+            {
+                renderPassDesc.ColorAttachments.push_back({
+                    ITexture::Format::R8G8B8A8_UNORM,
+                    AttachmentUsage::Color,
+                    LoadOp::Clear,
+                    StoreOp::Store,
+                });
+                changed |= true;
+            }
+            ImGui::TreePop();
         }
-        OnAttachment(renderPassDesc.DepthAttachment);
-        ImGui::LabelText("", "%d", (uint8_t)renderPassDesc.NumSamples);
+
+        if (ImGui::TreeNode("Depth Attachment"))
+        {
+            changed |= ImGuiAttachment(renderPassDesc.DepthAttachment);
+            ImGui::TreePop();
+        }
+
+        changed |= ImGuiEnumCombo("Num Samples", renderPassDesc.NumSamples);
+
+        if (changed)
+        {
+            m_renderPass = AssetManager::SetAsset(Handle<IRenderPass>::Create(renderPassDesc), m_key);
+            AssetManager::SaveAsset(m_renderPass, m_key);
+        }
     }
 
     // blank space
@@ -63,12 +94,14 @@ void RenderPassEditorLayer::OnEvent(Event& event) {}
 
 // --------------------------------------------------------------------------
 
-void RenderPassEditorLayer::OnAttachment(AttachmentDesc& attachment)
+bool RenderPassEditorLayer::ImGuiAttachment(AttachmentDesc& attachment)
 {
-    ImGui::LabelText("", "%s", TextureFormatStr[(uint8_t)attachment.Format]);
-    ImGui::LabelText("", "%s", AttachmentUsageStr[(uint8_t)attachment.Usage]);
-    ImGui::LabelText("", "%s", LoadOpStr[(uint8_t)attachment.ColorLoadOp]);
-    ImGui::LabelText("", "%s", StoreOpStr[(uint8_t)attachment.ColorStoreOp]);
+    bool changed = false;
+    changed |= ImGuiEnumCombo("Format", attachment.Format);
+    changed |= ImGuiEnumCombo("Usage", attachment.Usage);
+    changed |= ImGuiEnumCombo("Load Action", attachment.LoadAction);
+    changed |= ImGuiEnumCombo("Store Action", attachment.StoreAction);
+    return changed;
 }
 
 } // namespace Yogi

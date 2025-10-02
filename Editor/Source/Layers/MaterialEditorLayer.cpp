@@ -16,38 +16,23 @@ void MaterialEditorLayer::OnUpdate(Timestep ts)
 
     if (m_material)
     {
-        ImGui::LabelText("", "%s", m_key.c_str());
-        auto pipelineDesc = m_material->GetPipeline()->GetDesc();
-        for (auto& shader : pipelineDesc.Shaders)
-        {
-            std::string shaderKey = AssetManager::GetAssetKey(shader);
-            if (ImGui::BeginCombo(shaderKey.c_str(), shaderKey.c_str()))
-            {
-                for (auto& key : AssetRegistry::GetKeys<ShaderDesc>())
-                {
-                    if (ImGui::Selectable(key.c_str(), key == shaderKey))
-                    {
-                        shader = AssetManager::GetAsset<ShaderDesc>(key);
-                    }
-                }
-                ImGui::EndCombo();
-            }
-        }
-        if (ImGui::Button("+", { ImGui::GetContentRegionAvail().x, 0.0f }))
-            ImGui::OpenPopup("AddShader");
-        if (ImGui::BeginPopup("AddShader"))
-        {
-            for (auto& key : AssetRegistry::GetKeys<ShaderDesc>())
-            {
-                if (ImGui::MenuItem(key.c_str()))
-                {
-                    pipelineDesc.Shaders.push_back(AssetManager::GetAsset<ShaderDesc>(key));
-                    ImGui::CloseCurrentPopup();
-                }
-            }
-            ImGui::EndPopup();
-        }
+        ImGui::TextUnformatted(m_key.c_str());
         ImGui::Separator();
+        bool        changed     = false;
+        std::string pipelineKey = AssetManager::GetAssetKey(m_material->GetPipeline());
+        if (ImGui::BeginCombo("Pipeline", pipelineKey.c_str()))
+        {
+            for (auto& key : AssetRegistry::GetKeys<IPipeline>())
+            {
+                if (ImGui::Selectable(key.c_str(), key == pipelineKey))
+                {
+                    m_material->SetPipeline(AssetManager::GetAsset<IPipeline>(key));
+                    changed |= true;
+                }
+            }
+            ImGui::EndCombo();
+        }
+
         auto&    vertexLayout = m_material->GetPipeline()->GetDesc().VertexLayout;
         auto&    data         = m_material->GetData();
         auto&    textures     = m_material->GetTextures();
@@ -84,7 +69,7 @@ void MaterialEditorLayer::OnUpdate(Timestep ts)
                     if (ImGui::Selectable("None", texture))
                     {
                         m_material->SetTexture(textureIndex, nullptr);
-                        AssetManager::SaveAsset(m_material, m_key);
+                        changed |= true;
                     }
                     ImGui::EndCombo();
                 }
@@ -92,32 +77,25 @@ void MaterialEditorLayer::OnUpdate(Timestep ts)
             }
             else if (element.Type == ShaderElementType::Float)
             {
-                if (ImGui::InputFloat(element.Name.c_str(), (float*)(data.data() + element.Offset)))
-                {
-                    AssetManager::SaveAsset(m_material, m_key);
-                }
+                changed |= ImGui::InputFloat(element.Name.c_str(), (float*)(data.data() + element.Offset));
             }
             else if (element.Type == ShaderElementType::Float2)
             {
-                if (ImGui::InputFloat2(element.Name.c_str(), (float*)(data.data() + element.Offset)))
-                {
-                    AssetManager::SaveAsset(m_material, m_key);
-                }
+                changed |= ImGui::InputFloat2(element.Name.c_str(), (float*)(data.data() + element.Offset));
             }
             else if (element.Type == ShaderElementType::Float3)
             {
-                if (ImGui::InputFloat3(element.Name.c_str(), (float*)(data.data() + element.Offset)))
-                {
-                    AssetManager::SaveAsset(m_material, m_key);
-                }
+                changed |= ImGui::InputFloat3(element.Name.c_str(), (float*)(data.data() + element.Offset));
             }
             else if (element.Type == ShaderElementType::Float4)
             {
-                if (ImGui::ColorEdit4(element.Name.c_str(), (float*)(data.data() + element.Offset)))
-                {
-                    AssetManager::SaveAsset(m_material, m_key);
-                }
+                changed |= ImGui::ColorEdit4(element.Name.c_str(), (float*)(data.data() + element.Offset));
             }
+        }
+
+        if (changed)
+        {
+            AssetManager::SaveAsset(m_material, m_key);
         }
     }
 

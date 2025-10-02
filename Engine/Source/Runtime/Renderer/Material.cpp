@@ -3,8 +3,6 @@
 namespace Yogi
 {
 
-Handle<Material> Material::Create() { return Handle<Material>::Create(); }
-
 void Material::SetPipeline(const Ref<IPipeline>& pipeline)
 {
     m_pipeline = pipeline;

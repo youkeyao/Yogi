@@ -316,21 +316,22 @@ void HierarchyLayer::DrawComponents()
                         ImGui::EndCombo();
                     }
                 }
-                // else if (value.type_hash == typeid(Ref<Material>).hash_code())
-                // {
-                //     Ref<Material>& material = *(Ref<Material>*)((uint8_t*)component + value.offset);
-                //     if (ImGui::BeginCombo(key.c_str(), (material->get_name()).c_str()))
-                //     {
-                //         MaterialManager::each_material([&](const Ref<Material>& each_material) {
-                //             bool is_selected = material == each_material;
-                //             if (ImGui::Selectable(each_material->get_name().c_str(), is_selected))
-                //             {
-                //                 material = each_material;
-                //             }
-                //         });
-                //         ImGui::EndCombo();
-                //     }
-                // }
+                else if (field.TypeHash == GetTypeHash<Ref<Material>>())
+                {
+                    Ref<Material>& material = *(Ref<Material>*)((uint8_t*)component + field.Offset);
+                    std::string materialKey = AssetManager::GetAssetKey(material);
+                    if (ImGui::BeginCombo(field.Name.c_str(), materialKey.c_str()))
+                    {
+                        for (auto& key : AssetRegistry::GetKeys<Material>())
+                        {
+                            if (ImGui::Selectable(key.c_str(), materialKey == key))
+                            {
+                                material = AssetManager::GetAsset<Material>(key);
+                            }
+                        }
+                        ImGui::EndCombo();
+                    }
+                }
                 // else if (value.type_hash == typeid(Ref<RenderTexture>).hash_code())
                 // {
                 //     Ref<RenderTexture>& texture = *(Ref<RenderTexture>*)((uint8_t*)component + value.offset);

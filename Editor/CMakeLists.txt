@@ -48,5 +48,5 @@ add_custom_command(
     TARGET YGEditor POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_CURRENT_SOURCE_DIR}/Assets
-        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Assets
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/EngineAssets
 )

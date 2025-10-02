@@ -15,7 +15,7 @@ public:
     void OnEvent(Event& event) override;
 
 protected:
-    void OnAttachment(AttachmentDesc& attachment);
+    bool ImGuiAttachment(AttachmentDesc& attachment);
 
 private:
     Ref<IRenderPass> m_renderPass;

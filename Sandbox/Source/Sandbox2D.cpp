@@ -41,9 +41,9 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
             Yogi::ShaderResourceAttribute{ 0, 1, Yogi::ShaderResourceType::Buffer, Yogi::ShaderStage::Vertex } });
 
     Yogi::Handle<Yogi::ShaderDesc> vertexShader =
-        Yogi::Handle<Yogi::ShaderDesc>::Create(Yogi::ShaderStage::Vertex, ReadFile("Assets/Shaders/Test.vert"));
+        Yogi::Handle<Yogi::ShaderDesc>::Create(Yogi::ShaderStage::Vertex, ReadFile("EngineAssets/Shaders/Test.vert"));
     Yogi::Handle<Yogi::ShaderDesc> fragmentShader =
-        Yogi::Handle<Yogi::ShaderDesc>::Create(Yogi::ShaderStage::Fragment, ReadFile("Assets/Shaders/Test.frag"));
+        Yogi::Handle<Yogi::ShaderDesc>::Create(Yogi::ShaderStage::Fragment, ReadFile("EngineAssets/Shaders/Test.frag"));
     std::vector<Yogi::Ref<Yogi::ShaderDesc>> shaders = { Yogi::Ref<Yogi::ShaderDesc>::Create(vertexShader),
                                                          Yogi::Ref<Yogi::ShaderDesc>::Create(fragmentShader) };
 
@@ -67,7 +67,7 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
     m_box = m_world->CreateEntity();
     m_box.AddComponent<Yogi::TransformComponent>();
     auto& meshRenderer    = m_box.AddComponent<Yogi::MeshRendererComponent>();
-    meshRenderer.Mesh     = Yogi::AssetManager::GetAsset<Yogi::Mesh>("Assets/Meshes/Cube.obj::cube");
+    meshRenderer.Mesh     = Yogi::AssetManager::GetAsset<Yogi::Mesh>("EngineAssets/Meshes/Cube.obj::cube");
     meshRenderer.Material = Yogi::ResourceManager::GetResource<Yogi::Material>();
     meshRenderer.Material->SetPipeline(pipeline);
 }

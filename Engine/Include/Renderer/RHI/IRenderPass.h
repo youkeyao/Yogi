@@ -31,8 +31,8 @@ struct AttachmentDesc
 {
     ITexture::Format Format;
     AttachmentUsage  Usage;
-    LoadOp           ColorLoadOp  = LoadOp::Clear;
-    StoreOp          ColorStoreOp = StoreOp::Store;
+    LoadOp           LoadAction  = LoadOp::Clear;
+    StoreOp          StoreAction = StoreOp::Store;
 };
 
 struct RenderPassDesc
@@ -55,8 +55,8 @@ protected:
     RenderPassDesc m_desc;
 };
 
-template<>
-template<typename... Args>
+template <>
+template <typename... Args>
 Handle<IRenderPass> Handle<IRenderPass>::Create(Args&&... args)
 {
     return Handle<IRenderPass>(IRenderPass::Create(std::forward<Args>(args)...));

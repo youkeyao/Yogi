@@ -48,7 +48,21 @@ void RegisterShaders(const std::filesystem::path& path, std::unordered_map<uint3
 {
     if (path.extension().string() == ".vert" || path.extension().string() == ".frag")
     {
-        keyMaps[GetTypeHash<ShaderDesc>()].push_back((path.parent_path() / path.stem()).string());
+        keyMaps[GetTypeHash<ShaderDesc>()].push_back(path.string());
+    }
+}
+void RegisterRenderPasses(const std::filesystem::path& path, std::unordered_map<uint32_t, std::vector<std::string>>& keyMaps)
+{
+    if (path.extension().string() == ".rp")
+    {
+        keyMaps[GetTypeHash<IRenderPass>()].push_back(path.string());
+    }
+}
+void RegisterPipelines(const std::filesystem::path& path, std::unordered_map<uint32_t, std::vector<std::string>>& keyMaps)
+{
+    if (path.extension().string() == ".pipeline")
+    {
+        keyMaps[GetTypeHash<IPipeline>()].push_back(path.string());
     }
 }
 
@@ -62,6 +76,8 @@ void AssetRegistry::Init()
     Register(&RegisterMeshes);
     Register(&RegisterMaterials);
     Register(&RegisterShaders);
+    Register(&RegisterRenderPasses);
+    Register(&RegisterPipelines);
 }
 
 void AssetRegistry::Scan(const std::string& rootDir)

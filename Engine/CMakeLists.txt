@@ -77,7 +77,7 @@ else()
     message( FATAL_ERROR "Unknown platform" )
 endif()
 #-------------------------------------------------------------
-set( YG_BUILD_SHADER_FOLDER "Assets/Shaders" )
+set( YG_BUILD_SHADER_FOLDER "EngineAssets/Shaders" )
 
 add_subdirectory( Source/Shaders )
 add_subdirectory( ThirdParty/spdlog )
@@ -162,5 +162,5 @@ add_custom_command(
     TARGET YGEngine POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_CURRENT_SOURCE_DIR}/Assets
-        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Assets
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/EngineAssets
 )
