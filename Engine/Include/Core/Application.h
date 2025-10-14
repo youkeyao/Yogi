@@ -21,6 +21,8 @@ public:
     void OnEvent(Event& e);
     void PushLayer(Handle<Layer>&& layer);
 
+    Ref<Layer> GetLayer(const std::string& name);
+
     inline const Handle<Window>&         GetWindow() const { return m_window; }
     inline const Handle<IDeviceContext>& GetContext() const { return m_context; }
     inline const Handle<ISwapChain>&     GetSwapChain() const { return m_swapChain; }

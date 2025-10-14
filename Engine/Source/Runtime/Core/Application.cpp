@@ -52,6 +52,18 @@ void Application::PushLayer(Handle<Layer>&& layer)
     m_layers.push_back(std::move(layer));
 }
 
+Ref<Layer> Application::GetLayer(const std::string& name)
+{
+    for (auto& layer : m_layers)
+    {
+        if (layer->GetName() == name)
+        {
+            return Ref<Layer>::Create(layer);
+        }
+    }
+    return nullptr;
+}
+
 void Application::OnEvent(Event& e)
 {
     YG_PROFILE_FUNCTION();

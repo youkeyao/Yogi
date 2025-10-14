@@ -2,13 +2,15 @@
 
 #include <Yogi.h>
 
+#include "Layers/ViewportLayer.h"
+
 namespace Yogi
 {
 
 class HierarchyLayer : public Layer
 {
 public:
-    HierarchyLayer(Handle<World>& world, Entity& selectedEntity);
+    HierarchyLayer();
     virtual ~HierarchyLayer();
 
     void OnUpdate(Timestep ts) override;
@@ -23,9 +25,9 @@ private:
     void DrawSystems();
 
 private:
-    Handle<World>&      m_world;
-    Entity&             m_selectedEntity;
-    std::vector<Entity> m_allEntities;
+    std::vector<Entity>       m_allEntities;
+    std::map<Entity, Vector3> m_entitiesEulerAngles;
+    Ref<ViewportLayer>        m_viewportLayer;
 };
 
 } // namespace Yogi

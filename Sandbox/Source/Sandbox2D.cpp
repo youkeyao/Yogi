@@ -28,33 +28,33 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
 
     auto& swapChain = Yogi::Application::GetInstance().GetSwapChain();
 
-    auto renderPass = Yogi::ResourceManager::GetResource<Yogi::IRenderPass>(
-        Yogi::RenderPassDesc{ { Yogi::AttachmentDesc{ swapChain->GetColorFormat(), Yogi::AttachmentUsage::Present } },
-                              Yogi::AttachmentDesc{ swapChain->GetDepthFormat(),
-                                                    Yogi::AttachmentUsage::DepthStencil,
-                                                    Yogi::LoadOp::Clear,
-                                                    Yogi::StoreOp::DontCare },
-                              swapChain->GetNumSamples() });
+    // auto renderPass = Yogi::ResourceManager::GetResource<Yogi::IRenderPass>(
+    //     Yogi::RenderPassDesc{ { Yogi::AttachmentDesc{ swapChain->GetColorFormat(), Yogi::AttachmentUsage::Present } },
+    //                           Yogi::AttachmentDesc{ swapChain->GetDepthFormat(),
+    //                                                 Yogi::AttachmentUsage::DepthStencil,
+    //                                                 Yogi::LoadOp::Clear,
+    //                                                 Yogi::StoreOp::DontCare },
+    //                           swapChain->GetNumSamples() });
 
-    auto shaderResourceBinding =
-        Yogi::ResourceManager::GetResource<Yogi::IShaderResourceBinding>(std::vector<Yogi::ShaderResourceAttribute>{
-            Yogi::ShaderResourceAttribute{ 0, 1, Yogi::ShaderResourceType::Buffer, Yogi::ShaderStage::Vertex } });
+    // auto shaderResourceBinding =
+    //     Yogi::ResourceManager::GetResource<Yogi::IShaderResourceBinding>(std::vector<Yogi::ShaderResourceAttribute>{
+    //         Yogi::ShaderResourceAttribute{ 0, 1, Yogi::ShaderResourceType::Buffer, Yogi::ShaderStage::Vertex } });
 
-    Yogi::Handle<Yogi::ShaderDesc> vertexShader =
-        Yogi::Handle<Yogi::ShaderDesc>::Create(Yogi::ShaderStage::Vertex, ReadFile("EngineAssets/Shaders/Test.vert"));
-    Yogi::Handle<Yogi::ShaderDesc> fragmentShader =
-        Yogi::Handle<Yogi::ShaderDesc>::Create(Yogi::ShaderStage::Fragment, ReadFile("EngineAssets/Shaders/Test.frag"));
-    std::vector<Yogi::Ref<Yogi::ShaderDesc>> shaders = { Yogi::Ref<Yogi::ShaderDesc>::Create(vertexShader),
-                                                         Yogi::Ref<Yogi::ShaderDesc>::Create(fragmentShader) };
+    // Yogi::Handle<Yogi::ShaderDesc> vertexShader =
+    //     Yogi::Handle<Yogi::ShaderDesc>::Create(Yogi::ShaderStage::Vertex, ReadFile("EngineAssets/Shaders/Test.vert"));
+    // Yogi::Handle<Yogi::ShaderDesc> fragmentShader =
+    //     Yogi::Handle<Yogi::ShaderDesc>::Create(Yogi::ShaderStage::Fragment, ReadFile("EngineAssets/Shaders/Test.frag"));
+    // std::vector<Yogi::Ref<Yogi::ShaderDesc>> shaders = { Yogi::Ref<Yogi::ShaderDesc>::Create(vertexShader),
+    //                                                      Yogi::Ref<Yogi::ShaderDesc>::Create(fragmentShader) };
 
-    auto pipeline = Yogi::ResourceManager::GetResource<Yogi::IPipeline>(
-        Yogi::PipelineDesc{ shaders,
-                            { Yogi::VertexAttribute{ "a_Position", 0, 12, Yogi::ShaderElementType::Float3 },
-                              Yogi::VertexAttribute{ "a_TexCoord", 12, 8, Yogi::ShaderElementType::Float2 } },
-                            shaderResourceBinding,
-                            renderPass,
-                            0,
-                            Yogi::PrimitiveTopology::TriangleList });
+    // auto pipeline = Yogi::ResourceManager::GetResource<Yogi::IPipeline>(
+    //     Yogi::PipelineDesc{ shaders,
+    //                         { Yogi::VertexAttribute{ "a_Position", 0, 12, Yogi::ShaderElementType::Float3 },
+    //                           Yogi::VertexAttribute{ "a_TexCoord", 12, 8, Yogi::ShaderElementType::Float2 } },
+    //                         shaderResourceBinding,
+    //                         renderPass,
+    //                         0,
+    //                         Yogi::PrimitiveTopology::TriangleList });
 
     m_world = Yogi::Handle<Yogi::World>::Create();
     m_world->AddSystem<Yogi::ForwardRenderSystem>();
@@ -68,8 +68,7 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
     m_box.AddComponent<Yogi::TransformComponent>();
     auto& meshRenderer    = m_box.AddComponent<Yogi::MeshRendererComponent>();
     meshRenderer.Mesh     = Yogi::AssetManager::GetAsset<Yogi::Mesh>("EngineAssets/Meshes/Cube.obj::cube");
-    meshRenderer.Material = Yogi::ResourceManager::GetResource<Yogi::Material>();
-    meshRenderer.Material->SetPipeline(pipeline);
+    meshRenderer.Material = Yogi::AssetManager::GetAsset<Yogi::Material>("EngineAssets/Materials/Default.mat");
 }
 
 Sandbox2D::~Sandbox2D() { m_world = nullptr; }

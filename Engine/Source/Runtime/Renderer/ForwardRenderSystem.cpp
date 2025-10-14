@@ -11,8 +11,8 @@ ForwardRenderSystem::ForwardRenderSystem()
 {
     m_vertexBuffer = ResourceManager::GetResource<IBuffer>(
         BufferDesc{ MAX_VERTICES_SIZE, BufferUsage::Vertex, BufferAccess::Dynamic });
-    m_indexBuffer =
-        ResourceManager::GetResource<IBuffer>(BufferDesc{ MAX_INDICES, BufferUsage::Index, BufferAccess::Dynamic });
+    m_indexBuffer = ResourceManager::GetResource<IBuffer>(
+        BufferDesc{ MAX_INDICES * sizeof(uint32_t), BufferUsage::Index, BufferAccess::Dynamic });
     m_uniformBuffer = ResourceManager::GetResource<IBuffer>(
         BufferDesc{ sizeof(SceneData), BufferUsage::Uniform, BufferAccess::Dynamic });
 
@@ -26,15 +26,10 @@ ForwardRenderSystem::ForwardRenderSystem()
     m_shaderResourceBinding = ResourceManager::GetResource<IShaderResourceBinding>(std::vector<ShaderResourceAttribute>{
         ShaderResourceAttribute{ 0, 1, ShaderResourceType::Buffer, ShaderStage::Vertex } });
     m_shaderResourceBinding->BindBuffer(m_uniformBuffer, 0);
-
-    m_commandBuffer = ResourceManager::GetResource<ICommandBuffer>(
-        CommandBufferDesc{ CommandBufferUsage::Persistent, SubmitQueue::Graphics });
 }
 
 ForwardRenderSystem::~ForwardRenderSystem()
 {
-    m_commandBuffer->Wait();
-    m_commandBuffer = nullptr;
     m_vertexBuffer  = nullptr;
     m_indexBuffer   = nullptr;
     m_uniformBuffer = nullptr;
@@ -57,20 +52,35 @@ void ForwardRenderSystem::OnEvent(Event& e, World& world)
 
 bool ForwardRenderSystem::OnWindowResize(WindowResizeEvent& e, World& world)
 {
-    m_commandBuffer->Wait();
+    auto& swapChain = Application::GetInstance().GetSwapChain();
+    swapChain->GetCurrentCommandBuffer()->Wait();
     m_frameBuffers.clear();
     return false;
 }
 
-void ForwardRenderSystem::RenderCamera(CameraComponent& camera, const TransformComponent& transform, World& world)
+void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const TransformComponent& transform, World& world)
 {
     YG_PROFILE_FUNCTION();
 
-    auto& swapChain = Application::GetInstance().GetSwapChain();
+    auto&               swapChain     = Application::GetInstance().GetSwapChain();
+    Ref<ICommandBuffer> commandBuffer = swapChain->GetCurrentCommandBuffer();
+    auto                currentTarget = camera.Target ? camera.Target : swapChain->GetCurrentTarget();
+    auto                currentDepth  = swapChain->GetCurrentDepth();
+    FrameBufferDesc     desc{
+        currentTarget->GetWidth(), currentTarget->GetHeight(), m_renderPass, { currentTarget }, currentDepth,
+    };
+    uint64_t key = HashArgs(desc);
+    auto     it  = m_frameBuffers.find(key);
+    if (it == m_frameBuffers.end())
+    {
+        it = m_frameBuffers.insert({ key, ResourceManager::GetResource<IFrameBuffer>(desc) }).first;
+    }
+    auto& frameBuffer = it->second;
 
+    // update scene data
     Matrix4 viewMatrix = MathUtils::Inverse(transform.Transform);
     Matrix4 projectionMatrix;
-    float   aspectRatio = (float)swapChain->GetWidth() / (float)swapChain->GetHeight();
+    float   aspectRatio = (float)currentTarget->GetWidth() / (float)currentTarget->GetHeight();
     if (camera.IsOrtho)
     {
         projectionMatrix = MathUtils::Orthographic(-aspectRatio * camera.ZoomLevel,
@@ -84,25 +94,36 @@ void ForwardRenderSystem::RenderCamera(CameraComponent& camera, const TransformC
     {
         projectionMatrix = MathUtils::Perspective(camera.Fov, aspectRatio, 0.1f, 100.0f);
     }
-
     m_sceneData.ProjectionViewMatrix = projectionMatrix * viewMatrix;
     m_uniformBuffer->UpdateData(&m_sceneData, sizeof(SceneData));
+
+    // begin command buffer
+    commandBuffer->Wait();
+    BeginRender(commandBuffer, frameBuffer);
+    uint32_t vertexOffset = 0;
+    uint32_t indexOffset  = 0;
 
     // fill vertices and indices
     world.ViewComponents<TransformComponent, MeshRendererComponent>(
         [&](Entity entity, TransformComponent& transform, MeshRendererComponent& meshRenderer) {
             auto& mesh     = meshRenderer.Mesh;
             auto& material = meshRenderer.Material;
-            auto  pipeline = material->GetPipeline();
+            if (!mesh || !material)
+                return;
+            auto pipeline = material->GetPipeline();
 
             std::vector<uint8_t>&  vertices = m_vertices[pipeline];
             std::vector<uint32_t>& indices  = m_indices[pipeline];
 
             std::vector<VertexAttribute> vertexLayout = pipeline->GetDesc().VertexLayout;
             uint32_t                     vertexStride = vertexLayout.back().Offset + vertexLayout.back().Size;
-            if (vertices.size() + vertexStride * mesh->GetVertices().size() > MAX_VERTICES_SIZE)
+            if (vertices.size() + vertexStride * mesh->GetVertices().size() > MAX_VERTICES_SIZE ||
+                indices.size() + mesh->GetIndices().size() > MAX_INDICES)
             {
-                Flush(pipeline);
+                commandBuffer->Wait();
+                Draw(pipeline, frameBuffer, vertexOffset, indexOffset);
+                EndRender(commandBuffer);
+                BeginRender(commandBuffer, frameBuffer);
             }
 
             size_t   oldSize        = vertices.size();
@@ -147,49 +168,58 @@ void ForwardRenderSystem::RenderCamera(CameraComponent& camera, const TransformC
 
     for (auto& [pipeline, vertices] : m_vertices)
     {
-        Flush(pipeline);
+        if (vertexOffset + vertices.size() > MAX_VERTICES_SIZE ||
+            indexOffset + m_indices[pipeline].size() > MAX_INDICES)
+        {
+            EndRender(commandBuffer);
+            commandBuffer->Wait();
+            BeginRender(commandBuffer, frameBuffer);
+            vertexOffset = 0;
+            indexOffset  = 0;
+        }
+        Draw(pipeline, frameBuffer, vertexOffset, indexOffset);
     }
+
+    EndRender(commandBuffer);
 }
 
-void ForwardRenderSystem::Flush(const Ref<IPipeline>& pipeline)
+void ForwardRenderSystem::Draw(const Ref<IPipeline>&    pipeline,
+                               const Ref<IFrameBuffer>& frameBuffer,
+                               uint32_t                 vertexOffset,
+                               uint32_t                 indexOffset)
 {
     YG_PROFILE_FUNCTION();
 
     std::vector<uint8_t>&  vertices = m_vertices[pipeline];
     std::vector<uint32_t>& indices  = m_indices[pipeline];
-    m_vertexBuffer->UpdateData(vertices.data(), vertices.size() * sizeof(uint8_t));
-    m_indexBuffer->UpdateData(indices.data(), indices.size() * sizeof(uint32_t));
+    m_vertexBuffer->UpdateData(vertices.data(), vertices.size() * sizeof(uint8_t), vertexOffset);
+    m_indexBuffer->UpdateData(indices.data(), indices.size() * sizeof(uint32_t), indexOffset);
     vertices.clear();
     indices.clear();
 
     auto& swapChain = Application::GetInstance().GetSwapChain();
 
-    auto            currentTarget = swapChain->GetCurrentTarget();
-    auto            currentDepth  = swapChain->GetCurrentDepth();
-    FrameBufferDesc desc{
-        swapChain->GetWidth(), swapChain->GetHeight(), m_renderPass, { currentTarget }, currentDepth,
-    };
-    uint64_t key = HashArgs(desc);
-    auto     it  = m_frameBuffers.find(key);
-    if (it == m_frameBuffers.end())
-    {
-        it = m_frameBuffers.insert({ key, ResourceManager::GetResource<IFrameBuffer>(desc) }).first;
-    }
-    auto& frameBuffer = it->second;
+    Ref<ICommandBuffer> commandBuffer = swapChain->GetCurrentCommandBuffer();
+    commandBuffer->SetPipeline(pipeline);
+    commandBuffer->SetViewport({ 0, 0, (float)frameBuffer->GetWidth(), (float)frameBuffer->GetHeight() });
+    commandBuffer->SetScissor({ 0, 0, frameBuffer->GetWidth(), frameBuffer->GetHeight() });
+    commandBuffer->DrawIndexed(m_indexBuffer->GetSize() / sizeof(uint32_t), 1, 0, 0, 0);
+}
 
-    m_commandBuffer->Wait();
-    m_commandBuffer->Begin();
-    m_commandBuffer->BeginRenderPass(frameBuffer, { ClearValue{ 0.1f, 0.1f, 0.1f, 1.0f } }, ClearValue{ 1.0f, 0 });
-    m_commandBuffer->SetVertexBuffer(m_vertexBuffer);
-    m_commandBuffer->SetIndexBuffer(m_indexBuffer);
-    m_commandBuffer->SetPipeline(pipeline);
-    m_commandBuffer->SetShaderResourceBinding(m_shaderResourceBinding);
-    m_commandBuffer->SetViewport({ 0, 0, (float)swapChain->GetWidth(), (float)swapChain->GetHeight() });
-    m_commandBuffer->SetScissor({ 0, 0, swapChain->GetWidth(), swapChain->GetHeight() });
-    m_commandBuffer->DrawIndexed(m_indexBuffer->GetSize() / sizeof(uint32_t), 1, 0, 0, 0);
-    m_commandBuffer->EndRenderPass();
-    m_commandBuffer->End();
-    m_commandBuffer->Submit();
+void ForwardRenderSystem::BeginRender(Ref<ICommandBuffer>& commandBuffer, Ref<IFrameBuffer>& frameBuffer)
+{
+    commandBuffer->Begin();
+    commandBuffer->BeginRenderPass(frameBuffer, { ClearValue{ 0.1f, 0.1f, 0.1f, 1.0f } }, ClearValue{ 1.0f, 0 });
+    commandBuffer->SetVertexBuffer(m_vertexBuffer);
+    commandBuffer->SetIndexBuffer(m_indexBuffer);
+    commandBuffer->SetShaderResourceBinding(m_shaderResourceBinding);
+}
+
+void ForwardRenderSystem::EndRender(Ref<ICommandBuffer>& commandBuffer)
+{
+    commandBuffer->EndRenderPass();
+    commandBuffer->End();
+    commandBuffer->Submit();
 }
 
 } // namespace Yogi

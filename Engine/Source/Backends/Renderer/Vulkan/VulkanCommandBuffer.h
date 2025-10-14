@@ -40,6 +40,8 @@ public:
                      int32_t  vertexOffset  = 0,
                      uint32_t firstInstance = 0) override;
 
+    void Blit(const Ref<ITexture>& src, const Ref<ITexture>& dst) override;
+
     void TransitionImageLayout(VkImage image, ITexture::Usage usage, VkImageLayout oldLayout, VkImageLayout newLayout);
 
     inline VkCommandBuffer GetVkCommandBuffer() const { return m_commandBuffer; }
@@ -48,6 +50,8 @@ private:
     VkCommandBuffer    m_commandBuffer;
     CommandBufferUsage m_usage;
     SubmitQueue        m_queue;
+    VkFence            m_commandFence = VK_NULL_HANDLE;
+    bool               m_submitted    = false;
 };
 
 } // namespace Yogi

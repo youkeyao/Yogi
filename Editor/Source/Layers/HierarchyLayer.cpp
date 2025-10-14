@@ -10,24 +10,25 @@
 namespace Yogi
 {
 
-HierarchyLayer::HierarchyLayer(Handle<World>& world, Entity& selectedEntity) :
-    Layer("Hierarchy Layer"),
-    m_world(world),
-    m_selectedEntity(selectedEntity)
-{}
+HierarchyLayer::HierarchyLayer() : Layer("Hierarchy Layer")
+{
+    m_viewportLayer = Ref<ViewportLayer>::Cast(Application::GetInstance().GetLayer("Viewport Layer"));
+}
 
 HierarchyLayer::~HierarchyLayer() { m_allEntities.clear(); }
 
 void HierarchyLayer::OnUpdate(Timestep ts)
 {
     ImGui::Begin("Hierarchy");
-    if (m_world)
+    auto world          = m_viewportLayer->GetWorld();
+    auto selectedEntity = m_viewportLayer->GetSelectedEntity();
+    if (world)
     {
         if (ImGui::BeginPopupContextWindow())
         {
             if (ImGui::MenuItem("Create Empty Entity"))
             {
-                Entity entity = m_world->CreateEntity();
+                Entity entity = world->CreateEntity();
                 entity.AddComponent<TagComponent>("New Entity");
                 entity.AddComponent<TransformComponent>();
             }
@@ -38,7 +39,7 @@ void HierarchyLayer::OnUpdate(Timestep ts)
         std::unordered_map<uint32_t, std::vector<Entity>> relations;
         std::vector<Entity>                               rootEntities;
         m_allEntities.clear();
-        m_world->EachEntity([&relations, &rootEntities, this](Entity entity) {
+        world->EachEntity([&relations, &rootEntities, this](Entity entity) {
             m_allEntities.push_back(entity);
             Entity parent = entity.GetComponent<TransformComponent>().Parent;
             if (parent)
@@ -64,7 +65,7 @@ void HierarchyLayer::OnUpdate(Timestep ts)
                                  std::max(viewport_region_max.y - viewport_region_min.y, 1.0f) });
         if (ImGui::IsItemClicked())
         {
-            m_selectedEntity = Entity::Null();
+            m_viewportLayer->SetSelectedEntity(Entity::Null());
         }
         if (ImGui::BeginDragDropTarget())
         {
@@ -79,18 +80,18 @@ void HierarchyLayer::OnUpdate(Timestep ts)
     ImGui::End();
 
     ImGui::Begin("Components");
-    if (m_selectedEntity)
+    if (selectedEntity)
     {
         DrawComponents();
         if (ImGui::Button("+", { ImGui::GetContentRegionAvail().x, 0.0f }))
             ImGui::OpenPopup("AddComponent");
         if (ImGui::BeginPopup("AddComponent"))
         {
-            ComponentManager::EachComponentType([this](ComponentType& componentType) {
+            ComponentManager::EachComponentType([&](ComponentType& componentType) {
                 std::string& componentName = componentType.Name;
                 if (ImGui::MenuItem(componentName.c_str()))
                 {
-                    ComponentManager::AddComponent(m_selectedEntity, componentType.TypeHash);
+                    ComponentManager::AddComponent(selectedEntity, componentType.TypeHash);
                     ImGui::CloseCurrentPopup();
                 }
             });
@@ -100,17 +101,17 @@ void HierarchyLayer::OnUpdate(Timestep ts)
     ImGui::End();
 
     ImGui::Begin("Systems");
-    if (m_world)
+    if (world)
     {
         DrawSystems();
         if (ImGui::Button("+", { ImGui::GetContentRegionAvail().x, 0.0f }))
             ImGui::OpenPopup("AddSystem");
         if (ImGui::BeginPopup("AddSystem"))
         {
-            SystemManager::EachSystemType([this](const std::string& systemName, uint32_t typeHash) {
+            SystemManager::EachSystemType([&](const std::string& systemName, uint32_t typeHash) {
                 if (ImGui::MenuItem(systemName.c_str()))
                 {
-                    SystemManager::AddSystem(*m_world, typeHash);
+                    SystemManager::AddSystem(*world, typeHash);
                     ImGui::CloseCurrentPopup();
                 }
             });
@@ -136,23 +137,25 @@ bool HierarchyLayer::CheckEntityParent(Entity& entity, Entity& parent)
 void HierarchyLayer::DeleteEntityAndChildren(Entity&                                            entity,
                                              std::unordered_map<uint32_t, std::vector<Entity>>& relations)
 {
+    auto world = m_viewportLayer->GetWorld();
     for (auto& child : relations[entity])
     {
-        m_world->DeleteEntity(child);
+        world->DeleteEntity(child);
     }
-    m_world->DeleteEntity(entity);
+    world->DeleteEntity(entity);
 }
 
 void HierarchyLayer::DrawEntityNode(Entity& entity, std::unordered_map<uint32_t, std::vector<Entity>>& relations)
 {
     auto& tag = entity.GetComponent<TagComponent>().Tag;
 
-    ImGuiTreeNodeFlags flags = (m_selectedEntity && m_selectedEntity == entity ? ImGuiTreeNodeFlags_Selected : 0) |
+    auto               selectedEntity = m_viewportLayer->GetSelectedEntity();
+    ImGuiTreeNodeFlags flags          = (selectedEntity && selectedEntity == entity ? ImGuiTreeNodeFlags_Selected : 0) |
         ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
     bool isOpened = ImGui::TreeNodeEx((void*)(uint64_t)(uint32_t)entity, flags, "%s", tag.c_str());
     if (ImGui::IsItemClicked())
     {
-        m_selectedEntity = entity;
+        m_viewportLayer->SetSelectedEntity(entity);
     }
 
     if (ImGui::BeginPopupContextItem())
@@ -160,8 +163,8 @@ void HierarchyLayer::DrawEntityNode(Entity& entity, std::unordered_map<uint32_t,
         if (ImGui::MenuItem("Delete Entity"))
         {
             DeleteEntityAndChildren(entity, relations);
-            if (m_selectedEntity == entity)
-                m_selectedEntity = Entity::Null();
+            if (selectedEntity == entity)
+                m_viewportLayer->SetSelectedEntity(Entity::Null());
         }
         ImGui::EndPopup();
     }
@@ -200,7 +203,8 @@ void HierarchyLayer::DrawEntityNode(Entity& entity, std::unordered_map<uint32_t,
 
 void HierarchyLayer::DrawComponents()
 {
-    m_selectedEntity.EachComponent([this](uint32_t typeHash, void* component) {
+    auto selectedEntity = m_viewportLayer->GetSelectedEntity();
+    selectedEntity.EachComponent([&](uint32_t typeHash, void* component) {
         ComponentType      componentType = ComponentManager::GetComponentType(typeHash);
         ImGuiTreeNodeFlags flags         = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed |
             ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_FramePadding;
@@ -209,7 +213,7 @@ void HierarchyLayer::DrawComponents()
         {
             if (ImGui::MenuItem("Delete Component"))
             {
-                ComponentManager::RemoveComponent(m_selectedEntity, componentType.TypeHash);
+                ComponentManager::RemoveComponent(selectedEntity, componentType.TypeHash);
             }
             ImGui::EndPopup();
         }
@@ -267,7 +271,8 @@ void HierarchyLayer::DrawComponents()
                 {
                     Transform& transform = *reinterpret_cast<Transform*>((uint8_t*)component + field.Offset);
                     ImGui::DragFloat3("Position", &transform.Position.x, 0.25f);
-                    ImGui::DragFloat3("Rotation", &transform.Rotation.x, 0.25f);
+                    if (ImGui::DragFloat3("Rotation", &m_entitiesEulerAngles[selectedEntity].x, 0.25f))
+                        transform.Rotation = Quaternion(m_entitiesEulerAngles[selectedEntity]);
                     ImGui::DragFloat3("Scale", &transform.Scale.x, 0.25f);
                 }
                 else if (field.TypeHash == GetTypeHash<Entity>())
@@ -290,7 +295,7 @@ void HierarchyLayer::DrawComponents()
                             if (ImGui::Selectable(name, isSelected))
                             {
                                 entity = e;
-                                if (CheckEntityParent(entity, m_selectedEntity))
+                                if (CheckEntityParent(entity, selectedEntity))
                                 {
                                     entity = Entity::Null();
                                 }
@@ -318,8 +323,8 @@ void HierarchyLayer::DrawComponents()
                 }
                 else if (field.TypeHash == GetTypeHash<Ref<Material>>())
                 {
-                    Ref<Material>& material = *(Ref<Material>*)((uint8_t*)component + field.Offset);
-                    std::string materialKey = AssetManager::GetAssetKey(material);
+                    Ref<Material>& material    = *(Ref<Material>*)((uint8_t*)component + field.Offset);
+                    std::string    materialKey = AssetManager::GetAssetKey(material);
                     if (ImGui::BeginCombo(field.Name.c_str(), materialKey.c_str()))
                     {
                         for (auto& key : AssetRegistry::GetKeys<Material>())
@@ -376,7 +381,8 @@ void HierarchyLayer::DrawComponents()
 void HierarchyLayer::DrawSystems()
 {
     uint32_t index = 0;
-    m_world->EachSystem([this, &index](uint32_t systemHash) {
+    auto     world = m_viewportLayer->GetWorld();
+    world->EachSystem([&](uint32_t systemHash) {
         std::string        systemName = SystemManager::GetSystemName(systemHash);
         ImGuiTreeNodeFlags flags      = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed |
             ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_FramePadding;
@@ -385,7 +391,7 @@ void HierarchyLayer::DrawSystems()
         {
             if (ImGui::MenuItem("Delete System"))
             {
-                SystemManager::RemoveSystem(*m_world, systemHash);
+                SystemManager::RemoveSystem(*world, systemHash);
             }
             ImGui::EndPopup();
         }
@@ -400,7 +406,7 @@ void HierarchyLayer::DrawSystems()
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("system"))
             {
                 uint32_t old_index = *(uint32_t*)payload->Data;
-                m_world->ChangeSystemOrder(old_index, index);
+                world->ChangeSystemOrder(old_index, index);
             }
             ImGui::EndDragDropTarget();
         }

@@ -1,24 +1,45 @@
 #include "Layers/ViewportLayer.h"
 
 #include <imgui.h>
+#include "Utils/ImGuiBackends.h"
 #include "Utils/fontawesome4_header.h"
 
 namespace Yogi
 {
 
-ViewportLayer::ViewportLayer(Handle<World>& world, Entity& selectedEntity) :
+ViewportLayer::ViewportLayer() :
     Layer("Viewport Layer"),
-    m_world(world),
-    m_selectedEntity(selectedEntity)
-{}
+    m_world(Handle<World>::Create()),
+    m_selectedEntity(Entity::Null()),
+    m_editRenderSystem(Handle<ForwardRenderSystem>::Create())
+{
+    m_frameTexture = ResourceManager::GetResource<ITexture>(
+        TextureDesc{ 1, 1, 1, ITexture::Format::B8G8R8A8_UNORM, ITexture::Usage::RenderTarget });
+    m_frameTextureBinding = ResourceManager::GetResource<IShaderResourceBinding>(std::vector<ShaderResourceAttribute>{
+        ShaderResourceAttribute{ 0, 1, ShaderResourceType::Texture, ShaderStage::Fragment } });
+    m_frameTextureBinding->BindTexture(m_frameTexture, 0, 0);
+}
 
 void ViewportLayer::OnUpdate(Timestep ts)
 {
+    if (m_sceneState == SceneState::Edit)
+    {
+        m_editorCamera.GetCameraComponent().Target = m_frameTexture;
+        m_editRenderSystem->RenderCamera(
+            m_editorCamera.GetCameraComponent(), m_editorCamera.GetTransformComponent(), *m_world);
+    }
+    else
+    {
+        m_world->ViewComponents<CameraComponent>([&](Entity entity, CameraComponent camera) {});
+        m_world->OnUpdate(ts);
+    }
+
     OnGUI();
-    m_world->OnUpdate(ts);
 }
 
 void ViewportLayer::OnEvent(Event& event) { m_world->OnEvent(event); }
+
+// --------------------------------------------------------------------------
 
 void ViewportLayer::OnGUI()
 {
@@ -51,24 +72,33 @@ void ViewportLayer::OnGUI()
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
     ImGui::Begin("Viewport");
-    m_viewportHovered           = ImGui::IsWindowHovered();
-    ImVec2 viewportRegionMin    = ImGui::GetWindowContentRegionMin();
-    ImVec2 viewportRegionMax    = ImGui::GetWindowContentRegionMax();
-    ImVec2 viewportOffset       = ImGui::GetWindowPos();
-    m_viewportBounds[0]         = { viewportRegionMin.x + viewportOffset.x, viewportRegionMin.y + viewportOffset.y };
-    m_viewportBounds[1]         = { viewportRegionMax.x + viewportOffset.x, viewportRegionMax.y + viewportOffset.y };
-    glm::vec2 new_viewport_size = { viewportRegionMax.x - viewportRegionMin.x,
-                                    viewportRegionMax.y - viewportRegionMin.y };
-    if ((uint32_t)new_viewport_size.x < 0 || (uint32_t)new_viewport_size.y < 0)
+    m_viewportHovered        = ImGui::IsWindowHovered();
+    ImVec2 viewportRegionMin = ImGui::GetWindowContentRegionMin();
+    ImVec2 viewportRegionMax = ImGui::GetWindowContentRegionMax();
+    ImVec2 viewportOffset    = ImGui::GetWindowPos();
+    m_viewportBounds[0]      = { viewportRegionMin.x + viewportOffset.x, viewportRegionMin.y + viewportOffset.y };
+    m_viewportBounds[1]      = { viewportRegionMax.x + viewportOffset.x, viewportRegionMax.y + viewportOffset.y };
+    Vector2 newViewportSize  = { viewportRegionMax.x - viewportRegionMin.x, viewportRegionMax.y - viewportRegionMin.y };
+    if ((uint32_t)newViewportSize.x < 0 || (uint32_t)newViewportSize.y < 0)
     {
         YG_CORE_WARN("Invalid viewport size!");
     }
-    else if (new_viewport_size.x != m_viewportSize.x || new_viewport_size.y != m_viewportSize.y)
+    else if (newViewportSize.x != m_viewportSize.x || newViewportSize.y != m_viewportSize.y)
     {
-        m_viewportSize = new_viewport_size;
-        WindowResizeEvent e((uint32_t)m_viewportSize.x, (uint32_t)m_viewportSize.y, nullptr);
+        m_viewportSize = newViewportSize;
+        if (m_viewportSize.x > 0 && m_viewportSize.y > 0)
+        {
+            m_frameTexture = ResourceManager::GetResource<ITexture>(TextureDesc{ (uint32_t)m_viewportSize.x,
+                                                                                 (uint32_t)m_viewportSize.y,
+                                                                                 1,
+                                                                                 ITexture::Format::B8G8R8A8_UNORM,
+                                                                                 ITexture::Usage::RenderTarget });
+            m_frameTextureBinding->BindTexture(m_frameTexture, 0, 0);
+        }
+        // WindowResizeEvent e((uint32_t)m_viewportSize.x, (uint32_t)m_viewportSize.y, nullptr);
         // on_window_resized(e);
     }
+    ImGuiImage(m_frameTexture, m_frameTextureBinding, ImVec2(m_viewportSize.x, m_viewportSize.y));
     // ImguiSetting::show_image(m_frame_texture, ImVec2(m_viewportSize.x, m_viewportSize.y), ImVec2(1, 1));
 
     // Drop scene

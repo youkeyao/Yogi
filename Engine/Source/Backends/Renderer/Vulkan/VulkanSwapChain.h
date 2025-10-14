@@ -2,6 +2,7 @@
 
 #include "Renderer/RHI/ISwapChain.h"
 #include "VulkanTexture.h"
+#include "VulkanCommandBuffer.h"
 
 namespace Yogi
 {
@@ -23,13 +24,16 @@ public:
         return Ref<VulkanTexture>::Create(m_colorTextures[m_imageIndex]);
     }
     Ref<ITexture> GetCurrentDepth() const override { return Ref<VulkanTexture>::Create(m_depthTextures[m_imageIndex]); }
+    Ref<ICommandBuffer> GetCurrentCommandBuffer() const override
+    {
+        return Ref<VulkanCommandBuffer>::Create(m_commandBuffers[m_currentFrame]);
+    }
 
     void AcquireNextImage() override;
     void Present() override;
     void Resize(uint32_t width, uint32_t height) override;
 
     inline uint32_t GetImageCount() const { return m_colorTextures.size(); }
-    inline VkFence  GetVkRenderCommandFence() const { return m_renderCommandFences[m_currentFrame]; }
 
 private:
     void CleanupSwapChain();
@@ -49,9 +53,9 @@ private:
     std::vector<Handle<VulkanTexture>> m_colorTextures;
     std::vector<Handle<VulkanTexture>> m_depthTextures;
 
-    std::vector<VkSemaphore> m_imageAvailableSemaphores;
-    std::vector<VkSemaphore> m_renderFinishedSemaphores;
-    std::vector<VkFence>     m_renderCommandFences;
+    std::vector<VkSemaphore>                 m_imageAvailableSemaphores;
+    std::vector<VkSemaphore>                 m_renderFinishedSemaphores;
+    std::vector<Handle<VulkanCommandBuffer>> m_commandBuffers;
 
     uint32_t            m_width;
     uint32_t            m_height;

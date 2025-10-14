@@ -2,13 +2,15 @@
 
 #include <Yogi.h>
 
+#include "Utils/EditorCamera.h"
+
 namespace Yogi
 {
 
 class ViewportLayer : public Layer
 {
 public:
-    ViewportLayer(Handle<World>& world, Entity& selectedEntity);
+    ViewportLayer();
     virtual ~ViewportLayer() = default;
 
     void OnUpdate(Timestep ts) override;
@@ -17,6 +19,11 @@ public:
     // void open_project();
     // void open_scene(const std::string& path);
     // void save_scene();
+
+    inline Ref<World> GetWorld() const { return Ref<World>::Create(m_world); }
+    inline Entity     GetSelectedEntity() const { return m_selectedEntity; }
+
+    void SetSelectedEntity(Entity entity) { m_selectedEntity = entity; }
 
 private:
     void OnGUI();
@@ -28,8 +35,8 @@ private:
     // bool on_key_pressed(KeyPressedEvent& e);
 
 private:
-    Handle<World>& m_world;
-    Entity&        m_selectedEntity;
+    Handle<World> m_world;
+    Entity        m_selectedEntity;
     // Ref<SceneHierarchyPanel> m_hierarchy_panel;
     // Ref<ContentBrowserPanel> m_content_browser_panel;
     // Ref<MaterialEditorPanel> m_material_editor_panel;
@@ -37,9 +44,15 @@ private:
     // Ref<RenderSystem> m_editor_render_system;
     // EditorCamera      m_editor_camera;
 
-    bool      m_viewportHovered = false;
-    glm::vec2 m_viewportSize;
-    glm::vec2 m_viewportBounds[2];
+    EditorCamera                m_editorCamera;
+    Handle<ForwardRenderSystem> m_editRenderSystem;
+
+    bool    m_viewportHovered = false;
+    Vector2 m_viewportSize    = { 1, 1 };
+    Vector2 m_viewportBounds[2];
+
+    Ref<ITexture>               m_frameTexture        = nullptr;
+    Ref<IShaderResourceBinding> m_frameTextureBinding = nullptr;
     // ImGuizmo::OPERATION m_gizmo_type = ImGuizmo::OPERATION::TRANSLATE;
 
     // Ref<RenderTexture> m_frame_texture;

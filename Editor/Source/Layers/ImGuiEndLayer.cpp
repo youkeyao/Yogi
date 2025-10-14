@@ -107,7 +107,6 @@ void ImGuiEndLayer::RendererDraw()
     }
     auto& frameBuffer = it->second;
 
-    m_commandBuffer->Wait();
     m_commandBuffer->Begin();
     m_commandBuffer->BeginRenderPass(frameBuffer, { ClearValue{ 0.1f, 0.1f, 0.1f, 1.0f } }, ClearValue{ 1.0f, 0 });
     ImGui_ImplVulkan_RenderDrawData(mainDrawData,
@@ -115,6 +114,7 @@ void ImGuiEndLayer::RendererDraw()
     m_commandBuffer->EndRenderPass();
     m_commandBuffer->End();
     m_commandBuffer->Submit();
+    m_commandBuffer->Wait();
 #endif
 }
 

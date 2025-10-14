@@ -2,6 +2,7 @@
 
 #include "Core/Window.h"
 #include "Renderer/RHI/IFrameBuffer.h"
+#include "Renderer/RHI/ICommandBuffer.h"
 
 namespace Yogi
 {
@@ -27,8 +28,9 @@ public:
     virtual ITexture::Format    GetDepthFormat() const = 0;
     virtual SampleCountFlagBits GetNumSamples() const  = 0;
 
-    virtual Ref<ITexture> GetCurrentTarget() const = 0;
-    virtual Ref<ITexture> GetCurrentDepth() const  = 0;
+    virtual Ref<ITexture>       GetCurrentTarget() const        = 0;
+    virtual Ref<ITexture>       GetCurrentDepth() const         = 0;
+    virtual Ref<ICommandBuffer> GetCurrentCommandBuffer() const = 0;
 
     virtual void AcquireNextImage()                      = 0;
     virtual void Present()                               = 0;

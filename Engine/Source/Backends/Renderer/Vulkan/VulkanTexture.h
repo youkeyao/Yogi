@@ -16,6 +16,7 @@ public:
     inline uint32_t         GetWidth() const override { return m_width; }
     inline uint32_t         GetHeight() const override { return m_height; }
     inline ITexture::Format GetFormat() const override { return m_format; }
+    inline ITexture::Usage  GetUsage() const override { return m_usage; }
 
     void SetData(void* data, uint32_t size) override;
 

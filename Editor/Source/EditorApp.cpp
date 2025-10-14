@@ -22,7 +22,7 @@ namespace Yogi
 class EditorApp : public Application
 {
 public:
-    EditorApp() : Application("Yogi Editor"), m_world(Handle<World>::Create()), m_selectedEntity(Entity::Null())
+    EditorApp() : Application("Yogi Editor")
     {
         ComponentManager::Init();
         SystemManager::Init();
@@ -32,8 +32,8 @@ public:
         AssetRegistry::Scan(".");
 
         PushLayer(Handle<ImGuiBeginLayer>::Create());
-        PushLayer(Handle<ViewportLayer>::Create(m_world, m_selectedEntity));
-        PushLayer(Handle<HierarchyLayer>::Create(m_world, m_selectedEntity));
+        PushLayer(Handle<ViewportLayer>::Create());
+        PushLayer(Handle<HierarchyLayer>::Create());
         PushLayer(Handle<MaterialEditorLayer>::Create());
         PushLayer(Handle<ContentBrowserLayer>::Create());
         PushLayer(Handle<RenderPassEditorLayer>::Create());
@@ -46,10 +46,6 @@ public:
         ComponentManager::Clear();
         AssetRegistry::Clear();
     }
-
-private:
-    Entity        m_selectedEntity;
-    Handle<World> m_world;
 };
 
 Application* CreateApplication() { return new EditorApp(); }

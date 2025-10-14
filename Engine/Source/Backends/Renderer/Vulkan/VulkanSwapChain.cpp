@@ -18,18 +18,25 @@ VulkanSwapChain::VulkanSwapChain(const SwapChainDesc& desc) :
 {
     CreateVkSwapChain();
     CreateVkSyncObjects();
+
+    // Create per-frame command buffers
+    CommandBufferDesc cmdBufDesc{ CommandBufferUsage::Persistent, SubmitQueue::Graphics };
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+    {
+        m_commandBuffers.push_back(Handle<VulkanCommandBuffer>::Create(cmdBufDesc));
+    }
 }
 
 VulkanSwapChain::~VulkanSwapChain()
 {
     VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
 
+    m_commandBuffers.clear();
     CleanupSwapChain();
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
     {
         vkDestroySemaphore(context->GetVkDevice(), m_imageAvailableSemaphores[i], nullptr);
         vkDestroySemaphore(context->GetVkDevice(), m_renderFinishedSemaphores[i], nullptr);
-        vkDestroyFence(context->GetVkDevice(), m_renderCommandFences[i], nullptr);
     }
 }
 
@@ -38,13 +45,9 @@ void VulkanSwapChain::AcquireNextImage()
     VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
     VkDevice             device  = context->GetVkDevice();
 
-    vkWaitForFences(device, 1, &m_renderCommandFences[m_currentFrame], VK_TRUE, UINT64_MAX);
-
     VkResult result = vkAcquireNextImageKHR(
         device, m_swapChain, UINT64_MAX, m_imageAvailableSemaphores[m_currentFrame], VK_NULL_HANDLE, &m_imageIndex);
     YG_CORE_ASSERT(result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR, "Vulkan: Failed to acquire swap chain image!");
-
-    vkResetFences(device, 1, &m_renderCommandFences[m_currentFrame]);
 }
 
 void VulkanSwapChain::Present()
@@ -148,7 +151,7 @@ void VulkanSwapChain::CreateVkSwapChain()
     createInfo.imageColorSpace  = surfaceFormat.colorSpace;
     createInfo.imageExtent      = extent;
     createInfo.imageArrayLayers = 1;
-    createInfo.imageUsage       = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    createInfo.imageUsage       = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 
     QueueFamilyIndices indices              = FindQueueFamilies(physicalDevice, surface);
     uint32_t           queueFamilyIndices[] = { indices.graphicsFamily.value(), indices.presentFamily.value() };
@@ -201,14 +204,9 @@ void VulkanSwapChain::CreateVkSyncObjects()
 
     m_imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
     m_renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-    m_renderCommandFences.resize(MAX_FRAMES_IN_FLIGHT);
 
     VkSemaphoreCreateInfo semaphoreInfo{};
     semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-
-    VkFenceCreateInfo fenceInfo{};
-    fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
     {
@@ -216,8 +214,6 @@ void VulkanSwapChain::CreateVkSyncObjects()
                        "Vulkan: Failed to create image available semaphore!");
         YG_CORE_ASSERT(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &m_renderFinishedSemaphores[i]) == VK_SUCCESS,
                        "Vulkan: Failed to create render finished semaphore!");
-        YG_CORE_ASSERT(vkCreateFence(device, &fenceInfo, nullptr, &m_renderCommandFences[i]) == VK_SUCCESS,
-                       "Vulkan: Failed to create in-flight fence!");
     }
 
     QueueFamilyIndices indices = FindQueueFamilies(physicalDevice, context->GetVkSurface());

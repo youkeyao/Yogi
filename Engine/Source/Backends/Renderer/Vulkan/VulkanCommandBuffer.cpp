@@ -28,8 +28,15 @@ VulkanCommandBuffer::VulkanCommandBuffer(const CommandBufferDesc& desc) :
     allocInfo.commandBufferCount = 1;
     if (vkAllocateCommandBuffers(context->GetVkDevice(), &allocInfo, &m_commandBuffer) != VK_SUCCESS)
     {
-        throw std::runtime_error("Failed to allocate command buffer!");
+        YG_CORE_ERROR("Vulkan: Failed to allocate command buffer!");
     }
+
+    VkFenceCreateInfo fenceInfo{};
+    fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+    YG_CORE_ASSERT(vkCreateFence(context->GetVkDevice(), &fenceInfo, nullptr, &m_commandFence) == VK_SUCCESS,
+                   "Vulkan: Failed to create fence!");
+    vkResetFences(context->GetVkDevice(), 1, &m_commandFence);
 }
 
 VulkanCommandBuffer::~VulkanCommandBuffer()
@@ -39,6 +46,10 @@ VulkanCommandBuffer::~VulkanCommandBuffer()
     {
         Wait();
         vkFreeCommandBuffers(context->GetVkDevice(), context->GetVkCommandPool(), 1, &m_commandBuffer);
+    }
+    if (m_commandFence != VK_NULL_HANDLE)
+    {
+        vkDestroyFence(context->GetVkDevice(), m_commandFence, nullptr);
     }
 }
 
@@ -73,41 +84,32 @@ void VulkanCommandBuffer::Submit()
     switch (m_queue)
     {
         case SubmitQueue::Graphics:
-            result = vkQueueSubmit(context->GetGraphicsQueue(), 1, &submitInfo, swapChain->GetVkRenderCommandFence());
+            result = vkQueueSubmit(context->GetGraphicsQueue(), 1, &submitInfo, m_commandFence);
             break;
         case SubmitQueue::Compute:
             // Todo: To be implemented
             YG_CORE_ASSERT(false, "Compute queue submission not implemented yet!");
             break;
         case SubmitQueue::Transfer:
-            result = vkQueueSubmit(context->GetTransferQueue(), 1, &submitInfo, VK_NULL_HANDLE);
+            result = vkQueueSubmit(context->GetTransferQueue(), 1, &submitInfo, m_commandFence);
             break;
         default:
             YG_CORE_ASSERT(false, "Invalid SubmitQueue type!");
     }
     YG_CORE_ASSERT(result == VK_SUCCESS, "Vulkan: Failed to submit render command buffer!");
+    m_submitted = true;
 }
 
 void VulkanCommandBuffer::Wait()
 {
     YG_PROFILE_FUNCTION();
 
-    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
-
-    switch (m_queue)
+    if (m_submitted)
     {
-        case SubmitQueue::Graphics:
-            vkQueueWaitIdle(context->GetGraphicsQueue());
-            break;
-        case SubmitQueue::Compute:
-            // To be implemented
-            YG_CORE_ASSERT(false, "Compute queue submission not implemented yet!");
-            break;
-        case SubmitQueue::Transfer:
-            vkQueueWaitIdle(context->GetTransferQueue());
-            break;
-        default:
-            break;
+        VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+        vkWaitForFences(context->GetVkDevice(), 1, &m_commandFence, VK_TRUE, UINT64_MAX);
+        vkResetFences(context->GetVkDevice(), 1, &m_commandFence);
+        m_submitted = false;
     }
 }
 
@@ -213,6 +215,47 @@ void VulkanCommandBuffer::DrawIndexed(uint32_t indexCount,
                                       uint32_t firstInstance)
 {
     vkCmdDrawIndexed(m_commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+}
+
+void VulkanCommandBuffer::Blit(const Ref<ITexture>& src, const Ref<ITexture>& dst)
+{
+    Ref<VulkanTexture> vkSrc = Ref<VulkanTexture>::Cast(src);
+    Ref<VulkanTexture> vkDst = Ref<VulkanTexture>::Cast(dst);
+    if (src != dst)
+    {
+        TransitionImageLayout(
+            vkSrc->GetVkImage(), vkSrc->GetUsage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+        TransitionImageLayout(
+            vkDst->GetVkImage(), vkDst->GetUsage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+        VkImageBlit blit{};
+        blit.srcSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+        blit.srcSubresource.mipLevel       = 0;
+        blit.srcSubresource.baseArrayLayer = 0;
+        blit.srcSubresource.layerCount     = 1;
+        blit.srcOffsets[0]                 = { 0, 0, 0 };
+        blit.srcOffsets[1]                 = { (int32_t)vkSrc->GetWidth(), (int32_t)vkSrc->GetHeight(), 1 };
+        blit.dstSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+        blit.dstSubresource.mipLevel       = 0;
+        blit.dstSubresource.baseArrayLayer = 0;
+        blit.dstSubresource.layerCount     = 1;
+        blit.dstOffsets[0]                 = { 0, 0, 0 };
+        blit.dstOffsets[1]                 = { (int32_t)vkDst->GetWidth(), (int32_t)vkDst->GetHeight(), 1 };
+
+        vkCmdBlitImage(m_commandBuffer,
+                       vkSrc->GetVkImage(),
+                       VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                       vkDst->GetVkImage(),
+                       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                       1,
+                       &blit,
+                       VK_FILTER_LINEAR);
+    }
+
+    TransitionImageLayout(vkDst->GetVkImage(),
+                          vkDst->GetUsage(),
+                          VK_IMAGE_LAYOUT_UNDEFINED,
+                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 
 void VulkanCommandBuffer::TransitionImageLayout(VkImage         image,

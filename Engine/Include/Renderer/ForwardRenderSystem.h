@@ -24,10 +24,16 @@ public:
     void OnUpdate(Timestep ts, World& world) override;
     void OnEvent(Event& e, World& world) override;
 
+    void RenderCamera(const CameraComponent& camera, const TransformComponent& transform, World& world);
+
 private:
     bool OnWindowResize(WindowResizeEvent& e, World& world);
-    void RenderCamera(CameraComponent& camera, const TransformComponent& transform, World& world);
-    void Flush(const Ref<IPipeline>& pipeline);
+    void BeginRender(Ref<ICommandBuffer>& commandBuffer, Ref<IFrameBuffer>& frameBuffer);
+    void Draw(const Ref<IPipeline>&    pipeline,
+              const Ref<IFrameBuffer>& frameBuffer,
+              uint32_t                 vertexOffset,
+              uint32_t                 indexOffset);
+    void EndRender(Ref<ICommandBuffer>& commandBuffer);
 
 private:
     static const uint32_t MAX_TRIANGLES     = 100000;
@@ -43,7 +49,6 @@ private:
 
     Ref<IRenderPass>            m_renderPass            = nullptr;
     Ref<IShaderResourceBinding> m_shaderResourceBinding = nullptr;
-    Ref<ICommandBuffer>         m_commandBuffer         = nullptr;
 
     std::unordered_map<uint64_t, Ref<IFrameBuffer>>           m_frameBuffers;
     std::unordered_map<Ref<IPipeline>, std::vector<uint8_t>>  m_vertices;

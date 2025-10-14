@@ -82,6 +82,8 @@ public:
                              int32_t  vertexOffset  = 0,
                              uint32_t firstInstance = 0) = 0;
 
+    virtual void Blit(const Ref<ITexture>& src, const Ref<ITexture>& dst) = 0;
+
     static Handle<ICommandBuffer> Create(const CommandBufferDesc& desc);
 };
 
