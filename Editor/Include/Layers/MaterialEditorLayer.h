@@ -15,6 +15,10 @@ public:
     void OnEvent(Event& event) override;
 
 private:
+    bool ImGuiPipeline(Ref<IPipeline>& pipeline);
+    bool ValidatePipelineDesc(PipelineDesc& desc);
+
+private:
     Ref<Material> m_material;
     std::string   m_key;
 };

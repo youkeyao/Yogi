@@ -47,8 +47,8 @@ private:
     Ref<IBuffer> m_indexBuffer   = nullptr;
     Ref<IBuffer> m_uniformBuffer = nullptr;
 
-    Ref<IRenderPass>            m_renderPass            = nullptr;
-    Ref<IShaderResourceBinding> m_shaderResourceBinding = nullptr;
+    std::vector<Ref<IRenderPass>> m_renderPasses;
+    Ref<IShaderResourceBinding>   m_shaderResourceBinding = nullptr;
 
     std::unordered_map<uint64_t, Ref<IFrameBuffer>>           m_frameBuffers;
     std::unordered_map<Ref<IPipeline>, std::vector<uint8_t>>  m_vertices;

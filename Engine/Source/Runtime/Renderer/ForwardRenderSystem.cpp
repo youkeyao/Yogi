@@ -1,4 +1,5 @@
 #include "Renderer/ForwardRenderSystem.h"
+#include "Resources/AssetManager/AssetManager.h"
 #include "Resources/ResourceManager/ResourceManager.h"
 #include "Core/Application.h"
 #include "Scene/World.h"
@@ -18,10 +19,11 @@ ForwardRenderSystem::ForwardRenderSystem()
 
     auto& swapChain = Application::GetInstance().GetSwapChain();
 
-    m_renderPass = ResourceManager::GetResource<IRenderPass>(RenderPassDesc{
-        { AttachmentDesc{ swapChain->GetColorFormat(), AttachmentUsage::Present } },
-        AttachmentDesc{ swapChain->GetDepthFormat(), AttachmentUsage::DepthStencil, LoadOp::Clear, StoreOp::DontCare },
-        swapChain->GetNumSamples() });
+    m_renderPasses.push_back(AssetManager::GetAsset<IRenderPass>("EngineAssets/RenderPasses/Default.rp"));
+    // m_renderPasses.push_back(ResourceManager::GetResource<IRenderPass>(RenderPassDesc{
+    //     { AttachmentDesc{ swapChain->GetColorFormat(), AttachmentUsage::Present } },
+    //     AttachmentDesc{ swapChain->GetDepthFormat(), AttachmentUsage::ShaderRead, LoadOp::Clear, StoreOp::DontCare },
+    //     swapChain->GetNumSamples() }));
 
     m_shaderResourceBinding = ResourceManager::GetResource<IShaderResourceBinding>(std::vector<ShaderResourceAttribute>{
         ShaderResourceAttribute{ 0, 1, ShaderResourceType::Buffer, ShaderStage::Vertex } });
@@ -67,7 +69,7 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
     auto                currentTarget = camera.Target ? camera.Target : swapChain->GetCurrentTarget();
     auto                currentDepth  = swapChain->GetCurrentDepth();
     FrameBufferDesc     desc{
-        currentTarget->GetWidth(), currentTarget->GetHeight(), m_renderPass, { currentTarget }, currentDepth,
+        currentTarget->GetWidth(), currentTarget->GetHeight(), m_renderPasses[0], { currentTarget }, currentDepth,
     };
     uint64_t key = HashArgs(desc);
     auto     it  = m_frameBuffers.find(key);
@@ -104,80 +106,88 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
     uint32_t indexOffset  = 0;
 
     // fill vertices and indices
-    world.ViewComponents<TransformComponent, MeshRendererComponent>(
-        [&](Entity entity, TransformComponent& transform, MeshRendererComponent& meshRenderer) {
-            auto& mesh     = meshRenderer.Mesh;
-            auto& material = meshRenderer.Material;
-            if (!mesh || !material)
-                return;
-            auto pipeline = material->GetPipeline();
-
-            std::vector<uint8_t>&  vertices = m_vertices[pipeline];
-            std::vector<uint32_t>& indices  = m_indices[pipeline];
-
-            std::vector<VertexAttribute> vertexLayout = pipeline->GetDesc().VertexLayout;
-            uint32_t                     vertexStride = vertexLayout.back().Offset + vertexLayout.back().Size;
-            if (vertices.size() + vertexStride * mesh->GetVertices().size() > MAX_VERTICES_SIZE ||
-                indices.size() + mesh->GetIndices().size() > MAX_INDICES)
-            {
-                commandBuffer->Wait();
-                Draw(pipeline, frameBuffer, vertexOffset, indexOffset);
-                EndRender(commandBuffer);
-                BeginRender(commandBuffer, frameBuffer);
-            }
-
-            size_t   oldSize        = vertices.size();
-            uint32_t baseVertex     = oldSize / vertexStride;
-            int      positionOffset = material->GetPositionOffset();
-            int      normalOffset   = material->GetNormalOffset();
-            int      texcoordOffset = material->GetTexCoordOffset();
-            int      entityOffset   = material->GetEntityOffset();
-            vertices.resize(oldSize + vertexStride * mesh->GetVertices().size());
-            uint8_t* verticesCur = vertices.data() + oldSize;
-
-            for (auto& vertex : mesh->GetVertices())
-            {
-                if (positionOffset >= 0)
-                {
-                    Vector4 position{ vertex.Position.x, vertex.Position.y, vertex.Position.z, 1.0f };
-                    position = (Matrix4)(transform.Transform) * position;
-                    memcpy(verticesCur + positionOffset, &position, sizeof(float) * 3);
-                }
-                if (normalOffset >= 0)
-                {
-                    Vector4 normal{ vertex.Normal.x, vertex.Normal.y, vertex.Normal.z, 0.0f };
-                    normal = (Matrix4)(transform.Transform) * normal;
-                    memcpy(verticesCur + normalOffset, &normal, sizeof(float) * 3);
-                }
-                if (texcoordOffset >= 0)
-                {
-                    memcpy(verticesCur + texcoordOffset, &vertex.Texcoord, sizeof(float) * 2);
-                }
-                if (entityOffset >= 0)
-                {
-                    memcpy(verticesCur + entityOffset, &entity, sizeof(int));
-                }
-                verticesCur += vertexStride;
-            }
-
-            for (auto& index : mesh->GetIndices())
-            {
-                indices.push_back(baseVertex + index);
-            }
-        });
-
-    for (auto& [pipeline, vertices] : m_vertices)
+    for (auto& renderPass : m_renderPasses)
     {
-        if (vertexOffset + vertices.size() > MAX_VERTICES_SIZE ||
-            indexOffset + m_indices[pipeline].size() > MAX_INDICES)
+        world.ViewComponents<TransformComponent, MeshRendererComponent>(
+            [&](Entity entity, TransformComponent& meshTransform, MeshRendererComponent& meshRenderer) {
+                auto& mesh     = meshRenderer.Mesh;
+                auto& material = meshRenderer.Material;
+                if (!mesh || !material)
+                    return;
+                for (auto& materialPass : material->GetPasses())
+                {
+                    auto& pipeline   = materialPass.Pipeline;
+                    auto& renderPass = pipeline->GetDesc().RenderPass;
+                    if (renderPass != renderPass)
+                        return;
+                    std::vector<uint8_t>&  vertices = m_vertices[pipeline];
+                    std::vector<uint32_t>& indices  = m_indices[pipeline];
+
+                    std::vector<VertexAttribute> vertexLayout = pipeline->GetDesc().VertexLayout;
+                    uint32_t                     vertexStride = vertexLayout.back().Offset + vertexLayout.back().Size;
+                    if (vertices.size() + vertexStride * mesh->GetVertices().size() > MAX_VERTICES_SIZE ||
+                        indices.size() + mesh->GetIndices().size() > MAX_INDICES)
+                    {
+                        commandBuffer->Wait();
+                        Draw(pipeline, frameBuffer, vertexOffset, indexOffset);
+                        EndRender(commandBuffer);
+                        BeginRender(commandBuffer, frameBuffer);
+                    }
+
+                    size_t   oldSize        = vertices.size();
+                    uint32_t baseVertex     = oldSize / vertexStride;
+                    int      positionOffset = materialPass.PositionOffset;
+                    int      normalOffset   = materialPass.NormalOffset;
+                    int      texcoordOffset = materialPass.TexCoordOffset;
+                    int      entityOffset   = materialPass.EntityOffset;
+                    vertices.resize(oldSize + vertexStride * mesh->GetVertices().size());
+                    uint8_t* verticesCur = vertices.data() + oldSize;
+
+                    for (auto& vertex : mesh->GetVertices())
+                    {
+                        memcpy(verticesCur, materialPass.Data.data(), vertexStride);
+                        if (positionOffset >= 0)
+                        {
+                            Vector4 position{ vertex.Position.x, vertex.Position.y, vertex.Position.z, 1.0f };
+                            position = (Matrix4)(meshTransform.Transform) * position;
+                            memcpy(verticesCur + positionOffset, &position, sizeof(float) * 3);
+                        }
+                        if (normalOffset >= 0)
+                        {
+                            Vector4 normal{ vertex.Normal.x, vertex.Normal.y, vertex.Normal.z, 0.0f };
+                            normal = (Matrix4)(meshTransform.Transform) * normal;
+                            memcpy(verticesCur + normalOffset, &normal, sizeof(float) * 3);
+                        }
+                        if (texcoordOffset >= 0)
+                        {
+                            memcpy(verticesCur + texcoordOffset, &vertex.Texcoord, sizeof(float) * 2);
+                        }
+                        if (entityOffset >= 0)
+                        {
+                            memcpy(verticesCur + entityOffset, &entity, sizeof(int));
+                        }
+                        verticesCur += vertexStride;
+                    }
+
+                    for (auto& index : mesh->GetIndices())
+                    {
+                        indices.push_back(baseVertex + index);
+                    }
+                }
+            });
+        for (auto& [pipeline, vertices] : m_vertices)
         {
-            EndRender(commandBuffer);
-            commandBuffer->Wait();
-            BeginRender(commandBuffer, frameBuffer);
-            vertexOffset = 0;
-            indexOffset  = 0;
+            if (vertexOffset + vertices.size() > MAX_VERTICES_SIZE ||
+                indexOffset + m_indices[pipeline].size() > MAX_INDICES)
+            {
+                EndRender(commandBuffer);
+                commandBuffer->Wait();
+                BeginRender(commandBuffer, frameBuffer);
+                vertexOffset = 0;
+                indexOffset  = 0;
+            }
+            Draw(pipeline, frameBuffer, vertexOffset, indexOffset);
         }
-        Draw(pipeline, frameBuffer, vertexOffset, indexOffset);
     }
 
     EndRender(commandBuffer);

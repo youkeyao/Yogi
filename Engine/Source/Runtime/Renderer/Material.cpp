@@ -3,36 +3,39 @@
 namespace Yogi
 {
 
-void Material::SetPipeline(const Ref<IPipeline>& pipeline)
+void Material::AddPass(const Ref<IPipeline>& pipeline)
 {
-    m_pipeline = pipeline;
+    MaterialPass pass;
+    pass.Pipeline = pipeline;
 
-    auto&    vertexLayout = m_pipeline->GetDesc().VertexLayout;
+    auto&    vertexLayout = pipeline->GetDesc().VertexLayout;
     uint32_t stride       = vertexLayout.back().Offset + vertexLayout.back().Size;
-    m_data.resize(stride);
+    pass.Data.resize(stride);
     for (auto& element : vertexLayout)
     {
-        if (element.Name == "a_Position")
+        if (element.Usage == AttributeUsage::Position)
         {
-            m_positionOffset = element.Offset;
+            pass.PositionOffset = element.Offset;
         }
-        else if (element.Name == "a_Normal")
+        else if (element.Usage == AttributeUsage::Normal)
         {
-            m_normalOffset = element.Offset;
+            pass.NormalOffset = element.Offset;
         }
-        else if (element.Name == "a_TexCoord")
+        else if (element.Usage == AttributeUsage::Texcoord)
         {
-            m_texcoordOffset = element.Offset;
+            pass.TexCoordOffset = element.Offset;
         }
-        else if (element.Name == "a_EntityID")
+        else if (element.Usage == AttributeUsage::EntityID)
         {
-            m_entityOffset = element.Offset;
+            pass.EntityOffset = element.Offset;
         }
-        else if (element.Name.substr(0, 4) == "TEX_")
+        else if (element.Usage == AttributeUsage::TextureID)
         {
-            // m_textures.push_back({ element.Offset, nullptr });
+            pass.Textures.push_back({ element.Offset, nullptr });
         }
     }
+
+    m_passes.push_back(pass);
 }
 
 } // namespace Yogi

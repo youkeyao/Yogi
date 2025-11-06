@@ -25,10 +25,8 @@ void ContentBrowserLayer::OnUpdate(Timestep ts)
     {
         if (ImGui::MenuItem("Create Material"))
         {
-            Ref<IPipeline>   pipeline = AssetManager::GetAsset<IPipeline>("EngineAssets/Pipelines/Default.pipeline");
             Handle<Material> material = Handle<Material>::Create();
-            material->SetPipeline(pipeline);
-            std::string name = "NewMaterial";
+            std::string      name     = "NewMaterial";
             while (std::filesystem::exists(m_baseDirectory / m_relativeDirectory / (name + ".mat")))
             {
                 name = "_" + name;
@@ -42,7 +40,7 @@ void ContentBrowserLayer::OnUpdate(Timestep ts)
             Handle<IRenderPass> renderPass = Handle<IRenderPass>::Create(RenderPassDesc{
                 { AttachmentDesc{ swapChain->GetColorFormat(), AttachmentUsage::Present } },
                 AttachmentDesc{
-                    swapChain->GetDepthFormat(), AttachmentUsage::DepthStencil, LoadOp::Clear, StoreOp::DontCare },
+                    swapChain->GetDepthFormat(), AttachmentUsage::ShaderRead, LoadOp::Clear, StoreOp::DontCare },
                 swapChain->GetNumSamples() });
             std::string         name       = "NewRenderPass";
             while (std::filesystem::exists(m_baseDirectory / m_relativeDirectory / (name + ".rp")))
@@ -73,6 +71,24 @@ void ContentBrowserLayer::OnUpdate(Timestep ts)
             }
             AssetManager::SaveAsset(Ref<IPipeline>::Create(pipeline),
                                     (m_relativeDirectory / (name + ".pipeline")).lexically_normal().generic_string());
+        }
+        if (ImGui::MenuItem("Create Render Texture"))
+        {
+            Handle<ITexture> renderTexture = Handle<ITexture>::Create(TextureDesc{
+                1024,
+                1024,
+                1,
+                ITexture::Format::R8G8B8A8_UNORM,
+                ITexture::Usage::RenderTarget,
+                SampleCountFlagBits::Count1,
+            });
+            std::string      name          = "NewRenderTexture";
+            while (std::filesystem::exists(m_baseDirectory / m_relativeDirectory / (name + ".rt")))
+            {
+                name = "_" + name;
+            }
+            AssetManager::SaveAsset(Ref<ITexture>::Create(renderTexture),
+                                    (m_relativeDirectory / (name + ".rt")).lexically_normal().generic_string());
         }
         ImGui::EndPopup();
     }

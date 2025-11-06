@@ -8,34 +8,37 @@ namespace Yogi
 
 class YG_API Material
 {
+    struct MaterialPass
+    {
+        Ref<IPipeline>                                  Pipeline;
+        std::vector<uint8_t>                            Data;
+        std::vector<std::pair<uint32_t, Ref<ITexture>>> Textures;
+        int                                             PositionOffset = -1;
+        int                                             NormalOffset   = -1;
+        int                                             TexCoordOffset = -1;
+        int                                             EntityOffset   = -1;
+    };
+
 public:
     Material()  = default;
     ~Material() = default;
 
-    void                  SetPipeline(const Ref<IPipeline>& pipeline);
-    inline Ref<IPipeline> GetPipeline() const { return m_pipeline; }
+    void SetPass(uint32_t index, const MaterialPass& pass)
+    {
+        if (index < m_passes.size())
+            m_passes[index] = pass;
+    }
+    void AddPass(const Ref<IPipeline>& pipeline);
+    void RemovePass(uint32_t index)
+    {
+        if (index < m_passes.size())
+            m_passes.erase(m_passes.begin() + index);
+    }
 
-    inline int GetPositionOffset() const { return m_positionOffset; }
-    inline int GetNormalOffset() const { return m_normalOffset; }
-    inline int GetTexCoordOffset() const { return m_texcoordOffset; }
-    inline int GetEntityOffset() const { return m_entityOffset; }
-
-    inline void SetTexture(uint32_t index, const Ref<ITexture>& texture) { m_textures[index].second = texture; }
-    inline const std::vector<std::pair<uint32_t, Ref<ITexture>>>& GetTextures() const { return m_textures; }
-
-    inline void                        SetData(const std::vector<uint8_t>& data) { m_data = data; }
-    inline const std::vector<uint8_t>& GetData() const { return m_data; }
+    const std::vector<MaterialPass>& GetPasses() const { return m_passes; }
 
 private:
-    Ref<IPipeline>       m_pipeline;
-    std::vector<uint8_t> m_data;
-
-    int m_positionOffset = -1;
-    int m_normalOffset   = -1;
-    int m_texcoordOffset = -1;
-    int m_entityOffset   = -1;
-
-    std::vector<std::pair<uint32_t, Ref<ITexture>>> m_textures;
+    std::vector<MaterialPass> m_passes;
 };
 
 } // namespace Yogi

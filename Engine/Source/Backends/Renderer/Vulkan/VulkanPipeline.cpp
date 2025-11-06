@@ -35,6 +35,8 @@ void VulkanPipeline::CreateVkPipeline(const PipelineDesc& desc)
     std::vector<VkShaderModule>                  shaderModules;
     for (const auto& shader : desc.Shaders)
     {
+        if (!shader)
+            continue;
         VkShaderModuleCreateInfo moduleCreateInfo{};
         moduleCreateInfo.sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
         moduleCreateInfo.codeSize = shader->Code.size();

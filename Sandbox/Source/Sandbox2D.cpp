@@ -31,7 +31,7 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
     // auto renderPass = Yogi::ResourceManager::GetResource<Yogi::IRenderPass>(
     //     Yogi::RenderPassDesc{ { Yogi::AttachmentDesc{ swapChain->GetColorFormat(), Yogi::AttachmentUsage::Present } },
     //                           Yogi::AttachmentDesc{ swapChain->GetDepthFormat(),
-    //                                                 Yogi::AttachmentUsage::DepthStencil,
+    //                                                 Yogi::AttachmentUsage::ShaderRead,
     //                                                 Yogi::LoadOp::Clear,
     //                                                 Yogi::StoreOp::DontCare },
     //                           swapChain->GetNumSamples() });

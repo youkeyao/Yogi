@@ -239,10 +239,6 @@ VkImageLayout AttachmentUsage2VkImageLayout(AttachmentUsage usage)
 {
     switch (usage)
     {
-        case AttachmentUsage::Color:
-            return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        case AttachmentUsage::DepthStencil:
-            return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
         case AttachmentUsage::ShaderRead:
             return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         case AttachmentUsage::Present:

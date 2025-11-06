@@ -64,7 +64,7 @@ void ImGuiEndLayer::RendererInit()
 
     m_renderPass = ResourceManager::GetResource<IRenderPass>(
         RenderPassDesc{ { AttachmentDesc{ swapChain->GetColorFormat(), AttachmentUsage::Present } },
-                        AttachmentDesc{ ITexture::Format::NONE, AttachmentUsage::DepthStencil },
+                        AttachmentDesc{ ITexture::Format::NONE, AttachmentUsage::ShaderRead },
                         swapChain->GetNumSamples() });
 
     QueueFamilyIndices indices = FindQueueFamilies(context->GetVkPhysicalDevice(), context->GetVkSurface());

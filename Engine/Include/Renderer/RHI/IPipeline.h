@@ -28,7 +28,17 @@ enum class ShaderElementType : uint8_t
     Int2,
     Int3,
     Int4,
-    Bool
+    Bool,
+};
+
+enum class AttributeUsage : uint8_t
+{
+    Position,
+    Normal,
+    Texcoord,
+    EntityID,
+    TextureID,
+    Custom
 };
 
 enum class PipelineType : uint8_t
@@ -49,6 +59,7 @@ struct VertexAttribute
     uint32_t          Offset;
     uint32_t          Size;
     ShaderElementType Type;
+    AttributeUsage    Usage = AttributeUsage::Custom;
 };
 
 struct PipelineDesc

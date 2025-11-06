@@ -3,6 +3,7 @@
 #include <Yogi.h>
 
 #include "Layers/ViewportLayer.h"
+#include "Reflect/ComponentManager.h"
 
 namespace Yogi
 {
@@ -23,6 +24,7 @@ private:
     void DrawEntityNode(Entity& entity, std::unordered_map<uint32_t, std::vector<Entity>>& relations);
     void DrawComponents();
     void DrawSystems();
+    void DrawField(Field& field, uint8_t* component);
 
 private:
     std::vector<Entity>       m_allEntities;

@@ -10,7 +10,7 @@ void ComponentManager::Init()
     RegisterComponent<TagComponent>({ "Tag" });
     RegisterComponent<TransformComponent>({ "Parent", "Transform" });
     RegisterComponent<MeshRendererComponent>({ "Mesh", "Material", "CastShadow" });
-    RegisterComponent<CameraComponent>({ "Fov", "ZoomLevel", "IsOrtho", "Target" });
+    RegisterComponent<CameraComponent>({ "Target", "Fov", "ZoomLevel", "IsOrtho" });
 }
 
 void ComponentManager::Clear() { s_componentInfos.clear(); }

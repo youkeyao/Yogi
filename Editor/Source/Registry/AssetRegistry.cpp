@@ -33,7 +33,7 @@ void RegisterMeshes(const std::filesystem::path& path, std::unordered_map<uint32
             YG_CORE_ERROR("ERROR::ASSIMP:: {0}", importer.GetErrorString());
             return;
         }
-        ProcessNode(scene->mRootNode, scene, path.string(), keyMaps[GetTypeHash<Mesh>()]);
+        ProcessNode(scene->mRootNode, scene, path.lexically_normal().generic_string(), keyMaps[GetTypeHash<Mesh>()]);
     }
 }
 void RegisterMaterials(const std::filesystem::path&                            path,
@@ -41,28 +41,28 @@ void RegisterMaterials(const std::filesystem::path&                            p
 {
     if (path.extension().string() == ".mat")
     {
-        keyMaps[GetTypeHash<Material>()].push_back(path.string());
+        keyMaps[GetTypeHash<Material>()].push_back(path.lexically_normal().generic_string());
     }
 }
 void RegisterShaders(const std::filesystem::path& path, std::unordered_map<uint32_t, std::vector<std::string>>& keyMaps)
 {
     if (path.extension().string() == ".vert" || path.extension().string() == ".frag")
     {
-        keyMaps[GetTypeHash<ShaderDesc>()].push_back(path.string());
+        keyMaps[GetTypeHash<ShaderDesc>()].push_back(path.lexically_normal().generic_string());
     }
 }
 void RegisterRenderPasses(const std::filesystem::path& path, std::unordered_map<uint32_t, std::vector<std::string>>& keyMaps)
 {
     if (path.extension().string() == ".rp")
     {
-        keyMaps[GetTypeHash<IRenderPass>()].push_back(path.string());
+        keyMaps[GetTypeHash<IRenderPass>()].push_back(path.lexically_normal().generic_string());
     }
 }
-void RegisterPipelines(const std::filesystem::path& path, std::unordered_map<uint32_t, std::vector<std::string>>& keyMaps)
+void RegisterTextures(const std::filesystem::path& path, std::unordered_map<uint32_t, std::vector<std::string>>& keyMaps)
 {
-    if (path.extension().string() == ".pipeline")
+    if (path.extension().string() == ".rt" || path.extension().string() == ".png" || path.extension().string() == ".jpg")
     {
-        keyMaps[GetTypeHash<IPipeline>()].push_back(path.string());
+        keyMaps[GetTypeHash<ITexture>()].push_back(path.lexically_normal().generic_string());
     }
 }
 
@@ -77,7 +77,7 @@ void AssetRegistry::Init()
     Register(&RegisterMaterials);
     Register(&RegisterShaders);
     Register(&RegisterRenderPasses);
-    Register(&RegisterPipelines);
+    Register(&RegisterTextures);
 }
 
 void AssetRegistry::Scan(const std::string& rootDir)

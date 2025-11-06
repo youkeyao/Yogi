@@ -14,7 +14,6 @@
 #include "Layers/MaterialEditorLayer.h"
 #include "Layers/ContentBrowserLayer.h"
 #include "Layers/RenderPassEditorLayer.h"
-#include "Layers/PipelineEditorLayer.h"
 
 namespace Yogi
 {
@@ -34,16 +33,16 @@ public:
         PushLayer(Handle<ImGuiBeginLayer>::Create());
         PushLayer(Handle<ViewportLayer>::Create());
         PushLayer(Handle<HierarchyLayer>::Create());
-        PushLayer(Handle<MaterialEditorLayer>::Create());
         PushLayer(Handle<ContentBrowserLayer>::Create());
+        PushLayer(Handle<MaterialEditorLayer>::Create());
         PushLayer(Handle<RenderPassEditorLayer>::Create());
-        PushLayer(Handle<PipelineEditorLayer>::Create());
         PushLayer(Handle<ImGuiEndLayer>::Create());
     }
 
     ~EditorApp()
     {
         ComponentManager::Clear();
+        SystemManager::Clear();
         AssetRegistry::Clear();
     }
 };

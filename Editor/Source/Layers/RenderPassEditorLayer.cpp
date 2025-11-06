@@ -18,30 +18,39 @@ void RenderPassEditorLayer::OnUpdate(Timestep ts)
     {
         ImGui::TextUnformatted(m_key.c_str());
         ImGui::Separator();
-        auto renderPassDesc = m_renderPass->GetDesc();
-        bool changed        = false;
-        if (ImGui::TreeNode("Color Attachments"))
+        auto               renderPassDesc = m_renderPass->GetDesc();
+        bool               changed        = false;
+        ImGuiTreeNodeFlags treeNodeFlags  = ImGuiTreeNodeFlags_FramePadding;
+        if (ImGui::TreeNodeEx("Color Attachments", treeNodeFlags))
         {
+            std::vector<Yogi::AttachmentDesc>::iterator removeIt = renderPassDesc.ColorAttachments.end();
             for (int i = 0; i < renderPassDesc.ColorAttachments.size(); i++)
             {
-                if (ImGui::TreeNodeEx(("ColorAttachment " + std::to_string(i)).c_str()))
+                bool isOpened = ImGui::TreeNodeEx(("ColorAttachment " + std::to_string(i)).c_str(), treeNodeFlags);
+                if (ImGui::BeginPopupContextItem())
                 {
-                    changed |= ImGuiAttachment(renderPassDesc.ColorAttachments[i]);
-                    if (ImGui::Button(("Remove##" + std::to_string(i)).c_str()))
+                    if (ImGui::MenuItem("Delete Attachment"))
                     {
                         changed |= true;
-                        renderPassDesc.ColorAttachments.erase(renderPassDesc.ColorAttachments.begin() + i);
-                        ImGui::TreePop();
-                        break;
+                        removeIt = renderPassDesc.ColorAttachments.begin() + i;
                     }
+                    ImGui::EndPopup();
+                }
+                if (isOpened)
+                {
+                    changed |= ImGuiAttachment(renderPassDesc.ColorAttachments[i]);
                     ImGui::TreePop();
                 }
             }
-            if (ImGui::Button("Add Color Attachment"))
+            if (removeIt != renderPassDesc.ColorAttachments.end())
+            {
+                renderPassDesc.ColorAttachments.erase(removeIt);
+            }
+            if (ImGui::Button("+", { ImGui::GetContentRegionAvail().x, 0.0f }))
             {
                 renderPassDesc.ColorAttachments.push_back({
                     ITexture::Format::R8G8B8A8_UNORM,
-                    AttachmentUsage::Color,
+                    AttachmentUsage::ShaderRead,
                     LoadOp::Clear,
                     StoreOp::Store,
                 });
@@ -50,7 +59,7 @@ void RenderPassEditorLayer::OnUpdate(Timestep ts)
             ImGui::TreePop();
         }
 
-        if (ImGui::TreeNode("Depth Attachment"))
+        if (ImGui::TreeNodeEx("Depth Attachment", treeNodeFlags))
         {
             changed |= ImGuiAttachment(renderPassDesc.DepthAttachment);
             ImGui::TreePop();

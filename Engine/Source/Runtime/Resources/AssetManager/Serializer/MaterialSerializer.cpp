@@ -7,14 +7,24 @@
 namespace Yogi
 {
 
+struct PipelineData
+{
+    std::vector<std::string>             ShaderKeys;
+    std::vector<VertexAttribute>         VertexLayout;
+    std::vector<ShaderResourceAttribute> ShaderResourceLayout;
+    std::string                          RenderPassKey;
+    int                                  SubPassIndex;
+    PrimitiveTopology                    Topology;
+};
+
 Handle<Material> MaterialSerializer::Deserialize(const std::vector<uint8_t>& binary, const std::string& key)
 {
     zpp::bits::in inArchive(binary);
 
-    std::string              pipelineKey;
-    std::vector<std::string> textureKeys;
-    std::vector<uint8_t>     data;
-    auto                     result = inArchive(pipelineKey, data, textureKeys);
+    std::vector<PipelineData>         pipelineDatas;
+    std::vector<std::vector<uint8_t>> passData;
+    std::vector<std::string>          textureKeys;
+    auto                              result = inArchive(pipelineDatas, passData, textureKeys);
     if (failure(result))
     {
         YG_CORE_ERROR("Failed to deserialize material '{0}'!", key);
@@ -22,15 +32,37 @@ Handle<Material> MaterialSerializer::Deserialize(const std::vector<uint8_t>& bin
     }
 
     Handle<Material> material = Handle<Material>::Create();
-    material->SetPipeline(AssetManager::GetAsset<IPipeline>(pipelineKey));
-    for (int32_t i = 0; i < textureKeys.size(); ++i)
+    for (auto& pipelineData : pipelineDatas)
     {
-        if (!textureKeys[i].empty())
+        PipelineDesc pipelineDesc;
+        for (auto& shaderKey : pipelineData.ShaderKeys)
         {
-            material->SetTexture(i, AssetManager::GetAsset<ITexture>(textureKeys[i]));
+            pipelineDesc.Shaders.push_back(AssetManager::GetAsset<ShaderDesc>(shaderKey));
         }
+        pipelineDesc.VertexLayout = pipelineData.VertexLayout;
+        pipelineDesc.ShaderResourceBinding =
+            ResourceManager::GetResource<IShaderResourceBinding>(pipelineData.ShaderResourceLayout);
+        pipelineDesc.RenderPass   = AssetManager::GetAsset<IRenderPass>(pipelineData.RenderPassKey);
+        pipelineDesc.SubPassIndex = pipelineData.SubPassIndex;
+        pipelineDesc.Topology     = pipelineData.Topology;
+
+        material->AddPass(ResourceManager::GetResource<IPipeline>(pipelineDesc));
     }
-    material->SetData(data);
+    auto materialPasses = material->GetPasses();
+    int textureIndex = 0;
+    for (int i = 0; i < materialPasses.size(); ++i)
+    {
+        materialPasses[i].Data = passData[i];
+        for (int j = 0; j < materialPasses[i].Textures.size(); ++j)
+        {
+            if (textureIndex < textureKeys.size() && !textureKeys[textureIndex].empty())
+            {
+                materialPasses[i].Textures[j].second = AssetManager::GetAsset<ITexture>(textureKeys[textureIndex]);
+            }
+            ++textureIndex;
+        }
+        material->SetPass(i, materialPasses[i]);
+    }
 
     return material;
 }
@@ -40,13 +72,32 @@ std::vector<uint8_t> MaterialSerializer::Serialize(const Ref<Material>& asset, c
     std::vector<uint8_t> data;
     zpp::bits::out       outArchive(data);
 
-    std::vector<std::string> textureKeys;
-    textureKeys.reserve(asset->GetTextures().size());
-    for (auto& [index, texture] : asset->GetTextures())
+    auto materialPasses = asset->GetPasses();
+
+    std::vector<PipelineData>         pipelineDatas;
+    std::vector<std::vector<uint8_t>> passData;
+    std::vector<std::string>          textureKeys;
+    for (auto& pass : materialPasses)
     {
-        textureKeys.push_back(AssetManager::GetAssetKey<ITexture>(texture));
+        auto&        desc = pass.Pipeline->GetDesc();
+        PipelineData pipelineData;
+        for (auto& shader : desc.Shaders)
+        {
+            pipelineData.ShaderKeys.push_back(AssetManager::GetAssetKey<ShaderDesc>(shader));
+        }
+        pipelineData.VertexLayout         = desc.VertexLayout;
+        pipelineData.ShaderResourceLayout = desc.ShaderResourceBinding->GetLayout();
+        pipelineData.RenderPassKey        = AssetManager::GetAssetKey<IRenderPass>(desc.RenderPass);
+        pipelineData.SubPassIndex         = desc.SubPassIndex;
+        pipelineData.Topology             = desc.Topology;
+        pipelineDatas.emplace_back(pipelineData);
+        passData.emplace_back(pass.Data);
+        for (auto& [index, texture] : pass.Textures)
+        {
+            textureKeys.emplace_back(AssetManager::GetAssetKey<ITexture>(texture));
+        }
     }
-    auto result = outArchive(AssetManager::GetAssetKey<IPipeline>(asset->GetPipeline()), asset->GetData(), textureKeys);
+    auto result = outArchive(pipelineDatas, passData, textureKeys);
     if (failure(result))
     {
         YG_CORE_ERROR("Failed to serialize material '{0}'!", key);

@@ -20,11 +20,8 @@ enum class StoreOp : uint8_t
 
 enum class AttachmentUsage : uint8_t
 {
-    Color,
-    DepthStencil,
-    Resolve,
+    ShaderRead,
     Present,
-    ShaderRead
 };
 
 struct AttachmentDesc

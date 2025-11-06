@@ -51,6 +51,7 @@ private:
     Vector2 m_viewportSize    = { 1, 1 };
     Vector2 m_viewportBounds[2];
 
+    Ref<IRenderPass>            m_entityIDRenderPass  = nullptr;
     Ref<ITexture>               m_frameTexture        = nullptr;
     Ref<IShaderResourceBinding> m_frameTextureBinding = nullptr;
     // ImGuizmo::OPERATION m_gizmo_type = ImGuizmo::OPERATION::TRANSLATE;

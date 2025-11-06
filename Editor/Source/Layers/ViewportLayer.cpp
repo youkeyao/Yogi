@@ -24,14 +24,22 @@ void ViewportLayer::OnUpdate(Timestep ts)
 {
     if (m_sceneState == SceneState::Edit)
     {
-        m_editorCamera.GetCameraComponent().Target = m_frameTexture;
-        m_editRenderSystem->RenderCamera(
-            m_editorCamera.GetCameraComponent(), m_editorCamera.GetTransformComponent(), *m_world);
+        auto camera   = m_editorCamera.GetCameraComponent();
+        camera.Target = m_frameTexture;
+        m_editRenderSystem->RenderCamera(camera, m_editorCamera.GetTransformComponent(), *m_world);
+        m_editorCamera.SetCameraComponent(camera);
     }
     else
     {
-        m_world->ViewComponents<CameraComponent>([&](Entity entity, CameraComponent camera) {});
+        m_world->ViewComponents<CameraComponent>([&](Entity entity, CameraComponent& camera) {
+            if (!camera.Target)
+                camera.Target = m_frameTexture;
+        });
         m_world->OnUpdate(ts);
+        m_world->ViewComponents<CameraComponent>([&](Entity entity, CameraComponent& camera) {
+            if (camera.Target == m_frameTexture)
+                camera.Target = nullptr;
+        });
     }
 
     OnGUI();
@@ -95,11 +103,8 @@ void ViewportLayer::OnGUI()
                                                                                  ITexture::Usage::RenderTarget });
             m_frameTextureBinding->BindTexture(m_frameTexture, 0, 0);
         }
-        // WindowResizeEvent e((uint32_t)m_viewportSize.x, (uint32_t)m_viewportSize.y, nullptr);
-        // on_window_resized(e);
     }
     ImGuiImage(m_frameTexture, m_frameTextureBinding, ImVec2(m_viewportSize.x, m_viewportSize.y));
-    // ImguiSetting::show_image(m_frame_texture, ImVec2(m_viewportSize.x, m_viewportSize.y), ImVec2(1, 1));
 
     // Drop scene
     if (ImGui::BeginDragDropTarget())
@@ -173,25 +178,17 @@ void ViewportLayer::OnToolbar()
     ImGui::SetCursorPosX((ImGui::GetWindowContentRegionMax().x * 0.5f) - (size * 0.5f));
     if (ImGui::Button("##playbutton", ImVec2(size, size)))
     {
-        // if (m_sceneState == SceneState::Edit)
-        // {
-        //     WindowResizeEvent e((uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y, nullptr);
-        //     m_scene->on_event(e);
-        //     m_sceneState = SceneState::Play;
-        // }
-        // else
-        // {
-        //     WindowResizeEvent e((uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y, nullptr);
-        //     m_editor_camera.on_event(e);
-        //     m_sceneState = SceneState::Edit;
-        // }
+        if (m_sceneState == SceneState::Edit)
+            m_sceneState = SceneState::Play;
+        else
+            m_sceneState = SceneState::Edit;
     }
-    auto old_pos   = ImGui::GetCursorPos();
-    auto icon_size = ImGui::CalcTextSize(icon);
-    ImGui::SetCursorPosX((ImGui::GetWindowContentRegionMax().x * 0.5f) - icon_size.x / 2 + 1);
-    ImGui::SetCursorPosY(old_pos.y - size / 2 + icon_size.y / 2);
+    auto oldPos   = ImGui::GetCursorPos();
+    auto iconSize = ImGui::CalcTextSize(icon);
+    ImGui::SetCursorPosX((ImGui::GetWindowContentRegionMax().x * 0.5f) - iconSize.x / 2 + 1);
+    ImGui::SetCursorPosY(oldPos.y - size / 2 + iconSize.y / 2);
     ImGui::Text("%s", icon);
-    ImGui::SetCursorPos(old_pos);
+    ImGui::SetCursorPos(oldPos);
 
     ImGui::End();
     ImGui::PopStyleVar(3);
