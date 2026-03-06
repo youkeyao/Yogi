@@ -10,31 +10,26 @@ namespace Yogi
 
 ForwardRenderSystem::ForwardRenderSystem()
 {
-    m_vertexBuffer = ResourceManager::GetResource<IBuffer>(
-        BufferDesc{ MAX_VERTICES_SIZE, BufferUsage::Vertex, BufferAccess::Dynamic });
-    m_indexBuffer = ResourceManager::GetResource<IBuffer>(
-        BufferDesc{ MAX_INDICES * sizeof(uint32_t), BufferUsage::Index, BufferAccess::Dynamic });
-    m_uniformBuffer = ResourceManager::GetResource<IBuffer>(
-        BufferDesc{ sizeof(SceneData), BufferUsage::Uniform, BufferAccess::Dynamic });
+    m_vertexStorageBuffer = ResourceManager::GetResource<IBuffer>(
+        BufferDesc{ MAX_VERTICES_SIZE, BufferUsage::Storage, BufferAccess::Dynamic });
+    m_meshletBuffer = ResourceManager::GetResource<IBuffer>(
+        BufferDesc{ MAX_MESHLET_SIZE, BufferUsage::Storage, BufferAccess::Dynamic });
 
     auto& swapChain = Application::GetInstance().GetSwapChain();
 
     m_renderPasses.push_back(AssetManager::GetAsset<IRenderPass>("EngineAssets/RenderPasses/Default.rp"));
-    // m_renderPasses.push_back(ResourceManager::GetResource<IRenderPass>(RenderPassDesc{
-    //     { AttachmentDesc{ swapChain->GetColorFormat(), AttachmentUsage::Present } },
-    //     AttachmentDesc{ swapChain->GetDepthFormat(), AttachmentUsage::ShaderRead, LoadOp::Clear, StoreOp::DontCare },
-    //     swapChain->GetNumSamples() }));
 
     m_shaderResourceBinding = ResourceManager::GetResource<IShaderResourceBinding>(std::vector<ShaderResourceAttribute>{
-        ShaderResourceAttribute{ 0, 1, ShaderResourceType::Buffer, ShaderStage::Vertex } });
-    m_shaderResourceBinding->BindBuffer(m_uniformBuffer, 0);
+        ShaderResourceAttribute{ 0, 1, ShaderResourceType::StorageBuffer, ShaderStage::Mesh },
+        ShaderResourceAttribute{ 1, 1, ShaderResourceType::StorageBuffer, ShaderStage::Mesh } });
+    m_shaderResourceBinding->BindBuffer(m_vertexStorageBuffer, 0);
+    m_shaderResourceBinding->BindBuffer(m_meshletBuffer, 1);
 }
 
 ForwardRenderSystem::~ForwardRenderSystem()
 {
-    m_vertexBuffer  = nullptr;
-    m_indexBuffer   = nullptr;
-    m_uniformBuffer = nullptr;
+    m_vertexStorageBuffer = nullptr;
+    m_meshletBuffer       = nullptr;
 }
 
 void ForwardRenderSystem::OnUpdate(Timestep ts, World& world)
@@ -79,149 +74,85 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
     }
     auto& frameBuffer = it->second;
 
-    // update scene data
-    Matrix4 viewMatrix = MathUtils::Inverse(transform.Transform);
-    Matrix4 projectionMatrix;
-    float   aspectRatio = (float)currentTarget->GetWidth() / (float)currentTarget->GetHeight();
-    if (camera.IsOrtho)
-    {
-        projectionMatrix = MathUtils::Orthographic(-aspectRatio * camera.ZoomLevel,
-                                                   aspectRatio * camera.ZoomLevel,
-                                                   -camera.ZoomLevel,
-                                                   camera.ZoomLevel,
-                                                   -1.0f,
-                                                   1.0f);
-    }
-    else
-    {
-        projectionMatrix = MathUtils::Perspective(camera.Fov, aspectRatio, 0.1f, 100.0f);
-    }
-    m_sceneData.ProjectionViewMatrix = projectionMatrix * viewMatrix;
-    m_uniformBuffer->UpdateData(&m_sceneData, sizeof(SceneData));
+    constexpr uint32_t maxVertexCount = MAX_VERTICES_SIZE / sizeof(Vertex);
 
-    // begin command buffer
-    commandBuffer->Wait();
-    BeginRender(commandBuffer, frameBuffer);
-    uint32_t vertexOffset = 0;
-    uint32_t indexOffset  = 0;
+    std::vector<Vertex>  batchVertices;
+    std::unordered_map<Ref<IPipeline>, std::vector<Meshlet>> pipelineMeshlets;
 
-    // fill vertices and indices
-    for (auto& renderPass : m_renderPasses)
-    {
-        world.ViewComponents<TransformComponent, MeshRendererComponent>(
-            [&](Entity entity, TransformComponent& meshTransform, MeshRendererComponent& meshRenderer) {
-                auto& mesh     = meshRenderer.Mesh;
-                auto& material = meshRenderer.Material;
-                if (!mesh || !material)
-                    return;
-                for (auto& materialPass : material->GetPasses())
-                {
-                    auto& pipeline   = materialPass.Pipeline;
-                    auto& renderPass = pipeline->GetDesc().RenderPass;
-                    if (renderPass != renderPass)
-                        return;
-                    std::vector<uint8_t>&  vertices = m_vertices[pipeline];
-                    std::vector<uint32_t>& indices  = m_indices[pipeline];
-
-                    std::vector<VertexAttribute> vertexLayout = pipeline->GetDesc().VertexLayout;
-                    uint32_t                     vertexStride = vertexLayout.back().Offset + vertexLayout.back().Size;
-                    if (vertices.size() + vertexStride * mesh->GetVertices().size() > MAX_VERTICES_SIZE ||
-                        indices.size() + mesh->GetIndices().size() > MAX_INDICES)
-                    {
-                        commandBuffer->Wait();
-                        Draw(pipeline, frameBuffer, vertexOffset, indexOffset);
-                        EndRender(commandBuffer);
-                        BeginRender(commandBuffer, frameBuffer);
-                    }
-
-                    size_t   oldSize        = vertices.size();
-                    uint32_t baseVertex     = oldSize / vertexStride;
-                    int      positionOffset = materialPass.PositionOffset;
-                    int      normalOffset   = materialPass.NormalOffset;
-                    int      texcoordOffset = materialPass.TexCoordOffset;
-                    int      entityOffset   = materialPass.EntityOffset;
-                    vertices.resize(oldSize + vertexStride * mesh->GetVertices().size());
-                    uint8_t* verticesCur = vertices.data() + oldSize;
-
-                    for (auto& vertex : mesh->GetVertices())
-                    {
-                        memcpy(verticesCur, materialPass.Data.data(), vertexStride);
-                        if (positionOffset >= 0)
-                        {
-                            Vector4 position{ vertex.Position.x, vertex.Position.y, vertex.Position.z, 1.0f };
-                            position = (Matrix4)(meshTransform.Transform) * position;
-                            memcpy(verticesCur + positionOffset, &position, sizeof(float) * 3);
-                        }
-                        if (normalOffset >= 0)
-                        {
-                            Vector4 normal{ vertex.Normal.x, vertex.Normal.y, vertex.Normal.z, 0.0f };
-                            normal = (Matrix4)(meshTransform.Transform) * normal;
-                            memcpy(verticesCur + normalOffset, &normal, sizeof(float) * 3);
-                        }
-                        if (texcoordOffset >= 0)
-                        {
-                            memcpy(verticesCur + texcoordOffset, &vertex.Texcoord, sizeof(float) * 2);
-                        }
-                        if (entityOffset >= 0)
-                        {
-                            memcpy(verticesCur + entityOffset, &entity, sizeof(int));
-                        }
-                        verticesCur += vertexStride;
-                    }
-
-                    for (auto& index : mesh->GetIndices())
-                    {
-                        indices.push_back(baseVertex + index);
-                    }
-                }
-            });
-        for (auto& [pipeline, vertices] : m_vertices)
+    auto flushBatch = [&]() {
+        if (batchVertices.empty())
+            return;
+        m_vertexStorageBuffer->UpdateData(batchVertices.data(), batchVertices.size() * sizeof(Vertex), 0);
+        for (auto& [pipeline, meshlets] : pipelineMeshlets)
         {
-            if (vertexOffset + vertices.size() > MAX_VERTICES_SIZE ||
-                indexOffset + m_indices[pipeline].size() > MAX_INDICES)
+            m_meshletBuffer->UpdateData(meshlets.data(), meshlets.size() * sizeof(Meshlet), 0);
+            commandBuffer->SetPipeline(pipeline);
+            commandBuffer->SetViewport({ 0, 0, (float)frameBuffer->GetWidth(), (float)frameBuffer->GetHeight() });
+            commandBuffer->SetScissor({ 0, 0, frameBuffer->GetWidth(), frameBuffer->GetHeight() });
+            commandBuffer->DrawMeshTasks(static_cast<uint32_t>(meshlets.size()), 1, 1);
+        }
+        batchVertices.clear();
+        pipelineMeshlets.clear();
+    };
+
+    BeginRender(commandBuffer, frameBuffer);
+
+    // collect and batch meshes into meshlets
+    world.ViewComponents<TransformComponent, MeshRendererComponent>(
+        [&](Entity entity, TransformComponent& meshTransform, MeshRendererComponent& meshRenderer) {
+            auto& mesh     = meshRenderer.Mesh;
+            auto& material = meshRenderer.Material;
+            if (!mesh || !material)
+                return;
+
+            uint32_t meshVertexCount  = static_cast<uint32_t>(mesh->GetVertices().size());
+            uint32_t meshMeshletCount = static_cast<uint32_t>(mesh->GetMeshlets().size());
+
+            // Count total meshlets in current batch
+            uint32_t totalMeshlets = 0;
+            for (auto& [p, m] : pipelineMeshlets)
+                totalMeshlets += static_cast<uint32_t>(m.size());
+
+            // flush if adding this mesh would exceed buffer capacity
+            if (batchVertices.size() + meshVertexCount > maxVertexCount ||
+                totalMeshlets + meshMeshletCount > MAX_MESHLETS)
             {
+                flushBatch();
                 EndRender(commandBuffer);
                 commandBuffer->Wait();
                 BeginRender(commandBuffer, frameBuffer);
-                vertexOffset = 0;
-                indexOffset  = 0;
             }
-            Draw(pipeline, frameBuffer, vertexOffset, indexOffset);
-        }
-    }
 
+            uint32_t vertexBase = static_cast<uint32_t>(batchVertices.size());
+
+            // Append vertices
+            batchVertices.insert(batchVertices.end(), mesh->GetVertices().begin(), mesh->GetVertices().end());
+
+            // Append meshlets with offset vertex indices
+            for (auto& materialPass : material->GetPasses())
+            {
+                auto& pipeline = materialPass.Pipeline;
+                auto& meshlets = pipelineMeshlets[pipeline];
+                for (const auto& srcMeshlet : mesh->GetMeshlets())
+                {
+                    Meshlet offsetMeshlet = srcMeshlet;
+                    for (uint8_t i = 0; i < srcMeshlet.VertexCount; ++i)
+                    {
+                        offsetMeshlet.Vertices[i] += vertexBase;
+                    }
+                    meshlets.push_back(offsetMeshlet);
+                }
+            }
+        });
+
+    flushBatch();
     EndRender(commandBuffer);
-}
-
-void ForwardRenderSystem::Draw(const Ref<IPipeline>&    pipeline,
-                               const Ref<IFrameBuffer>& frameBuffer,
-                               uint32_t                 vertexOffset,
-                               uint32_t                 indexOffset)
-{
-    YG_PROFILE_FUNCTION();
-
-    std::vector<uint8_t>&  vertices = m_vertices[pipeline];
-    std::vector<uint32_t>& indices  = m_indices[pipeline];
-    m_vertexBuffer->UpdateData(vertices.data(), vertices.size() * sizeof(uint8_t), vertexOffset);
-    m_indexBuffer->UpdateData(indices.data(), indices.size() * sizeof(uint32_t), indexOffset);
-    vertices.clear();
-    indices.clear();
-
-    auto& swapChain = Application::GetInstance().GetSwapChain();
-
-    Ref<ICommandBuffer> commandBuffer = swapChain->GetCurrentCommandBuffer();
-    commandBuffer->SetPipeline(pipeline);
-    commandBuffer->SetViewport({ 0, 0, (float)frameBuffer->GetWidth(), (float)frameBuffer->GetHeight() });
-    commandBuffer->SetScissor({ 0, 0, frameBuffer->GetWidth(), frameBuffer->GetHeight() });
-    commandBuffer->DrawIndexed(m_indexBuffer->GetSize() / sizeof(uint32_t), 1, 0, 0, 0);
 }
 
 void ForwardRenderSystem::BeginRender(Ref<ICommandBuffer>& commandBuffer, Ref<IFrameBuffer>& frameBuffer)
 {
     commandBuffer->Begin();
     commandBuffer->BeginRenderPass(frameBuffer, { ClearValue{ 0.1f, 0.1f, 0.1f, 1.0f } }, ClearValue{ 1.0f, 0 });
-    commandBuffer->SetVertexBuffer(m_vertexBuffer);
-    commandBuffer->SetIndexBuffer(m_indexBuffer);
     commandBuffer->SetShaderResourceBinding(m_shaderResourceBinding);
 }
 

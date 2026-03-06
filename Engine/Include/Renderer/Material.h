@@ -8,15 +8,12 @@ namespace Yogi
 
 class YG_API Material
 {
+public:
     struct MaterialPass
     {
-        Ref<IPipeline>                                  Pipeline;
-        std::vector<uint8_t>                            Data;
-        std::vector<std::pair<uint32_t, Ref<ITexture>>> Textures;
-        int                                             PositionOffset = -1;
-        int                                             NormalOffset   = -1;
-        int                                             TexCoordOffset = -1;
-        int                                             EntityOffset   = -1;
+        Ref<IPipeline>             Pipeline;
+        std::vector<uint8_t>       PassData;
+        std::vector<Ref<ITexture>> Textures;
     };
 
 public:
@@ -28,7 +25,7 @@ public:
         if (index < m_passes.size())
             m_passes[index] = pass;
     }
-    void AddPass(const Ref<IPipeline>& pipeline);
+    void AddPass(const MaterialPass& pass) { m_passes.push_back(pass); }
     void RemovePass(uint32_t index)
     {
         if (index < m_passes.size())

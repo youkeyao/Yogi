@@ -17,7 +17,10 @@ Handle<Mesh> ProcessMesh(aiMesh* mesh, const aiScene* scene)
         Vertex vertex;
         vertex.Position = Vector3{ mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z };
         vertex.Normal   = Vector3{ mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z };
-        vertex.Texcoord = Vector2{ mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y };
+        if (mesh->HasTextureCoords(0))
+        {
+            vertex.Texcoord = Vector2{ mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y };
+        }
         vertices.push_back(vertex);
     }
     for (int i = 0; i < mesh->mNumFaces; ++i)
@@ -68,7 +71,7 @@ Handle<Mesh> MeshSerializer::Deserialize(const std::vector<uint8_t>& binary, con
 
     Assimp::Importer importer;
     const aiScene*   scene = importer.ReadFileFromMemory(
-        binary.data(), binary.size(), aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenNormals, ext.c_str());
+        binary.data(), binary.size(), aiProcess_Triangulate | aiProcess_GenNormals, ext.c_str());
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
     {
         YG_CORE_ERROR("ERROR::ASSIMP:: {0}", importer.GetErrorString());

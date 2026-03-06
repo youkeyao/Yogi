@@ -25,11 +25,20 @@ VulkanShaderResourceBinding::VulkanShaderResourceBinding(
     std::vector<VkDescriptorSetLayoutBinding> bindings(shaderResourceLayout.size());
     for (int i = 0; i < shaderResourceLayout.size(); ++i)
     {
-        const auto& attr               = shaderResourceLayout[i];
-        bindings[i].binding            = attr.Binding;
-        bindings[i].descriptorType     = (attr.Type == ShaderResourceType::Texture) ?
-                VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER :
-                VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        const auto& attr    = shaderResourceLayout[i];
+        bindings[i].binding = attr.Binding;
+        switch (attr.Type)
+        {
+            case ShaderResourceType::StorageBuffer:
+                bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                break;
+            case ShaderResourceType::Texture:
+                bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                break;
+            default:
+                YG_CORE_ERROR("Vulkan: Unsupported shader resource type!");
+                break;
+        }
         bindings[i].descriptorCount    = attr.Count;
         bindings[i].stageFlags         = YgShaderStage2VkShaderStage(attr.Stage);
         bindings[i].pImmutableSamplers = nullptr;
@@ -76,11 +85,22 @@ void VulkanShaderResourceBinding::BindBuffer(const Ref<IBuffer>& buffer, int bin
     bufferInfo.range  = vkBuffer->GetSize();
 
     VkWriteDescriptorSet descriptorWrite{};
-    descriptorWrite.sType            = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrite.dstSet           = m_descriptorSet;
-    descriptorWrite.dstBinding       = binding;
-    descriptorWrite.dstArrayElement  = slot;
-    descriptorWrite.descriptorType   = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    descriptorWrite.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrite.dstSet          = m_descriptorSet;
+    descriptorWrite.dstBinding      = binding;
+    descriptorWrite.dstArrayElement = slot;
+    switch (vkBuffer->GetUsage())
+    {
+        case BufferUsage::Storage:
+            descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            break;
+        case BufferUsage::Uniform:
+            descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            break;
+        default:
+            YG_CORE_ERROR("Vulkan: Unsupported buffer usage type!");
+            break;
+    }
     descriptorWrite.descriptorCount  = 1;
     descriptorWrite.pBufferInfo      = &bufferInfo;
     descriptorWrite.pImageInfo       = nullptr;

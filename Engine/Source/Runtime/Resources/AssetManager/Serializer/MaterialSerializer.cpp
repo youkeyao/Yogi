@@ -46,18 +46,19 @@ Handle<Material> MaterialSerializer::Deserialize(const std::vector<uint8_t>& bin
         pipelineDesc.SubPassIndex = pipelineData.SubPassIndex;
         pipelineDesc.Topology     = pipelineData.Topology;
 
-        material->AddPass(ResourceManager::GetResource<IPipeline>(pipelineDesc));
+        material->AddPass(Material::MaterialPass{ResourceManager::GetResource<IPipeline>(pipelineDesc), {}, {}});
     }
     auto materialPasses = material->GetPasses();
     int textureIndex = 0;
     for (int i = 0; i < materialPasses.size(); ++i)
     {
-        materialPasses[i].Data = passData[i];
+        materialPasses[i].PassData = passData[i];
+        materialPasses[i].Textures.resize(textureKeys.size());
         for (int j = 0; j < materialPasses[i].Textures.size(); ++j)
         {
             if (textureIndex < textureKeys.size() && !textureKeys[textureIndex].empty())
             {
-                materialPasses[i].Textures[j].second = AssetManager::GetAsset<ITexture>(textureKeys[textureIndex]);
+                materialPasses[i].Textures[j] = AssetManager::GetAsset<ITexture>(textureKeys[textureIndex]);
             }
             ++textureIndex;
         }
@@ -91,8 +92,8 @@ std::vector<uint8_t> MaterialSerializer::Serialize(const Ref<Material>& asset, c
         pipelineData.SubPassIndex         = desc.SubPassIndex;
         pipelineData.Topology             = desc.Topology;
         pipelineDatas.emplace_back(pipelineData);
-        passData.emplace_back(pass.Data);
-        for (auto& [index, texture] : pass.Textures)
+        passData.emplace_back(pass.PassData);
+        for (auto& texture : pass.Textures)
         {
             textureKeys.emplace_back(AssetManager::GetAssetKey<ITexture>(texture));
         }

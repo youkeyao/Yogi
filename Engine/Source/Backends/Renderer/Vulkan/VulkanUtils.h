@@ -48,6 +48,7 @@ VkImageLayout         AttachmentUsage2VkImageLayout(AttachmentUsage usage);
 VkAccessFlags         AccessMaskFromImageLayout(VkImageLayout Layout, bool IsDstMask);
 VkPipelineStageFlags  PipelineStageFromImageLayout(VkImageLayout Layout, bool IsDstStage);
 VkShaderStageFlagBits YgShaderStage2VkShaderStage(ShaderStage stage);
+VkPrimitiveTopology   YgPrimitiveTopology2VkPrimitiveTopology(PrimitiveTopology topology);
 
 YG_API PFN_vkVoidFunction VkLoadFunction(const char* funcName, void* instance);
 

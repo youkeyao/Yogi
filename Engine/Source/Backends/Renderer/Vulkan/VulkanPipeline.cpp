@@ -83,9 +83,7 @@ void VulkanPipeline::CreateVkPipeline(const PipelineDesc& desc)
     vertexInputInfo.pVertexAttributeDescriptions    = attributeDescs.data();
 
     // --- Dynamic States ---
-    std::vector<VkDynamicState>      dynamicStates = { VK_DYNAMIC_STATE_VIEWPORT,
-                                                       VK_DYNAMIC_STATE_SCISSOR,
-                                                       VK_DYNAMIC_STATE_CULL_MODE_EXT };
+    std::vector<VkDynamicState>      dynamicStates = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
     VkPipelineDynamicStateCreateInfo dynamicState{};
     dynamicState.sType             = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
     dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
@@ -94,7 +92,7 @@ void VulkanPipeline::CreateVkPipeline(const PipelineDesc& desc)
     // --- Input assembly ---
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    inputAssembly.topology               = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST; // TODO: map from desc.Topology
+    inputAssembly.topology               = YgPrimitiveTopology2VkPrimitiveTopology(desc.Topology);
     inputAssembly.primitiveRestartEnable = VK_FALSE;
 
     // --- Viewport & scissor (dynamic for now) ---
@@ -110,7 +108,7 @@ void VulkanPipeline::CreateVkPipeline(const PipelineDesc& desc)
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
     rasterizer.polygonMode             = VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth               = 1.0f;
-    rasterizer.cullMode                = VK_CULL_MODE_NONE;
+    rasterizer.cullMode                = VK_CULL_MODE_BACK_BIT;
     rasterizer.frontFace               = VK_FRONT_FACE_CLOCKWISE;
     rasterizer.depthBiasEnable         = VK_FALSE;
 

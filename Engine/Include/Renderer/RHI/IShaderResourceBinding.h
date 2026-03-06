@@ -8,7 +8,7 @@ namespace Yogi
 
 enum class ShaderResourceType : uint8_t
 {
-    Buffer,
+    StorageBuffer,
     Texture
 };
 
@@ -17,7 +17,9 @@ enum class ShaderStage : uint8_t
     Vertex,
     Geometry,
     Fragment,
-    Compute
+    Compute,
+    Task,
+    Mesh
 };
 
 struct ShaderResourceAttribute

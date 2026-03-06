@@ -42,8 +42,6 @@ private:
     void CreateVkSyncObjects();
 
 private:
-    const int MAX_FRAMES_IN_FLIGHT = 2;
-
     uint32_t m_currentFrame = 0;
     uint32_t m_imageIndex   = 0;
 
@@ -54,7 +52,6 @@ private:
     std::vector<Handle<VulkanTexture>> m_depthTextures;
 
     std::vector<VkSemaphore>                 m_imageAvailableSemaphores;
-    std::vector<VkSemaphore>                 m_renderFinishedSemaphores;
     std::vector<Handle<VulkanCommandBuffer>> m_commandBuffers;
 
     uint32_t            m_width;

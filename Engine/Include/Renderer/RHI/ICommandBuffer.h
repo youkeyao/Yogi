@@ -81,6 +81,9 @@ public:
                              uint32_t firstIndex    = 0,
                              int32_t  vertexOffset  = 0,
                              uint32_t firstInstance = 0) = 0;
+    virtual void DrawMeshTasks(uint32_t groupCountX,
+                               uint32_t groupCountY = 1,
+                               uint32_t groupCountZ = 1) = 0;
 
     virtual void Blit(const Ref<ITexture>& src, const Ref<ITexture>& dst) = 0;
 

@@ -37,6 +37,11 @@ VulkanCommandBuffer::VulkanCommandBuffer(const CommandBufferDesc& desc) :
     YG_CORE_ASSERT(vkCreateFence(context->GetVkDevice(), &fenceInfo, nullptr, &m_commandFence) == VK_SUCCESS,
                    "Vulkan: Failed to create fence!");
     vkResetFences(context->GetVkDevice(), 1, &m_commandFence);
+
+    VkSemaphoreCreateInfo semaphoreInfo{};
+    semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+    YG_CORE_ASSERT(vkCreateSemaphore(context->GetVkDevice(), &semaphoreInfo, nullptr, &m_signalSemaphore) == VK_SUCCESS,
+                   "Vulkan: Failed to create signal semaphore!");
 }
 
 VulkanCommandBuffer::~VulkanCommandBuffer()
@@ -50,6 +55,10 @@ VulkanCommandBuffer::~VulkanCommandBuffer()
     if (m_commandFence != VK_NULL_HANDLE)
     {
         vkDestroyFence(context->GetVkDevice(), m_commandFence, nullptr);
+    }
+    if (m_signalSemaphore != VK_NULL_HANDLE)
+    {
+        vkDestroySemaphore(context->GetVkDevice(), m_signalSemaphore, nullptr);
     }
 }
 
@@ -79,6 +88,19 @@ void VulkanCommandBuffer::Submit()
     submitInfo.sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers    = &m_commandBuffer;
+
+    VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    if (m_waitSemaphore != VK_NULL_HANDLE)
+    {
+        submitInfo.waitSemaphoreCount = 1;
+        submitInfo.pWaitSemaphores    = &m_waitSemaphore;
+        submitInfo.pWaitDstStageMask  = &waitStage;
+    }
+    if (m_signalSemaphore != VK_NULL_HANDLE)
+    {
+        submitInfo.signalSemaphoreCount = 1;
+        submitInfo.pSignalSemaphores    = &m_signalSemaphore;
+    }
 
     VkResult result = VK_NOT_READY;
     switch (m_queue)
@@ -217,6 +239,11 @@ void VulkanCommandBuffer::DrawIndexed(uint32_t indexCount,
     vkCmdDrawIndexed(m_commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
 }
 
+void VulkanCommandBuffer::DrawMeshTasks(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ)
+{
+    vkCmdDrawMeshTasksEXT(m_commandBuffer, groupCountX, groupCountY, groupCountZ);
+}
+
 void VulkanCommandBuffer::Blit(const Ref<ITexture>& src, const Ref<ITexture>& dst)
 {
     Ref<VulkanTexture> vkSrc = Ref<VulkanTexture>::Cast(src);
@@ -252,10 +279,8 @@ void VulkanCommandBuffer::Blit(const Ref<ITexture>& src, const Ref<ITexture>& ds
                        VK_FILTER_LINEAR);
     }
 
-    TransitionImageLayout(vkDst->GetVkImage(),
-                          vkDst->GetUsage(),
-                          VK_IMAGE_LAYOUT_UNDEFINED,
-                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    TransitionImageLayout(
+        vkDst->GetVkImage(), vkDst->GetUsage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 
 void VulkanCommandBuffer::TransitionImageLayout(VkImage         image,

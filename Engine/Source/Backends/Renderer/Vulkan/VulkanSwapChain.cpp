@@ -21,9 +21,10 @@ VulkanSwapChain::VulkanSwapChain(const SwapChainDesc& desc) :
 
     // Create per-frame command buffers
     CommandBufferDesc cmdBufDesc{ CommandBufferUsage::Persistent, SubmitQueue::Graphics };
-    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+    for (int i = 0; i < GetImageCount(); ++i)
     {
         m_commandBuffers.push_back(Handle<VulkanCommandBuffer>::Create(cmdBufDesc));
+        m_commandBuffers[i]->SetWaitSemaphore(m_imageAvailableSemaphores[i]);
     }
 }
 
@@ -33,10 +34,9 @@ VulkanSwapChain::~VulkanSwapChain()
 
     m_commandBuffers.clear();
     CleanupSwapChain();
-    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+    for (int i = 0; i < m_imageAvailableSemaphores.size(); ++i)
     {
         vkDestroySemaphore(context->GetVkDevice(), m_imageAvailableSemaphores[i], nullptr);
-        vkDestroySemaphore(context->GetVkDevice(), m_renderFinishedSemaphores[i], nullptr);
     }
 }
 
@@ -45,6 +45,7 @@ void VulkanSwapChain::AcquireNextImage()
     VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
     VkDevice             device  = context->GetVkDevice();
 
+    m_commandBuffers[m_currentFrame]->Wait();
     VkResult result = vkAcquireNextImageKHR(
         device, m_swapChain, UINT64_MAX, m_imageAvailableSemaphores[m_currentFrame], VK_NULL_HANDLE, &m_imageIndex);
     YG_CORE_ASSERT(result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR, "Vulkan: Failed to acquire swap chain image!");
@@ -60,7 +61,7 @@ void VulkanSwapChain::Present()
     VkPresentInfoKHR presentInfo{};
     presentInfo.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores    = &m_imageAvailableSemaphores[m_currentFrame];
+    presentInfo.pWaitSemaphores    = &m_commandBuffers[m_currentFrame]->GetSignalSemaphore();
 
     VkSwapchainKHR swapChains[] = { m_swapChain };
     presentInfo.swapchainCount  = 1;
@@ -71,7 +72,7 @@ void VulkanSwapChain::Present()
     VkResult result = vkQueuePresentKHR(m_presentQueue, &presentInfo);
     YG_CORE_ASSERT(result == VK_SUCCESS, "Vulkan: Failed to present swap chain image!");
 
-    m_currentFrame = (m_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+    m_currentFrame = (m_currentFrame + 1) % GetImageCount();
 }
 
 void VulkanSwapChain::Resize(uint32_t width, uint32_t height)
@@ -202,18 +203,14 @@ void VulkanSwapChain::CreateVkSyncObjects()
     VkPhysicalDevice     physicalDevice = context->GetVkPhysicalDevice();
     VkDevice             device         = context->GetVkDevice();
 
-    m_imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-    m_renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-
     VkSemaphoreCreateInfo semaphoreInfo{};
     semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+    m_imageAvailableSemaphores.resize(GetImageCount());
+    for (int i = 0; i < GetImageCount(); ++i)
     {
         YG_CORE_ASSERT(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &m_imageAvailableSemaphores[i]) == VK_SUCCESS,
                        "Vulkan: Failed to create image available semaphore!");
-        YG_CORE_ASSERT(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &m_renderFinishedSemaphores[i]) == VK_SUCCESS,
-                       "Vulkan: Failed to create render finished semaphore!");
     }
 
     QueueFamilyIndices indices = FindQueueFamilies(physicalDevice, context->GetVkSurface());

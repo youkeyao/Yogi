@@ -39,19 +39,25 @@ public:
                      uint32_t firstIndex    = 0,
                      int32_t  vertexOffset  = 0,
                      uint32_t firstInstance = 0) override;
+    void DrawMeshTasks(uint32_t groupCountX, uint32_t groupCountY = 1, uint32_t groupCountZ = 1) override;
 
     void Blit(const Ref<ITexture>& src, const Ref<ITexture>& dst) override;
 
     void TransitionImageLayout(VkImage image, ITexture::Usage usage, VkImageLayout oldLayout, VkImageLayout newLayout);
 
-    inline VkCommandBuffer GetVkCommandBuffer() const { return m_commandBuffer; }
+    inline VkCommandBuffer    GetVkCommandBuffer() const { return m_commandBuffer; }
+    inline VkFence            GetFence() const { return m_commandFence; }
+    inline void               SetWaitSemaphore(VkSemaphore semaphore) { m_waitSemaphore = semaphore; }
+    inline const VkSemaphore& GetSignalSemaphore() const { return m_signalSemaphore; }
 
 private:
     VkCommandBuffer    m_commandBuffer;
     CommandBufferUsage m_usage;
     SubmitQueue        m_queue;
-    VkFence            m_commandFence = VK_NULL_HANDLE;
-    bool               m_submitted    = false;
+    VkFence            m_commandFence    = VK_NULL_HANDLE;
+    VkSemaphore        m_waitSemaphore   = VK_NULL_HANDLE;
+    VkSemaphore        m_signalSemaphore = VK_NULL_HANDLE;
+    bool               m_submitted       = false;
 };
 
 } // namespace Yogi

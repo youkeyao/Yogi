@@ -94,7 +94,7 @@ void VulkanDeviceContext::CreateVkInstance()
     appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     appInfo.pEngineName        = "";
     appInfo.engineVersion      = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.apiVersion         = VK_API_VERSION_1_2;
+    appInfo.apiVersion         = VK_API_VERSION_1_3;
 
     VkInstanceCreateInfo createInfo{};
     createInfo.sType            = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -112,11 +112,6 @@ void VulkanDeviceContext::CreateVkInstance()
 #endif
 
 #ifdef YG_DEBUG
-#    ifdef YG_PLATFORM_WIN32
-    _putenv_s("VK_LAYER_PATH", YG_VK_LAYER_PATH);
-#    else
-    setenv("VK_LAYER_PATH", YG_VK_LAYER_PATH, 1);
-#    endif
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
     YG_CORE_ASSERT(CheckValidationLayerSupport(ValidationLayers),
                    "Vulkan: validation layers requested, but not available!");
@@ -209,6 +204,15 @@ void VulkanDeviceContext::CreateLogicalDevice()
     VkPhysicalDeviceExtendedDynamicStateFeaturesEXT extendedFeature{};
     extendedFeature.sType                = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT;
     extendedFeature.extendedDynamicState = true;
+    VkPhysicalDeviceMeshShaderFeaturesEXT meshFeature{};
+    meshFeature.sType      = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT;
+    meshFeature.taskShader = VK_TRUE;
+    meshFeature.meshShader = VK_TRUE;
+    extendedFeature.pNext  = &meshFeature;
+    VkPhysicalDevice8BitStorageFeatures features8Bit = {};
+    features8Bit.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES;
+    features8Bit.storageBuffer8BitAccess = VK_TRUE;
+    meshFeature.pNext = &features8Bit;
     VkDeviceCreateInfo createInfo{};
     createInfo.sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     createInfo.queueCreateInfoCount    = static_cast<uint32_t>(queueCreateInfos.size());

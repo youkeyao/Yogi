@@ -13,6 +13,15 @@
 [submodule "Engine/ThirdParty/Vulkan-Headers"]
 	path = Engine/ThirdParty/Vulkan-Headers
 	url = https://github.com/KhronosGroup/Vulkan-Headers.git
+[submodule "Engine/ThirdParty/SPIRV-Headers"]
+	path = Engine/ThirdParty/SPIRV-Headers
+	url = https://github.com/KhronosGroup/SPIRV-Headers.git
+[submodule "Engine/ThirdParty/SPIRV-Tools"]
+	path = Engine/ThirdParty/SPIRV-Tools
+	url = https://github.com/KhronosGroup/SPIRV-Tools.git
+[submodule "Engine/ThirdParty/glslang"]
+	path = Engine/ThirdParty/glslang
+	url = https://github.com/KhronosGroup/glslang.git
 [submodule "Engine/ThirdParty/entt"]
 	path = Engine/ThirdParty/entt
 	url = https://github.com/skypjack/entt.git
@@ -25,6 +34,9 @@
 [submodule "Engine/ThirdParty/zpp_bits"]
 	path = Engine/ThirdParty/zpp_bits
 	url = https://github.com/eyalz800/zpp_bits.git
+[submodule "Engine/ThirdParty/meshoptimizer"]
+	path = Engine/ThirdParty/meshoptimizer
+	url = https://github.com/zeux/meshoptimizer.git
 [submodule "Editor/ThirdParty/imgui"]
 	path = Editor/ThirdParty/imgui
 	url = https://github.com/ocornut/imgui.git

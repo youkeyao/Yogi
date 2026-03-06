@@ -29,30 +29,24 @@ public:
 private:
     bool OnWindowResize(WindowResizeEvent& e, World& world);
     void BeginRender(Ref<ICommandBuffer>& commandBuffer, Ref<IFrameBuffer>& frameBuffer);
-    void Draw(const Ref<IPipeline>&    pipeline,
-              const Ref<IFrameBuffer>& frameBuffer,
-              uint32_t                 vertexOffset,
-              uint32_t                 indexOffset);
     void EndRender(Ref<ICommandBuffer>& commandBuffer);
 
 private:
-    static const uint32_t MAX_TRIANGLES     = 100000;
-    static const uint32_t MAX_VERTICES      = MAX_TRIANGLES * 3;
-    static const uint32_t MAX_VERTICES_SIZE = MAX_VERTICES * 40;
-    static const uint32_t MAX_INDICES       = MAX_TRIANGLES * 3;
+    static const uint32_t MAX_TRIANGLES      = 100000;
+    static const uint32_t MAX_VERTICES       = MAX_TRIANGLES * 3;
+    static const uint32_t MAX_VERTICES_SIZE  = MAX_VERTICES * sizeof(Vertex);
+    static const uint32_t MAX_MESHLETS       = 10000;
+    static const uint32_t MAX_MESHLET_SIZE   = MAX_MESHLETS * sizeof(Meshlet);
 
     SceneData m_sceneData;
 
-    Ref<IBuffer> m_vertexBuffer  = nullptr;
-    Ref<IBuffer> m_indexBuffer   = nullptr;
-    Ref<IBuffer> m_uniformBuffer = nullptr;
+    Ref<IBuffer> m_vertexStorageBuffer = nullptr;
+    Ref<IBuffer> m_meshletBuffer       = nullptr;
 
     std::vector<Ref<IRenderPass>> m_renderPasses;
     Ref<IShaderResourceBinding>   m_shaderResourceBinding = nullptr;
 
-    std::unordered_map<uint64_t, Ref<IFrameBuffer>>           m_frameBuffers;
-    std::unordered_map<Ref<IPipeline>, std::vector<uint8_t>>  m_vertices;
-    std::unordered_map<Ref<IPipeline>, std::vector<uint32_t>> m_indices;
+    std::unordered_map<uint64_t, Ref<IFrameBuffer>> m_frameBuffers;
 };
 
 } // namespace Yogi

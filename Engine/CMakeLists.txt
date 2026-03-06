@@ -49,15 +49,12 @@ elseif ( YG_RENDERER_API STREQUAL "Vulkan" )
     set( YGRendererInclude ThirdParty/volk )
     if ( WIN32 )
         add_compile_definitions( VK_USE_PLATFORM_WIN32_KHR )
-        add_compile_definitions( YG_VK_LAYER_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/VulkanLayer/Win32\" )
     elseif ( APPLE )
         add_compile_definitions( VK_USE_PLATFORM_METAL_EXT )
-        add_compile_definitions( YG_VK_LAYER_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/VulkanLayer/MacOS\" )
     elseif ( UNIX )
         add_compile_definitions( VK_USE_PLATFORM_WAYLAND_KHR )
         add_compile_definitions( VK_USE_PLATFORM_XCB_KHR )
         add_compile_definitions( VK_USE_PLATFORM_XLIB_KHR )
-        add_compile_definitions( YG_VK_LAYER_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/VulkanLayer/Linux\" )
     else()
         message( FATAL_ERROR "Unknown platform" )
     endif()
@@ -66,40 +63,7 @@ else()
 endif()
 #-------------------------------------------------------------
 
-# ---Shader compiler------------------------------------------------------------------------
-if ( WIN32 )
-    set( yg_glslang_bin ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/VulkanLayer/Win32/glslangValidator.exe )
-elseif ( APPLE )
-    set( yg_glslang_bin ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/VulkanLayer/MacOS/glslangValidator )
-elseif ( UNIX )
-    set( yg_glslang_bin ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/VulkanLayer/Linux/glslangValidator )
-else()
-    message( FATAL_ERROR "Unknown platform" )
-endif()
-#-------------------------------------------------------------
-set( YG_BUILD_SHADER_FOLDER "EngineAssets/Shaders" )
-
-add_subdirectory( Source/Shaders )
-add_subdirectory( ThirdParty/spdlog )
-add_subdirectory( ThirdParty/stb_image )
-# set(SPIRV_CROSS_CLI OFF)
-# set(SPIRV_CROSS_ENABLE_TESTS OFF)
-# set(SPIRV_CROSS_ENABLE_HLSL OFF)
-# set(SPIRV_CROSS_ENABLE_MSL OFF)
-# set(SPIRV_CROSS_ENABLE_CPP OFF)
-# set(SPIRV_CROSS_ENABLE_REFLECT OFF)
-# set(SPIRV_CROSS_ENABLE_C_API OFF)
-# set(SPIRV_CROSS_ENABLE_UTIL OFF)
-# set(SPIRV_CROSS_SKIP_INSTALL ON)
-# add_subdirectory( vendor/SPIRV-Cross )
-set( ASSIMP_INSTALL OFF )
-set( ASSIMP_BUILD_TESTS OFF )
-set( ASSIMP_BUILD_ZLIB ON )
-add_subdirectory( ThirdParty/assimp )
-if ( CMAKE_CXX_COMPILER_ID STREQUAL "GNU" )
-    target_compile_options( assimp PRIVATE -Wno-array-bounds )
-endif()
-# add_subdirectory( vendor/JoltPhysics/Build )
+add_subdirectory( ThirdParty )
 
 file( GLOB_RECURSE
     YG_ENGINE_SOURCES CONFIGURE_DEPENDS
@@ -134,6 +98,9 @@ target_link_libraries( YGEngine
         ${YGRendererLib}
     PRIVATE
         stb_image
+        meshoptimizer
+        glslang
+        glslang::glslang-default-resource-limits
         # spirv-cross-glsl
 )
 target_precompile_headers( YGEngine
@@ -155,7 +122,6 @@ target_include_directories( YGEngine
         # ThirdParty/stb_image
         # ThirdParty/assimp/include
 )
-add_dependencies( YGEngine Shaders )
 
 # copy assets
 add_custom_command(

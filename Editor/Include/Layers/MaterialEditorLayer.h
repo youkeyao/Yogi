@@ -15,8 +15,7 @@ public:
     void OnEvent(Event& event) override;
 
 private:
-    bool ImGuiPipeline(Ref<IPipeline>& pipeline);
-    bool ValidatePipelineDesc(PipelineDesc& desc);
+    bool ImGuiMaterialData(const std::vector<std::string> shaderKeys, std::vector<uint8_t>& data);
 
 private:
     Ref<Material> m_material;

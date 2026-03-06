@@ -51,4 +51,4 @@ set( BUILD_SHARED_LIBS ON )
 
 add_subdirectory( Engine )
 add_subdirectory( Sandbox )
-add_subdirectory( Editor )
+# add_subdirectory( Editor )

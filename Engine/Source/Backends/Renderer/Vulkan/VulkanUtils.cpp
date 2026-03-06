@@ -369,8 +369,7 @@ VkPipelineStageFlags PipelineStageFromImageLayout(VkImageLayout Layout, bool IsD
             break;
 
         case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-            StageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT |
-                VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
+            StageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
             break;
 
         case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
@@ -434,9 +433,31 @@ VkShaderStageFlagBits YgShaderStage2VkShaderStage(ShaderStage stage)
             return VK_SHADER_STAGE_COMPUTE_BIT;
         case ShaderStage::Geometry:
             return VK_SHADER_STAGE_GEOMETRY_BIT;
+        case ShaderStage::Task:
+            return VK_SHADER_STAGE_TASK_BIT_EXT;
+        case ShaderStage::Mesh:
+            return VK_SHADER_STAGE_MESH_BIT_EXT;
         default:
             YG_CORE_ERROR("Vulkan: Unsupported shader stage!");
             return VK_SHADER_STAGE_FLAG_BITS_MAX_ENUM;
+    }
+}
+
+VkPrimitiveTopology YgPrimitiveTopology2VkPrimitiveTopology(PrimitiveTopology topology)
+{
+    switch (topology)
+    {
+        case PrimitiveTopology::TriangleList:
+            return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+        case PrimitiveTopology::TriangleStrip:
+            return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+        case PrimitiveTopology::LineList:
+            return VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+        case PrimitiveTopology::PointList:
+            return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+        default:
+            YG_CORE_ERROR("Vulkan: Unsupported primitive topology!");
+            return VK_PRIMITIVE_TOPOLOGY_MAX_ENUM;
     }
 }
 
