@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Math/Vector3.h"
-#include "Math/Vector2.h"
+#include "Math/Vector.h"
+#include "Renderer/MeshData.h"
 
 namespace Yogi
 {
@@ -13,32 +13,20 @@ struct Vertex
     Vector2 Texcoord;
 };
 
-struct Meshlet
-{
-    static const uint32_t MAX_TRIANGLES = 42;
-    static const uint32_t MAX_VERTICES  = 64;
-    uint32_t              Vertices[MAX_VERTICES];
-    uint8_t               Indices[MAX_TRIANGLES * 3];
-    uint8_t               TriangleCount;
-    uint8_t               VertexCount;
-};
-
 class YG_API Mesh
 {
 public:
     Mesh(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
 
-    inline const std::vector<Vertex>&   GetVertices() const { return m_vertices; }
-    inline const std::vector<uint32_t>& GetIndices() const { return m_indices; }
-    inline const std::vector<Meshlet>&  GetMeshlets() const { return m_meshlets; }
+    inline const std::vector<VertexData>&  GetVertices() const { return m_vertices; }
+    inline const std::vector<MeshletData>& GetMeshlets() const { return m_meshlets; }
 
 private:
-    void BuildMeshlets();
+    void BuildMeshlets(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
 
 private:
-    std::vector<Vertex>   m_vertices;
-    std::vector<uint32_t> m_indices;
-    std::vector<Meshlet>  m_meshlets;
+    std::vector<VertexData>  m_vertices;
+    std::vector<MeshletData> m_meshlets;
 };
 
 } // namespace Yogi

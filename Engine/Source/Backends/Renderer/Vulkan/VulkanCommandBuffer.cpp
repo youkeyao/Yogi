@@ -26,10 +26,8 @@ VulkanCommandBuffer::VulkanCommandBuffer(const CommandBufferDesc& desc) :
     allocInfo.commandPool        = context->GetVkCommandPool();
     allocInfo.level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocInfo.commandBufferCount = 1;
-    if (vkAllocateCommandBuffers(context->GetVkDevice(), &allocInfo, &m_commandBuffer) != VK_SUCCESS)
-    {
-        YG_CORE_ERROR("Vulkan: Failed to allocate command buffer!");
-    }
+    YG_CORE_ASSERT(vkAllocateCommandBuffers(context->GetVkDevice(), &allocInfo, &m_commandBuffer) == VK_SUCCESS,
+                   "Vulkan: Failed to allocate command buffer!");
 
     VkFenceCreateInfo fenceInfo{};
     fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Math/Vector3.h"
+#include "Math/Vector.h"
 #include "Math/Quaternion.h"
 
 #include <glm/glm.hpp>
@@ -9,11 +9,17 @@
 namespace Yogi
 {
 
-struct Matrix4 : public glm::mat4
+template <int N, int M, typename T = float>
+struct Matrix : glm::mat<N, M, T>
 {
-    using glm::mat4::mat4;
+    using glm::mat<N, M, T>::mat;
 
-    Matrix4(const glm::mat4& mat) : glm::mat4(mat) {}
+    Matrix(const glm::mat<N, M, T>& mat) : glm::mat<N, M, T>(mat) {}
+};
+
+struct Matrix4 : public Matrix<4, 4, float>
+{
+    using Matrix<4, 4, float>::Matrix;
 
     static Matrix4 Translation(const Vector3& translation)
     {

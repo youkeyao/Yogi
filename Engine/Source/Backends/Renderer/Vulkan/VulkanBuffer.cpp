@@ -67,8 +67,6 @@ VulkanBuffer::VulkanBuffer(const BufferDesc& desc) : m_size(desc.Size), m_usage(
     vkBindBufferMemory(device, m_buffer, m_memory, 0);
 
     vkMapMemory(device, m_memory, 0, m_size, 0, &m_bufferMapped);
-    if (desc.InitialData)
-        UpdateData(desc.InitialData, desc.Size, 0);
 }
 
 VulkanBuffer::~VulkanBuffer()

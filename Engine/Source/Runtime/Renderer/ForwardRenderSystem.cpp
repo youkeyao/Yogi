@@ -3,7 +3,7 @@
 #include "Resources/ResourceManager/ResourceManager.h"
 #include "Core/Application.h"
 #include "Scene/World.h"
-#include "Math/Vector4.h"
+#include "Math/Vector.h"
 
 namespace Yogi
 {
@@ -74,18 +74,18 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
     }
     auto& frameBuffer = it->second;
 
-    constexpr uint32_t maxVertexCount = MAX_VERTICES_SIZE / sizeof(Vertex);
+    constexpr uint32_t maxVertexCount = MAX_VERTICES_SIZE / sizeof(VertexData);
 
-    std::vector<Vertex>  batchVertices;
-    std::unordered_map<Ref<IPipeline>, std::vector<Meshlet>> pipelineMeshlets;
+    std::vector<VertexData>                                      batchVertices;
+    std::unordered_map<Ref<IPipeline>, std::vector<MeshletData>> pipelineMeshlets;
 
     auto flushBatch = [&]() {
         if (batchVertices.empty())
             return;
-        m_vertexStorageBuffer->UpdateData(batchVertices.data(), batchVertices.size() * sizeof(Vertex), 0);
+        m_vertexStorageBuffer->UpdateData(batchVertices.data(), batchVertices.size() * sizeof(VertexData), 0);
         for (auto& [pipeline, meshlets] : pipelineMeshlets)
         {
-            m_meshletBuffer->UpdateData(meshlets.data(), meshlets.size() * sizeof(Meshlet), 0);
+            m_meshletBuffer->UpdateData(meshlets.data(), meshlets.size() * sizeof(MeshletData), 0);
             commandBuffer->SetPipeline(pipeline);
             commandBuffer->SetViewport({ 0, 0, (float)frameBuffer->GetWidth(), (float)frameBuffer->GetHeight() });
             commandBuffer->SetScissor({ 0, 0, frameBuffer->GetWidth(), frameBuffer->GetHeight() });
@@ -127,7 +127,6 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
 
             // Append vertices
             batchVertices.insert(batchVertices.end(), mesh->GetVertices().begin(), mesh->GetVertices().end());
-
             // Append meshlets with offset vertex indices
             for (auto& materialPass : material->GetPasses())
             {
@@ -135,7 +134,7 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
                 auto& meshlets = pipelineMeshlets[pipeline];
                 for (const auto& srcMeshlet : mesh->GetMeshlets())
                 {
-                    Meshlet offsetMeshlet = srcMeshlet;
+                    MeshletData offsetMeshlet = srcMeshlet;
                     for (uint8_t i = 0; i < srcMeshlet.VertexCount; ++i)
                     {
                         offsetMeshlet.Vertices[i] += vertexBase;

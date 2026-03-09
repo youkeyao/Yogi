@@ -4,8 +4,46 @@
 #include <glslang/Public/ResourceLimits.h>
 #include <SPIRV/GlslangToSpv.h>
 
+#include <filesystem>
+#include <fstream>
+
 namespace Yogi
 {
+
+class FileIncluder : public glslang::TShader::Includer
+{
+public:
+    FileIncluder(const std::string& shaderDir) : m_shaderDir(shaderDir) {}
+
+    IncludeResult* includeLocal(const char* headerName, const char* /*includerName*/, size_t /*inclusionDepth*/) override
+    {
+        std::filesystem::path fullPath = m_shaderDir / std::filesystem::path(headerName);
+        std::ifstream file(fullPath, std::ios::binary);
+        if (!file)
+            return nullptr;
+
+        file.seekg(0, std::ios::end);
+        size_t length = file.tellg();
+        file.seekg(0, std::ios::beg);
+
+        char* data = new char[length];
+        file.read(data, length);
+
+        return new IncludeResult(fullPath.string(), data, length, data);
+    }
+
+    void releaseInclude(IncludeResult* result) override
+    {
+        if (result)
+        {
+            delete[] static_cast<char*>(result->userData);
+            delete result;
+        }
+    }
+
+private:
+    std::filesystem::path m_shaderDir;
+};
 
 std::vector<uint8_t> CompileGlslToSpirv(const std::vector<uint8_t>& glslBinary, EShLanguage shaderStage)
 {
@@ -22,7 +60,9 @@ std::vector<uint8_t> CompileGlslToSpirv(const std::vector<uint8_t>& glslBinary, 
     int         clientInputSemanticsVersion = 100;
     EShMessages messages                    = (EShMessages)(EShMsgSpvRules | EShMsgVulkanRules);
 
-    if (!shader.parse(GetDefaultResources(), 460, false, messages))
+    FileIncluder includer("EngineInclude");
+
+    if (!shader.parse(GetDefaultResources(), 460, false, messages, includer))
     {
         std::string log   = shader.getInfoLog();
         std::string debug = shader.getInfoDebugLog();

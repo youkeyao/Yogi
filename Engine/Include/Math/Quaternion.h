@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Math/Vector.h"
 #include <glm/gtc/quaternion.hpp>
 
 namespace Yogi

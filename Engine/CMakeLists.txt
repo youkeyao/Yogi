@@ -129,4 +129,7 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_CURRENT_SOURCE_DIR}/Assets
         ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/EngineAssets
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_CURRENT_SOURCE_DIR}/Include
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/EngineInclude
 )

@@ -40,7 +40,9 @@ private:
 protected:
     std::vector<const char*> DeviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME,
                                                   VK_KHR_MAINTENANCE1_EXTENSION_NAME,
-                                                  VK_EXT_MESH_SHADER_EXTENSION_NAME };
+                                                  VK_EXT_MESH_SHADER_EXTENSION_NAME,
+                                                  VK_KHR_8BIT_STORAGE_EXTENSION_NAME,
+                                                  VK_KHR_16BIT_STORAGE_EXTENSION_NAME };
 
     VkInstance       m_instance;
     VkSurfaceKHR     m_surface        = VK_NULL_HANDLE;

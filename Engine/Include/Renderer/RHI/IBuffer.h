@@ -24,7 +24,6 @@ struct BufferDesc
     uint32_t     Size;
     BufferUsage  Usage;
     BufferAccess Access;
-    const void*  InitialData;
 };
 
 class YG_API IBuffer
