@@ -39,15 +39,17 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
     auto shaderResourceBinding =
         Yogi::ResourceManager::GetResource<Yogi::IShaderResourceBinding>(std::vector<Yogi::ShaderResourceAttribute>{
             Yogi::ShaderResourceAttribute{ 0, 1, Yogi::ShaderResourceType::StorageBuffer, Yogi::ShaderStage::Mesh },
-            Yogi::ShaderResourceAttribute{ 1, 1, Yogi::ShaderResourceType::StorageBuffer, Yogi::ShaderStage::Mesh } });
+            Yogi::ShaderResourceAttribute{ 1, 1, Yogi::ShaderResourceType::StorageBuffer, Yogi::ShaderStage::Task | Yogi::ShaderStage::Mesh } });
 
     // Yogi::Ref<Yogi::ShaderDesc> vertexShader =
     //     Yogi::AssetManager::GetAsset<Yogi::ShaderDesc>("EngineAssets/Shaders/Test.vert");
     Yogi::Ref<Yogi::ShaderDesc> fragmentShader =
         Yogi::AssetManager::GetAsset<Yogi::ShaderDesc>("EngineAssets/Shaders/Test.frag");
+    Yogi::Ref<Yogi::ShaderDesc> taskShader =
+        Yogi::AssetManager::GetAsset<Yogi::ShaderDesc>("EngineAssets/Shaders/Test.task");
     Yogi::Ref<Yogi::ShaderDesc> meshShader =
         Yogi::AssetManager::GetAsset<Yogi::ShaderDesc>("EngineAssets/Shaders/Test.mesh");
-    std::vector<Yogi::Ref<Yogi::ShaderDesc>> shaders = { meshShader, fragmentShader };
+    std::vector<Yogi::Ref<Yogi::ShaderDesc>> shaders = { taskShader, meshShader, fragmentShader };
 
     auto pipeline = Yogi::ResourceManager::GetResource<Yogi::IPipeline>(
         Yogi::PipelineDesc{ shaders, {}, shaderResourceBinding, renderPass, 0, Yogi::PrimitiveTopology::TriangleList });

@@ -8,9 +8,13 @@ namespace Yogi
 template <int N, typename T = float>
 struct Vector : public glm::vec<N, T, glm::defaultp>
 {
-    using glm::vec< N, T, glm::defaultp >::vec;
+    using glm::vec<N, T, glm::defaultp>::vec;
 
-    Vector(const glm::vec< N, T, glm::defaultp >& other) : glm::vec< N, T, glm::defaultp >(other) {}
+    Vector(const glm::vec<N, T, glm::defaultp>& other) : glm::vec<N, T, glm::defaultp>(other) {}
+
+    Vector Cross(const Vector& other) const { return glm::cross(*this, other); }
+
+    Vector Normalized() const { return glm::normalize(*this); }
 };
 
 struct Vector2 : public Vector<2, float>

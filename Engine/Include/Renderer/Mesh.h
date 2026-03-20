@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Math/Vector.h"
-#include "Renderer/MeshData.h"
+#include "Renderer/ShaderData.h"
 
 namespace Yogi
 {

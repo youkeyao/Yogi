@@ -41,14 +41,14 @@ VkExtent2D              ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabil
 
 uint32_t FindMemoryType(uint32_t typeFilter, VkPhysicalDevice physicalDevice, VkMemoryPropertyFlags properties);
 
-VkFormat              YgTextureFormat2VkFormat(ITexture::Format format);
-ITexture::Format      VkFormat2YgTextureFormat(VkFormat format);
-VkFormat              YgShaderElementType2VkFormat(ShaderElementType type);
-VkImageLayout         AttachmentUsage2VkImageLayout(AttachmentUsage usage);
-VkAccessFlags         AccessMaskFromImageLayout(VkImageLayout Layout, bool IsDstMask);
-VkPipelineStageFlags  PipelineStageFromImageLayout(VkImageLayout Layout, bool IsDstStage);
-VkShaderStageFlagBits YgShaderStage2VkShaderStage(ShaderStage stage);
-VkPrimitiveTopology   YgPrimitiveTopology2VkPrimitiveTopology(PrimitiveTopology topology);
+VkFormat             YgTextureFormat2VkFormat(ITexture::Format format);
+ITexture::Format     VkFormat2YgTextureFormat(VkFormat format);
+VkFormat             YgShaderElementType2VkFormat(ShaderElementType type);
+VkImageLayout        AttachmentUsage2VkImageLayout(AttachmentUsage usage);
+VkAccessFlags        AccessMaskFromImageLayout(VkImageLayout Layout, bool IsDstMask);
+VkPipelineStageFlags PipelineStageFromImageLayout(VkImageLayout Layout, bool IsDstStage);
+VkShaderStageFlags   YgShaderStage2VkShaderStage(ShaderStage stage);
+VkPrimitiveTopology  YgPrimitiveTopology2VkPrimitiveTopology(PrimitiveTopology topology);
 
 YG_API PFN_vkVoidFunction VkLoadFunction(const char* funcName, void* instance);
 

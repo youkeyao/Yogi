@@ -30,6 +30,8 @@ void VulkanPipeline::CreateVkPipeline(const PipelineDesc& desc)
     VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
     VkDevice             device  = context->GetVkDevice();
 
+    bool isMeshShading = false;
+
     // --- Shader modules ---
     std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
     std::vector<VkShaderModule>                  shaderModules;
@@ -52,35 +54,48 @@ void VulkanPipeline::CreateVkPipeline(const PipelineDesc& desc)
 
         VkPipelineShaderStageCreateInfo stageInfo{};
         stageInfo.sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        stageInfo.stage  = YgShaderStage2VkShaderStage(shader->Stage);
+        stageInfo.stage  = static_cast<VkShaderStageFlagBits>(YgShaderStage2VkShaderStage(shader->Stage));
         stageInfo.module = shaderModule;
         stageInfo.pName  = "main";
         shaderStages.push_back(stageInfo);
+
+        if (shader && (shader->Stage == ShaderStage::Task || shader->Stage == ShaderStage::Mesh))
+        {
+            isMeshShading = true;
+        }
     }
 
-    // --- Vertex input ---
+    // --- Vertex input (not used for mesh shading pipelines) ---
     std::vector<VkVertexInputAttributeDescription> attributeDescs;
     VkVertexInputBindingDescription                bindingDesc{};
-    bindingDesc.binding   = 0;
-    bindingDesc.stride    = 0;
-    bindingDesc.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-    for (const auto& attr : desc.VertexLayout)
+    VkPipelineVertexInputStateCreateInfo           vertexInputInfo{};
+    VkPipelineInputAssemblyStateCreateInfo         inputAssembly{};
+    if (!isMeshShading)
     {
-        VkVertexInputAttributeDescription vkAttr{};
-        vkAttr.binding  = 0;
-        vkAttr.location = static_cast<uint32_t>(attributeDescs.size());
-        vkAttr.offset   = attr.Offset;
-        vkAttr.format   = YgShaderElementType2VkFormat(attr.Type);
-        attributeDescs.push_back(vkAttr);
-        bindingDesc.stride += attr.Size;
-    }
+        bindingDesc.binding   = 0;
+        bindingDesc.stride    = 0;
+        bindingDesc.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+        for (const auto& attr : desc.VertexLayout)
+        {
+            VkVertexInputAttributeDescription vkAttr{};
+            vkAttr.binding  = 0;
+            vkAttr.location = static_cast<uint32_t>(attributeDescs.size());
+            vkAttr.offset   = attr.Offset;
+            vkAttr.format   = YgShaderElementType2VkFormat(attr.Type);
+            attributeDescs.push_back(vkAttr);
+            bindingDesc.stride += attr.Size;
+        }
 
-    VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
-    vertexInputInfo.sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInputInfo.vertexBindingDescriptionCount   = bindingDesc.stride > 0 ? 1 : 0;
-    vertexInputInfo.pVertexBindingDescriptions      = &bindingDesc;
-    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescs.size());
-    vertexInputInfo.pVertexAttributeDescriptions    = attributeDescs.data();
+        vertexInputInfo.sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+        vertexInputInfo.vertexBindingDescriptionCount   = bindingDesc.stride > 0 ? 1 : 0;
+        vertexInputInfo.pVertexBindingDescriptions      = &bindingDesc;
+        vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescs.size());
+        vertexInputInfo.pVertexAttributeDescriptions    = attributeDescs.data();
+
+        inputAssembly.sType                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+        inputAssembly.topology               = YgPrimitiveTopology2VkPrimitiveTopology(desc.Topology);
+        inputAssembly.primitiveRestartEnable = VK_FALSE;
+    }
 
     // --- Dynamic States ---
     std::vector<VkDynamicState>      dynamicStates = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
@@ -88,12 +103,6 @@ void VulkanPipeline::CreateVkPipeline(const PipelineDesc& desc)
     dynamicState.sType             = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
     dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
     dynamicState.pDynamicStates    = dynamicStates.data();
-
-    // --- Input assembly ---
-    VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
-    inputAssembly.sType                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    inputAssembly.topology               = YgPrimitiveTopology2VkPrimitiveTopology(desc.Topology);
-    inputAssembly.primitiveRestartEnable = VK_FALSE;
 
     // --- Viewport & scissor (dynamic for now) ---
     VkPipelineViewportStateCreateInfo viewportState{};
@@ -153,8 +162,8 @@ void VulkanPipeline::CreateVkPipeline(const PipelineDesc& desc)
     pipelineInfo.sType               = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     pipelineInfo.stageCount          = static_cast<uint32_t>(shaderStages.size());
     pipelineInfo.pStages             = shaderStages.data();
-    pipelineInfo.pVertexInputState   = &vertexInputInfo;
-    pipelineInfo.pInputAssemblyState = &inputAssembly;
+    pipelineInfo.pVertexInputState   = isMeshShading ? nullptr : &vertexInputInfo;
+    pipelineInfo.pInputAssemblyState = isMeshShading ? nullptr : &inputAssembly;
     pipelineInfo.pViewportState      = &viewportState;
     pipelineInfo.pRasterizationState = &rasterizer;
     pipelineInfo.pMultisampleState   = &multisampling;

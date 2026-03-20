@@ -14,13 +14,22 @@ enum class ShaderResourceType : uint8_t
 
 enum class ShaderStage : uint8_t
 {
-    Vertex,
-    Geometry,
-    Fragment,
-    Compute,
-    Task,
-    Mesh
+    Vertex   = 1 << 0,
+    Geometry = 1 << 1,
+    Fragment = 1 << 2,
+    Compute  = 1 << 3,
+    Task     = 1 << 4,
+    Mesh     = 1 << 5
 };
+
+inline ShaderStage operator|(ShaderStage a, ShaderStage b)
+{
+    return static_cast<ShaderStage>(static_cast<uint8_t>(a) | static_cast<uint8_t>(b));
+}
+inline ShaderStage operator&(ShaderStage a, ShaderStage b)
+{
+    return static_cast<ShaderStage>(static_cast<uint8_t>(a) & static_cast<uint8_t>(b));
+}
 
 struct ShaderResourceAttribute
 {

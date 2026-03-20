@@ -6,10 +6,9 @@
 #extension GL_EXT_mesh_shader: require
 #extension GL_GOOGLE_include_directive: require
 
-#include "Renderer/MeshData.h"
+#include "Renderer/ShaderData.h"
 
-#define WGSIZE 32
-layout(local_size_x = WGSIZE, local_size_y = 1, local_size_z = 1) in;
+layout(local_size_x = MESH_WGSIZE, local_size_y = 1, local_size_z = 1) in;
 layout(triangles, max_vertices = MESHLET_MAX_VERTICES, max_primitives = MESHLET_MAX_TRIANGLES) out;
 
 layout(binding = 0) readonly buffer VertexBuffer
@@ -22,16 +21,18 @@ layout(binding = 1) readonly buffer MeshletBuffer
     MeshletData meshlets[];
 };
 
+taskPayloadSharedEXT TaskPayload payload;
+
 layout(location = 0) out vec4 v_Color[];
 
-vec3 hashToColor(uint id) {
+vec3 hashToColor(uint id)
+{
     uint hash = (id ^ 61u) ^ (id >> 16u);
     hash = hash + (hash << 3u);
     hash = hash ^ (hash >> 4u);
     hash = hash * 0x27d4eb2du;
     hash = hash ^ (hash >> 15u);
     
-    // 提取高、中、低位生成 RGB 颜色
     float r = float((hash >> 16u) & 0xFFu) / 255.0;
     float g = float((hash >> 8u)  & 0xFFu) / 255.0;
     float b = float(hash & 0xFFu)       / 255.0;
@@ -41,7 +42,7 @@ vec3 hashToColor(uint id) {
 
 void main()
 {
-    uint mi  = gl_WorkGroupID.x;
+    uint mi = payload.meshletIndices[gl_WorkGroupID.x];
     uint ti = gl_LocalInvocationIndex;
 
     uint vertexCount   = uint(meshlets[mi].VertexCount);
@@ -49,18 +50,18 @@ void main()
 
     SetMeshOutputsEXT(vertexCount, triangleCount);
 
-    for (uint i = ti; i < vertexCount; i += WGSIZE)
+    for (uint i = ti; i < vertexCount; i += MESH_WGSIZE)
     {
         uint vi      = meshlets[mi].Vertices[i];
         VertexData v = vertices[vi];
         vec3 position = vec3(v.vx, v.vy, v.vz);
         vec3 normal   = vec3(v.nx, v.ny, v.nz) / 127.0;
         gl_MeshVerticesEXT[i].gl_Position = vec4(position + vec3(0, 0, 0.5), 1.0);
-        // v_Color[i] = vec4(normal * 0.5 + 0.5, 1.0);
-        v_Color[i] = vec4(hashToColor(mi), 1);
+        v_Color[i] = vec4(normal * 0.5 + 0.5, 1.0);
+        // v_Color[i] = vec4(hashToColor(mi), 1);
     }
 
-    for (uint i = ti; i < triangleCount; i += WGSIZE)
+    for (uint i = ti; i < triangleCount; i += MESH_WGSIZE)
     {
         gl_PrimitiveTriangleIndicesEXT[i] = uvec3(
             uint(meshlets[mi].Indices[i * 3 + 0]),

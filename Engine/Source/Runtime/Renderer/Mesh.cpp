@@ -15,10 +15,10 @@ void Mesh::BuildMeshlets(const std::vector<Vertex>& vertices, const std::vector<
     size_t indexCount  = indices.size();
     size_t vertexCount = vertices.size();
 
-    size_t maxMeshlets = meshopt_buildMeshletsBound(indexCount, MeshletData::MAX_VERTICES, MeshletData::MAX_TRIANGLES);
+    size_t maxMeshlets = meshopt_buildMeshletsBound(indexCount, MESHLET_MAX_VERTICES, MESHLET_MAX_TRIANGLES);
     std::vector<meshopt_Meshlet> tmpMeshlets(maxMeshlets);
-    std::vector<unsigned int>    tmpVertices(maxMeshlets * MeshletData::MAX_VERTICES);
-    std::vector<unsigned char>   tmpIndices(maxMeshlets * MeshletData::MAX_TRIANGLES * 3);
+    std::vector<unsigned int>    tmpVertices(maxMeshlets * MESHLET_MAX_VERTICES);
+    std::vector<unsigned char>   tmpIndices(maxMeshlets * MESHLET_MAX_TRIANGLES * 3);
 
     size_t meshletCount = meshopt_buildMeshlets(tmpMeshlets.data(),
                                                 tmpVertices.data(),
@@ -28,8 +28,8 @@ void Mesh::BuildMeshlets(const std::vector<Vertex>& vertices, const std::vector<
                                                 &vertices[0].Position.x,
                                                 vertexCount,
                                                 sizeof(Vertex),
-                                                MeshletData::MAX_VERTICES,
-                                                MeshletData::MAX_TRIANGLES,
+                                                MESHLET_MAX_VERTICES,
+                                                MESHLET_MAX_TRIANGLES,
                                                 0.0f);
 
     m_vertices.resize(vertexCount);
@@ -57,6 +57,17 @@ void Mesh::BuildMeshlets(const std::vector<Vertex>& vertices, const std::vector<
         m_meshlets[i].TriangleCount = static_cast<uint8_t>(m.triangle_count);
         memcpy(m_meshlets[i].Vertices, &tmpVertices[m.vertex_offset], m.vertex_count * sizeof(unsigned int));
         memcpy(m_meshlets[i].Indices, &tmpIndices[m.triangle_offset], m.triangle_count * 3 * sizeof(unsigned char));
+
+        meshopt_Bounds meshletBounds = meshopt_computeMeshletBounds(&tmpVertices[m.vertex_offset],
+                                                        &tmpIndices[m.triangle_offset],
+                                                        m.triangle_count,
+                                                        &vertices[0].Position.x,
+                                                        vertexCount,
+                                                        sizeof(Vertex));
+        m_meshlets[i].cone[0] = meshletBounds.cone_axis[0];
+        m_meshlets[i].cone[1] = meshletBounds.cone_axis[1];
+        m_meshlets[i].cone[2] = meshletBounds.cone_axis[2];
+        m_meshlets[i].cone[3] = meshletBounds.cone_cutoff;
     }
 }
 

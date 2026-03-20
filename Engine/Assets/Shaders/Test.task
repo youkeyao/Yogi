@@ -1,0 +1,53 @@
+#version 460 core
+
+#extension GL_EXT_shader_explicit_arithmetic_types: require
+#extension GL_EXT_shader_16bit_storage: require
+#extension GL_EXT_shader_8bit_storage: require
+#extension GL_EXT_mesh_shader: require
+#extension GL_GOOGLE_include_directive: require
+
+#include "Renderer/ShaderData.h"
+
+layout(local_size_x = TASK_WGSIZE, local_size_y = 1, local_size_z = 1) in;
+
+layout(binding = 1) readonly buffer MeshletBuffer
+{
+    MeshletData meshlets[];
+};
+
+taskPayloadSharedEXT TaskPayload payload;
+
+#if CULL
+shared uint s_survivorCount;
+#endif
+
+bool coneCull(vec4 cone, vec3 view)
+{
+    return dot(cone.xyz, view) > cone.w;
+}
+
+void main()
+{
+    uint ti = gl_LocalInvocationIndex;
+    uint mi = gl_WorkGroupID.x * TASK_WGSIZE + ti;
+
+#if CULL
+    if (ti == 0)
+        s_survivorCount = 0;
+    barrier();
+
+    vec4 cone = vec4(meshlets[mi].cone[0], meshlets[mi].cone[1], meshlets[mi].cone[2], meshlets[mi].cone[3]);
+    bool visible = !coneCull(cone, vec3(0, 0, 1));
+    if (visible)
+    {
+        uint idx = atomicAdd(s_survivorCount, 1);
+        payload.meshletIndices[idx] = mi;
+    }
+    barrier();
+
+    EmitMeshTasksEXT(s_survivorCount, 1, 1);
+#else
+    payload.meshletIndices[ti] = mi;
+	EmitMeshTasksEXT(TASK_WGSIZE, 1, 1);
+#endif
+}

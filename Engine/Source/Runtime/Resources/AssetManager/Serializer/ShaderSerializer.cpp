@@ -45,7 +45,7 @@ private:
     std::filesystem::path m_shaderDir;
 };
 
-std::vector<uint8_t> CompileGlslToSpirv(const std::vector<uint8_t>& glslBinary, EShLanguage shaderStage)
+std::vector<uint8_t> CompileGlslToSpirv(const std::vector<uint8_t>& glslBinary, EShLanguage shaderStage, const std::string& key)
 {
     std::string source;
     source.assign(reinterpret_cast<const char*>(glslBinary.data()), glslBinary.size());
@@ -66,7 +66,7 @@ std::vector<uint8_t> CompileGlslToSpirv(const std::vector<uint8_t>& glslBinary, 
     {
         std::string log   = shader.getInfoLog();
         std::string debug = shader.getInfoDebugLog();
-        YG_CORE_ERROR("GLSL parse error:\n{0}\n{1}", log, debug);
+        YG_CORE_ERROR("{0} GLSL parse error:\n{1}\n{2}", key, log, debug);
         return {};
     }
 
@@ -77,14 +77,14 @@ std::vector<uint8_t> CompileGlslToSpirv(const std::vector<uint8_t>& glslBinary, 
     {
         std::string log   = program.getInfoLog();
         std::string debug = program.getInfoDebugLog();
-        YG_CORE_ERROR("GLSL link error:\n{0}\n{1}", log, debug);
+        YG_CORE_ERROR("{0} GLSL link error:\n{1}\n{2}", key, log, debug);
         return {};
     }
 
     const glslang::TIntermediate* intermediate = program.getIntermediate(shaderStage);
     if (!intermediate)
     {
-        YG_CORE_ERROR("Failed to get intermediate representation after linking.");
+        YG_CORE_ERROR("{0} Failed to get intermediate representation after linking.", key);
         return {};
     }
 
@@ -95,7 +95,7 @@ std::vector<uint8_t> CompileGlslToSpirv(const std::vector<uint8_t>& glslBinary, 
     std::string loggerMsg = logger.getAllMessages();
     if (!loggerMsg.empty())
     {
-        YG_CORE_WARN("GLSL->SPIRV validator/warnings:\n{0}", loggerMsg);
+        YG_CORE_WARN("{0} GLSL->SPIRV validator/warnings:\n{1}", key, loggerMsg);
     }
 
     std::vector<uint8_t> out;
@@ -114,13 +114,13 @@ Handle<ShaderDesc> ShaderSerializer::Deserialize(const std::vector<uint8_t>& bin
 {
     std::filesystem::path path(key);
     if (path.extension() == ".vert")
-        return Handle<ShaderDesc>::Create(ShaderStage::Vertex, CompileGlslToSpirv(binary, EShLangVertex));
+        return Handle<ShaderDesc>::Create(ShaderStage::Vertex, CompileGlslToSpirv(binary, EShLangVertex, key));
     else if (path.extension() == ".frag")
-        return Handle<ShaderDesc>::Create(ShaderStage::Fragment, CompileGlslToSpirv(binary, EShLangFragment));
+        return Handle<ShaderDesc>::Create(ShaderStage::Fragment, CompileGlslToSpirv(binary, EShLangFragment, key));
     else if (path.extension() == ".mesh")
-        return Handle<ShaderDesc>::Create(ShaderStage::Mesh, CompileGlslToSpirv(binary, EShLangMesh));
+        return Handle<ShaderDesc>::Create(ShaderStage::Mesh, CompileGlslToSpirv(binary, EShLangMesh, key));
     else if (path.extension() == ".task")
-        return Handle<ShaderDesc>::Create(ShaderStage::Task, CompileGlslToSpirv(binary, EShLangTask));
+        return Handle<ShaderDesc>::Create(ShaderStage::Task, CompileGlslToSpirv(binary, EShLangTask, key));
     return nullptr;
 }
 

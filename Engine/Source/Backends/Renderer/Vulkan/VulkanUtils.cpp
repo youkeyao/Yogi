@@ -421,26 +421,22 @@ VkPipelineStageFlags PipelineStageFromImageLayout(VkImageLayout Layout, bool IsD
     return StageMask;
 }
 
-VkShaderStageFlagBits YgShaderStage2VkShaderStage(ShaderStage stage)
+VkShaderStageFlags YgShaderStage2VkShaderStage(ShaderStage stage)
 {
-    switch (stage)
-    {
-        case ShaderStage::Vertex:
-            return VK_SHADER_STAGE_VERTEX_BIT;
-        case ShaderStage::Fragment:
-            return VK_SHADER_STAGE_FRAGMENT_BIT;
-        case ShaderStage::Compute:
-            return VK_SHADER_STAGE_COMPUTE_BIT;
-        case ShaderStage::Geometry:
-            return VK_SHADER_STAGE_GEOMETRY_BIT;
-        case ShaderStage::Task:
-            return VK_SHADER_STAGE_TASK_BIT_EXT;
-        case ShaderStage::Mesh:
-            return VK_SHADER_STAGE_MESH_BIT_EXT;
-        default:
-            YG_CORE_ERROR("Vulkan: Unsupported shader stage!");
-            return VK_SHADER_STAGE_FLAG_BITS_MAX_ENUM;
-    }
+    VkShaderStageFlags flags = 0;
+    if (static_cast<uint8_t>(stage & ShaderStage::Vertex))
+        flags |= VK_SHADER_STAGE_VERTEX_BIT;
+    if (static_cast<uint8_t>(stage & ShaderStage::Geometry))
+        flags |= VK_SHADER_STAGE_GEOMETRY_BIT;
+    if (static_cast<uint8_t>(stage & ShaderStage::Fragment))
+        flags |= VK_SHADER_STAGE_FRAGMENT_BIT;
+    if (static_cast<uint8_t>(stage & ShaderStage::Compute))
+        flags |= VK_SHADER_STAGE_COMPUTE_BIT;
+    if (static_cast<uint8_t>(stage & ShaderStage::Task))
+        flags |= VK_SHADER_STAGE_TASK_BIT_EXT;
+    if (static_cast<uint8_t>(stage & ShaderStage::Mesh))
+        flags |= VK_SHADER_STAGE_MESH_BIT_EXT;
+    return flags;
 }
 
 VkPrimitiveTopology YgPrimitiveTopology2VkPrimitiveTopology(PrimitiveTopology topology)

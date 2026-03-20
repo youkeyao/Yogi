@@ -21,7 +21,7 @@ ForwardRenderSystem::ForwardRenderSystem()
 
     m_shaderResourceBinding = ResourceManager::GetResource<IShaderResourceBinding>(std::vector<ShaderResourceAttribute>{
         ShaderResourceAttribute{ 0, 1, ShaderResourceType::StorageBuffer, ShaderStage::Mesh },
-        ShaderResourceAttribute{ 1, 1, ShaderResourceType::StorageBuffer, ShaderStage::Mesh } });
+        ShaderResourceAttribute{ 1, 1, ShaderResourceType::StorageBuffer, ShaderStage::Task | ShaderStage::Mesh } });
     m_shaderResourceBinding->BindBuffer(m_vertexStorageBuffer, 0);
     m_shaderResourceBinding->BindBuffer(m_meshletBuffer, 1);
 }
@@ -89,7 +89,9 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
             commandBuffer->SetPipeline(pipeline);
             commandBuffer->SetViewport({ 0, 0, (float)frameBuffer->GetWidth(), (float)frameBuffer->GetHeight() });
             commandBuffer->SetScissor({ 0, 0, frameBuffer->GetWidth(), frameBuffer->GetHeight() });
-            commandBuffer->DrawMeshTasks(static_cast<uint32_t>(meshlets.size()), 1, 1);
+            uint32_t meshletCount       = static_cast<uint32_t>(meshlets.size());
+            uint32_t taskWorkGroupCount = (meshletCount + TASK_WGSIZE - 1) / TASK_WGSIZE;
+            commandBuffer->DrawMeshTasks(taskWorkGroupCount, 1, 1);
         }
         batchVertices.clear();
         pipelineMeshlets.clear();
