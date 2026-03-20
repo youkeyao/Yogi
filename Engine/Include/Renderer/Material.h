@@ -12,7 +12,6 @@ public:
     struct MaterialPass
     {
         Ref<IPipeline>             Pipeline;
-        std::vector<uint8_t>       PassData;
         std::vector<Ref<ITexture>> Textures;
     };
 

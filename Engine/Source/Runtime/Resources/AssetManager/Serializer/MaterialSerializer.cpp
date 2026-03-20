@@ -12,6 +12,7 @@ struct PipelineData
     std::vector<std::string>             ShaderKeys;
     std::vector<VertexAttribute>         VertexLayout;
     std::vector<ShaderResourceAttribute> ShaderResourceLayout;
+    std::vector<PushConstantRange>       PushConstantRanges;
     std::string                          RenderPassKey;
     int                                  SubPassIndex;
     PrimitiveTopology                    Topology;
@@ -41,18 +42,19 @@ Handle<Material> MaterialSerializer::Deserialize(const std::vector<uint8_t>& bin
         }
         pipelineDesc.VertexLayout = pipelineData.VertexLayout;
         pipelineDesc.ShaderResourceBinding =
-            ResourceManager::GetResource<IShaderResourceBinding>(pipelineData.ShaderResourceLayout);
+            ResourceManager::GetResource<IShaderResourceBinding>(pipelineData.ShaderResourceLayout,
+                                                                 pipelineData.PushConstantRanges);
         pipelineDesc.RenderPass   = AssetManager::GetAsset<IRenderPass>(pipelineData.RenderPassKey);
         pipelineDesc.SubPassIndex = pipelineData.SubPassIndex;
         pipelineDesc.Topology     = pipelineData.Topology;
 
-        material->AddPass(Material::MaterialPass{ResourceManager::GetResource<IPipeline>(pipelineDesc), {}, {}});
+        auto passPipeline = ResourceManager::GetResource<IPipeline>(pipelineDesc);
+        material->AddPass(Material::MaterialPass{ passPipeline, {} });
     }
     auto materialPasses = material->GetPasses();
     int textureIndex = 0;
     for (int i = 0; i < materialPasses.size(); ++i)
     {
-        materialPasses[i].PassData = passData[i];
         materialPasses[i].Textures.resize(textureKeys.size());
         for (int j = 0; j < materialPasses[i].Textures.size(); ++j)
         {
@@ -88,11 +90,12 @@ std::vector<uint8_t> MaterialSerializer::Serialize(const Ref<Material>& asset, c
         }
         pipelineData.VertexLayout         = desc.VertexLayout;
         pipelineData.ShaderResourceLayout = desc.ShaderResourceBinding->GetLayout();
+        pipelineData.PushConstantRanges   = desc.ShaderResourceBinding->GetPushConstantRanges();
         pipelineData.RenderPassKey        = AssetManager::GetAssetKey<IRenderPass>(desc.RenderPass);
         pipelineData.SubPassIndex         = desc.SubPassIndex;
         pipelineData.Topology             = desc.Topology;
         pipelineDatas.emplace_back(pipelineData);
-        passData.emplace_back(pass.PassData);
+        passData.emplace_back();
         for (auto& texture : pass.Textures)
         {
             textureKeys.emplace_back(AssetManager::GetAssetKey<ITexture>(texture));

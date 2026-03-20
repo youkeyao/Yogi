@@ -37,9 +37,16 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
                               swapChain->GetNumSamples() });
 
     auto shaderResourceBinding =
-        Yogi::ResourceManager::GetResource<Yogi::IShaderResourceBinding>(std::vector<Yogi::ShaderResourceAttribute>{
-            Yogi::ShaderResourceAttribute{ 0, 1, Yogi::ShaderResourceType::StorageBuffer, Yogi::ShaderStage::Mesh },
-            Yogi::ShaderResourceAttribute{ 1, 1, Yogi::ShaderResourceType::StorageBuffer, Yogi::ShaderStage::Task | Yogi::ShaderStage::Mesh } });
+        Yogi::ResourceManager::GetResource<Yogi::IShaderResourceBinding>(
+            std::vector<Yogi::ShaderResourceAttribute>{
+                Yogi::ShaderResourceAttribute{ 0, 1, Yogi::ShaderResourceType::StorageBuffer, Yogi::ShaderStage::Mesh },
+                Yogi::ShaderResourceAttribute{
+                    1, 1, Yogi::ShaderResourceType::StorageBuffer, Yogi::ShaderStage::Task | Yogi::ShaderStage::Mesh },
+                Yogi::ShaderResourceAttribute{ 2, 1, Yogi::ShaderResourceType::StorageBuffer, Yogi::ShaderStage::Mesh } },
+            std::vector<Yogi::PushConstantRange>{
+                Yogi::PushConstantRange{ Yogi::ShaderStage::Task | Yogi::ShaderStage::Mesh,
+                                         0,
+                                         static_cast<uint32_t>(sizeof(Yogi::Matrix4)) } });
 
     // Yogi::Ref<Yogi::ShaderDesc> vertexShader =
     //     Yogi::AssetManager::GetAsset<Yogi::ShaderDesc>("EngineAssets/Shaders/Test.vert");
@@ -64,10 +71,10 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
 
     m_box = m_world->CreateEntity();
     m_box.AddComponent<Yogi::TransformComponent>();
-    auto& meshRenderer                 = m_box.AddComponent<Yogi::MeshRendererComponent>();
-    meshRenderer.Mesh                  = Yogi::AssetManager::GetAsset<Yogi::Mesh>("EngineAssets/Meshes/Armadillo.obj::defaultobject");
+    auto& meshRenderer = m_box.AddComponent<Yogi::MeshRendererComponent>();
+    meshRenderer.Mesh  = Yogi::AssetManager::GetAsset<Yogi::Mesh>("EngineAssets/Meshes/Armadillo.obj::defaultobject");
     Yogi::Ref<Yogi::Material> material = Yogi::ResourceManager::GetResource<Yogi::Material>();
-    material->AddPass(Yogi::Material::MaterialPass{ pipeline, {}, {} });
+    material->AddPass(Yogi::Material::MaterialPass{ pipeline, {} });
     meshRenderer.Material = material;
 }
 

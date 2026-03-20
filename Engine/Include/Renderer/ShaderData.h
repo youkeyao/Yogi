@@ -1,12 +1,14 @@
 #ifdef __cplusplus
 #    pragma once
 #    include <cstdint>
+#    include "Math/Matrix.h"
 #    define uint      uint32_t
 #    define int8_t    int8_t
 #    define uint8_t   uint8_t
 #    define float16_t uint16_t
+#    define mat4      Yogi::Matrix4
 #else
-#    define CULL        1
+#    define CULL        0
 #    define MESH_WGSIZE 32
 #endif
 
@@ -24,11 +26,15 @@ struct VertexData
 
 struct MeshletData
 {
-    float   cone[4];
-    uint    Vertices[MESHLET_MAX_VERTICES];
-    uint8_t Indices[MESHLET_MAX_TRIANGLES * 3];
+    float   Cone[4];
+    uint    DataOffset;
     uint8_t TriangleCount;
     uint8_t VertexCount;
+};
+
+struct SceneData
+{
+    mat4 ProjectionViewMatrix;
 };
 
 #ifdef __cplusplus

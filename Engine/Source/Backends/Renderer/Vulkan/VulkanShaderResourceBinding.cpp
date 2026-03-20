@@ -9,15 +9,18 @@ namespace Yogi
 {
 
 Handle<IShaderResourceBinding> IShaderResourceBinding::Create(
-    const std::vector<ShaderResourceAttribute>& shaderResourceLayout)
+    const std::vector<ShaderResourceAttribute>& shaderResourceLayout,
+    const std::vector<PushConstantRange>&       pushConstantRanges)
 {
-    return Handle<VulkanShaderResourceBinding>::Create(shaderResourceLayout);
+    return Handle<VulkanShaderResourceBinding>::Create(shaderResourceLayout, pushConstantRanges);
 }
 
 VulkanShaderResourceBinding::VulkanShaderResourceBinding(
-    const std::vector<ShaderResourceAttribute>& shaderResourceLayout)
+    const std::vector<ShaderResourceAttribute>& shaderResourceLayout,
+    const std::vector<PushConstantRange>&       pushConstantRanges)
 {
-    m_layout = shaderResourceLayout;
+    m_layout              = shaderResourceLayout;
+    m_pushConstantRanges  = pushConstantRanges;
 
     VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
     VkDevice             device  = context->GetVkDevice();
@@ -54,12 +57,23 @@ VulkanShaderResourceBinding::VulkanShaderResourceBinding(
 
     m_descriptorSet = context->AllocateVkDescriptorSet(m_descriptorSetLayout);
 
+    std::vector<VkPushConstantRange> vkPushConstantRanges;
+    vkPushConstantRanges.reserve(m_pushConstantRanges.size());
+    for (const auto& range : m_pushConstantRanges)
+    {
+        VkPushConstantRange vkRange{};
+        vkRange.stageFlags = YgShaderStage2VkShaderStage(range.Stage);
+        vkRange.offset     = range.Offset;
+        vkRange.size       = range.Size;
+        vkPushConstantRanges.push_back(vkRange);
+    }
+
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutInfo.setLayoutCount         = 1;
     pipelineLayoutInfo.pSetLayouts            = &m_descriptorSetLayout;
-    pipelineLayoutInfo.pushConstantRangeCount = 0;
-    pipelineLayoutInfo.pPushConstantRanges    = nullptr;
+    pipelineLayoutInfo.pushConstantRangeCount = static_cast<uint32_t>(vkPushConstantRanges.size());
+    pipelineLayoutInfo.pPushConstantRanges = vkPushConstantRanges.empty() ? nullptr : vkPushConstantRanges.data();
 
     result = vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &m_pipelineLayout);
     YG_CORE_ASSERT(result == VK_SUCCESS, "Vulkan: Failed to create pipeline layout");

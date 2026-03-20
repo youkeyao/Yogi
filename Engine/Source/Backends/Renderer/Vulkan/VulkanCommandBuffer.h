@@ -29,6 +29,11 @@ public:
     void SetViewport(const Viewport& viewport) override;
     void SetScissor(const Scissor& scissor) override;
     void SetShaderResourceBinding(const Ref<IShaderResourceBinding>& binding) override;
+    void SetPushConstants(const Ref<IShaderResourceBinding>& binding,
+                          ShaderStage                        stage,
+                          uint32_t                           offset,
+                          uint32_t                           size,
+                          const void*                        data) override;
 
     void Draw(uint32_t vertexCount,
               uint32_t instanceCount = 1,

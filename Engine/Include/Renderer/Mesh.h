@@ -20,6 +20,7 @@ public:
 
     inline const std::vector<VertexData>&  GetVertices() const { return m_vertices; }
     inline const std::vector<MeshletData>& GetMeshlets() const { return m_meshlets; }
+    inline const std::vector<uint32_t>&    GetMeshletData() const { return m_meshletData; }
 
 private:
     void BuildMeshlets(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
@@ -27,6 +28,7 @@ private:
 private:
     std::vector<VertexData>  m_vertices;
     std::vector<MeshletData> m_meshlets;
+    std::vector<uint32_t>    m_meshletData;
 };
 
 } // namespace Yogi

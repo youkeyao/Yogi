@@ -32,16 +32,19 @@ private:
     void EndRender(Ref<ICommandBuffer>& commandBuffer);
 
 private:
-    static const uint32_t MAX_TRIANGLES      = 100000;
-    static const uint32_t MAX_VERTICES       = MAX_TRIANGLES * 3;
-    static const uint32_t MAX_VERTICES_SIZE  = MAX_VERTICES * sizeof(VertexData);
-    static const uint32_t MAX_MESHLETS       = 10000;
-    static const uint32_t MAX_MESHLET_SIZE   = MAX_MESHLETS * sizeof(MeshletData);
+    static const uint32_t MAX_TRIANGLES     = 100000;
+    static const uint32_t MAX_VERTICES      = MAX_TRIANGLES * 3;
+    static const uint32_t MAX_VERTICES_SIZE = MAX_VERTICES * sizeof(VertexData);
+    static const uint32_t MAX_MESHLETS      = 10000;
+    static const uint32_t MAX_MESHLET_SIZE  = MAX_MESHLETS * sizeof(MeshletData);
+    static const uint32_t MAX_MESHLET_DATA_SIZE =
+        MAX_MESHLETS * (MESHLET_MAX_VERTICES + MESHLET_MAX_TRIANGLES * 3) * sizeof(uint32_t);
 
     SceneData m_sceneData;
 
     Ref<IBuffer> m_vertexStorageBuffer = nullptr;
     Ref<IBuffer> m_meshletBuffer       = nullptr;
+    Ref<IBuffer> m_meshletDataBuffer   = nullptr;
 
     std::vector<Ref<IRenderPass>> m_renderPasses;
     Ref<IShaderResourceBinding>   m_shaderResourceBinding = nullptr;

@@ -3,6 +3,7 @@
 #include "VulkanPipeline.h"
 #include "VulkanBuffer.h"
 #include "VulkanShaderResourceBinding.h"
+#include "VulkanUtils.h"
 
 #include <volk.h>
 
@@ -218,6 +219,17 @@ void VulkanCommandBuffer::SetShaderResourceBinding(const Ref<IShaderResourceBind
     VkDescriptorSet set = vkBinding->GetVkDescriptorSet();
     vkCmdBindDescriptorSets(
         m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkBinding->GetVkPipelineLayout(), 0, 1, &set, 0, nullptr);
+}
+
+void VulkanCommandBuffer::SetPushConstants(const Ref<IShaderResourceBinding>& binding,
+                                           ShaderStage                        stage,
+                                           uint32_t                           offset,
+                                           uint32_t                           size,
+                                           const void*                        data)
+{
+    Ref<VulkanShaderResourceBinding> vkBinding = Ref<VulkanShaderResourceBinding>::Cast(binding);
+    vkCmdPushConstants(
+        m_commandBuffer, vkBinding->GetVkPipelineLayout(), YgShaderStage2VkShaderStage(stage), offset, size, data);
 }
 
 void VulkanCommandBuffer::Draw(uint32_t vertexCount,

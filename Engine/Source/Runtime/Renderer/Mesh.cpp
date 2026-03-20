@@ -55,19 +55,23 @@ void Mesh::BuildMeshlets(const std::vector<Vertex>& vertices, const std::vector<
         const auto& m               = tmpMeshlets[i];
         m_meshlets[i].VertexCount   = static_cast<uint8_t>(m.vertex_count);
         m_meshlets[i].TriangleCount = static_cast<uint8_t>(m.triangle_count);
-        memcpy(m_meshlets[i].Vertices, &tmpVertices[m.vertex_offset], m.vertex_count * sizeof(unsigned int));
-        memcpy(m_meshlets[i].Indices, &tmpIndices[m.triangle_offset], m.triangle_count * 3 * sizeof(unsigned char));
+        m_meshlets[i].DataOffset    = static_cast<uint32_t>(m_meshletData.size());
+        m_meshletData.insert(
+            m_meshletData.end(), &tmpVertices[m.vertex_offset], &tmpVertices[m.vertex_offset + m.vertex_count]);
+        const unsigned int* indexGroups     = reinterpret_cast<const unsigned int*>(&tmpIndices[m.triangle_offset]);
+        int                 indexGroupCount = (m.triangle_count * 3 + 3) / 4;
+        m_meshletData.insert(m_meshletData.end(), indexGroups, indexGroups + indexGroupCount);
 
         meshopt_Bounds meshletBounds = meshopt_computeMeshletBounds(&tmpVertices[m.vertex_offset],
-                                                        &tmpIndices[m.triangle_offset],
-                                                        m.triangle_count,
-                                                        &vertices[0].Position.x,
-                                                        vertexCount,
-                                                        sizeof(Vertex));
-        m_meshlets[i].cone[0] = meshletBounds.cone_axis[0];
-        m_meshlets[i].cone[1] = meshletBounds.cone_axis[1];
-        m_meshlets[i].cone[2] = meshletBounds.cone_axis[2];
-        m_meshlets[i].cone[3] = meshletBounds.cone_cutoff;
+                                                                    &tmpIndices[m.triangle_offset],
+                                                                    m.triangle_count,
+                                                                    &vertices[0].Position.x,
+                                                                    vertexCount,
+                                                                    sizeof(Vertex));
+        m_meshlets[i].Cone[0]        = meshletBounds.cone_axis[0];
+        m_meshlets[i].Cone[1]        = meshletBounds.cone_axis[1];
+        m_meshlets[i].Cone[2]        = meshletBounds.cone_axis[2];
+        m_meshlets[i].Cone[3]        = meshletBounds.cone_cutoff;
     }
 }
 

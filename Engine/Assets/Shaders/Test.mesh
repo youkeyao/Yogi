@@ -21,7 +21,22 @@ layout(binding = 1) readonly buffer MeshletBuffer
     MeshletData meshlets[];
 };
 
+layout(binding = 2) readonly buffer MeshletDataBuffer
+{
+    uint meshletData[];
+};
+
+layout(binding = 2) readonly buffer MeshletData8Buffer
+{
+	uint8_t meshletData8[];
+};
+
 taskPayloadSharedEXT TaskPayload payload;
+
+layout(push_constant) uniform SceneDataBlock
+{
+    SceneData sceneData;
+};
 
 layout(location = 0) out vec4 v_Color[];
 
@@ -45,28 +60,27 @@ void main()
     uint mi = payload.meshletIndices[gl_WorkGroupID.x];
     uint ti = gl_LocalInvocationIndex;
 
-    uint vertexCount   = uint(meshlets[mi].VertexCount);
+    uint dataOffset = uint(meshlets[mi].DataOffset);
+    uint vertexCount = uint(meshlets[mi].VertexCount);
     uint triangleCount = uint(meshlets[mi].TriangleCount);
 
     SetMeshOutputsEXT(vertexCount, triangleCount);
 
     for (uint i = ti; i < vertexCount; i += MESH_WGSIZE)
     {
-        uint vi      = meshlets[mi].Vertices[i];
+        uint vi = meshletData[dataOffset + i];
         VertexData v = vertices[vi];
         vec3 position = vec3(v.vx, v.vy, v.vz);
         vec3 normal   = vec3(v.nx, v.ny, v.nz) / 127.0;
-        gl_MeshVerticesEXT[i].gl_Position = vec4(position + vec3(0, 0, 0.5), 1.0);
+        gl_MeshVerticesEXT[i].gl_Position = sceneData.ProjectionViewMatrix * vec4(position, 1.0);
         v_Color[i] = vec4(normal * 0.5 + 0.5, 1.0);
         // v_Color[i] = vec4(hashToColor(mi), 1);
     }
 
     for (uint i = ti; i < triangleCount; i += MESH_WGSIZE)
     {
-        gl_PrimitiveTriangleIndicesEXT[i] = uvec3(
-            uint(meshlets[mi].Indices[i * 3 + 0]),
-            uint(meshlets[mi].Indices[i * 3 + 1]),
-            uint(meshlets[mi].Indices[i * 3 + 2])
-        );
+        uint offset = (dataOffset + vertexCount) * 4 + i * 3;
+		uint a = uint(meshletData8[offset]), b = uint(meshletData8[offset + 1]), c = uint(meshletData8[offset + 2]);
+        gl_PrimitiveTriangleIndicesEXT[i] = uvec3(a, b, c);
     }
 }

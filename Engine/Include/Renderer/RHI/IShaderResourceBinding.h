@@ -39,6 +39,13 @@ struct ShaderResourceAttribute
     ShaderStage        Stage;
 };
 
+struct PushConstantRange
+{
+    ShaderStage Stage;
+    uint32_t    Offset;
+    uint32_t    Size;
+};
+
 class YG_API IShaderResourceBinding
 {
 public:
@@ -48,11 +55,14 @@ public:
     virtual void BindTexture(const Ref<ITexture>& texture, int binding, int slot = 0) = 0;
 
     const std::vector<ShaderResourceAttribute>& GetLayout() const { return m_layout; }
+    const std::vector<PushConstantRange>&       GetPushConstantRanges() const { return m_pushConstantRanges; }
 
-    static Handle<IShaderResourceBinding> Create(const std::vector<ShaderResourceAttribute>& shaderResourceLayout);
+    static Handle<IShaderResourceBinding> Create(const std::vector<ShaderResourceAttribute>& shaderResourceLayout,
+                                                 const std::vector<PushConstantRange>&       pushConstantRanges = {});
 
 protected:
     std::vector<ShaderResourceAttribute> m_layout;
+    std::vector<PushConstantRange>       m_pushConstantRanges;
 };
 
 template <>

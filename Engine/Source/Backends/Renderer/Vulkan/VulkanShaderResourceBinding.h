@@ -12,7 +12,8 @@ namespace Yogi
 class VulkanShaderResourceBinding : public IShaderResourceBinding
 {
 public:
-    VulkanShaderResourceBinding(const std::vector<ShaderResourceAttribute>& shaderResourceLayout);
+    VulkanShaderResourceBinding(const std::vector<ShaderResourceAttribute>& shaderResourceLayout,
+                                const std::vector<PushConstantRange>&       pushConstantRanges);
     virtual ~VulkanShaderResourceBinding();
 
     void BindBuffer(const Ref<IBuffer>& buffer, int binding, int slot = 0) override;
