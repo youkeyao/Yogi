@@ -9,7 +9,7 @@
 namespace Yogi
 {
 
-Handle<Mesh> ProcessMesh(aiMesh* mesh, const aiScene* scene)
+Owner<Mesh> ProcessMesh(aiMesh* mesh, const aiScene* scene)
 {
     std::vector<Vertex>   vertices;
     std::vector<uint32_t> indices;
@@ -46,9 +46,9 @@ Handle<Mesh> ProcessMesh(aiMesh* mesh, const aiScene* scene)
     meshopt_optimizeVertexFetch(
         vertices.data(), indices.data(), indices.size(), vertices.data(), vertices.size(), sizeof(Vertex));
 
-    return Handle<Mesh>::Create(vertices, indices);
+    return Owner<Mesh>::Create(vertices, indices);
 }
-Handle<Mesh> ProcessNode(aiNode* node, const aiScene* scene, const std::string& meshName)
+Owner<Mesh> ProcessNode(aiNode* node, const aiScene* scene, const std::string& meshName)
 {
     for (int i = 0; i < node->mNumMeshes; ++i)
     {
@@ -71,7 +71,7 @@ Handle<Mesh> ProcessNode(aiNode* node, const aiScene* scene, const std::string& 
 
 // --------------------------------------------------------------------------------
 
-Handle<Mesh> MeshSerializer::Deserialize(const std::vector<uint8_t>& binary, const std::string& key)
+Owner<Mesh> MeshSerializer::Deserialize(const std::vector<uint8_t>& binary, const std::string& key)
 {
     size_t      sepPos   = key.find("::");
     std::string filepath = key;

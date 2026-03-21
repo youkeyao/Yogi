@@ -50,7 +50,7 @@ public:
 
     virtual void SetData(void* data, uint32_t size) = 0;
 
-    static Handle<ITexture> Create(const TextureDesc& desc);
+    static Owner<ITexture> Create(const TextureDesc& desc);
 };
 
 struct TextureDesc
@@ -65,7 +65,7 @@ struct TextureDesc
 
 template <>
 template <typename... Args>
-Handle<ITexture> Handle<ITexture>::Create(Args&&... args)
+Owner<ITexture> Owner<ITexture>::Create(Args&&... args)
 {
     return ITexture::Create(std::forward<Args>(args)...);
 }

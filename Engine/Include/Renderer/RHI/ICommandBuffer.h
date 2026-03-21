@@ -90,12 +90,12 @@ public:
 
     virtual void Blit(const Ref<ITexture>& src, const Ref<ITexture>& dst) = 0;
 
-    static Handle<ICommandBuffer> Create(const CommandBufferDesc& desc);
+    static Owner<ICommandBuffer> Create(const CommandBufferDesc& desc);
 };
 
 template <>
 template <typename... Args>
-inline Handle<ICommandBuffer> Handle<ICommandBuffer>::Create(Args&&... args)
+inline Owner<ICommandBuffer> Owner<ICommandBuffer>::Create(Args&&... args)
 {
     return ICommandBuffer::Create(std::forward<Args>(args)...);
 }

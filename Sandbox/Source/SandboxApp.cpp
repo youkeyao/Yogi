@@ -6,12 +6,9 @@
 class Sandbox : public Yogi::Application
 {
 public:
-    Sandbox() { PushLayer(Yogi::Handle<Sandbox2D>::Create()); }
+    Sandbox() { PushLayer(Yogi::Owner<Sandbox2D>::Create()); }
 
     ~Sandbox() {}
 };
 
-Yogi::Application* Yogi::CreateApplication()
-{
-    return new Sandbox();
-}
+Yogi::Application* Yogi::CreateApplication() { return new Sandbox(); }

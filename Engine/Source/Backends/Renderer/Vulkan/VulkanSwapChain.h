@@ -48,11 +48,11 @@ private:
     VkSwapchainKHR m_swapChain    = VK_NULL_HANDLE;
     VkQueue        m_presentQueue = VK_NULL_HANDLE;
 
-    std::vector<Handle<VulkanTexture>> m_colorTextures;
-    std::vector<Handle<VulkanTexture>> m_depthTextures;
+    std::vector<Owner<VulkanTexture>> m_colorTextures;
+    std::vector<Owner<VulkanTexture>> m_depthTextures;
 
     std::vector<VkSemaphore>                 m_imageAvailableSemaphores;
-    std::vector<Handle<VulkanCommandBuffer>> m_commandBuffers;
+    std::vector<Owner<VulkanCommandBuffer>> m_commandBuffers;
 
     uint32_t            m_width;
     uint32_t            m_height;

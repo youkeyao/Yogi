@@ -10,9 +10,9 @@
 namespace Yogi
 {
 
-Handle<ICommandBuffer> ICommandBuffer::Create(const CommandBufferDesc& desc)
+Owner<ICommandBuffer> ICommandBuffer::Create(const CommandBufferDesc& desc)
 {
-    return Handle<VulkanCommandBuffer>::Create(desc);
+    return Owner<VulkanCommandBuffer>::Create(desc);
 }
 
 VulkanCommandBuffer::VulkanCommandBuffer(const CommandBufferDesc& desc) :

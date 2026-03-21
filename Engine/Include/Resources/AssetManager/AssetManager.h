@@ -7,11 +7,11 @@ namespace Yogi
 {
 
 template <typename T>
-class AssetControlBlock : public Handle<T>::ControlBlock
+class AssetControlBlock : public Owner<T>::ControlBlock
 {
 public:
-    AssetControlBlock(T* p, int count, std::function<void()> callBackFunc, const std::string& key) :
-        Handle<T>::ControlBlock(p, count),
+    AssetControlBlock(T* p, std::function<void()> callBackFunc, const std::string& key) :
+        Owner<T>::ControlBlock(p),
         m_callBackFunc(callBackFunc),
         m_key(key)
     {}
@@ -20,9 +20,15 @@ public:
 
     void SubRef() override
     {
-        --this->m_count;
-        if (this->m_count == 1 && m_callBackFunc)
+        const int refCount = --this->m_count;
+        if (refCount == 1 && m_callBackFunc)
+        {
             m_callBackFunc();
+        }
+        else if (refCount == 0)
+        {
+            delete this;
+        }
     }
 
     void Release() override
@@ -42,14 +48,13 @@ class YG_API AssetManager
 {
 public:
     template <typename T>
-    static Ref<T> SetAsset(Handle<T>&& asset, const std::string& key)
+    static Ref<T> SetAsset(Owner<T>&& asset, const std::string& key)
     {
         auto& assetMap = GetAssetMap<T>();
         T*    ptr      = asset.Get();
         delete asset.GetCB();
         asset.SetCB(new AssetControlBlock<T>(
             ptr,
-            1,
             [&assetMap, key]() {
                 auto it = assetMap.find(key);
                 if (it != assetMap.end() && it->second.GetRefCount() == 1)
@@ -119,7 +124,7 @@ public:
     template <typename T, typename... Args>
     static void PushAssetSource(Args&&... args)
     {
-        s_sources.push_back(Handle<T>::Create(std::forward<Args>(args)...));
+        s_sources.push_back(Owner<T>::Create(std::forward<Args>(args)...));
     }
     static void PopAssetSource() { s_sources.pop_back(); }
 
@@ -134,19 +139,19 @@ public:
     }
 
     template <typename T>
-    static std::unordered_map<std::string, Handle<T>>& GetAssetMap()
+    static std::unordered_map<std::string, Owner<T>>& GetAssetMap()
     {
         auto it = s_assetMaps.find(typeid(T));
         if (it == s_assetMaps.end())
         {
-            auto* newMap             = new std::unordered_map<std::string, Handle<T>>();
+            auto* newMap             = new std::unordered_map<std::string, Owner<T>>();
             void (*deleterFn)(void*) = +[](void* p) {
-                delete static_cast<std::unordered_map<std::string, Handle<T>>*>(p);
+                delete static_cast<std::unordered_map<std::string, Owner<T>>*>(p);
             };
             s_assetMaps[typeid(T)] = Any{ newMap, VoidDeleter(deleterFn) };
             return *newMap;
         }
-        return *static_cast<std::unordered_map<std::string, Handle<T>>*>(it->second.get());
+        return *static_cast<std::unordered_map<std::string, Owner<T>>*>(it->second.get());
     }
 
     static void Clear()
@@ -183,7 +188,7 @@ protected:
     }
 
 private:
-    static std::vector<Handle<IAssetSource>>        s_sources;
+    static std::vector<Owner<IAssetSource>>         s_sources;
     static std::unordered_map<std::type_index, Any> s_serializers;
     static std::unordered_map<std::type_index, Any> s_assetMaps;
 };

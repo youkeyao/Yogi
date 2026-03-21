@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Core/Handle.h"
+#include "Core/Owner.h"
 
 namespace Yogi
 {
@@ -45,13 +45,13 @@ public:
     }
 
     template <typename U, typename = std::enable_if_t<std::is_convertible<U*, T*>::value>>
-    Ref(const Ref<U>& other) : m_cb(static_cast<Handle<T>::ControlBlock*>(other.m_cb))
+    Ref(const Ref<U>& other) : m_cb(reinterpret_cast<typename Owner<T>::ControlBlock*>(other.m_cb))
     {
         if (m_cb)
-            m_cb->Count++;
+            m_cb->AddRef();
     }
     template <typename U, typename = std::enable_if_t<std::is_convertible<U*, T*>::value>>
-    Ref(Ref<U>&& other) noexcept : m_cb(reinterpret_cast<Handle<T>::ControlBlock*>(other.m_cb))
+    Ref(Ref<U>&& other) noexcept : m_cb(reinterpret_cast<typename Owner<T>::ControlBlock*>(other.m_cb))
     {
         other.m_cb = nullptr;
     }
@@ -59,43 +59,44 @@ public:
     template <typename U, typename = std::enable_if_t<std::is_convertible<T*, U*>::value>>
     static Ref<T> Cast(const Ref<U>& other)
     {
-        return Ref(reinterpret_cast<Handle<T>::ControlBlock*>(other.m_cb));
+        return Ref(reinterpret_cast<typename Owner<T>::ControlBlock*>(other.m_cb));
     }
 
     ~Ref() { Release(); }
 
-    inline T*                       Get() const { return m_cb->Ptr(); }
-    inline Handle<T>::ControlBlock* GetCB() const { return m_cb; }
+    inline T*                               Get() const { return m_cb ? m_cb->Ptr() : nullptr; }
+    inline typename Owner<T>::ControlBlock* GetCB() const { return m_cb; }
 
-    inline T*       operator->() { return m_cb->Ptr(); }
-    inline const T* operator->() const { return m_cb->Ptr(); }
+    inline T*       operator->() { return Get(); }
+    inline const T* operator->() const { return Get(); }
 
-    inline T&       operator*() { return *m_cb->Ptr(); }
-    inline const T& operator*() const { return *m_cb->Ptr(); }
+    inline T&       operator*() { return *Get(); }
+    inline const T& operator*() const { return *Get(); }
 
     inline bool operator==(const Ref& other) const noexcept { return m_cb == other.m_cb; }
-    inline bool operator==(const Handle<T>& handle) const noexcept { return m_cb == handle.GetCB(); }
+    inline bool operator==(const Owner<T>& owner) const noexcept { return m_cb == owner.GetCB(); }
 
-    inline operator bool() const { return m_cb != nullptr; }
+    inline operator bool() const { return Get() != nullptr; }
 
-    static Ref Create(const Handle<T>& handle) { return Ref(handle.GetCB()); }
+    static Ref Create(const Owner<T>& owner) { return Ref(owner.GetCB()); }
 
 private:
-    explicit Ref(Handle<T>::ControlBlock* cb) : m_cb(cb) { m_cb->AddRef(); }
+    explicit Ref(typename Owner<T>::ControlBlock* cb) : m_cb(cb)
+    {
+        if (m_cb)
+            m_cb->AddRef();
+    }
     void Release()
     {
         if (m_cb)
         {
             m_cb->SubRef();
-            if (m_cb->GetRefCount() == 0)
-            {
-                delete m_cb;
-            }
+            m_cb = nullptr;
         }
     }
 
 private:
-    Handle<T>::ControlBlock* m_cb;
+    typename Owner<T>::ControlBlock* m_cb;
 };
 
 } // namespace Yogi

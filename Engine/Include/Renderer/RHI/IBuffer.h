@@ -39,12 +39,12 @@ public:
     // Buffer operations
     virtual void UpdateData(const void* data, uint32_t size, uint32_t offset = 0) = 0;
 
-    static Handle<IBuffer> Create(const BufferDesc& desc);
+    static Owner<IBuffer> Create(const BufferDesc& desc);
 };
 
 template <>
 template <typename... Args>
-inline Handle<IBuffer> Handle<IBuffer>::Create(Args&&... args)
+inline Owner<IBuffer> Owner<IBuffer>::Create(Args&&... args)
 {
     return IBuffer::Create(std::forward<Args>(args)...);
 }

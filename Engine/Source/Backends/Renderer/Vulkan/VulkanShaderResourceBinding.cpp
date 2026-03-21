@@ -8,11 +8,11 @@
 namespace Yogi
 {
 
-Handle<IShaderResourceBinding> IShaderResourceBinding::Create(
+Owner<IShaderResourceBinding> IShaderResourceBinding::Create(
     const std::vector<ShaderResourceAttribute>& shaderResourceLayout,
     const std::vector<PushConstantRange>&       pushConstantRanges)
 {
-    return Handle<VulkanShaderResourceBinding>::Create(shaderResourceLayout, pushConstantRanges);
+    return Owner<VulkanShaderResourceBinding>::Create(shaderResourceLayout, pushConstantRanges);
 }
 
 VulkanShaderResourceBinding::VulkanShaderResourceBinding(

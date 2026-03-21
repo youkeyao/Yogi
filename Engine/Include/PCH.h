@@ -39,7 +39,7 @@
 #endif
 
 #include "Core/Log.h"
-#include "Core/Handle.h"
+#include "Core/Owner.h"
 #include "Core/Ref.h"
 #include "Debug/Instrumentor.h"
 

@@ -25,7 +25,7 @@ void ContentBrowserLayer::OnUpdate(Timestep ts)
     {
         if (ImGui::MenuItem("Create Material"))
         {
-            Handle<Material> material = Handle<Material>::Create();
+            Owner<Material> material = Owner<Material>::Create();
             std::string      name     = "NewMaterial";
             while (std::filesystem::exists(m_baseDirectory / m_relativeDirectory / (name + ".mat")))
             {
@@ -37,7 +37,7 @@ void ContentBrowserLayer::OnUpdate(Timestep ts)
         if (ImGui::MenuItem("Create Render Pass"))
         {
             auto&               swapChain  = Application::GetInstance().GetSwapChain();
-            Handle<IRenderPass> renderPass = Handle<IRenderPass>::Create(RenderPassDesc{
+            Owner<IRenderPass> renderPass = Owner<IRenderPass>::Create(RenderPassDesc{
                 { AttachmentDesc{ swapChain->GetColorFormat(), AttachmentUsage::Present } },
                 AttachmentDesc{
                     swapChain->GetDepthFormat(), AttachmentUsage::ShaderRead, LoadOp::Clear, StoreOp::DontCare },
@@ -55,7 +55,7 @@ void ContentBrowserLayer::OnUpdate(Timestep ts)
             auto shaderResourceBinding = Yogi::ResourceManager::GetResource<Yogi::IShaderResourceBinding>(
                 std::vector<Yogi::ShaderResourceAttribute>{ Yogi::ShaderResourceAttribute{
                     0, 1, Yogi::ShaderResourceType::Buffer, Yogi::ShaderStage::Vertex } });
-            Handle<IPipeline> pipeline = Handle<IPipeline>::Create(
+            Owner<IPipeline> pipeline = Owner<IPipeline>::Create(
                 PipelineDesc{ { AssetManager::GetAsset<ShaderDesc>("EngineAssets/Shaders/Test.vert"),
                                 AssetManager::GetAsset<ShaderDesc>("EngineAssets/Shaders/Test.frag") },
                               { Yogi::VertexAttribute{ "a_Position", 0, 12, Yogi::ShaderElementType::Float3 },
@@ -74,7 +74,7 @@ void ContentBrowserLayer::OnUpdate(Timestep ts)
         }
         if (ImGui::MenuItem("Create Render Texture"))
         {
-            Handle<ITexture> renderTexture = Handle<ITexture>::Create(TextureDesc{
+            Owner<ITexture> renderTexture = Owner<ITexture>::Create(TextureDesc{
                 1024,
                 1024,
                 1,

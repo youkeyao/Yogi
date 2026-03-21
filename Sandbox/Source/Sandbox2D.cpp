@@ -36,17 +36,14 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
                                                     Yogi::StoreOp::DontCare },
                               swapChain->GetNumSamples() });
 
-    auto shaderResourceBinding =
-        Yogi::ResourceManager::GetResource<Yogi::IShaderResourceBinding>(
-            std::vector<Yogi::ShaderResourceAttribute>{
-                Yogi::ShaderResourceAttribute{ 0, 1, Yogi::ShaderResourceType::StorageBuffer, Yogi::ShaderStage::Mesh },
-                Yogi::ShaderResourceAttribute{
-                    1, 1, Yogi::ShaderResourceType::StorageBuffer, Yogi::ShaderStage::Task | Yogi::ShaderStage::Mesh },
-                Yogi::ShaderResourceAttribute{ 2, 1, Yogi::ShaderResourceType::StorageBuffer, Yogi::ShaderStage::Mesh } },
-            std::vector<Yogi::PushConstantRange>{
-                Yogi::PushConstantRange{ Yogi::ShaderStage::Task | Yogi::ShaderStage::Mesh,
-                                         0,
-                                         static_cast<uint32_t>(sizeof(Yogi::Matrix4)) } });
+    auto shaderResourceBinding = Yogi::ResourceManager::GetResource<Yogi::IShaderResourceBinding>(
+        std::vector<Yogi::ShaderResourceAttribute>{
+            Yogi::ShaderResourceAttribute{ 0, 1, Yogi::ShaderResourceType::StorageBuffer, Yogi::ShaderStage::Mesh },
+            Yogi::ShaderResourceAttribute{
+                1, 1, Yogi::ShaderResourceType::StorageBuffer, Yogi::ShaderStage::Task | Yogi::ShaderStage::Mesh },
+            Yogi::ShaderResourceAttribute{ 2, 1, Yogi::ShaderResourceType::StorageBuffer, Yogi::ShaderStage::Mesh } },
+        std::vector<Yogi::PushConstantRange>{ Yogi::PushConstantRange{
+            Yogi::ShaderStage::Task | Yogi::ShaderStage::Mesh, 0, static_cast<uint32_t>(sizeof(Yogi::Matrix4)) } });
 
     // Yogi::Ref<Yogi::ShaderDesc> vertexShader =
     //     Yogi::AssetManager::GetAsset<Yogi::ShaderDesc>("EngineAssets/Shaders/Test.vert");
@@ -61,7 +58,7 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
     auto pipeline = Yogi::ResourceManager::GetResource<Yogi::IPipeline>(
         Yogi::PipelineDesc{ shaders, {}, shaderResourceBinding, renderPass, 0, Yogi::PrimitiveTopology::TriangleList });
 
-    m_world = Yogi::Handle<Yogi::World>::Create();
+    m_world = Yogi::Owner<Yogi::World>::Create();
     m_world->AddSystem<Yogi::ForwardRenderSystem>();
 
     auto  entity                 = m_world->CreateEntity();
@@ -102,7 +99,7 @@ void Sandbox2D::OnUpdate(Yogi::Timestep ts)
         // auto&                            swapChain     = Yogi::Application::GetInstance().GetSwapChain();
         // auto                             currentTarget = swapChain->GetCurrentTarget();
         // auto                             currentDepth  = swapChain->GetCurrentDepth();
-        // Yogi::Handle<Yogi::IFrameBuffer> frameBuffer   = Yogi::IFrameBuffer::Create(Yogi::FrameBufferDesc{
+        // Yogi::Owner<Yogi::IFrameBuffer> frameBuffer   = Yogi::IFrameBuffer::Create(Yogi::FrameBufferDesc{
         //     swapChain->GetWidth(),
         //     swapChain->GetHeight(),
         //     Yogi::Ref<Yogi::IRenderPass>::Create(m_renderPass),
@@ -117,7 +114,7 @@ void Sandbox2D::OnUpdate(Yogi::Timestep ts)
         //     Yogi::Matrix4::Translation(Yogi::Vector3{ 0, 0, -5 }) * m_transform;
         // m_uniformBuffer->UpdateData(&transform, sizeof(Yogi::Matrix4), 0);
 
-        // Yogi::Handle<Yogi::ICommandBuffer> commandBuffer = Yogi::ICommandBuffer::Create(
+        // Yogi::Owner<Yogi::ICommandBuffer> commandBuffer = Yogi::ICommandBuffer::Create(
         //     Yogi::CommandBufferDesc{ Yogi::CommandBufferUsage::OneTimeSubmit, Yogi::SubmitQueue::Graphics });
         // commandBuffer->Begin();
         // commandBuffer->BeginRenderPass(Yogi::Ref<Yogi::IFrameBuffer>::Create(frameBuffer),

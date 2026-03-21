@@ -9,9 +9,9 @@ namespace Yogi
 
 ViewportLayer::ViewportLayer() :
     Layer("Viewport Layer"),
-    m_world(Handle<World>::Create()),
+    m_world(Owner<World>::Create()),
     m_selectedEntity(Entity::Null()),
-    m_editRenderSystem(Handle<ForwardRenderSystem>::Create())
+    m_editRenderSystem(Owner<ForwardRenderSystem>::Create())
 {
     m_frameTexture = ResourceManager::GetResource<ITexture>(
         TextureDesc{ 1, 1, 1, ITexture::Format::B8G8R8A8_UNORM, ITexture::Usage::RenderTarget });
@@ -57,7 +57,7 @@ void ViewportLayer::OnGUI()
         {
             if (ImGui::MenuItem("New"))
             {
-                m_world = Handle<World>::Create();
+                m_world = Owner<World>::Create();
                 // m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
                 // m_editor_camera   = EditorCamera{};
             }

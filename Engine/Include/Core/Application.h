@@ -19,13 +19,13 @@ public:
     void Run();
     void Close();
     void OnEvent(Event& e);
-    void PushLayer(Handle<Layer>&& layer);
+    void PushLayer(Owner<Layer>&& layer);
 
     Ref<Layer> GetLayer(const std::string& name);
 
-    inline const Handle<Window>&         GetWindow() const { return m_window; }
-    inline const Handle<IDeviceContext>& GetContext() const { return m_context; }
-    inline const Handle<ISwapChain>&     GetSwapChain() const { return m_swapChain; }
+    inline const Owner<Window>&         GetWindow() const { return m_window; }
+    inline const Owner<IDeviceContext>& GetContext() const { return m_context; }
+    inline const Owner<ISwapChain>&     GetSwapChain() const { return m_swapChain; }
 
     inline static Application& GetInstance() { return *s_instance; }
 
@@ -34,10 +34,10 @@ private:
     bool OnWindowResize(WindowResizeEvent& e);
 
 private:
-    Handle<Window>             m_window    = nullptr;
-    Handle<IDeviceContext>     m_context   = nullptr;
-    Handle<ISwapChain>         m_swapChain = nullptr;
-    std::vector<Handle<Layer>> m_layers;
+    Owner<Window>             m_window    = nullptr;
+    Owner<IDeviceContext>     m_context   = nullptr;
+    Owner<ISwapChain>         m_swapChain = nullptr;
+    std::vector<Owner<Layer>> m_layers;
 
     float m_lastFrameTime = 0.0f;
     bool  m_isRunning     = true;

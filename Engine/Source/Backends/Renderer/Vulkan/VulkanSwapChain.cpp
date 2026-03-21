@@ -6,7 +6,7 @@
 namespace Yogi
 {
 
-Handle<ISwapChain> ISwapChain::Create(const SwapChainDesc& desc) { return Handle<VulkanSwapChain>::Create(desc); }
+Owner<ISwapChain> ISwapChain::Create(const SwapChainDesc& desc) { return Owner<VulkanSwapChain>::Create(desc); }
 
 VulkanSwapChain::VulkanSwapChain(const SwapChainDesc& desc) :
     m_width(desc.Width),
@@ -23,7 +23,7 @@ VulkanSwapChain::VulkanSwapChain(const SwapChainDesc& desc) :
     CommandBufferDesc cmdBufDesc{ CommandBufferUsage::Persistent, SubmitQueue::Graphics };
     for (int i = 0; i < GetImageCount(); ++i)
     {
-        m_commandBuffers.push_back(Handle<VulkanCommandBuffer>::Create(cmdBufDesc));
+        m_commandBuffers.push_back(Owner<VulkanCommandBuffer>::Create(cmdBufDesc));
         m_commandBuffers[i]->SetWaitSemaphore(m_imageAvailableSemaphores[i]);
     }
 }
@@ -184,7 +184,7 @@ void VulkanSwapChain::CreateVkSwapChain()
     m_colorTextures.clear();
     for (size_t i = 0; i < swapChainImages.size(); ++i)
     {
-        m_colorTextures.emplace_back(Handle<VulkanTexture>::Create(
+        m_colorTextures.emplace_back(Owner<VulkanTexture>::Create(
             extent.width, extent.height, m_colorFormat, ITexture::Usage::RenderTarget, swapChainImages[i]));
     }
 
@@ -192,7 +192,7 @@ void VulkanSwapChain::CreateVkSwapChain()
     m_depthTextures.clear();
     for (size_t i = 0; i < swapChainImages.size(); ++i)
     {
-        m_depthTextures.emplace_back(Handle<VulkanTexture>::Create(
+        m_depthTextures.emplace_back(Owner<VulkanTexture>::Create(
             TextureDesc{ extent.width, extent.height, 1, m_depthFormat, ITexture::Usage::DepthStencil, m_numSamples }));
     }
 }

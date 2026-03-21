@@ -25,7 +25,7 @@ public:
                 return;
             }
         }
-        m_systems.push_back({ systemHash, Handle<T>::Create() });
+        m_systems.push_back({ systemHash, Owner<T>::Create() });
     }
 
     template <typename T>
@@ -67,8 +67,8 @@ public:
     void OnEvent(Event& e);
 
 private:
-    Handle<entt::registry>                               m_registry;
-    std::vector<std::pair<uint32_t, Handle<SystemBase>>> m_systems;
+    Owner<entt::registry>                               m_registry;
+    std::vector<std::pair<uint32_t, Owner<SystemBase>>> m_systems;
 };
 
 } // namespace Yogi

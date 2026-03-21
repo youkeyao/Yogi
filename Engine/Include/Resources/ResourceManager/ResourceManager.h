@@ -6,18 +6,24 @@ namespace Yogi
 {
 
 template <typename T>
-class ResourceControlBlock : public Handle<T>::ControlBlock
+class ResourceControlBlock : public Owner<T>::ControlBlock
 {
 public:
-    ResourceControlBlock(T* p, int count, std::function<void()> callBackFunc) :
-        Handle<T>::ControlBlock(p, count),
+    ResourceControlBlock(T* p, std::function<void()> callBackFunc) :
+        Owner<T>::ControlBlock(p),
         m_callBackFunc(callBackFunc)
     {}
     void SubRef() override
     {
-        --this->m_count;
-        if (this->m_count == 1 && m_callBackFunc)
+        const int refCount = --this->m_count;
+        if (refCount == 1 && m_callBackFunc)
+        {
             m_callBackFunc();
+        }
+        else if (refCount == 0)
+        {
+            delete this;
+        }
     }
 
     void Release() override
@@ -36,7 +42,7 @@ class YG_API ResourceManager
 {
 public:
     template <typename T>
-    static Ref<T> AddResource(Handle<T>&& resource, uint64_t key)
+    static Ref<T> AddResource(Owner<T>&& resource, uint64_t key)
     {
         auto& resourceMap = GetResourceMap<T>();
         auto  it          = resourceMap.find(key);
@@ -44,7 +50,7 @@ public:
         {
             T* ptr = resource.Get();
             delete resource.GetCB();
-            resource.SetCB(new ResourceControlBlock<T>(ptr, 1, [&resourceMap, key]() {
+            resource.SetCB(new ResourceControlBlock<T>(ptr, [&resourceMap, key]() {
                 auto it = resourceMap.find(key);
                 if (it != resourceMap.end() && it->second.GetRefCount() == 1)
                     resourceMap.erase(it);
@@ -66,7 +72,7 @@ public:
             return Ref<T>::Create(it->second);
         }
         // not found
-        return AddResource(Handle<T>::Create(std::forward<Args>(args)...), key);
+        return AddResource(Owner<T>::Create(std::forward<Args>(args)...), key);
     }
 
     static void Clear() { s_resourceMaps.clear(); }
@@ -88,19 +94,19 @@ protected:
     using Any = std::unique_ptr<void, VoidDeleter>;
 
     template <typename T>
-    static std::unordered_map<uint64_t, Handle<T>>& GetResourceMap()
+    static std::unordered_map<uint64_t, Owner<T>>& GetResourceMap()
     {
         auto it = s_resourceMaps.find(typeid(T));
         if (it == s_resourceMaps.end())
         {
-            auto* newMap             = new std::unordered_map<uint64_t, Handle<T>>();
+            auto* newMap             = new std::unordered_map<uint64_t, Owner<T>>();
             void (*deleterFn)(void*) = +[](void* p) {
-                delete static_cast<std::unordered_map<uint64_t, Handle<T>>*>(p);
+                delete static_cast<std::unordered_map<uint64_t, Owner<T>>*>(p);
             };
             s_resourceMaps[typeid(T)] = { newMap, VoidDeleter(deleterFn) };
             return *newMap;
         }
-        return *static_cast<std::unordered_map<uint64_t, Handle<T>>*>((it->second).get());
+        return *static_cast<std::unordered_map<uint64_t, Owner<T>>*>((it->second).get());
     }
 
 private:

@@ -19,8 +19,8 @@ Application::Application(const std::string& name)
     m_window = Window::Create(WindowProps{ name, 1280, 720 });
     m_window->SetEventCallback(YG_BIND_FN(Application::OnEvent));
 
-    m_context   = Handle<IDeviceContext>::Create(Ref<Window>::Create(m_window));
-    m_swapChain = Handle<ISwapChain>::Create(SwapChainDesc{ m_window->GetWidth(),
+    m_context   = Owner<IDeviceContext>::Create(Ref<Window>::Create(m_window));
+    m_swapChain = Owner<ISwapChain>::Create(SwapChainDesc{ m_window->GetWidth(),
                                                             m_window->GetHeight(),
                                                             ITexture::Format::B8G8R8A8_UNORM,
                                                             ITexture::Format::D32_FLOAT,
@@ -45,7 +45,7 @@ Application::~Application()
     m_context   = nullptr;
 }
 
-void Application::PushLayer(Handle<Layer>&& layer)
+void Application::PushLayer(Owner<Layer>&& layer)
 {
     YG_PROFILE_FUNCTION();
 

@@ -6,9 +6,9 @@
 namespace Yogi
 {
 
-Handle<IFrameBuffer> IFrameBuffer::Create(const FrameBufferDesc& desc)
+Owner<IFrameBuffer> IFrameBuffer::Create(const FrameBufferDesc& desc)
 {
-    return Handle<VulkanFrameBuffer>::Create(desc);
+    return Owner<VulkanFrameBuffer>::Create(desc);
 }
 
 VulkanFrameBuffer::VulkanFrameBuffer(const FrameBufferDesc& desc) :
@@ -55,7 +55,7 @@ void VulkanFrameBuffer::CreateVkFrameBuffer()
             msaaDesc.Usage      = ITexture::Usage::RenderTarget;
             msaaDesc.NumSamples = numSamples;
 
-            m_msaaTextures.push_back(Handle<VulkanTexture>::Create(msaaDesc));
+            m_msaaTextures.push_back(Owner<VulkanTexture>::Create(msaaDesc));
             attachments.push_back(m_msaaTextures.back()->GetVkImageView());
         }
         attachments.push_back(texture->GetVkImageView());

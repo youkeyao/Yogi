@@ -26,7 +26,7 @@ inline void ImGuiImage(Yogi::Ref<Yogi::ITexture>               texture,
     if (!texture)
         return;
 
-    Yogi::Handle<Yogi::ICommandBuffer> commandBuffer = Yogi::Handle<Yogi::ICommandBuffer>::Create(
+    Yogi::Owner<Yogi::ICommandBuffer> commandBuffer = Yogi::Owner<Yogi::ICommandBuffer>::Create(
         Yogi::CommandBufferDesc{ Yogi::CommandBufferUsage::OneTimeSubmit, Yogi::SubmitQueue::Graphics });
     commandBuffer->Begin();
     commandBuffer->Blit(texture, texture);

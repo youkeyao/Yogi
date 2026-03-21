@@ -7,7 +7,7 @@
 namespace Yogi
 {
 
-Handle<IRenderPass> IRenderPass::Create(const RenderPassDesc& desc) { return Handle<VulkanRenderPass>::Create(desc); }
+Owner<IRenderPass> IRenderPass::Create(const RenderPassDesc& desc) { return Owner<VulkanRenderPass>::Create(desc); }
 
 VulkanRenderPass::VulkanRenderPass(const RenderPassDesc& desc)
 {

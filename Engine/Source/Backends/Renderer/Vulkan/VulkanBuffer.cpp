@@ -7,7 +7,7 @@
 namespace Yogi
 {
 
-Handle<IBuffer> IBuffer::Create(const BufferDesc& desc) { return Handle<VulkanBuffer>::Create(desc); }
+Owner<IBuffer> IBuffer::Create(const BufferDesc& desc) { return Owner<VulkanBuffer>::Create(desc); }
 
 VulkanBuffer::VulkanBuffer(const BufferDesc& desc) : m_size(desc.Size), m_usage(desc.Usage), m_access(desc.Access)
 {

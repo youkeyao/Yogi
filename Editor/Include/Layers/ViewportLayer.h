@@ -35,7 +35,7 @@ private:
     // bool on_key_pressed(KeyPressedEvent& e);
 
 private:
-    Handle<World> m_world;
+    Owner<World> m_world;
     Entity        m_selectedEntity;
     // Ref<SceneHierarchyPanel> m_hierarchy_panel;
     // Ref<ContentBrowserPanel> m_content_browser_panel;
@@ -45,7 +45,7 @@ private:
     // EditorCamera      m_editor_camera;
 
     EditorCamera                m_editorCamera;
-    Handle<ForwardRenderSystem> m_editRenderSystem;
+    Owner<ForwardRenderSystem> m_editRenderSystem;
 
     bool    m_viewportHovered = false;
     Vector2 m_viewportSize    = { 1, 1 };

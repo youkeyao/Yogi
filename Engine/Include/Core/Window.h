@@ -27,7 +27,7 @@ public:
     virtual uint32_t GetHeight() const       = 0;
     virtual void*    GetNativeWindow() const = 0;
 
-    static Handle<Window> Create(const WindowProps& props);
+    static Owner<Window> Create(const WindowProps& props);
 };
 
 } // namespace Yogi

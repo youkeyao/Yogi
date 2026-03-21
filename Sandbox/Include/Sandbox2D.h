@@ -12,8 +12,8 @@ public:
     void OnEvent(Yogi::Event& event) override;
 
 private:
-    Yogi::Handle<Yogi::World> m_world = nullptr;
-    Yogi::Entity              m_box   = Yogi::Entity::Null();
+    Yogi::Owner<Yogi::World> m_world = nullptr;
+    Yogi::Entity             m_box   = Yogi::Entity::Null();
 
     Yogi::Matrix4 m_transform = Yogi::Matrix4::Identity();
 };

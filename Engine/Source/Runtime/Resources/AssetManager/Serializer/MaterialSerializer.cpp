@@ -18,7 +18,7 @@ struct PipelineData
     PrimitiveTopology                    Topology;
 };
 
-Handle<Material> MaterialSerializer::Deserialize(const std::vector<uint8_t>& binary, const std::string& key)
+Owner<Material> MaterialSerializer::Deserialize(const std::vector<uint8_t>& binary, const std::string& key)
 {
     zpp::bits::in inArchive(binary);
 
@@ -32,7 +32,7 @@ Handle<Material> MaterialSerializer::Deserialize(const std::vector<uint8_t>& bin
         return nullptr;
     }
 
-    Handle<Material> material = Handle<Material>::Create();
+    Owner<Material> material = Owner<Material>::Create();
     for (auto& pipelineData : pipelineDatas)
     {
         PipelineDesc pipelineDesc;

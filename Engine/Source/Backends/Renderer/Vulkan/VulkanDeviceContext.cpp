@@ -9,9 +9,9 @@
 namespace Yogi
 {
 
-Handle<IDeviceContext> IDeviceContext::Create(const Ref<Window>& window)
+Owner<IDeviceContext> IDeviceContext::Create(const Ref<Window>& window)
 {
-    return Handle<VulkanDeviceContext>::Create(window);
+    return Owner<VulkanDeviceContext>::Create(window);
 }
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT      messageSeverity,

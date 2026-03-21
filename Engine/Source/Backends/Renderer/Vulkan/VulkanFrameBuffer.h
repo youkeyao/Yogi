@@ -29,7 +29,7 @@ private:
 private:
     VkFramebuffer m_frameBuffer = VK_NULL_HANDLE;
 
-    std::vector<Handle<VulkanTexture>> m_msaaTextures;
+    std::vector<Owner<VulkanTexture>> m_msaaTextures;
 
     uint32_t                   m_width;
     uint32_t                   m_height;

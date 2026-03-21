@@ -36,12 +36,12 @@ public:
     virtual void Present()                               = 0;
     virtual void Resize(uint32_t width, uint32_t height) = 0;
 
-    static Handle<ISwapChain> Create(const SwapChainDesc& desc);
+    static Owner<ISwapChain> Create(const SwapChainDesc& desc);
 };
 
 template <>
 template <typename... Args>
-Handle<ISwapChain> Handle<ISwapChain>::Create(Args&&... args)
+Owner<ISwapChain> Owner<ISwapChain>::Create(Args&&... args)
 {
     return ISwapChain::Create(std::forward<Args>(args)...);
 }

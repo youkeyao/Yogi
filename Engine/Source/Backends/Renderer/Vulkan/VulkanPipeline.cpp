@@ -8,7 +8,7 @@
 namespace Yogi
 {
 
-Handle<IPipeline> IPipeline::Create(const PipelineDesc& desc) { return Handle<VulkanPipeline>::Create(desc); }
+Owner<IPipeline> IPipeline::Create(const PipelineDesc& desc) { return Owner<VulkanPipeline>::Create(desc); }
 
 VulkanPipeline::VulkanPipeline(const PipelineDesc& desc)
 {

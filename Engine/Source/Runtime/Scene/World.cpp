@@ -3,7 +3,7 @@
 namespace Yogi
 {
 
-World::World() : m_registry(nullptr) { m_registry = Handle<entt::registry>::Create(); }
+World::World() : m_registry(nullptr) { m_registry = Owner<entt::registry>::Create(); }
 
 World::~World() { m_systems.clear(); }
 

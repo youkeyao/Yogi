@@ -12,7 +12,7 @@ public:
     ShaderSerializer();
     ~ShaderSerializer();
 
-    Handle<ShaderDesc>   Deserialize(const std::vector<uint8_t>& binary, const std::string& key) override;
+    Owner<ShaderDesc>    Deserialize(const std::vector<uint8_t>& binary, const std::string& key) override;
     std::vector<uint8_t> Serialize(const Ref<ShaderDesc>& asset, const std::string& key) override;
 };
 

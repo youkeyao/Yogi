@@ -110,17 +110,17 @@ ShaderSerializer::ShaderSerializer() { glslang::InitializeProcess(); }
 
 ShaderSerializer::~ShaderSerializer() { glslang::FinalizeProcess(); }
 
-Handle<ShaderDesc> ShaderSerializer::Deserialize(const std::vector<uint8_t>& binary, const std::string& key)
+Owner<ShaderDesc> ShaderSerializer::Deserialize(const std::vector<uint8_t>& binary, const std::string& key)
 {
     std::filesystem::path path(key);
     if (path.extension() == ".vert")
-        return Handle<ShaderDesc>::Create(ShaderStage::Vertex, CompileGlslToSpirv(binary, EShLangVertex, key));
+        return Owner<ShaderDesc>::Create(ShaderStage::Vertex, CompileGlslToSpirv(binary, EShLangVertex, key));
     else if (path.extension() == ".frag")
-        return Handle<ShaderDesc>::Create(ShaderStage::Fragment, CompileGlslToSpirv(binary, EShLangFragment, key));
+        return Owner<ShaderDesc>::Create(ShaderStage::Fragment, CompileGlslToSpirv(binary, EShLangFragment, key));
     else if (path.extension() == ".mesh")
-        return Handle<ShaderDesc>::Create(ShaderStage::Mesh, CompileGlslToSpirv(binary, EShLangMesh, key));
+        return Owner<ShaderDesc>::Create(ShaderStage::Mesh, CompileGlslToSpirv(binary, EShLangMesh, key));
     else if (path.extension() == ".task")
-        return Handle<ShaderDesc>::Create(ShaderStage::Task, CompileGlslToSpirv(binary, EShLangTask, key));
+        return Owner<ShaderDesc>::Create(ShaderStage::Task, CompileGlslToSpirv(binary, EShLangTask, key));
     return nullptr;
 }
 

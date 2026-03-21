@@ -69,7 +69,7 @@ void RenderPassEditorLayer::OnUpdate(Timestep ts)
 
         if (changed)
         {
-            m_renderPass = AssetManager::SetAsset(Handle<IRenderPass>::Create(renderPassDesc), m_key);
+            m_renderPass = AssetManager::SetAsset(Owner<IRenderPass>::Create(renderPassDesc), m_key);
             AssetManager::SaveAsset(m_renderPass, m_key);
         }
     }

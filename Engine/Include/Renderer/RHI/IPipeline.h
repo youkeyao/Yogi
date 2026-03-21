@@ -68,7 +68,7 @@ public:
 
     const PipelineDesc& GetDesc() const { return m_desc; }
 
-    static Handle<IPipeline> Create(const PipelineDesc& desc);
+    static Owner<IPipeline> Create(const PipelineDesc& desc);
 
 protected:
     PipelineDesc m_desc;
@@ -76,7 +76,7 @@ protected:
 
 template <>
 template <typename... Args>
-inline Handle<IPipeline> Handle<IPipeline>::Create(Args&&... args)
+inline Owner<IPipeline> Owner<IPipeline>::Create(Args&&... args)
 {
     return IPipeline::Create(std::forward<Args>(args)...);
 }

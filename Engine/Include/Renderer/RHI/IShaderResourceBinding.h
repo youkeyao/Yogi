@@ -57,8 +57,8 @@ public:
     const std::vector<ShaderResourceAttribute>& GetLayout() const { return m_layout; }
     const std::vector<PushConstantRange>&       GetPushConstantRanges() const { return m_pushConstantRanges; }
 
-    static Handle<IShaderResourceBinding> Create(const std::vector<ShaderResourceAttribute>& shaderResourceLayout,
-                                                 const std::vector<PushConstantRange>&       pushConstantRanges = {});
+    static Owner<IShaderResourceBinding> Create(const std::vector<ShaderResourceAttribute>& shaderResourceLayout,
+                                                const std::vector<PushConstantRange>&       pushConstantRanges = {});
 
 protected:
     std::vector<ShaderResourceAttribute> m_layout;
@@ -67,7 +67,7 @@ protected:
 
 template <>
 template <typename... Args>
-inline Handle<IShaderResourceBinding> Handle<IShaderResourceBinding>::Create(Args&&... args)
+inline Owner<IShaderResourceBinding> Owner<IShaderResourceBinding>::Create(Args&&... args)
 {
     return IShaderResourceBinding::Create(std::forward<Args>(args)...);
 }

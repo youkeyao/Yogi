@@ -46,7 +46,7 @@ public:
 
     const RenderPassDesc& GetDesc() const { return m_desc; }
 
-    static Handle<IRenderPass> Create(const RenderPassDesc& desc);
+    static Owner<IRenderPass> Create(const RenderPassDesc& desc);
 
 protected:
     RenderPassDesc m_desc;
@@ -54,9 +54,9 @@ protected:
 
 template <>
 template <typename... Args>
-Handle<IRenderPass> Handle<IRenderPass>::Create(Args&&... args)
+Owner<IRenderPass> Owner<IRenderPass>::Create(Args&&... args)
 {
-    return Handle<IRenderPass>(IRenderPass::Create(std::forward<Args>(args)...));
+    return Owner<IRenderPass>(IRenderPass::Create(std::forward<Args>(args)...));
 }
 
 } // namespace Yogi

@@ -5,7 +5,7 @@
 namespace Yogi
 {
 
-Handle<IRenderPass> RenderPassSerializer::Deserialize(const std::vector<uint8_t>& binary, const std::string& key)
+Owner<IRenderPass> RenderPassSerializer::Deserialize(const std::vector<uint8_t>& binary, const std::string& key)
 {
     zpp::bits::in  inArchive(binary);
     RenderPassDesc renderPassDesc;
@@ -15,7 +15,7 @@ Handle<IRenderPass> RenderPassSerializer::Deserialize(const std::vector<uint8_t>
         YG_CORE_ERROR("Failed to serialize render pass '{0}'!", key);
         return nullptr;
     }
-    return Handle<IRenderPass>::Create(renderPassDesc);
+    return Owner<IRenderPass>::Create(renderPassDesc);
 }
 
 std::vector<uint8_t> RenderPassSerializer::Serialize(const Ref<IRenderPass>& asset, const std::string& key)

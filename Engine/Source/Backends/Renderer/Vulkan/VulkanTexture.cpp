@@ -7,7 +7,7 @@
 namespace Yogi
 {
 
-Handle<ITexture> ITexture::Create(const TextureDesc& desc) { return Handle<VulkanTexture>::Create(desc); }
+Owner<ITexture> ITexture::Create(const TextureDesc& desc) { return Owner<VulkanTexture>::Create(desc); }
 
 VulkanTexture::VulkanTexture(const TextureDesc& desc) :
     m_width(desc.Width),

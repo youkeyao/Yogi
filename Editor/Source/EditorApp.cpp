@@ -30,13 +30,13 @@ public:
         AssetRegistry::Init();
         AssetRegistry::Scan(".");
 
-        PushLayer(Handle<ImGuiBeginLayer>::Create());
-        PushLayer(Handle<ViewportLayer>::Create());
-        PushLayer(Handle<HierarchyLayer>::Create());
-        PushLayer(Handle<ContentBrowserLayer>::Create());
-        PushLayer(Handle<MaterialEditorLayer>::Create());
-        PushLayer(Handle<RenderPassEditorLayer>::Create());
-        PushLayer(Handle<ImGuiEndLayer>::Create());
+        PushLayer(Owner<ImGuiBeginLayer>::Create());
+        PushLayer(Owner<ViewportLayer>::Create());
+        PushLayer(Owner<HierarchyLayer>::Create());
+        PushLayer(Owner<ContentBrowserLayer>::Create());
+        PushLayer(Owner<MaterialEditorLayer>::Create());
+        PushLayer(Owner<RenderPassEditorLayer>::Create());
+        PushLayer(Owner<ImGuiEndLayer>::Create());
     }
 
     ~EditorApp()

@@ -19,12 +19,12 @@ public:
 
     virtual void WaitIdle() = 0;
 
-    static Handle<IDeviceContext> Create(const Ref<Window>& window);
+    static Owner<IDeviceContext> Create(const Ref<Window>& window);
 };
 
 template <>
 template <typename... Args>
-Handle<IDeviceContext> Handle<IDeviceContext>::Create(Args&&... args)
+Owner<IDeviceContext> Owner<IDeviceContext>::Create(Args&&... args)
 {
     return IDeviceContext::Create(std::forward<Args>(args)...);
 }

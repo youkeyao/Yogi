@@ -25,12 +25,12 @@ public:
     virtual const std::vector<Ref<ITexture>>& GetColorAttachments() const = 0;
     virtual Ref<ITexture>                     GetDepthAttachment() const  = 0;
 
-    static Handle<IFrameBuffer> Create(const FrameBufferDesc& desc);
+    static Owner<IFrameBuffer> Create(const FrameBufferDesc& desc);
 };
 
 template <>
 template <typename... Args>
-Handle<IFrameBuffer> Handle<IFrameBuffer>::Create(Args&&... args)
+Owner<IFrameBuffer> Owner<IFrameBuffer>::Create(Args&&... args)
 {
     return IFrameBuffer::Create(std::forward<Args>(args)...);
 }

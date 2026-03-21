@@ -6,7 +6,7 @@
 namespace Yogi
 {
 
-Handle<ITexture> TextureSerializer::Deserialize(const std::vector<uint8_t>& binary, const std::string& key)
+Owner<ITexture> TextureSerializer::Deserialize(const std::vector<uint8_t>& binary, const std::string& key)
 {
     std::string ext = std::filesystem::path(key).extension().string();
 
@@ -20,7 +20,7 @@ Handle<ITexture> TextureSerializer::Deserialize(const std::vector<uint8_t>& bina
             return nullptr;
         }
 
-        Handle<ITexture> texture = Handle<ITexture>::Create(TextureDesc{
+        Owner<ITexture> texture = Owner<ITexture>::Create(TextureDesc{
             (uint32_t)width,
             (uint32_t)height,
             1,
@@ -46,7 +46,7 @@ Handle<ITexture> TextureSerializer::Deserialize(const std::vector<uint8_t>& bina
             YG_CORE_ERROR("Failed to serialize render texture '{0}'!", key);
             return nullptr;
         }
-        Handle<ITexture> texture = Handle<ITexture>::Create(TextureDesc{
+        Owner<ITexture> texture = Owner<ITexture>::Create(TextureDesc{
             (uint32_t)width,
             (uint32_t)height,
             1,
