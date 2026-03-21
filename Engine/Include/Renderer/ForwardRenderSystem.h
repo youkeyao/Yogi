@@ -11,12 +11,6 @@ namespace Yogi
 
 class YG_API ForwardRenderSystem : public SystemBase
 {
-private:
-    struct SceneData
-    {
-        Matrix4 ProjectionViewMatrix = Matrix4::Identity();
-    };
-
 public:
     ForwardRenderSystem();
     virtual ~ForwardRenderSystem();

@@ -26,9 +26,9 @@ layout(push_constant) uniform SceneDataBlock
 shared uint s_survivorCount;
 #endif
 
-bool coneCull(vec4 cone, vec3 view)
+bool coneCull(vec3 center, float radius, vec3 coneAxis, float coneCutoff, vec3 cameraPosition)
 {
-    return dot(cone.xyz, view) > cone.w;
+    return dot(center - cameraPosition, coneAxis) > coneCutoff * length(center - cameraPosition) + radius;
 }
 
 void main()
@@ -41,8 +41,9 @@ void main()
         s_survivorCount = 0;
     barrier();
 
-    vec4 cone = vec4(meshlets[mi].Cone[0], meshlets[mi].Cone[1], meshlets[mi].Cone[2], meshlets[mi].Cone[3]);
-    bool visible = !coneCull(cone, vec3(0, 0, 1));
+    vec3 center = vec3(meshlets[mi].Center[0], meshlets[mi].Center[1], meshlets[mi].Center[2]);
+    vec3 coneAxis = vec3(meshlets[mi].ConeAxis[0], meshlets[mi].ConeAxis[1], meshlets[mi].ConeAxis[2]);
+    bool visible = !coneCull(center, meshlets[mi].Radius, coneAxis, meshlets[mi].ConeCutOff, vec3(0, 0, 5));
     if (visible)
     {
         uint idx = atomicAdd(s_survivorCount, 1);

@@ -40,9 +40,9 @@ void Mesh::BuildMeshlets(const std::vector<Vertex>& vertices, const std::vector<
         m_vertices[i].vz = meshopt_quantizeHalf(vertices[i].Position.z);
         m_vertices[i].tx = meshopt_quantizeHalf(vertices[i].Texcoord.x);
         m_vertices[i].ty = meshopt_quantizeHalf(vertices[i].Texcoord.y);
-        m_vertices[i].nx = (int8_t)meshopt_quantizeSnorm(vertices[i].Normal.x, 8);
-        m_vertices[i].ny = (int8_t)meshopt_quantizeSnorm(vertices[i].Normal.y, 8);
-        m_vertices[i].nz = (int8_t)meshopt_quantizeSnorm(vertices[i].Normal.z, 8);
+        m_vertices[i].nx = meshopt_quantizeSnorm(vertices[i].Normal.x, 8);
+        m_vertices[i].ny = meshopt_quantizeSnorm(vertices[i].Normal.y, 8);
+        m_vertices[i].nz = meshopt_quantizeSnorm(vertices[i].Normal.z, 8);
     }
 
     m_meshlets.resize(meshletCount);
@@ -68,10 +68,16 @@ void Mesh::BuildMeshlets(const std::vector<Vertex>& vertices, const std::vector<
                                                                     &vertices[0].Position.x,
                                                                     vertexCount,
                                                                     sizeof(Vertex));
-        m_meshlets[i].Cone[0]        = meshletBounds.cone_axis[0];
-        m_meshlets[i].Cone[1]        = meshletBounds.cone_axis[1];
-        m_meshlets[i].Cone[2]        = meshletBounds.cone_axis[2];
-        m_meshlets[i].Cone[3]        = meshletBounds.cone_cutoff;
+
+        m_meshlets[i].Center[0] = meshopt_quantizeHalf(meshletBounds.center[0]);
+        m_meshlets[i].Center[1] = meshopt_quantizeHalf(meshletBounds.center[1]);
+        m_meshlets[i].Center[2] = meshopt_quantizeHalf(meshletBounds.center[2]);
+        m_meshlets[i].Radius    = meshopt_quantizeHalf(meshletBounds.radius);
+
+        m_meshlets[i].ConeAxis[0] = meshopt_quantizeSnorm(meshletBounds.cone_axis[0], 8);
+        m_meshlets[i].ConeAxis[1] = meshopt_quantizeSnorm(meshletBounds.cone_axis[1], 8);
+        m_meshlets[i].ConeAxis[2] = meshopt_quantizeSnorm(meshletBounds.cone_axis[2], 8);
+        m_meshlets[i].ConeCutOff  = meshopt_quantizeSnorm(meshletBounds.cone_cutoff, 8);
     }
 }
 
