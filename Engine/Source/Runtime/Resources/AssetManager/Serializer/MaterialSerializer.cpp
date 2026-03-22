@@ -35,15 +35,45 @@ Owner<Material> MaterialSerializer::Deserialize(const std::vector<uint8_t>& bina
     Owner<Material> material = Owner<Material>::Create();
     for (auto& pipelineData : pipelineDatas)
     {
+        bool hasMeshTaskShader = false;
+        for (const auto& shaderKey : pipelineData.ShaderKeys)
+        {
+            if (shaderKey.ends_with(".task") || shaderKey.ends_with(".mesh"))
+            {
+                hasMeshTaskShader = true;
+                break;
+            }
+        }
+
+        if (hasMeshTaskShader)
+        {
+            bool hasBinding3 = false;
+            for (auto& attr : pipelineData.ShaderResourceLayout)
+            {
+                if (attr.Binding == 3)
+                {
+                    hasBinding3 = true;
+                    attr.Count  = 1;
+                    attr.Type   = ShaderResourceType::StorageBuffer;
+                    attr.Stage  = ShaderStage::Task | ShaderStage::Mesh;
+                    break;
+                }
+            }
+            if (!hasBinding3)
+            {
+                pipelineData.ShaderResourceLayout.push_back(ShaderResourceAttribute{
+                    3, 1, ShaderResourceType::StorageBuffer, ShaderStage::Task | ShaderStage::Mesh });
+            }
+        }
+
         PipelineDesc pipelineDesc;
         for (auto& shaderKey : pipelineData.ShaderKeys)
         {
             pipelineDesc.Shaders.push_back(AssetManager::GetAsset<ShaderDesc>(shaderKey));
         }
-        pipelineDesc.VertexLayout = pipelineData.VertexLayout;
-        pipelineDesc.ShaderResourceBinding =
-            ResourceManager::GetResource<IShaderResourceBinding>(pipelineData.ShaderResourceLayout,
-                                                                 pipelineData.PushConstantRanges);
+        pipelineDesc.VertexLayout          = pipelineData.VertexLayout;
+        pipelineDesc.ShaderResourceBinding = ResourceManager::GetResource<IShaderResourceBinding>(
+            pipelineData.ShaderResourceLayout, pipelineData.PushConstantRanges);
         pipelineDesc.RenderPass   = AssetManager::GetAsset<IRenderPass>(pipelineData.RenderPassKey);
         pipelineDesc.SubPassIndex = pipelineData.SubPassIndex;
         pipelineDesc.Topology     = pipelineData.Topology;
@@ -52,7 +82,7 @@ Owner<Material> MaterialSerializer::Deserialize(const std::vector<uint8_t>& bina
         material->AddPass(Material::MaterialPass{ passPipeline, {} });
     }
     auto materialPasses = material->GetPasses();
-    int textureIndex = 0;
+    int  textureIndex   = 0;
     for (int i = 0; i < materialPasses.size(); ++i)
     {
         materialPasses[i].Textures.resize(textureKeys.size());

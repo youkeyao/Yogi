@@ -4,6 +4,7 @@
 #extension GL_EXT_shader_16bit_storage: require
 #extension GL_EXT_shader_8bit_storage: require
 #extension GL_EXT_mesh_shader: require
+#extension GL_ARB_shader_draw_parameters: require
 #extension GL_GOOGLE_include_directive: require
 
 #include "Renderer/ShaderData.h"
@@ -13,6 +14,11 @@ layout(local_size_x = TASK_WGSIZE, local_size_y = 1, local_size_z = 1) in;
 layout(binding = 1) readonly buffer MeshletBuffer
 {
     MeshletData meshlets[];
+};
+
+layout(binding = 3) readonly buffer MeshDrawBuffer
+{
+    MeshDraw meshDraws[];
 };
 
 taskPayloadSharedEXT TaskPayload payload;
@@ -33,27 +39,41 @@ bool coneCull(vec3 center, float radius, vec3 coneAxis, float coneCutoff, vec3 c
 
 void main()
 {
+    uint drawIndex = uint(gl_DrawID);
+    payload.drawIndex = drawIndex;
+    MeshDraw draw = meshDraws[drawIndex];
     uint ti = gl_LocalInvocationIndex;
-    uint mi = gl_WorkGroupID.x * TASK_WGSIZE + ti;
+    uint miLocal = gl_WorkGroupID.x * TASK_WGSIZE + ti;
 
 #if CULL
     if (ti == 0)
         s_survivorCount = 0;
     barrier();
 
-    vec3 center = vec3(meshlets[mi].Center[0], meshlets[mi].Center[1], meshlets[mi].Center[2]);
-    vec3 coneAxis = vec3(meshlets[mi].ConeAxis[0], meshlets[mi].ConeAxis[1], meshlets[mi].ConeAxis[2]);
-    bool visible = !coneCull(center, meshlets[mi].Radius, coneAxis, meshlets[mi].ConeCutOff, vec3(0, 0, 5));
-    if (visible)
+    if (miLocal < draw.MeshletCount)
     {
-        uint idx = atomicAdd(s_survivorCount, 1);
-        payload.meshletIndices[idx] = mi;
+        uint mi = draw.MeshletOffset + miLocal;
+        vec3 center = vec3(meshlets[mi].Center[0], meshlets[mi].Center[1], meshlets[mi].Center[2]);
+        center = RotateByQuaternion(center * draw.Scale, draw.Orientation) + draw.Position;
+        center = (sceneData.ViewMatrix * vec4(center, 1)).xyz;
+        vec3 coneAxis = vec3(meshlets[mi].ConeAxis[0], meshlets[mi].ConeAxis[1], meshlets[mi].ConeAxis[2]) / 127.0;
+        coneAxis = mat3(sceneData.ViewMatrix) * RotateByQuaternion(coneAxis, draw.Orientation);
+        bool visible = !coneCull(center, meshlets[mi].Radius, coneAxis, meshlets[mi].ConeCutOff / 127.0, vec3(0, 0, 0));
+        if (visible)
+        {
+            uint idx = atomicAdd(s_survivorCount, 1);
+            payload.meshletIndices[idx] = mi;
+        }
     }
     barrier();
 
     EmitMeshTasksEXT(s_survivorCount, 1, 1);
 #else
-    payload.meshletIndices[ti] = mi;
-	EmitMeshTasksEXT(TASK_WGSIZE, 1, 1);
+    if (miLocal < draw.MeshletCount)
+    {
+        payload.meshletIndices[ti] = draw.MeshletOffset + miLocal;
+    }
+
+    EmitMeshTasksEXT(min(uint(TASK_WGSIZE), draw.MeshletCount - gl_WorkGroupID.x * uint(TASK_WGSIZE)), 1, 1);
 #endif
 }

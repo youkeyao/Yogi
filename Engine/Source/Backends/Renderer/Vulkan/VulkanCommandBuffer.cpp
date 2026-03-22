@@ -254,6 +254,15 @@ void VulkanCommandBuffer::DrawMeshTasks(uint32_t groupCountX, uint32_t groupCoun
     vkCmdDrawMeshTasksEXT(m_commandBuffer, groupCountX, groupCountY, groupCountZ);
 }
 
+void VulkanCommandBuffer::DrawMeshTasksIndirect(const Ref<IBuffer>& indirectBuffer,
+                                                uint32_t            offset,
+                                                uint32_t            drawCount,
+                                                uint32_t            stride)
+{
+    Ref<VulkanBuffer> vkIndirectBuffer = Ref<VulkanBuffer>::Cast(indirectBuffer);
+    vkCmdDrawMeshTasksIndirectEXT(m_commandBuffer, vkIndirectBuffer->GetVkBuffer(), offset, drawCount, stride);
+}
+
 void VulkanCommandBuffer::Blit(const Ref<ITexture>& src, const Ref<ITexture>& dst)
 {
     Ref<VulkanTexture> vkSrc = Ref<VulkanTexture>::Cast(src);

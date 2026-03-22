@@ -5,6 +5,8 @@
 #include "Scene/World.h"
 #include "Math/Vector.h"
 
+#include <unordered_map>
+
 namespace Yogi
 {
 
@@ -16,6 +18,10 @@ ForwardRenderSystem::ForwardRenderSystem()
         BufferDesc{ MAX_MESHLET_SIZE, BufferUsage::Storage, BufferAccess::Dynamic });
     m_meshletDataBuffer = ResourceManager::GetResource<IBuffer>(
         BufferDesc{ MAX_MESHLET_DATA_SIZE, BufferUsage::Storage, BufferAccess::Dynamic });
+    m_meshDrawBuffer = ResourceManager::GetResource<IBuffer>(
+        BufferDesc{ MAX_MESH_DRAW_SIZE, BufferUsage::Storage, BufferAccess::Dynamic });
+    m_meshTaskIndirectBuffer = ResourceManager::GetResource<IBuffer>(
+        BufferDesc{ MAX_INDIRECT_DRAW_COMMAND_SIZE, BufferUsage::Indirect, BufferAccess::Dynamic });
 
     auto& swapChain = Application::GetInstance().GetSwapChain();
 
@@ -25,21 +31,25 @@ ForwardRenderSystem::ForwardRenderSystem()
         std::vector<ShaderResourceAttribute>{
             ShaderResourceAttribute{ 0, 1, ShaderResourceType::StorageBuffer, ShaderStage::Mesh },
             ShaderResourceAttribute{ 1, 1, ShaderResourceType::StorageBuffer, ShaderStage::Task | ShaderStage::Mesh },
-            ShaderResourceAttribute{ 2, 1, ShaderResourceType::StorageBuffer, ShaderStage::Mesh } },
+            ShaderResourceAttribute{ 2, 1, ShaderResourceType::StorageBuffer, ShaderStage::Mesh },
+            ShaderResourceAttribute{ 3, 1, ShaderResourceType::StorageBuffer, ShaderStage::Task | ShaderStage::Mesh } },
         std::vector<PushConstantRange>{
-            PushConstantRange{ ShaderStage::Task | ShaderStage::Mesh, 0, static_cast<uint32_t>(sizeof(Matrix4)) } });
+            PushConstantRange{ ShaderStage::Task | ShaderStage::Mesh, 0, static_cast<uint32_t>(sizeof(SceneData)) } });
 
     m_shaderResourceBinding->BindBuffer(m_vertexStorageBuffer, 0);
     m_shaderResourceBinding->BindBuffer(m_meshletBuffer, 1);
     m_shaderResourceBinding->BindBuffer(m_meshletDataBuffer, 2);
+    m_shaderResourceBinding->BindBuffer(m_meshDrawBuffer, 3);
 }
 
 ForwardRenderSystem::~ForwardRenderSystem()
 {
-    m_vertexStorageBuffer   = nullptr;
-    m_meshletBuffer         = nullptr;
-    m_meshletDataBuffer     = nullptr;
-    m_shaderResourceBinding = nullptr;
+    m_vertexStorageBuffer    = nullptr;
+    m_meshletBuffer          = nullptr;
+    m_meshletDataBuffer      = nullptr;
+    m_meshDrawBuffer         = nullptr;
+    m_meshTaskIndirectBuffer = nullptr;
+    m_shaderResourceBinding  = nullptr;
 }
 
 void ForwardRenderSystem::OnUpdate(Timestep ts, World& world)
@@ -102,6 +112,7 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
         projectionMatrix = MathUtils::Perspective(camera.Fov, aspectRatio, 0.1f, 100.0f);
     }
     m_sceneData.ProjectionViewMatrix = projectionMatrix * viewMatrix;
+    m_sceneData.ViewMatrix           = viewMatrix;
 
     constexpr uint32_t maxVertexCount = MAX_VERTICES_SIZE / sizeof(VertexData);
 
@@ -110,6 +121,8 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
         Ref<IPipeline>           Pipeline;
         std::vector<MeshletData> Meshlets;
         std::vector<uint32_t>    MeshletData;
+        std::vector<MeshDraw>    MeshDraws;
+        std::vector<uint32_t>    IndirectCommands;
     };
 
     std::vector<VertexData>           batchVertices;
@@ -125,19 +138,24 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
         {
             if (!batch.Pipeline)
                 continue;
+            if (batch.MeshDraws.empty())
+                continue;
 
             m_meshletBuffer->UpdateData(batch.Meshlets.data(), batch.Meshlets.size() * sizeof(MeshletData), 0);
             m_meshletDataBuffer->UpdateData(batch.MeshletData.data(), batch.MeshletData.size() * sizeof(uint32_t), 0);
+            m_meshDrawBuffer->UpdateData(batch.MeshDraws.data(), batch.MeshDraws.size() * sizeof(MeshDraw), 0);
+            m_meshTaskIndirectBuffer->UpdateData(
+                batch.IndirectCommands.data(), batch.IndirectCommands.size() * sizeof(uint32_t), 0);
 
             commandBuffer->SetPipeline(batch.Pipeline);
-            commandBuffer->SetPushConstants(
-                m_shaderResourceBinding, ShaderStage::Task | ShaderStage::Mesh, 0, sizeof(SceneData), &m_sceneData);
 
             commandBuffer->SetViewport({ 0, 0, (float)frameBuffer->GetWidth(), (float)frameBuffer->GetHeight() });
             commandBuffer->SetScissor({ 0, 0, frameBuffer->GetWidth(), frameBuffer->GetHeight() });
-            uint32_t meshletCount       = static_cast<uint32_t>(batch.Meshlets.size());
-            uint32_t taskWorkGroupCount = (meshletCount + TASK_WGSIZE - 1) / TASK_WGSIZE;
-            commandBuffer->DrawMeshTasks(taskWorkGroupCount, 1, 1);
+            uint32_t           drawCount     = static_cast<uint32_t>(batch.MeshDraws.size());
+            constexpr uint32_t commandStride = sizeof(uint32_t) * 3;
+            commandBuffer->SetPushConstants(
+                m_shaderResourceBinding, ShaderStage::Task | ShaderStage::Mesh, 0, sizeof(SceneData), &m_sceneData);
+            commandBuffer->DrawMeshTasksIndirect(m_meshTaskIndirectBuffer, 0, drawCount, commandStride);
         }
         batchVertices.clear();
         renderBatches.clear();
@@ -156,15 +174,21 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
 
             uint32_t meshVertexCount  = static_cast<uint32_t>(mesh->GetVertices().size());
             uint32_t meshMeshletCount = static_cast<uint32_t>(mesh->GetMeshlets().size());
+            uint32_t passCount        = static_cast<uint32_t>(material->GetPasses().size());
 
             // Count total meshlets in current batch
-            uint32_t totalMeshlets = 0;
+            uint32_t totalMeshlets  = 0;
+            uint32_t totalMeshDraws = 0;
             for (const auto& batch : renderBatches)
+            {
                 totalMeshlets += static_cast<uint32_t>(batch.Meshlets.size());
+                totalMeshDraws += static_cast<uint32_t>(batch.MeshDraws.size());
+            }
 
             // flush if adding this mesh would exceed buffer capacity
             if (batchVertices.size() + meshVertexCount > maxVertexCount ||
-                totalMeshlets + meshMeshletCount > MAX_MESHLETS)
+                totalMeshlets + meshMeshletCount * passCount > MAX_MESHLETS ||
+                totalMeshDraws + passCount > MAX_MESH_DRAWS)
             {
                 flushBatch();
                 EndRender(commandBuffer);
@@ -179,7 +203,7 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
             // Append meshlets grouped by material pass.
             for (auto& materialPass : material->GetPasses())
             {
-                auto& pipeline = materialPass.Pipeline;
+                Ref<IPipeline> pipeline = materialPass.Pipeline;
                 if (!pipeline)
                     continue;
 
@@ -194,14 +218,44 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
 
                 auto&    batch           = renderBatches[lookupIt->second];
                 uint32_t meshletDataBase = static_cast<uint32_t>(batch.MeshletData.size());
+
+                MeshDraw draw{};
+                draw.Position      = meshTransform.Transform.Position;
+                draw.Scale         = meshTransform.Transform.Scale.x;
+                draw.Orientation   = Vector4(meshTransform.Transform.Rotation.x,
+                                           meshTransform.Transform.Rotation.y,
+                                           meshTransform.Transform.Rotation.z,
+                                           meshTransform.Transform.Rotation.w);
+                draw.MeshletOffset = static_cast<uint32_t>(batch.Meshlets.size());
+                draw.MeshletCount  = meshMeshletCount;
+                draw.VertexOffset  = vertexBase;
+                draw._pad0         = 0;
+                batch.MeshDraws.push_back(draw);
+
+                uint32_t taskWorkGroupCount = (meshMeshletCount + TASK_WGSIZE - 1) / TASK_WGSIZE;
+                batch.IndirectCommands.push_back(taskWorkGroupCount);
+                batch.IndirectCommands.push_back(1);
+                batch.IndirectCommands.push_back(1);
+
                 for (const auto& srcMeshlet : mesh->GetMeshlets())
                 {
                     MeshletData offsetMeshlet = srcMeshlet;
                     offsetMeshlet.DataOffset += meshletDataBase;
                     batch.Meshlets.push_back(offsetMeshlet);
+
+                    uint32_t srcDataOffset     = srcMeshlet.DataOffset;
+                    uint32_t srcVertexCount    = srcMeshlet.VertexCount;
+                    uint32_t srcTriangleGroups = (srcMeshlet.TriangleCount * 3 + 3) / 4;
+
+                    for (uint32_t i = 0; i < srcVertexCount; ++i)
+                    {
+                        batch.MeshletData.push_back(mesh->GetMeshletData()[srcDataOffset + i] + vertexBase);
+                    }
+                    for (uint32_t i = 0; i < srcTriangleGroups; ++i)
+                    {
+                        batch.MeshletData.push_back(mesh->GetMeshletData()[srcDataOffset + srcVertexCount + i]);
+                    }
                 }
-                batch.MeshletData.insert(
-                    batch.MeshletData.end(), mesh->GetMeshletData().begin(), mesh->GetMeshletData().end());
             }
         });
 

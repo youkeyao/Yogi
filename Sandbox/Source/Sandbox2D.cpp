@@ -1,4 +1,5 @@
 #include "Sandbox2D.h"
+#include "Renderer/ShaderData.h"
 
 std::vector<uint8_t> ReadFile(const std::string& filepath)
 {
@@ -41,9 +42,11 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
             Yogi::ShaderResourceAttribute{ 0, 1, Yogi::ShaderResourceType::StorageBuffer, Yogi::ShaderStage::Mesh },
             Yogi::ShaderResourceAttribute{
                 1, 1, Yogi::ShaderResourceType::StorageBuffer, Yogi::ShaderStage::Task | Yogi::ShaderStage::Mesh },
-            Yogi::ShaderResourceAttribute{ 2, 1, Yogi::ShaderResourceType::StorageBuffer, Yogi::ShaderStage::Mesh } },
+            Yogi::ShaderResourceAttribute{ 2, 1, Yogi::ShaderResourceType::StorageBuffer, Yogi::ShaderStage::Mesh },
+            Yogi::ShaderResourceAttribute{
+                3, 1, Yogi::ShaderResourceType::StorageBuffer, Yogi::ShaderStage::Task | Yogi::ShaderStage::Mesh } },
         std::vector<Yogi::PushConstantRange>{ Yogi::PushConstantRange{
-            Yogi::ShaderStage::Task | Yogi::ShaderStage::Mesh, 0, static_cast<uint32_t>(sizeof(Yogi::Matrix4)) } });
+            Yogi::ShaderStage::Task | Yogi::ShaderStage::Mesh, 0, static_cast<uint32_t>(sizeof(SceneData)) } });
 
     // Yogi::Ref<Yogi::ShaderDesc> vertexShader =
     //     Yogi::AssetManager::GetAsset<Yogi::ShaderDesc>("EngineAssets/Shaders/Test.vert");

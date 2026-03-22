@@ -31,6 +31,11 @@ layout(binding = 2) readonly buffer MeshletData8Buffer
 	uint8_t meshletData8[];
 };
 
+layout(binding = 3) readonly buffer MeshDrawBuffer
+{
+    MeshDraw meshDraws[];
+};
+
 taskPayloadSharedEXT TaskPayload payload;
 
 layout(push_constant) uniform SceneDataBlock
@@ -57,6 +62,7 @@ vec3 hashToColor(uint id)
 
 void main()
 {
+    MeshDraw draw = meshDraws[payload.drawIndex];
     uint mi = payload.meshletIndices[gl_WorkGroupID.x];
     uint ti = gl_LocalInvocationIndex;
 
@@ -68,9 +74,10 @@ void main()
 
     for (uint i = ti; i < vertexCount; i += MESH_WGSIZE)
     {
-        uint vi = meshletData[dataOffset + i];
+        uint vi = meshletData[dataOffset + i] + draw.VertexOffset;
         VertexData v = vertices[vi];
-        vec3 position = vec3(v.vx, v.vy, v.vz);
+        vec3 localPosition = vec3(v.vx, v.vy, v.vz) * draw.Scale;
+        vec3 position = RotateByQuaternion(localPosition, draw.Orientation) + draw.Position;
         vec3 normal   = vec3(v.nx, v.ny, v.nz) / 127.0;
         gl_MeshVerticesEXT[i].gl_Position = sceneData.ProjectionViewMatrix * vec4(position, 1.0);
         v_Color[i] = vec4(normal * 0.5 + 0.5, 1.0);

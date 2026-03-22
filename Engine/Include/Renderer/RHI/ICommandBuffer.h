@@ -80,13 +80,20 @@ public:
     virtual void Draw(uint32_t vertexCount,
                       uint32_t instanceCount = 1,
                       uint32_t firstVertex   = 0,
-                      uint32_t firstInstance = 0)                                                        = 0;
+                      uint32_t firstInstance = 0) = 0;
+
     virtual void DrawIndexed(uint32_t indexCount,
                              uint32_t instanceCount = 1,
                              uint32_t firstIndex    = 0,
                              int32_t  vertexOffset  = 0,
-                             uint32_t firstInstance = 0)                                                 = 0;
+                             uint32_t firstInstance = 0) = 0;
+
     virtual void DrawMeshTasks(uint32_t groupCountX, uint32_t groupCountY = 1, uint32_t groupCountZ = 1) = 0;
+
+    virtual void DrawMeshTasksIndirect(const Ref<IBuffer>& indirectBuffer,
+                                       uint32_t            offset,
+                                       uint32_t            drawCount,
+                                       uint32_t            stride) = 0;
 
     virtual void Blit(const Ref<ITexture>& src, const Ref<ITexture>& dst) = 0;
 

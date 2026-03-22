@@ -33,12 +33,17 @@ private:
     static const uint32_t MAX_MESHLET_SIZE  = MAX_MESHLETS * sizeof(MeshletData);
     static const uint32_t MAX_MESHLET_DATA_SIZE =
         MAX_MESHLETS * (MESHLET_MAX_VERTICES + MESHLET_MAX_TRIANGLES * 3) * sizeof(uint32_t);
+    static const uint32_t MAX_MESH_DRAWS                 = 2048;
+    static const uint32_t MAX_MESH_DRAW_SIZE             = MAX_MESH_DRAWS * sizeof(MeshDraw);
+    static const uint32_t MAX_INDIRECT_DRAW_COMMAND_SIZE = MAX_MESH_DRAWS * sizeof(uint32_t) * 3;
 
     SceneData m_sceneData;
 
-    Ref<IBuffer> m_vertexStorageBuffer = nullptr;
-    Ref<IBuffer> m_meshletBuffer       = nullptr;
-    Ref<IBuffer> m_meshletDataBuffer   = nullptr;
+    Ref<IBuffer> m_vertexStorageBuffer    = nullptr;
+    Ref<IBuffer> m_meshletBuffer          = nullptr;
+    Ref<IBuffer> m_meshletDataBuffer      = nullptr;
+    Ref<IBuffer> m_meshDrawBuffer         = nullptr;
+    Ref<IBuffer> m_meshTaskIndirectBuffer = nullptr;
 
     std::vector<Ref<IRenderPass>> m_renderPasses;
     Ref<IShaderResourceBinding>   m_shaderResourceBinding = nullptr;

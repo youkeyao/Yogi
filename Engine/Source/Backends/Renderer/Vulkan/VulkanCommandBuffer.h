@@ -45,6 +45,10 @@ public:
                      int32_t  vertexOffset  = 0,
                      uint32_t firstInstance = 0) override;
     void DrawMeshTasks(uint32_t groupCountX, uint32_t groupCountY = 1, uint32_t groupCountZ = 1) override;
+    void DrawMeshTasksIndirect(const Ref<IBuffer>& indirectBuffer,
+                               uint32_t            offset,
+                               uint32_t            drawCount,
+                               uint32_t            stride) override;
 
     void Blit(const Ref<ITexture>& src, const Ref<ITexture>& dst) override;
 
