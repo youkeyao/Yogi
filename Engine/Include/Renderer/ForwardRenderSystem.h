@@ -36,17 +36,23 @@ private:
     static const uint32_t MAX_MESH_DRAWS                 = 2048;
     static const uint32_t MAX_MESH_DRAW_SIZE             = MAX_MESH_DRAWS * sizeof(MeshDraw);
     static const uint32_t MAX_INDIRECT_DRAW_COMMAND_SIZE = MAX_MESH_DRAWS * sizeof(uint32_t) * 3;
+    static const uint32_t MAX_VISIBLE_DRAW_INDEX_SIZE    = MAX_MESH_DRAWS * sizeof(uint32_t);
+    static const uint32_t MAX_INDIRECT_DRAW_COUNT_SIZE   = MAX_MESH_DRAWS * sizeof(uint32_t);
 
     SceneData m_sceneData;
 
-    Ref<IBuffer> m_vertexStorageBuffer    = nullptr;
-    Ref<IBuffer> m_meshletBuffer          = nullptr;
-    Ref<IBuffer> m_meshletDataBuffer      = nullptr;
-    Ref<IBuffer> m_meshDrawBuffer         = nullptr;
-    Ref<IBuffer> m_meshTaskIndirectBuffer = nullptr;
+    Ref<IBuffer> m_vertexStorageBuffer         = nullptr;
+    Ref<IBuffer> m_meshletBuffer               = nullptr;
+    Ref<IBuffer> m_meshletDataBuffer           = nullptr;
+    Ref<IBuffer> m_meshDrawBuffer              = nullptr;
+    Ref<IBuffer> m_meshTaskIndirectBuffer      = nullptr;
+    Ref<IBuffer> m_visibleDrawIndexBuffer      = nullptr;
+    Ref<IBuffer> m_meshTaskIndirectCountBuffer = nullptr;
 
     std::vector<Ref<IRenderPass>> m_renderPasses;
-    Ref<IShaderResourceBinding>   m_shaderResourceBinding = nullptr;
+    Ref<IShaderResourceBinding>   m_shaderResourceBinding     = nullptr;
+    Ref<IShaderResourceBinding>   m_cullShaderResourceBinding = nullptr;
+    Ref<IPipeline>                m_cullPipeline              = nullptr;
 
     std::unordered_map<uint64_t, Ref<IFrameBuffer>> m_frameBuffers;
 };

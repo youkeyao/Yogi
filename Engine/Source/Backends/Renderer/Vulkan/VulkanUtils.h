@@ -4,6 +4,7 @@
 #include "Renderer/RHI/ITexture.h"
 #include "Renderer/RHI/IRenderPass.h"
 #include "Renderer/RHI/IPipeline.h"
+#include "Renderer/RHI/ICommandBuffer.h"
 
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan.h>
@@ -49,6 +50,8 @@ VkAccessFlags        AccessMaskFromImageLayout(VkImageLayout Layout, bool IsDstM
 VkPipelineStageFlags PipelineStageFromImageLayout(VkImageLayout Layout, bool IsDstStage);
 VkShaderStageFlags   YgShaderStage2VkShaderStage(ShaderStage stage);
 VkPrimitiveTopology  YgPrimitiveTopology2VkPrimitiveTopology(PrimitiveTopology topology);
+VkPipelineStageFlags YgPipelineStage2VkPipelineStage(PipelineStage stage);
+VkAccessFlags        YgBarrierAccess2VkAccess(BarrierAccess access);
 
 YG_API PFN_vkVoidFunction VkLoadFunction(const char* funcName, void* instance);
 

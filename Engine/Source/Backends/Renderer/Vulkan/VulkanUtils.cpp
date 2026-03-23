@@ -457,6 +457,52 @@ VkPrimitiveTopology YgPrimitiveTopology2VkPrimitiveTopology(PrimitiveTopology to
     }
 }
 
+VkPipelineStageFlags YgPipelineStage2VkPipelineStage(PipelineStage stage)
+{
+    VkPipelineStageFlags flags = 0;
+
+    if (stage & PipelineStage::DrawIndirect)
+        flags |= VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT;
+    if (stage & PipelineStage::VertexShader)
+        flags |= VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
+    if (stage & PipelineStage::FragmentShader)
+        flags |= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    if (stage & PipelineStage::ComputeShader)
+        flags |= VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+    if (stage & PipelineStage::TaskShader)
+        flags |= VK_PIPELINE_STAGE_TASK_SHADER_BIT_EXT;
+    if (stage & PipelineStage::MeshShader)
+        flags |= VK_PIPELINE_STAGE_MESH_SHADER_BIT_EXT;
+    if (stage & PipelineStage::Transfer)
+        flags |= VK_PIPELINE_STAGE_TRANSFER_BIT;
+    if (stage & PipelineStage::ColorAttachment)
+        flags |= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+    return flags == 0 ? VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT : flags;
+}
+
+VkAccessFlags YgBarrierAccess2VkAccess(BarrierAccess access)
+{
+    VkAccessFlags flags = 0;
+
+    if (access & BarrierAccess::ShaderRead)
+        flags |= VK_ACCESS_SHADER_READ_BIT;
+    if (access & BarrierAccess::ShaderWrite)
+        flags |= VK_ACCESS_SHADER_WRITE_BIT;
+    if (access & BarrierAccess::IndirectCommandRead)
+        flags |= VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
+    if (access & BarrierAccess::TransferRead)
+        flags |= VK_ACCESS_TRANSFER_READ_BIT;
+    if (access & BarrierAccess::TransferWrite)
+        flags |= VK_ACCESS_TRANSFER_WRITE_BIT;
+    if (access & BarrierAccess::ColorAttachmentRead)
+        flags |= VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
+    if (access & BarrierAccess::ColorAttachmentWrite)
+        flags |= VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+    return flags;
+}
+
 PFN_vkVoidFunction VkLoadFunction(const char* funcName, void* instance)
 {
     return vkGetInstanceProcAddr((VkInstance)instance, funcName);

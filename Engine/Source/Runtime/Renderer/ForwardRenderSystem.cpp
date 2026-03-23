@@ -5,10 +5,17 @@
 #include "Scene/World.h"
 #include "Math/Vector.h"
 
-#include <unordered_map>
-
 namespace Yogi
 {
+
+struct ObjectCullPushConstant
+{
+    SceneData Scene;
+    uint32_t  DrawBase;
+    uint32_t  DrawCount;
+    uint32_t  OutputBase;
+    uint32_t  CountIndex;
+};
 
 ForwardRenderSystem::ForwardRenderSystem()
 {
@@ -20,10 +27,12 @@ ForwardRenderSystem::ForwardRenderSystem()
         BufferDesc{ MAX_MESHLET_DATA_SIZE, BufferUsage::Storage, BufferAccess::Dynamic });
     m_meshDrawBuffer = ResourceManager::GetResource<IBuffer>(
         BufferDesc{ MAX_MESH_DRAW_SIZE, BufferUsage::Storage, BufferAccess::Dynamic });
-    m_meshTaskIndirectBuffer = ResourceManager::GetResource<IBuffer>(
-        BufferDesc{ MAX_INDIRECT_DRAW_COMMAND_SIZE, BufferUsage::Indirect, BufferAccess::Dynamic });
-
-    auto& swapChain = Application::GetInstance().GetSwapChain();
+    m_meshTaskIndirectBuffer = ResourceManager::GetResource<IBuffer>(BufferDesc{
+        MAX_INDIRECT_DRAW_COMMAND_SIZE, BufferUsage::Storage | BufferUsage::Indirect, BufferAccess::Dynamic });
+    m_visibleDrawIndexBuffer = ResourceManager::GetResource<IBuffer>(
+        BufferDesc{ MAX_VISIBLE_DRAW_INDEX_SIZE, BufferUsage::Storage, BufferAccess::Dynamic });
+    m_meshTaskIndirectCountBuffer = ResourceManager::GetResource<IBuffer>(BufferDesc{
+        MAX_INDIRECT_DRAW_COUNT_SIZE, BufferUsage::Storage | BufferUsage::Indirect, BufferAccess::Dynamic });
 
     m_renderPasses.push_back(AssetManager::GetAsset<IRenderPass>("EngineAssets/RenderPasses/Default.rp"));
 
@@ -32,7 +41,8 @@ ForwardRenderSystem::ForwardRenderSystem()
             ShaderResourceAttribute{ 0, 1, ShaderResourceType::StorageBuffer, ShaderStage::Mesh },
             ShaderResourceAttribute{ 1, 1, ShaderResourceType::StorageBuffer, ShaderStage::Task | ShaderStage::Mesh },
             ShaderResourceAttribute{ 2, 1, ShaderResourceType::StorageBuffer, ShaderStage::Mesh },
-            ShaderResourceAttribute{ 3, 1, ShaderResourceType::StorageBuffer, ShaderStage::Task | ShaderStage::Mesh } },
+            ShaderResourceAttribute{ 3, 1, ShaderResourceType::StorageBuffer, ShaderStage::Task | ShaderStage::Mesh },
+            ShaderResourceAttribute{ 4, 1, ShaderResourceType::StorageBuffer, ShaderStage::Task } },
         std::vector<PushConstantRange>{
             PushConstantRange{ ShaderStage::Task | ShaderStage::Mesh, 0, static_cast<uint32_t>(sizeof(SceneData)) } });
 
@@ -40,16 +50,40 @@ ForwardRenderSystem::ForwardRenderSystem()
     m_shaderResourceBinding->BindBuffer(m_meshletBuffer, 1);
     m_shaderResourceBinding->BindBuffer(m_meshletDataBuffer, 2);
     m_shaderResourceBinding->BindBuffer(m_meshDrawBuffer, 3);
+    m_shaderResourceBinding->BindBuffer(m_visibleDrawIndexBuffer, 4);
+
+    m_cullShaderResourceBinding = ResourceManager::GetResource<IShaderResourceBinding>(
+        std::vector<ShaderResourceAttribute>{
+            ShaderResourceAttribute{ 3, 1, ShaderResourceType::StorageBuffer, ShaderStage::Compute },
+            ShaderResourceAttribute{ 4, 1, ShaderResourceType::StorageBuffer, ShaderStage::Compute },
+            ShaderResourceAttribute{ 5, 1, ShaderResourceType::StorageBuffer, ShaderStage::Compute },
+            ShaderResourceAttribute{ 6, 1, ShaderResourceType::StorageBuffer, ShaderStage::Compute } },
+        std::vector<PushConstantRange>{
+            PushConstantRange{ ShaderStage::Compute, 0, static_cast<uint32_t>(sizeof(ObjectCullPushConstant)) } });
+    m_cullShaderResourceBinding->BindBuffer(m_meshDrawBuffer, 3);
+    m_cullShaderResourceBinding->BindBuffer(m_meshTaskIndirectBuffer, 4);
+    m_cullShaderResourceBinding->BindBuffer(m_visibleDrawIndexBuffer, 5);
+    m_cullShaderResourceBinding->BindBuffer(m_meshTaskIndirectCountBuffer, 6);
+
+    PipelineDesc cullPipelineDesc{};
+    cullPipelineDesc.Type    = PipelineType::Compute;
+    cullPipelineDesc.Shaders = { AssetManager::GetAsset<ShaderDesc>("EngineAssets/Shaders/ObjectCull.comp") };
+    cullPipelineDesc.ShaderResourceBinding = m_cullShaderResourceBinding;
+    m_cullPipeline                         = ResourceManager::GetResource<IPipeline>(cullPipelineDesc);
 }
 
 ForwardRenderSystem::~ForwardRenderSystem()
 {
-    m_vertexStorageBuffer    = nullptr;
-    m_meshletBuffer          = nullptr;
-    m_meshletDataBuffer      = nullptr;
-    m_meshDrawBuffer         = nullptr;
-    m_meshTaskIndirectBuffer = nullptr;
-    m_shaderResourceBinding  = nullptr;
+    m_vertexStorageBuffer         = nullptr;
+    m_meshletBuffer               = nullptr;
+    m_meshletDataBuffer           = nullptr;
+    m_meshDrawBuffer              = nullptr;
+    m_meshTaskIndirectBuffer      = nullptr;
+    m_visibleDrawIndexBuffer      = nullptr;
+    m_meshTaskIndirectCountBuffer = nullptr;
+    m_shaderResourceBinding       = nullptr;
+    m_cullShaderResourceBinding   = nullptr;
+    m_cullPipeline                = nullptr;
 }
 
 void ForwardRenderSystem::OnUpdate(Timestep ts, World& world)
@@ -113,19 +147,26 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
     }
     m_sceneData.ProjectionViewMatrix = projectionMatrix * viewMatrix;
     m_sceneData.ViewMatrix           = viewMatrix;
+    m_sceneData.DrawBase             = 0;
+    m_sceneData._Pad0                = 0;
+    m_sceneData._Pad1                = 0;
+    m_sceneData._Pad2                = 0;
 
     constexpr uint32_t maxVertexCount = MAX_VERTICES_SIZE / sizeof(VertexData);
 
     struct RenderBatch
     {
-        Ref<IPipeline>           Pipeline;
-        std::vector<MeshletData> Meshlets;
-        std::vector<uint32_t>    MeshletData;
-        std::vector<MeshDraw>    MeshDraws;
-        std::vector<uint32_t>    IndirectCommands;
+        uint64_t              PipelineKey = 0;
+        Ref<IPipeline>        Pipeline;
+        std::vector<MeshDraw> MeshDraws;
+        uint32_t              DrawBase            = 0;
+        uint32_t              DrawCount           = 0;
+        uint32_t              IndirectOffsetBytes = 0;
     };
 
     std::vector<VertexData>           batchVertices;
+    std::vector<MeshletData>          batchMeshlets;
+    std::vector<uint32_t>             batchMeshletData;
     std::vector<RenderBatch>          renderBatches;
     std::unordered_map<uint64_t, int> renderBatchLookup;
 
@@ -133,36 +174,104 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
         if (batchVertices.empty())
             return;
 
-        m_vertexStorageBuffer->UpdateData(batchVertices.data(), batchVertices.size() * sizeof(VertexData), 0);
+        std::vector<MeshDraw> uploadMeshDraws;
+
+        std::sort(renderBatches.begin(), renderBatches.end(), [](const RenderBatch& a, const RenderBatch& b) {
+            return a.PipelineKey < b.PipelineKey;
+        });
+
         for (auto& batch : renderBatches)
         {
-            if (!batch.Pipeline)
-                continue;
-            if (batch.MeshDraws.empty())
+            if (!batch.Pipeline || batch.MeshDraws.empty())
                 continue;
 
-            m_meshletBuffer->UpdateData(batch.Meshlets.data(), batch.Meshlets.size() * sizeof(MeshletData), 0);
-            m_meshletDataBuffer->UpdateData(batch.MeshletData.data(), batch.MeshletData.size() * sizeof(uint32_t), 0);
-            m_meshDrawBuffer->UpdateData(batch.MeshDraws.data(), batch.MeshDraws.size() * sizeof(MeshDraw), 0);
-            m_meshTaskIndirectBuffer->UpdateData(
-                batch.IndirectCommands.data(), batch.IndirectCommands.size() * sizeof(uint32_t), 0);
+            batch.DrawBase            = static_cast<uint32_t>(uploadMeshDraws.size());
+            batch.DrawCount           = static_cast<uint32_t>(batch.MeshDraws.size());
+            batch.IndirectOffsetBytes = batch.DrawBase * sizeof(uint32_t) * 3;
+
+            uploadMeshDraws.insert(uploadMeshDraws.end(), batch.MeshDraws.begin(), batch.MeshDraws.end());
+        }
+
+        m_vertexStorageBuffer->UpdateData(batchVertices.data(), batchVertices.size() * sizeof(VertexData), 0);
+        m_meshletBuffer->UpdateData(
+            batchMeshlets.data(), static_cast<uint32_t>(batchMeshlets.size() * sizeof(MeshletData)), 0);
+        m_meshletDataBuffer->UpdateData(
+            batchMeshletData.data(), static_cast<uint32_t>(batchMeshletData.size() * sizeof(uint32_t)), 0);
+        m_meshDrawBuffer->UpdateData(
+            uploadMeshDraws.data(), static_cast<uint32_t>(uploadMeshDraws.size() * sizeof(MeshDraw)), 0);
+
+        uint32_t totalDrawCount = static_cast<uint32_t>(uploadMeshDraws.size());
+
+        commandBuffer->Begin();
+
+        {
+            commandBuffer->SetPipeline(m_cullPipeline);
+            commandBuffer->SetShaderResourceBinding(m_cullShaderResourceBinding);
+
+            constexpr uint32_t CULL_WORKGROUP_SIZE = 64;
+            for (size_t batchIndex = 0; batchIndex < renderBatches.size(); ++batchIndex)
+            {
+                auto& batch = renderBatches[batchIndex];
+                if (!batch.Pipeline || batch.DrawCount == 0)
+                    continue;
+
+                ObjectCullPushConstant cullPushConstant{};
+                cullPushConstant.Scene      = m_sceneData;
+                cullPushConstant.DrawBase   = batch.DrawBase;
+                cullPushConstant.DrawCount  = batch.DrawCount;
+                cullPushConstant.OutputBase = batch.DrawBase;
+                cullPushConstant.CountIndex = static_cast<uint32_t>(batchIndex);
+
+                commandBuffer->SetPushConstants(m_cullShaderResourceBinding,
+                                                ShaderStage::Compute,
+                                                0,
+                                                sizeof(ObjectCullPushConstant),
+                                                &cullPushConstant);
+
+                uint32_t dispatchX = (batch.DrawCount + CULL_WORKGROUP_SIZE - 1) / CULL_WORKGROUP_SIZE;
+                commandBuffer->Dispatch(dispatchX, 1, 1);
+            }
+            if (totalDrawCount > 0)
+                commandBuffer->Barrier(PipelineStage::ComputeShader,
+                                       PipelineStage::DrawIndirect | PipelineStage::TaskShader |
+                                           PipelineStage::MeshShader,
+                                       BarrierAccess::ShaderWrite,
+                                       BarrierAccess::IndirectCommandRead | BarrierAccess::ShaderRead);
+        }
+
+        BeginRender(commandBuffer, frameBuffer);
+        commandBuffer->SetViewport({ 0, 0, (float)frameBuffer->GetWidth(), (float)frameBuffer->GetHeight() });
+        commandBuffer->SetScissor({ 0, 0, frameBuffer->GetWidth(), frameBuffer->GetHeight() });
+
+        for (size_t batchIndex = 0; batchIndex < renderBatches.size(); ++batchIndex)
+        {
+            auto& batch = renderBatches[batchIndex];
+            if (!batch.Pipeline || batch.DrawCount == 0)
+                continue;
 
             commandBuffer->SetPipeline(batch.Pipeline);
+            commandBuffer->SetShaderResourceBinding(m_shaderResourceBinding);
 
-            commandBuffer->SetViewport({ 0, 0, (float)frameBuffer->GetWidth(), (float)frameBuffer->GetHeight() });
-            commandBuffer->SetScissor({ 0, 0, frameBuffer->GetWidth(), frameBuffer->GetHeight() });
-            uint32_t           drawCount     = static_cast<uint32_t>(batch.MeshDraws.size());
-            constexpr uint32_t commandStride = sizeof(uint32_t) * 3;
+            SceneData drawSceneData = m_sceneData;
+            drawSceneData.DrawBase  = batch.DrawBase;
             commandBuffer->SetPushConstants(
-                m_shaderResourceBinding, ShaderStage::Task | ShaderStage::Mesh, 0, sizeof(SceneData), &m_sceneData);
-            commandBuffer->DrawMeshTasksIndirect(m_meshTaskIndirectBuffer, 0, drawCount, commandStride);
+                m_shaderResourceBinding, ShaderStage::Task | ShaderStage::Mesh, 0, sizeof(SceneData), &drawSceneData);
+            commandBuffer->DrawMeshTasksIndirectCount(m_meshTaskIndirectBuffer,
+                                                      batch.IndirectOffsetBytes,
+                                                      m_meshTaskIndirectCountBuffer,
+                                                      static_cast<uint32_t>(batchIndex * sizeof(uint32_t)),
+                                                      batch.DrawCount,
+                                                      sizeof(uint32_t) * 3);
         }
+
+        EndRender(commandBuffer);
+
         batchVertices.clear();
+        batchMeshlets.clear();
+        batchMeshletData.clear();
         renderBatches.clear();
         renderBatchLookup.clear();
     };
-
-    BeginRender(commandBuffer, frameBuffer);
 
     // collect and batch meshes into meshlets
     world.ViewComponents<TransformComponent, MeshRendererComponent>(
@@ -176,24 +285,25 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
             uint32_t meshMeshletCount = static_cast<uint32_t>(mesh->GetMeshlets().size());
             uint32_t passCount        = static_cast<uint32_t>(material->GetPasses().size());
 
-            // Count total meshlets in current batch
             uint32_t totalMeshlets  = 0;
+            uint32_t totalMeshData  = 0;
             uint32_t totalMeshDraws = 0;
+            totalMeshlets           = static_cast<uint32_t>(batchMeshlets.size());
+            totalMeshData           = static_cast<uint32_t>(batchMeshletData.size());
             for (const auto& batch : renderBatches)
             {
-                totalMeshlets += static_cast<uint32_t>(batch.Meshlets.size());
                 totalMeshDraws += static_cast<uint32_t>(batch.MeshDraws.size());
             }
 
             // flush if adding this mesh would exceed buffer capacity
             if (batchVertices.size() + meshVertexCount > maxVertexCount ||
                 totalMeshlets + meshMeshletCount * passCount > MAX_MESHLETS ||
-                totalMeshDraws + passCount > MAX_MESH_DRAWS)
+                totalMeshDraws + passCount > MAX_MESH_DRAWS ||
+                totalMeshData + static_cast<uint32_t>(mesh->GetMeshletData().size()) * passCount >
+                    MAX_MESHLET_DATA_SIZE / sizeof(uint32_t))
             {
                 flushBatch();
-                EndRender(commandBuffer);
                 commandBuffer->Wait();
-                BeginRender(commandBuffer, frameBuffer);
             }
 
             uint32_t vertexBase = static_cast<uint32_t>(batchVertices.size());
@@ -211,7 +321,10 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
                 if (lookupIt == renderBatchLookup.end())
                 {
                     renderBatchLookup[passKey] = static_cast<int>(renderBatches.size());
-                    renderBatches.push_back(RenderBatch{ pipeline, {}, {} });
+                    RenderBatch newBatch{};
+                    newBatch.PipelineKey = passKey;
+                    newBatch.Pipeline    = pipeline;
+                    renderBatches.push_back(std::move(newBatch));
                     lookupIt = renderBatchLookup.find(passKey);
                 }
 
@@ -219,35 +332,30 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
 
                 MeshDraw draw{};
                 draw.Position        = meshTransform.Transform.Position;
-                draw.Scale           = meshTransform.Transform.Scale.x;
+                draw.Scale           = meshTransform.Transform.Scale;
                 draw.Orientation     = Vector4(meshTransform.Transform.Rotation.x,
                                            meshTransform.Transform.Rotation.y,
                                            meshTransform.Transform.Rotation.z,
                                            meshTransform.Transform.Rotation.w);
-                draw.MeshletDataBase = static_cast<uint32_t>(batch.MeshletData.size());
-                draw.MeshletOffset   = static_cast<uint32_t>(batch.Meshlets.size());
+                draw.BoundingCenter  = mesh->GetCenter();
+                draw.BoundingRadius  = mesh->GetBoundingRadius();
+                draw.MeshletDataBase = static_cast<uint32_t>(batchMeshletData.size());
+                draw.MeshletOffset   = static_cast<uint32_t>(batchMeshlets.size());
                 draw.MeshletCount    = meshMeshletCount;
                 draw.VertexOffset    = vertexBase;
                 batch.MeshDraws.push_back(draw);
 
-                uint32_t taskWorkGroupCount = (meshMeshletCount + TASK_WGSIZE - 1) / TASK_WGSIZE;
-                batch.IndirectCommands.push_back(taskWorkGroupCount);
-                batch.IndirectCommands.push_back(1);
-                batch.IndirectCommands.push_back(1);
-
-                batch.Meshlets.insert(batch.Meshlets.end(), mesh->GetMeshlets().begin(), mesh->GetMeshlets().end());
-                batch.MeshletData.insert(
-                    batch.MeshletData.end(), mesh->GetMeshletData().begin(), mesh->GetMeshletData().end());
+                batchMeshlets.insert(batchMeshlets.end(), mesh->GetMeshlets().begin(), mesh->GetMeshlets().end());
+                batchMeshletData.insert(
+                    batchMeshletData.end(), mesh->GetMeshletData().begin(), mesh->GetMeshletData().end());
             }
         });
 
     flushBatch();
-    EndRender(commandBuffer);
 }
 
 void ForwardRenderSystem::BeginRender(Ref<ICommandBuffer>& commandBuffer, Ref<IFrameBuffer>& frameBuffer)
 {
-    commandBuffer->Begin();
     commandBuffer->BeginRenderPass(frameBuffer, { ClearValue{ 0.1f, 0.1f, 0.1f, 1.0f } }, ClearValue{ 1.0f, 0 });
     commandBuffer->SetShaderResourceBinding(m_shaderResourceBinding);
 }

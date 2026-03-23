@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Core/EnumFlags.h"
+
 namespace Yogi
 {
 
@@ -12,6 +14,8 @@ enum class BufferUsage : uint8_t
     Staging  = 1 << 4,
     Indirect = 1 << 5
 };
+
+YG_ENABLE_ENUM_FLAGS(BufferUsage);
 
 enum class BufferAccess : uint8_t
 {

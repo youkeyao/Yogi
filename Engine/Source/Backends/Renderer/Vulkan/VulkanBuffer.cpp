@@ -1,6 +1,4 @@
 #include "VulkanBuffer.h"
-#include <stdexcept>
-#include <cstring>
 
 #include <volk.h>
 
@@ -21,27 +19,27 @@ VulkanBuffer::VulkanBuffer(const BufferDesc& desc) : m_size(desc.Size), m_usage(
     {
         bufferInfo.usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     }
-    if (m_usage == BufferUsage::Vertex)
+    if (m_usage & BufferUsage::Vertex)
     {
         bufferInfo.usage |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
     }
-    if (m_usage == BufferUsage::Index)
+    if (m_usage & BufferUsage::Index)
     {
         bufferInfo.usage |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
     }
-    if (m_usage == BufferUsage::Uniform)
+    if (m_usage & BufferUsage::Uniform)
     {
         bufferInfo.usage |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
     }
-    if (m_usage == BufferUsage::Storage)
+    if (m_usage & BufferUsage::Storage)
     {
         bufferInfo.usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
     }
-    if (m_usage == BufferUsage::Staging)
+    if (m_usage & BufferUsage::Staging)
     {
         bufferInfo.usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
     }
-    if (m_usage == BufferUsage::Indirect)
+    if (m_usage & BufferUsage::Indirect)
     {
         bufferInfo.usage |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
     }

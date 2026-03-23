@@ -21,6 +21,11 @@ layout(binding = 3) readonly buffer MeshDrawBuffer
     MeshDraw meshDraws[];
 };
 
+layout(binding = 4) readonly buffer VisibleDrawIndexBuffer
+{
+    uint visibleDrawIndices[];
+};
+
 taskPayloadSharedEXT TaskPayload payload;
 
 layout(push_constant) uniform SceneDataBlock
@@ -39,7 +44,7 @@ bool coneCull(vec3 center, float radius, vec3 coneAxis, float coneCutoff, vec3 c
 
 void main()
 {
-    uint drawIndex = uint(gl_DrawID);
+    uint drawIndex = visibleDrawIndices[uint(gl_DrawID) + sceneData.DrawBase];
     payload.drawIndex = drawIndex;
     MeshDraw draw = meshDraws[drawIndex];
     uint ti = gl_LocalInvocationIndex;

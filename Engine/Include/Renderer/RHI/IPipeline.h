@@ -59,6 +59,7 @@ struct PipelineDesc
     Ref<IRenderPass>             RenderPass;
     int                          SubPassIndex;
     PrimitiveTopology            Topology = PrimitiveTopology::TriangleList;
+    PipelineType                 Type     = PipelineType::Graphics;
 };
 
 class YG_API IPipeline

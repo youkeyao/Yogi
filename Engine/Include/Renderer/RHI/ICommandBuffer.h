@@ -22,6 +22,35 @@ enum class SubmitQueue : uint8_t
     Transfer
 };
 
+enum class PipelineStage : uint8_t
+{
+    None            = 0,
+    DrawIndirect    = 1 << 0,
+    VertexShader    = 1 << 1,
+    FragmentShader  = 1 << 2,
+    ComputeShader   = 1 << 3,
+    TaskShader      = 1 << 4,
+    MeshShader      = 1 << 5,
+    Transfer        = 1 << 6,
+    ColorAttachment = 1 << 7
+};
+
+YG_ENABLE_ENUM_FLAGS(PipelineStage);
+
+enum class BarrierAccess : uint8_t
+{
+    None                 = 0,
+    ShaderRead           = 1 << 0,
+    ShaderWrite          = 1 << 1,
+    IndirectCommandRead  = 1 << 2,
+    TransferRead         = 1 << 3,
+    TransferWrite        = 1 << 4,
+    ColorAttachmentRead  = 1 << 5,
+    ColorAttachmentWrite = 1 << 6
+};
+
+YG_ENABLE_ENUM_FLAGS(BarrierAccess);
+
 union ClearValue
 {
     float Color[4];
@@ -94,6 +123,19 @@ public:
                                        uint32_t            offset,
                                        uint32_t            drawCount,
                                        uint32_t            stride) = 0;
+
+    virtual void DrawMeshTasksIndirectCount(const Ref<IBuffer>& indirectBuffer,
+                                            uint32_t            indirectOffset,
+                                            const Ref<IBuffer>& countBuffer,
+                                            uint32_t            countOffset,
+                                            uint32_t            maxDrawCount,
+                                            uint32_t            stride) = 0;
+
+    virtual void Dispatch(uint32_t groupCountX, uint32_t groupCountY = 1, uint32_t groupCountZ = 1) = 0;
+    virtual void Barrier(PipelineStage sourceStage,
+                         PipelineStage destinationStage,
+                         BarrierAccess sourceAccess,
+                         BarrierAccess destinationAccess)                                           = 0;
 
     virtual void Blit(const Ref<ITexture>& src, const Ref<ITexture>& dst) = 0;
 

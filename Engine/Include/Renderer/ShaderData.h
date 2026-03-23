@@ -39,18 +39,25 @@ struct SceneData
 {
     mat4 ProjectionViewMatrix;
     mat4 ViewMatrix;
+    uint DrawBase;
+    uint _Pad0;
+    uint _Pad1;
+    uint _Pad2;
 };
 
 struct MeshDraw
 {
     vec3  Position;
-    float Scale;
+    uint  MeshletDataBase;
+    vec3  Scale;
+    uint  MeshletOffset;
     vec4  Orientation;
-
-    uint MeshletDataBase;
-    uint MeshletOffset;
-    uint MeshletCount;
-    uint VertexOffset;
+    vec3  BoundingCenter;
+    float BoundingRadius;
+    uint  MeshletCount;
+    uint  VertexOffset;
+    uint  _Pad0;
+    uint  _Pad1;
 };
 
 #ifdef __cplusplus

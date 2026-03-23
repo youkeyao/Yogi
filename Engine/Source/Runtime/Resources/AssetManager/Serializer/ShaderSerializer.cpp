@@ -4,9 +4,6 @@
 #include <glslang/Public/ResourceLimits.h>
 #include <SPIRV/GlslangToSpv.h>
 
-#include <filesystem>
-#include <fstream>
-
 namespace Yogi
 {
 
@@ -15,10 +12,12 @@ class FileIncluder : public glslang::TShader::Includer
 public:
     FileIncluder(const std::string& shaderDir) : m_shaderDir(shaderDir) {}
 
-    IncludeResult* includeLocal(const char* headerName, const char* /*includerName*/, size_t /*inclusionDepth*/) override
+    IncludeResult* includeLocal(const char* headerName,
+                                const char* /*includerName*/,
+                                size_t /*inclusionDepth*/) override
     {
         std::filesystem::path fullPath = m_shaderDir / std::filesystem::path(headerName);
-        std::ifstream file(fullPath, std::ios::binary);
+        std::ifstream         file(fullPath, std::ios::binary);
         if (!file)
             return nullptr;
 
@@ -45,7 +44,9 @@ private:
     std::filesystem::path m_shaderDir;
 };
 
-std::vector<uint8_t> CompileGlslToSpirv(const std::vector<uint8_t>& glslBinary, EShLanguage shaderStage, const std::string& key)
+std::vector<uint8_t> CompileGlslToSpirv(const std::vector<uint8_t>& glslBinary,
+                                        EShLanguage                 shaderStage,
+                                        const std::string&          key)
 {
     std::string source;
     source.assign(reinterpret_cast<const char*>(glslBinary.data()), glslBinary.size());
@@ -121,6 +122,8 @@ Owner<ShaderDesc> ShaderSerializer::Deserialize(const std::vector<uint8_t>& bina
         return Owner<ShaderDesc>::Create(ShaderStage::Mesh, CompileGlslToSpirv(binary, EShLangMesh, key));
     else if (path.extension() == ".task")
         return Owner<ShaderDesc>::Create(ShaderStage::Task, CompileGlslToSpirv(binary, EShLangTask, key));
+    else if (path.extension() == ".comp")
+        return Owner<ShaderDesc>::Create(ShaderStage::Compute, CompileGlslToSpirv(binary, EShLangCompute, key));
     return nullptr;
 }
 

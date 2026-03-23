@@ -175,7 +175,9 @@ void VulkanCommandBuffer::EndRenderPass() { vkCmdEndRenderPass(m_commandBuffer);
 void VulkanCommandBuffer::SetPipeline(const Ref<IPipeline>& pipeline)
 {
     Ref<VulkanPipeline> vkPipeline = Ref<VulkanPipeline>::Cast(pipeline);
-    vkCmdBindPipeline(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkPipeline->GetVkPipeline());
+    m_currentBindPoint = pipeline->GetDesc().Type == PipelineType::Compute ? VK_PIPELINE_BIND_POINT_COMPUTE :
+                                                                             VK_PIPELINE_BIND_POINT_GRAPHICS;
+    vkCmdBindPipeline(m_commandBuffer, m_currentBindPoint, vkPipeline->GetVkPipeline());
 }
 
 void VulkanCommandBuffer::SetVertexBuffer(const Ref<IBuffer>& buffer, uint32_t offset)
@@ -218,7 +220,7 @@ void VulkanCommandBuffer::SetShaderResourceBinding(const Ref<IShaderResourceBind
 
     VkDescriptorSet set = vkBinding->GetVkDescriptorSet();
     vkCmdBindDescriptorSets(
-        m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkBinding->GetVkPipelineLayout(), 0, 1, &set, 0, nullptr);
+        m_commandBuffer, m_currentBindPoint, vkBinding->GetVkPipelineLayout(), 0, 1, &set, 0, nullptr);
 }
 
 void VulkanCommandBuffer::SetPushConstants(const Ref<IShaderResourceBinding>& binding,
@@ -261,6 +263,51 @@ void VulkanCommandBuffer::DrawMeshTasksIndirect(const Ref<IBuffer>& indirectBuff
 {
     Ref<VulkanBuffer> vkIndirectBuffer = Ref<VulkanBuffer>::Cast(indirectBuffer);
     vkCmdDrawMeshTasksIndirectEXT(m_commandBuffer, vkIndirectBuffer->GetVkBuffer(), offset, drawCount, stride);
+}
+
+void VulkanCommandBuffer::DrawMeshTasksIndirectCount(const Ref<IBuffer>& indirectBuffer,
+                                                     uint32_t            indirectOffset,
+                                                     const Ref<IBuffer>& countBuffer,
+                                                     uint32_t            countOffset,
+                                                     uint32_t            maxDrawCount,
+                                                     uint32_t            stride)
+{
+    Ref<VulkanBuffer> vkIndirectBuffer = Ref<VulkanBuffer>::Cast(indirectBuffer);
+    Ref<VulkanBuffer> vkCountBuffer    = Ref<VulkanBuffer>::Cast(countBuffer);
+    vkCmdDrawMeshTasksIndirectCountEXT(m_commandBuffer,
+                                       vkIndirectBuffer->GetVkBuffer(),
+                                       indirectOffset,
+                                       vkCountBuffer->GetVkBuffer(),
+                                       countOffset,
+                                       maxDrawCount,
+                                       stride);
+}
+
+void VulkanCommandBuffer::Dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ)
+{
+    vkCmdDispatch(m_commandBuffer, groupCountX, groupCountY, groupCountZ);
+}
+
+void VulkanCommandBuffer::Barrier(PipelineStage sourceStage,
+                                  PipelineStage destinationStage,
+                                  BarrierAccess sourceAccess,
+                                  BarrierAccess destinationAccess)
+{
+    VkMemoryBarrier barrier{};
+    barrier.sType         = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+    barrier.srcAccessMask = YgBarrierAccess2VkAccess(sourceAccess);
+    barrier.dstAccessMask = YgBarrierAccess2VkAccess(destinationAccess);
+
+    vkCmdPipelineBarrier(m_commandBuffer,
+                         YgPipelineStage2VkPipelineStage(sourceStage),
+                         YgPipelineStage2VkPipelineStage(destinationStage),
+                         0,
+                         1,
+                         &barrier,
+                         0,
+                         nullptr,
+                         0,
+                         nullptr);
 }
 
 void VulkanCommandBuffer::Blit(const Ref<ITexture>& src, const Ref<ITexture>& dst)

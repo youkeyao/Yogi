@@ -19,8 +19,8 @@ VulkanShaderResourceBinding::VulkanShaderResourceBinding(
     const std::vector<ShaderResourceAttribute>& shaderResourceLayout,
     const std::vector<PushConstantRange>&       pushConstantRanges)
 {
-    m_layout              = shaderResourceLayout;
-    m_pushConstantRanges  = pushConstantRanges;
+    m_layout             = shaderResourceLayout;
+    m_pushConstantRanges = pushConstantRanges;
 
     VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
     VkDevice             device  = context->GetVkDevice();
@@ -73,7 +73,7 @@ VulkanShaderResourceBinding::VulkanShaderResourceBinding(
     pipelineLayoutInfo.setLayoutCount         = 1;
     pipelineLayoutInfo.pSetLayouts            = &m_descriptorSetLayout;
     pipelineLayoutInfo.pushConstantRangeCount = static_cast<uint32_t>(vkPushConstantRanges.size());
-    pipelineLayoutInfo.pPushConstantRanges = vkPushConstantRanges.empty() ? nullptr : vkPushConstantRanges.data();
+    pipelineLayoutInfo.pPushConstantRanges    = vkPushConstantRanges.empty() ? nullptr : vkPushConstantRanges.data();
 
     result = vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &m_pipelineLayout);
     YG_CORE_ASSERT(result == VK_SUCCESS, "Vulkan: Failed to create pipeline layout");
@@ -103,17 +103,18 @@ void VulkanShaderResourceBinding::BindBuffer(const Ref<IBuffer>& buffer, int bin
     descriptorWrite.dstSet          = m_descriptorSet;
     descriptorWrite.dstBinding      = binding;
     descriptorWrite.dstArrayElement = slot;
-    switch (vkBuffer->GetUsage())
+    if (vkBuffer->GetUsage() & BufferUsage::Storage)
     {
-        case BufferUsage::Storage:
-            descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            break;
-        case BufferUsage::Uniform:
-            descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            break;
-        default:
-            YG_CORE_ERROR("Vulkan: Unsupported buffer usage type!");
-            break;
+        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    }
+    else if (vkBuffer->GetUsage() & BufferUsage::Uniform)
+    {
+        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    }
+    else
+    {
+        YG_CORE_ERROR("Vulkan: Unsupported buffer usage type!");
+        return;
     }
     descriptorWrite.descriptorCount  = 1;
     descriptorWrite.pBufferInfo      = &bufferInfo;

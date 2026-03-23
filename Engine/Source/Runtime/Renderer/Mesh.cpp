@@ -46,6 +46,7 @@ void Mesh::BuildMeshlets(const std::vector<Vertex>& vertices, const std::vector<
     }
 
     m_meshlets.resize(meshletCount);
+    m_boundingRadius = 0.0f;
     for (size_t i = 0; i < meshletCount; ++i)
     {
         meshopt_optimizeMeshlet(&tmpVertices[tmpMeshlets[i].vertex_offset],
@@ -79,6 +80,12 @@ void Mesh::BuildMeshlets(const std::vector<Vertex>& vertices, const std::vector<
         m_meshlets[i].ConeAxis[2] = meshopt_quantizeSnorm(meshletBounds.cone_axis[2], 8);
         m_meshlets[i].ConeCutOff  = meshopt_quantizeSnorm(meshletBounds.cone_cutoff, 8);
     }
+
+    meshopt_Bounds bounds =
+        meshopt_computeSphereBounds(&vertices[0].Position.x, vertexCount, sizeof(Vertex), nullptr, 0);
+
+    m_center         = Vector3(bounds.center[0], bounds.center[1], bounds.center[2]);
+    m_boundingRadius = bounds.radius;
 }
 
 } // namespace Yogi

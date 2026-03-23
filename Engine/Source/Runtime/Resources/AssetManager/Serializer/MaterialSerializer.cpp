@@ -38,7 +38,7 @@ Owner<Material> MaterialSerializer::Deserialize(const std::vector<uint8_t>& bina
         bool hasMeshTaskShader = false;
         for (const auto& shaderKey : pipelineData.ShaderKeys)
         {
-            if (shaderKey.ends_with(".task") || shaderKey.ends_with(".mesh"))
+            if (shaderKey.find(".task") != std::string::npos || shaderKey.find(".mesh") != std::string::npos)
             {
                 hasMeshTaskShader = true;
                 break;
@@ -48,6 +48,7 @@ Owner<Material> MaterialSerializer::Deserialize(const std::vector<uint8_t>& bina
         if (hasMeshTaskShader)
         {
             bool hasBinding3 = false;
+            bool hasBinding4 = false;
             for (auto& attr : pipelineData.ShaderResourceLayout)
             {
                 if (attr.Binding == 3)
@@ -56,13 +57,24 @@ Owner<Material> MaterialSerializer::Deserialize(const std::vector<uint8_t>& bina
                     attr.Count  = 1;
                     attr.Type   = ShaderResourceType::StorageBuffer;
                     attr.Stage  = ShaderStage::Task | ShaderStage::Mesh;
-                    break;
+                }
+                if (attr.Binding == 4)
+                {
+                    hasBinding4 = true;
+                    attr.Count  = 1;
+                    attr.Type   = ShaderResourceType::StorageBuffer;
+                    attr.Stage  = ShaderStage::Task;
                 }
             }
             if (!hasBinding3)
             {
                 pipelineData.ShaderResourceLayout.push_back(ShaderResourceAttribute{
                     3, 1, ShaderResourceType::StorageBuffer, ShaderStage::Task | ShaderStage::Mesh });
+            }
+            if (!hasBinding4)
+            {
+                pipelineData.ShaderResourceLayout.push_back(
+                    ShaderResourceAttribute{ 4, 1, ShaderResourceType::StorageBuffer, ShaderStage::Task });
             }
         }
 

@@ -65,6 +65,30 @@ void VulkanPipeline::CreateVkPipeline(const PipelineDesc& desc)
         }
     }
 
+    Ref<VulkanShaderResourceBinding> vkSRB = Ref<VulkanShaderResourceBinding>::Cast(desc.ShaderResourceBinding);
+
+    if (desc.Type == PipelineType::Compute)
+    {
+        YG_CORE_ASSERT(shaderStages.size() == 1, "Vulkan: Compute pipeline requires exactly one compute shader stage");
+        YG_CORE_ASSERT(shaderStages[0].stage == VK_SHADER_STAGE_COMPUTE_BIT,
+                       "Vulkan: Compute pipeline shader stage must be compute");
+
+        VkComputePipelineCreateInfo computeInfo{};
+        computeInfo.sType  = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+        computeInfo.stage  = shaderStages[0];
+        computeInfo.layout = vkSRB->GetVkPipelineLayout();
+
+        VkResult computeResult =
+            vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &computeInfo, nullptr, &m_pipeline);
+        YG_CORE_ASSERT(computeResult == VK_SUCCESS, "Vulkan: Failed to create compute pipeline");
+
+        for (auto& module : shaderModules)
+        {
+            vkDestroyShaderModule(device, module, nullptr);
+        }
+        return;
+    }
+
     // --- Vertex input (not used for mesh shading pipelines) ---
     std::vector<VkVertexInputAttributeDescription> attributeDescs;
     VkVertexInputBindingDescription                bindingDesc{};
@@ -157,8 +181,7 @@ void VulkanPipeline::CreateVkPipeline(const PipelineDesc& desc)
     depthStencil.stencilTestEnable     = VK_FALSE;
 
     // --- Graphics pipeline ---
-    Ref<VulkanShaderResourceBinding> vkSRB = Ref<VulkanShaderResourceBinding>::Cast(desc.ShaderResourceBinding);
-    VkGraphicsPipelineCreateInfo     pipelineInfo{};
+    VkGraphicsPipelineCreateInfo pipelineInfo{};
     pipelineInfo.sType               = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     pipelineInfo.stageCount          = static_cast<uint32_t>(shaderStages.size());
     pipelineInfo.pStages             = shaderStages.data();

@@ -27,6 +27,7 @@
 #include <vector>
 #include <any>
 #include <typeindex>
+#include <unordered_set>
 
 #ifdef YG_SHARED_LIB
 #    ifdef YG_EXPORT

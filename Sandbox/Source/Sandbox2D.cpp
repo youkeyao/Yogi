@@ -44,7 +44,8 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
                 1, 1, Yogi::ShaderResourceType::StorageBuffer, Yogi::ShaderStage::Task | Yogi::ShaderStage::Mesh },
             Yogi::ShaderResourceAttribute{ 2, 1, Yogi::ShaderResourceType::StorageBuffer, Yogi::ShaderStage::Mesh },
             Yogi::ShaderResourceAttribute{
-                3, 1, Yogi::ShaderResourceType::StorageBuffer, Yogi::ShaderStage::Task | Yogi::ShaderStage::Mesh } },
+                3, 1, Yogi::ShaderResourceType::StorageBuffer, Yogi::ShaderStage::Task | Yogi::ShaderStage::Mesh },
+            Yogi::ShaderResourceAttribute{ 4, 1, Yogi::ShaderResourceType::StorageBuffer, Yogi::ShaderStage::Task } },
         std::vector<Yogi::PushConstantRange>{ Yogi::PushConstantRange{
             Yogi::ShaderStage::Task | Yogi::ShaderStage::Mesh, 0, static_cast<uint32_t>(sizeof(SceneData)) } });
 
@@ -83,11 +84,11 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
     mr.Mesh     = Yogi::AssetManager::GetAsset<Yogi::Mesh>("EngineAssets/Meshes/Cube.obj::cube");
     mr.Material = material;
 
-    entity                                                             = m_world->CreateEntity();
-    auto& transform2 = entity.AddComponent<Yogi::TransformComponent>();
+    entity                        = m_world->CreateEntity();
+    auto& transform2              = entity.AddComponent<Yogi::TransformComponent>();
     transform2.Transform.Position = { -2, 0, 0 };
     transform2.Transform.Scale    = { 5.f, 5.f, 5.f };
-    auto& mr1    = entity.AddComponent<Yogi::MeshRendererComponent>();
+    auto& mr1                     = entity.AddComponent<Yogi::MeshRendererComponent>();
     mr1.Mesh     = Yogi::AssetManager::GetAsset<Yogi::Mesh>("EngineAssets/Meshes/Bunny.obj::defaultobject");
     mr1.Material = material;
 }
@@ -97,7 +98,7 @@ Sandbox2D::~Sandbox2D() { m_world = nullptr; }
 void Sandbox2D::OnUpdate(Yogi::Timestep ts)
 {
     YG_PROFILE_FUNCTION();
-    YG_CORE_INFO("{0}", 1.0f / ts);
+    // YG_CORE_INFO("{0}", 1.0f / ts);
 
     // m_camera_controller.on_update(ts);
 

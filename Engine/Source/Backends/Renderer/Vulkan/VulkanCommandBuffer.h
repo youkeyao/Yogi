@@ -49,6 +49,17 @@ public:
                                uint32_t            offset,
                                uint32_t            drawCount,
                                uint32_t            stride) override;
+    void DrawMeshTasksIndirectCount(const Ref<IBuffer>& indirectBuffer,
+                                    uint32_t            indirectOffset,
+                                    const Ref<IBuffer>& countBuffer,
+                                    uint32_t            countOffset,
+                                    uint32_t            maxDrawCount,
+                                    uint32_t            stride) override;
+    void Dispatch(uint32_t groupCountX, uint32_t groupCountY = 1, uint32_t groupCountZ = 1) override;
+    void Barrier(PipelineStage sourceStage,
+                 PipelineStage destinationStage,
+                 BarrierAccess sourceAccess,
+                 BarrierAccess destinationAccess) override;
 
     void Blit(const Ref<ITexture>& src, const Ref<ITexture>& dst) override;
 
@@ -60,13 +71,14 @@ public:
     inline const VkSemaphore& GetSignalSemaphore() const { return m_signalSemaphore; }
 
 private:
-    VkCommandBuffer    m_commandBuffer;
-    CommandBufferUsage m_usage;
-    SubmitQueue        m_queue;
-    VkFence            m_commandFence    = VK_NULL_HANDLE;
-    VkSemaphore        m_waitSemaphore   = VK_NULL_HANDLE;
-    VkSemaphore        m_signalSemaphore = VK_NULL_HANDLE;
-    bool               m_submitted       = false;
+    VkCommandBuffer     m_commandBuffer;
+    CommandBufferUsage  m_usage;
+    SubmitQueue         m_queue;
+    VkFence             m_commandFence     = VK_NULL_HANDLE;
+    VkSemaphore         m_waitSemaphore    = VK_NULL_HANDLE;
+    VkSemaphore         m_signalSemaphore  = VK_NULL_HANDLE;
+    VkPipelineBindPoint m_currentBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    bool                m_submitted        = false;
 };
 
 } // namespace Yogi

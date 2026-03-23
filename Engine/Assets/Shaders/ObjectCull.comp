@@ -1,0 +1,108 @@
+#version 460 core
+
+#extension GL_EXT_shader_explicit_arithmetic_types: require
+#extension GL_EXT_shader_16bit_storage: require
+#extension GL_EXT_shader_8bit_storage: require
+#extension GL_GOOGLE_include_directive: require
+
+#include "Renderer/ShaderData.h"
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(binding = 3) readonly buffer MeshDrawBuffer
+{
+    MeshDraw meshDraws[];
+};
+
+layout(binding = 4) writeonly buffer IndirectCommandBuffer
+{
+    uint commands[];
+};
+
+layout(binding = 5) writeonly buffer VisibleDrawIndexBuffer
+{
+    uint visibleDrawIndices[];
+};
+
+layout(binding = 6) buffer IndirectCountBuffer
+{
+    uint drawCounts[];
+};
+
+layout(push_constant) uniform CullPushConstants
+{
+    SceneData sceneData;
+    uint drawBase;
+    uint drawCount;
+    uint outputBase;
+    uint countIndex;
+};
+
+vec4 getRow(mat4 m, int rowIndex)
+{
+    return vec4(m[0][rowIndex], m[1][rowIndex], m[2][rowIndex], m[3][rowIndex]);
+}
+
+bool sphereInsidePlane(vec4 plane, vec3 center, float radius)
+{
+    float distance = dot(plane.xyz, center) + plane.w;
+    float normalLen = length(plane.xyz);
+    return distance >= -radius * normalLen;
+}
+
+bool sphereInsideFrustum(vec3 center, float radius)
+{
+    mat4 vp = sceneData.ProjectionViewMatrix;
+
+    vec4 row0 = getRow(vp, 0);
+    vec4 row1 = getRow(vp, 1);
+    vec4 row2 = getRow(vp, 2);
+    vec4 row3 = getRow(vp, 3);
+
+    vec4 leftPlane   = row3 + row0;
+    vec4 rightPlane  = row3 - row0;
+    vec4 bottomPlane = row3 + row1;
+    vec4 topPlane    = row3 - row1;
+    // Vulkan clip space near plane is z >= 0.
+    vec4 nearPlane   = row2;
+    vec4 farPlane    = row3 - row2;
+
+    if (!sphereInsidePlane(leftPlane, center, radius))
+        return false;
+    if (!sphereInsidePlane(rightPlane, center, radius))
+        return false;
+    if (!sphereInsidePlane(bottomPlane, center, radius))
+        return false;
+    if (!sphereInsidePlane(topPlane, center, radius))
+        return false;
+    if (!sphereInsidePlane(nearPlane, center, radius))
+        return false;
+    if (!sphereInsidePlane(farPlane, center, radius))
+        return false;
+
+    return true;
+}
+
+void main()
+{
+    uint drawIndex = gl_GlobalInvocationID.x;
+    if (drawIndex >= drawCount)
+        return;
+
+    uint meshDrawIndex = drawBase + drawIndex;
+
+    MeshDraw draw = meshDraws[meshDrawIndex];
+    vec3 center = draw.BoundingCenter * draw.Scale + draw.Position;
+    float maxScale = max(max(abs(draw.Scale.x), abs(draw.Scale.y)), abs(draw.Scale.z));
+    float radius = draw.BoundingRadius * maxScale;
+
+    if (sphereInsideFrustum(center, radius))
+    {
+        uint compactIndex = atomicAdd(drawCounts[countIndex], 1);
+        uint commandOffset = (outputBase + compactIndex) * 3;
+        commands[commandOffset + 0] = (draw.MeshletCount + TASK_WGSIZE - 1) / TASK_WGSIZE;
+        commands[commandOffset + 1] = 1;
+        commands[commandOffset + 2] = 1;
+        visibleDrawIndices[outputBase + compactIndex] = meshDrawIndex;
+    }
+}
