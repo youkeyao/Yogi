@@ -47,10 +47,10 @@ struct MeshDraw
     float Scale;
     vec4  Orientation;
 
+    uint MeshletDataBase;
     uint MeshletOffset;
     uint MeshletCount;
     uint VertexOffset;
-    uint _pad0;
 };
 
 #ifdef __cplusplus

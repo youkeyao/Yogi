@@ -197,7 +197,6 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
             }
 
             uint32_t vertexBase = static_cast<uint32_t>(batchVertices.size());
-
             // Append vertices
             batchVertices.insert(batchVertices.end(), mesh->GetVertices().begin(), mesh->GetVertices().end());
             // Append meshlets grouped by material pass.
@@ -216,20 +215,19 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
                     lookupIt = renderBatchLookup.find(passKey);
                 }
 
-                auto&    batch           = renderBatches[lookupIt->second];
-                uint32_t meshletDataBase = static_cast<uint32_t>(batch.MeshletData.size());
+                auto& batch = renderBatches[lookupIt->second];
 
                 MeshDraw draw{};
-                draw.Position      = meshTransform.Transform.Position;
-                draw.Scale         = meshTransform.Transform.Scale.x;
-                draw.Orientation   = Vector4(meshTransform.Transform.Rotation.x,
+                draw.Position        = meshTransform.Transform.Position;
+                draw.Scale           = meshTransform.Transform.Scale.x;
+                draw.Orientation     = Vector4(meshTransform.Transform.Rotation.x,
                                            meshTransform.Transform.Rotation.y,
                                            meshTransform.Transform.Rotation.z,
                                            meshTransform.Transform.Rotation.w);
-                draw.MeshletOffset = static_cast<uint32_t>(batch.Meshlets.size());
-                draw.MeshletCount  = meshMeshletCount;
-                draw.VertexOffset  = vertexBase;
-                draw._pad0         = 0;
+                draw.MeshletDataBase = static_cast<uint32_t>(batch.MeshletData.size());
+                draw.MeshletOffset   = static_cast<uint32_t>(batch.Meshlets.size());
+                draw.MeshletCount    = meshMeshletCount;
+                draw.VertexOffset    = vertexBase;
                 batch.MeshDraws.push_back(draw);
 
                 uint32_t taskWorkGroupCount = (meshMeshletCount + TASK_WGSIZE - 1) / TASK_WGSIZE;
@@ -237,25 +235,9 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
                 batch.IndirectCommands.push_back(1);
                 batch.IndirectCommands.push_back(1);
 
-                for (const auto& srcMeshlet : mesh->GetMeshlets())
-                {
-                    MeshletData offsetMeshlet = srcMeshlet;
-                    offsetMeshlet.DataOffset += meshletDataBase;
-                    batch.Meshlets.push_back(offsetMeshlet);
-
-                    uint32_t srcDataOffset     = srcMeshlet.DataOffset;
-                    uint32_t srcVertexCount    = srcMeshlet.VertexCount;
-                    uint32_t srcTriangleGroups = (srcMeshlet.TriangleCount * 3 + 3) / 4;
-
-                    for (uint32_t i = 0; i < srcVertexCount; ++i)
-                    {
-                        batch.MeshletData.push_back(mesh->GetMeshletData()[srcDataOffset + i] + vertexBase);
-                    }
-                    for (uint32_t i = 0; i < srcTriangleGroups; ++i)
-                    {
-                        batch.MeshletData.push_back(mesh->GetMeshletData()[srcDataOffset + srcVertexCount + i]);
-                    }
-                }
+                batch.Meshlets.insert(batch.Meshlets.end(), mesh->GetMeshlets().begin(), mesh->GetMeshlets().end());
+                batch.MeshletData.insert(
+                    batch.MeshletData.end(), mesh->GetMeshletData().begin(), mesh->GetMeshletData().end());
             }
         });
 

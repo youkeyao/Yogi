@@ -39,7 +39,7 @@ Owner<Mesh> ProcessMesh(aiMesh* mesh, const aiScene* scene)
     size_t                uniqueVertices = meshopt_generateVertexRemap(
         remap.data(), indices.data(), indices.size(), vertices.data(), vertices.size(), sizeof(Vertex));
     meshopt_remapVertexBuffer(vertices.data(), vertices.data(), vertices.size(), sizeof(Vertex), remap.data());
-    meshopt_remapIndexBuffer(indices.data(), 0, indices.size(), remap.data());
+    meshopt_remapIndexBuffer(indices.data(), indices.data(), indices.size(), remap.data());
 
     vertices.resize(uniqueVertices);
     meshopt_optimizeVertexCache(indices.data(), indices.data(), indices.size(), vertices.size());

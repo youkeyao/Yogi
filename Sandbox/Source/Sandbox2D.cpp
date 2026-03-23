@@ -76,6 +76,20 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
     Yogi::Ref<Yogi::Material> material = Yogi::ResourceManager::GetResource<Yogi::Material>();
     material->AddPass(Yogi::Material::MaterialPass{ pipeline, {} });
     meshRenderer.Material = material;
+
+    entity                                                             = m_world->CreateEntity();
+    entity.AddComponent<Yogi::TransformComponent>().Transform.Position = { 2, 0, 0 };
+    auto& mr    = entity.AddComponent<Yogi::MeshRendererComponent>();
+    mr.Mesh     = Yogi::AssetManager::GetAsset<Yogi::Mesh>("EngineAssets/Meshes/Cube.obj::cube");
+    mr.Material = material;
+
+    entity                                                             = m_world->CreateEntity();
+    auto& transform2 = entity.AddComponent<Yogi::TransformComponent>();
+    transform2.Transform.Position = { -2, 0, 0 };
+    transform2.Transform.Scale    = { 5.f, 5.f, 5.f };
+    auto& mr1    = entity.AddComponent<Yogi::MeshRendererComponent>();
+    mr1.Mesh     = Yogi::AssetManager::GetAsset<Yogi::Mesh>("EngineAssets/Meshes/Bunny.obj::defaultobject");
+    mr1.Material = material;
 }
 
 Sandbox2D::~Sandbox2D() { m_world = nullptr; }
