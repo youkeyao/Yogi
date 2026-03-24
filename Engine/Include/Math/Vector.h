@@ -15,6 +15,8 @@ struct Vector : public glm::vec<N, T, glm::defaultp>
     Vector Cross(const Vector& other) const { return glm::cross(*this, other); }
 
     Vector Normalized() const { return glm::normalize(*this); }
+
+    T Length() const { return glm::length(static_cast<const glm::vec<N, T, glm::defaultp>&>(*this)); }
 };
 
 struct Vector2 : public Vector<2, float>

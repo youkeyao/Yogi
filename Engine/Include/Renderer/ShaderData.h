@@ -35,6 +35,16 @@ struct MeshletData
     uint8_t   VertexCount;
 };
 
+struct MeshData
+{
+    vec3  BoundingCenter;
+    float BoundingRadius;
+    uint  VertexOffset;
+    uint  MeshletDataBase;
+    uint  MeshletOffset;
+    uint  MeshletCount;
+};
+
 struct SceneData
 {
     mat4 ProjectionViewMatrix;
@@ -45,19 +55,22 @@ struct SceneData
     uint _Pad2;
 };
 
+struct CullData
+{
+    vec4 FrustumPlanes[6];
+    uint DrawBase;
+    uint DrawCount;
+    uint OutputBase;
+    uint CountIndex;
+};
+
 struct MeshDraw
 {
-    vec3  Position;
-    uint  MeshletDataBase;
-    vec3  Scale;
-    uint  MeshletOffset;
-    vec4  Orientation;
-    vec3  BoundingCenter;
-    float BoundingRadius;
-    uint  MeshletCount;
-    uint  VertexOffset;
-    uint  _Pad0;
-    uint  _Pad1;
+    vec3 Position;
+    uint MeshIndex;
+    vec4 Orientation;
+    vec3 Scale;
+    uint _Pad0;
 };
 
 #ifdef __cplusplus

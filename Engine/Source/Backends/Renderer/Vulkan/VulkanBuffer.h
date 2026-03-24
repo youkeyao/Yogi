@@ -12,11 +12,11 @@ public:
     VulkanBuffer(const BufferDesc& desc);
     virtual ~VulkanBuffer();
 
-    inline uint32_t     GetSize() const override { return m_size; }
+    inline uint64_t     GetSize() const override { return m_size; }
     inline BufferUsage  GetUsage() const override { return m_usage; }
     inline BufferAccess GetAccess() const override { return m_access; }
 
-    void UpdateData(const void* data, uint32_t size, uint32_t offset = 0) override;
+    void UpdateData(const void* data, uint64_t size, uint64_t offset = 0) override;
 
     inline VkBuffer GetVkBuffer() const { return m_buffer; }
 
@@ -24,7 +24,7 @@ private:
     VkBuffer       m_buffer;
     VkDeviceMemory m_memory;
 
-    uint32_t     m_size;
+    uint64_t     m_size;
     BufferUsage  m_usage;
     BufferAccess m_access;
     void*        m_bufferMapped;

@@ -16,12 +16,17 @@ layout(binding = 1) readonly buffer MeshletBuffer
     MeshletData meshlets[];
 };
 
-layout(binding = 3) readonly buffer MeshDrawBuffer
+layout(binding = 3) readonly buffer MeshDataBuffer
+{
+    MeshData meshData[];
+};
+
+layout(binding = 4) readonly buffer MeshDrawBuffer
 {
     MeshDraw meshDraws[];
 };
 
-layout(binding = 4) readonly buffer VisibleDrawIndexBuffer
+layout(binding = 5) readonly buffer VisibleDrawIndexBuffer
 {
     uint visibleDrawIndices[];
 };
@@ -47,6 +52,7 @@ void main()
     uint drawIndex = visibleDrawIndices[uint(gl_DrawID) + sceneData.DrawBase];
     payload.drawIndex = drawIndex;
     MeshDraw draw = meshDraws[drawIndex];
+    MeshData mesh = meshData[draw.MeshIndex];
     uint ti = gl_LocalInvocationIndex;
     uint miLocal = gl_WorkGroupID.x * TASK_WGSIZE + ti;
 
@@ -55,9 +61,9 @@ void main()
         s_survivorCount = 0;
     barrier();
 
-    if (miLocal < draw.MeshletCount)
+    if (miLocal < mesh.MeshletCount)
     {
-        uint mi = draw.MeshletOffset + miLocal;
+        uint mi = mesh.MeshletOffset + miLocal;
         vec3 center = vec3(meshlets[mi].Center[0], meshlets[mi].Center[1], meshlets[mi].Center[2]);
         center = RotateByQuaternion(center * draw.Scale, draw.Orientation) + draw.Position;
         center = (sceneData.ViewMatrix * vec4(center, 1)).xyz;
@@ -74,11 +80,11 @@ void main()
 
     EmitMeshTasksEXT(s_survivorCount, 1, 1);
 #else
-    if (miLocal < draw.MeshletCount)
+    if (miLocal < mesh.MeshletCount)
     {
-        payload.meshletIndices[ti] = draw.MeshletOffset + miLocal;
+        payload.meshletIndices[ti] = mesh.MeshletOffset + miLocal;
     }
 
-    EmitMeshTasksEXT(min(uint(TASK_WGSIZE), draw.MeshletCount - gl_WorkGroupID.x * uint(TASK_WGSIZE)), 1, 1);
+    EmitMeshTasksEXT(min(uint(TASK_WGSIZE), mesh.MeshletCount - gl_WorkGroupID.x * uint(TASK_WGSIZE)), 1, 1);
 #endif
 }

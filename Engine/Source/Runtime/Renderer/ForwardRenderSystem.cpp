@@ -8,15 +8,6 @@
 namespace Yogi
 {
 
-struct ObjectCullPushConstant
-{
-    SceneData Scene;
-    uint32_t  DrawBase;
-    uint32_t  DrawCount;
-    uint32_t  OutputBase;
-    uint32_t  CountIndex;
-};
-
 ForwardRenderSystem::ForwardRenderSystem()
 {
     m_vertexStorageBuffer = ResourceManager::GetResource<IBuffer>(
@@ -25,6 +16,8 @@ ForwardRenderSystem::ForwardRenderSystem()
         BufferDesc{ MAX_MESHLET_SIZE, BufferUsage::Storage, BufferAccess::Dynamic });
     m_meshletDataBuffer = ResourceManager::GetResource<IBuffer>(
         BufferDesc{ MAX_MESHLET_DATA_SIZE, BufferUsage::Storage, BufferAccess::Dynamic });
+    m_meshBuffer =
+        ResourceManager::GetResource<IBuffer>(BufferDesc{ MAX_MESH_SIZE, BufferUsage::Storage, BufferAccess::Dynamic });
     m_meshDrawBuffer = ResourceManager::GetResource<IBuffer>(
         BufferDesc{ MAX_MESH_DRAW_SIZE, BufferUsage::Storage, BufferAccess::Dynamic });
     m_meshTaskIndirectBuffer = ResourceManager::GetResource<IBuffer>(BufferDesc{
@@ -42,28 +35,32 @@ ForwardRenderSystem::ForwardRenderSystem()
             ShaderResourceAttribute{ 1, 1, ShaderResourceType::StorageBuffer, ShaderStage::Task | ShaderStage::Mesh },
             ShaderResourceAttribute{ 2, 1, ShaderResourceType::StorageBuffer, ShaderStage::Mesh },
             ShaderResourceAttribute{ 3, 1, ShaderResourceType::StorageBuffer, ShaderStage::Task | ShaderStage::Mesh },
-            ShaderResourceAttribute{ 4, 1, ShaderResourceType::StorageBuffer, ShaderStage::Task } },
+            ShaderResourceAttribute{ 4, 1, ShaderResourceType::StorageBuffer, ShaderStage::Task | ShaderStage::Mesh },
+            ShaderResourceAttribute{ 5, 1, ShaderResourceType::StorageBuffer, ShaderStage::Task } },
         std::vector<PushConstantRange>{
             PushConstantRange{ ShaderStage::Task | ShaderStage::Mesh, 0, static_cast<uint32_t>(sizeof(SceneData)) } });
 
     m_shaderResourceBinding->BindBuffer(m_vertexStorageBuffer, 0);
     m_shaderResourceBinding->BindBuffer(m_meshletBuffer, 1);
     m_shaderResourceBinding->BindBuffer(m_meshletDataBuffer, 2);
-    m_shaderResourceBinding->BindBuffer(m_meshDrawBuffer, 3);
-    m_shaderResourceBinding->BindBuffer(m_visibleDrawIndexBuffer, 4);
+    m_shaderResourceBinding->BindBuffer(m_meshBuffer, 3);
+    m_shaderResourceBinding->BindBuffer(m_meshDrawBuffer, 4);
+    m_shaderResourceBinding->BindBuffer(m_visibleDrawIndexBuffer, 5);
 
     m_cullShaderResourceBinding = ResourceManager::GetResource<IShaderResourceBinding>(
         std::vector<ShaderResourceAttribute>{
+            ShaderResourceAttribute{ 0, 1, ShaderResourceType::StorageBuffer, ShaderStage::Compute },
+            ShaderResourceAttribute{ 1, 1, ShaderResourceType::StorageBuffer, ShaderStage::Compute },
+            ShaderResourceAttribute{ 2, 1, ShaderResourceType::StorageBuffer, ShaderStage::Compute },
             ShaderResourceAttribute{ 3, 1, ShaderResourceType::StorageBuffer, ShaderStage::Compute },
-            ShaderResourceAttribute{ 4, 1, ShaderResourceType::StorageBuffer, ShaderStage::Compute },
-            ShaderResourceAttribute{ 5, 1, ShaderResourceType::StorageBuffer, ShaderStage::Compute },
-            ShaderResourceAttribute{ 6, 1, ShaderResourceType::StorageBuffer, ShaderStage::Compute } },
+            ShaderResourceAttribute{ 4, 1, ShaderResourceType::StorageBuffer, ShaderStage::Compute } },
         std::vector<PushConstantRange>{
-            PushConstantRange{ ShaderStage::Compute, 0, static_cast<uint32_t>(sizeof(ObjectCullPushConstant)) } });
-    m_cullShaderResourceBinding->BindBuffer(m_meshDrawBuffer, 3);
-    m_cullShaderResourceBinding->BindBuffer(m_meshTaskIndirectBuffer, 4);
-    m_cullShaderResourceBinding->BindBuffer(m_visibleDrawIndexBuffer, 5);
-    m_cullShaderResourceBinding->BindBuffer(m_meshTaskIndirectCountBuffer, 6);
+            PushConstantRange{ ShaderStage::Compute, 0, static_cast<uint32_t>(sizeof(CullData)) } });
+    m_cullShaderResourceBinding->BindBuffer(m_meshBuffer, 0);
+    m_cullShaderResourceBinding->BindBuffer(m_meshDrawBuffer, 1);
+    m_cullShaderResourceBinding->BindBuffer(m_meshTaskIndirectBuffer, 2);
+    m_cullShaderResourceBinding->BindBuffer(m_visibleDrawIndexBuffer, 3);
+    m_cullShaderResourceBinding->BindBuffer(m_meshTaskIndirectCountBuffer, 4);
 
     PipelineDesc cullPipelineDesc{};
     cullPipelineDesc.Type    = PipelineType::Compute;
@@ -74,6 +71,8 @@ ForwardRenderSystem::ForwardRenderSystem()
 
 ForwardRenderSystem::~ForwardRenderSystem()
 {
+    ResetMeshUploadCache();
+
     m_vertexStorageBuffer         = nullptr;
     m_meshletBuffer               = nullptr;
     m_meshletDataBuffer           = nullptr;
@@ -107,6 +106,14 @@ bool ForwardRenderSystem::OnWindowResize(WindowResizeEvent& e, World& world)
     swapChain->GetCurrentCommandBuffer()->Wait();
     m_frameBuffers.clear();
     return false;
+}
+
+void ForwardRenderSystem::ResetMeshUploadCache()
+{
+    m_meshUploadCache.Clear();
+    m_cachedVertexCount     = 0;
+    m_cachedMeshletCount    = 0;
+    m_cachedMeshletDataSize = 0;
 }
 
 void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const TransformComponent& transform, World& world)
@@ -152,7 +159,21 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
     m_sceneData._Pad1                = 0;
     m_sceneData._Pad2                = 0;
 
-    constexpr uint32_t maxVertexCount = MAX_VERTICES_SIZE / sizeof(VertexData);
+    CullData cullData{};
+    auto     PVT              = m_sceneData.ProjectionViewMatrix.Transpose();
+    cullData.FrustumPlanes[0] = PVT[3] + PVT[0];
+    cullData.FrustumPlanes[1] = PVT[3] - PVT[0];
+    cullData.FrustumPlanes[2] = PVT[3] + PVT[1];
+    cullData.FrustumPlanes[3] = PVT[3] - PVT[1];
+    cullData.FrustumPlanes[4] = PVT[3] + PVT[2];
+    cullData.FrustumPlanes[5] = PVT[3] - PVT[2];
+    for (int i = 0; i < 6; ++i)
+    {
+        float length =
+            Vector3(cullData.FrustumPlanes[i].x, cullData.FrustumPlanes[i].y, cullData.FrustumPlanes[i].z).Length();
+        if (length > 0.0f)
+            cullData.FrustumPlanes[i] /= length;
+    }
 
     struct RenderBatch
     {
@@ -164,14 +185,11 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
         uint32_t              IndirectOffsetBytes = 0;
     };
 
-    std::vector<VertexData>           batchVertices;
-    std::vector<MeshletData>          batchMeshlets;
-    std::vector<uint32_t>             batchMeshletData;
     std::vector<RenderBatch>          renderBatches;
     std::unordered_map<uint64_t, int> renderBatchLookup;
 
     auto flushBatch = [&]() {
-        if (batchVertices.empty())
+        if (renderBatches.empty())
             return;
 
         std::vector<MeshDraw> uploadMeshDraws;
@@ -192,19 +210,20 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
             uploadMeshDraws.insert(uploadMeshDraws.end(), batch.MeshDraws.begin(), batch.MeshDraws.end());
         }
 
-        m_vertexStorageBuffer->UpdateData(batchVertices.data(), batchVertices.size() * sizeof(VertexData), 0);
-        m_meshletBuffer->UpdateData(
-            batchMeshlets.data(), static_cast<uint32_t>(batchMeshlets.size() * sizeof(MeshletData)), 0);
-        m_meshletDataBuffer->UpdateData(
-            batchMeshletData.data(), static_cast<uint32_t>(batchMeshletData.size() * sizeof(uint32_t)), 0);
         m_meshDrawBuffer->UpdateData(
             uploadMeshDraws.data(), static_cast<uint32_t>(uploadMeshDraws.size() * sizeof(MeshDraw)), 0);
 
-        uint32_t totalDrawCount = static_cast<uint32_t>(uploadMeshDraws.size());
+        uint32_t totalDrawCount  = static_cast<uint32_t>(uploadMeshDraws.size());
+        uint32_t totalBatchCount = static_cast<uint32_t>(renderBatches.size());
 
         commandBuffer->Begin();
 
         {
+            // Reset per-batch visible draw counters before compute compaction.
+            std::vector<uint32_t> zeroCounts(totalBatchCount, 0);
+            m_meshTaskIndirectCountBuffer->UpdateData(
+                zeroCounts.data(), static_cast<uint32_t>(zeroCounts.size() * sizeof(uint32_t)), 0);
+
             commandBuffer->SetPipeline(m_cullPipeline);
             commandBuffer->SetShaderResourceBinding(m_cullShaderResourceBinding);
 
@@ -215,18 +234,13 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
                 if (!batch.Pipeline || batch.DrawCount == 0)
                     continue;
 
-                ObjectCullPushConstant cullPushConstant{};
-                cullPushConstant.Scene      = m_sceneData;
-                cullPushConstant.DrawBase   = batch.DrawBase;
-                cullPushConstant.DrawCount  = batch.DrawCount;
-                cullPushConstant.OutputBase = batch.DrawBase;
-                cullPushConstant.CountIndex = static_cast<uint32_t>(batchIndex);
+                cullData.DrawBase   = batch.DrawBase;
+                cullData.DrawCount  = batch.DrawCount;
+                cullData.OutputBase = batch.DrawBase;
+                cullData.CountIndex = static_cast<uint32_t>(batchIndex);
 
-                commandBuffer->SetPushConstants(m_cullShaderResourceBinding,
-                                                ShaderStage::Compute,
-                                                0,
-                                                sizeof(ObjectCullPushConstant),
-                                                &cullPushConstant);
+                commandBuffer->SetPushConstants(
+                    m_cullShaderResourceBinding, ShaderStage::Compute, 0, sizeof(CullData), &cullData);
 
                 uint32_t dispatchX = (batch.DrawCount + CULL_WORKGROUP_SIZE - 1) / CULL_WORKGROUP_SIZE;
                 commandBuffer->Dispatch(dispatchX, 1, 1);
@@ -266,90 +280,118 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
 
         EndRender(commandBuffer);
 
-        batchVertices.clear();
-        batchMeshlets.clear();
-        batchMeshletData.clear();
         renderBatches.clear();
         renderBatchLookup.clear();
     };
 
     // collect and batch meshes into meshlets
-    world.ViewComponents<TransformComponent, MeshRendererComponent>(
-        [&](Entity entity, TransformComponent& meshTransform, MeshRendererComponent& meshRenderer) {
-            auto& mesh     = meshRenderer.Mesh;
-            auto& material = meshRenderer.Material;
-            if (!mesh || !material)
-                return;
+    world.ViewComponents<TransformComponent, MeshRendererComponent>([&](Entity                 entity,
+                                                                        TransformComponent&    meshTransform,
+                                                                        MeshRendererComponent& meshRenderer) {
+        auto& mesh     = meshRenderer.Mesh;
+        auto& material = meshRenderer.Material;
+        if (!mesh || !material)
+            return;
 
-            uint32_t meshVertexCount  = static_cast<uint32_t>(mesh->GetVertices().size());
-            uint32_t meshMeshletCount = static_cast<uint32_t>(mesh->GetMeshlets().size());
-            uint32_t passCount        = static_cast<uint32_t>(material->GetPasses().size());
+        uint32_t meshVertexCount  = static_cast<uint32_t>(mesh->GetVertices().size());
+        uint32_t meshMeshletCount = static_cast<uint32_t>(mesh->GetMeshlets().size());
+        uint32_t passCount        = static_cast<uint32_t>(material->GetPasses().size());
 
-            uint32_t totalMeshlets  = 0;
-            uint32_t totalMeshData  = 0;
-            uint32_t totalMeshDraws = 0;
-            totalMeshlets           = static_cast<uint32_t>(batchMeshlets.size());
-            totalMeshData           = static_cast<uint32_t>(batchMeshletData.size());
-            for (const auto& batch : renderBatches)
-            {
-                totalMeshDraws += static_cast<uint32_t>(batch.MeshDraws.size());
-            }
+        uint32_t totalMeshDraws = 0;
+        for (const auto& batch : renderBatches)
+        {
+            totalMeshDraws += static_cast<uint32_t>(batch.MeshDraws.size());
+        }
 
-            // flush if adding this mesh would exceed buffer capacity
-            if (batchVertices.size() + meshVertexCount > maxVertexCount ||
-                totalMeshlets + meshMeshletCount * passCount > MAX_MESHLETS ||
-                totalMeshDraws + passCount > MAX_MESH_DRAWS ||
-                totalMeshData + static_cast<uint32_t>(mesh->GetMeshletData().size()) * passCount >
-                    MAX_MESHLET_DATA_SIZE / sizeof(uint32_t))
+        if (totalMeshDraws + passCount > MAX_MESH_DRAWS)
+        {
+            flushBatch();
+            commandBuffer->Wait();
+        }
+
+        std::string assetKey = AssetManager::GetAssetKey(mesh);
+        auto        meshKey  = MeshGPUUploadCache::BuildKey(mesh, assetKey, 0);
+
+        uint32_t meshIndex = m_cachedMeshCount;
+        if (!m_meshUploadCache.TryGet(meshKey, meshIndex))
+        {
+            uint32_t meshletDataSize = static_cast<uint32_t>(mesh->GetMeshletData().size());
+
+            if (m_cachedVertexCount + meshVertexCount > MAX_VERTICES ||
+                m_cachedMeshletCount + meshMeshletCount > MAX_MESHLETS ||
+                m_cachedMeshletDataSize + meshletDataSize > MAX_MESHLET_DATA_SIZE / sizeof(uint32_t))
             {
                 flushBatch();
                 commandBuffer->Wait();
+                ResetMeshUploadCache();
             }
 
-            uint32_t vertexBase = static_cast<uint32_t>(batchVertices.size());
-            // Append vertices
-            batchVertices.insert(batchVertices.end(), mesh->GetVertices().begin(), mesh->GetVertices().end());
-            // Append meshlets grouped by material pass.
-            for (auto& materialPass : material->GetPasses())
+            MeshData meshData{};
+            meshData.BoundingCenter  = mesh->GetCenter();
+            meshData.BoundingRadius  = mesh->GetBoundingRadius();
+            meshData.VertexOffset    = m_cachedVertexCount;
+            meshData.MeshletOffset   = m_cachedMeshletCount;
+            meshData.MeshletCount    = meshMeshletCount;
+            meshData.MeshletDataBase = m_cachedMeshletDataSize;
+            m_meshBuffer->UpdateData(&meshData, sizeof(MeshData), static_cast<uint64_t>(meshIndex) * sizeof(MeshData));
+            if (!mesh->GetVertices().empty())
             {
-                Ref<IPipeline> pipeline = materialPass.Pipeline;
-                if (!pipeline)
-                    continue;
-
-                uint64_t passKey  = HashArgs(pipeline);
-                auto     lookupIt = renderBatchLookup.find(passKey);
-                if (lookupIt == renderBatchLookup.end())
-                {
-                    renderBatchLookup[passKey] = static_cast<int>(renderBatches.size());
-                    RenderBatch newBatch{};
-                    newBatch.PipelineKey = passKey;
-                    newBatch.Pipeline    = pipeline;
-                    renderBatches.push_back(std::move(newBatch));
-                    lookupIt = renderBatchLookup.find(passKey);
-                }
-
-                auto& batch = renderBatches[lookupIt->second];
-
-                MeshDraw draw{};
-                draw.Position        = meshTransform.Transform.Position;
-                draw.Scale           = meshTransform.Transform.Scale;
-                draw.Orientation     = Vector4(meshTransform.Transform.Rotation.x,
-                                           meshTransform.Transform.Rotation.y,
-                                           meshTransform.Transform.Rotation.z,
-                                           meshTransform.Transform.Rotation.w);
-                draw.BoundingCenter  = mesh->GetCenter();
-                draw.BoundingRadius  = mesh->GetBoundingRadius();
-                draw.MeshletDataBase = static_cast<uint32_t>(batchMeshletData.size());
-                draw.MeshletOffset   = static_cast<uint32_t>(batchMeshlets.size());
-                draw.MeshletCount    = meshMeshletCount;
-                draw.VertexOffset    = vertexBase;
-                batch.MeshDraws.push_back(draw);
-
-                batchMeshlets.insert(batchMeshlets.end(), mesh->GetMeshlets().begin(), mesh->GetMeshlets().end());
-                batchMeshletData.insert(
-                    batchMeshletData.end(), mesh->GetMeshletData().begin(), mesh->GetMeshletData().end());
+                m_vertexStorageBuffer->UpdateData(mesh->GetVertices().data(),
+                                                  mesh->GetVertices().size() * sizeof(VertexData),
+                                                  static_cast<uint64_t>(meshData.VertexOffset) * sizeof(VertexData));
             }
-        });
+            if (!mesh->GetMeshlets().empty())
+            {
+                m_meshletBuffer->UpdateData(mesh->GetMeshlets().data(),
+                                            mesh->GetMeshlets().size() * sizeof(MeshletData),
+                                            static_cast<uint64_t>(meshData.MeshletOffset) * sizeof(MeshletData));
+            }
+            if (!mesh->GetMeshletData().empty())
+            {
+                m_meshletDataBuffer->UpdateData(mesh->GetMeshletData().data(),
+                                                mesh->GetMeshletData().size() * sizeof(uint32_t),
+                                                static_cast<uint64_t>(meshData.MeshletDataBase) * sizeof(uint32_t));
+            }
+
+            m_cachedVertexCount += meshVertexCount;
+            m_cachedMeshletCount += meshMeshletCount;
+            m_cachedMeshletDataSize += meshletDataSize;
+            m_cachedMeshCount += 1;
+
+            m_meshUploadCache.Upsert(meshKey, meshIndex);
+        }
+
+        for (auto& materialPass : material->GetPasses())
+        {
+            Ref<IPipeline> pipeline = materialPass.Pipeline;
+            if (!pipeline)
+                continue;
+
+            uint64_t passKey  = HashArgs(pipeline);
+            auto     lookupIt = renderBatchLookup.find(passKey);
+            if (lookupIt == renderBatchLookup.end())
+            {
+                renderBatchLookup[passKey] = static_cast<int>(renderBatches.size());
+                RenderBatch newBatch{};
+                newBatch.PipelineKey = passKey;
+                newBatch.Pipeline    = pipeline;
+                renderBatches.push_back(std::move(newBatch));
+                lookupIt = renderBatchLookup.find(passKey);
+            }
+
+            auto& batch = renderBatches[lookupIt->second];
+
+            MeshDraw draw{};
+            draw.Position    = meshTransform.Transform.Position;
+            draw.Scale       = meshTransform.Transform.Scale;
+            draw.Orientation = Vector4(meshTransform.Transform.Rotation.x,
+                                       meshTransform.Transform.Rotation.y,
+                                       meshTransform.Transform.Rotation.z,
+                                       meshTransform.Transform.Rotation.w);
+            draw.MeshIndex   = meshIndex;
+            batch.MeshDraws.push_back(draw);
+        }
+    });
 
     flushBatch();
 }

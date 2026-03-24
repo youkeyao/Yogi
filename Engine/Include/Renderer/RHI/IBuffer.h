@@ -25,7 +25,7 @@ enum class BufferAccess : uint8_t
 
 struct BufferDesc
 {
-    uint32_t     Size;
+    uint64_t     Size;
     BufferUsage  Usage;
     BufferAccess Access;
 };
@@ -36,12 +36,12 @@ public:
     virtual ~IBuffer() = default;
 
     // Buffer properties
-    virtual uint32_t     GetSize() const   = 0;
+    virtual uint64_t     GetSize() const   = 0;
     virtual BufferUsage  GetUsage() const  = 0;
     virtual BufferAccess GetAccess() const = 0;
 
     // Buffer operations
-    virtual void UpdateData(const void* data, uint32_t size, uint32_t offset = 0) = 0;
+    virtual void UpdateData(const void* data, uint64_t size, uint64_t offset = 0) = 0;
 
     static Owner<IBuffer> Create(const BufferDesc& desc);
 };

@@ -78,7 +78,7 @@ VulkanBuffer::~VulkanBuffer()
     vkFreeMemory(device, m_memory, nullptr);
 }
 
-void VulkanBuffer::UpdateData(const void* data, uint32_t size, uint32_t offset)
+void VulkanBuffer::UpdateData(const void* data, uint64_t size, uint64_t offset)
 {
     if (m_access == BufferAccess::Immutable)
     {
@@ -86,7 +86,7 @@ void VulkanBuffer::UpdateData(const void* data, uint32_t size, uint32_t offset)
         return;
     }
 
-    memcpy(m_bufferMapped, data, size);
+    memcpy((char*)m_bufferMapped + offset, data, size);
 }
 
 } // namespace Yogi

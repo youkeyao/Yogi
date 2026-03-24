@@ -12,6 +12,9 @@ public:
     void OnEvent(Yogi::Event& event) override;
 
 private:
+    float lastX = 0.0f, lastY = 0.0f;
+    bool  firstMouse = true;
+
     Yogi::Owner<Yogi::World> m_world = nullptr;
     Yogi::Entity             m_box   = Yogi::Entity::Null();
 

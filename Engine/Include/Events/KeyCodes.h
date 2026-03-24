@@ -1,5 +1,8 @@
 #pragma once
 
+namespace Yogi
+{
+
 // from glfw3.h
 #define YG_KEY_SPACE         32
 #define YG_KEY_APOSTROPHE    39 /* ' */
@@ -123,3 +126,5 @@
 #define YG_KEY_RIGHT_ALT     346
 #define YG_KEY_RIGHT_SUPER   347
 #define YG_KEY_MENU          348
+
+} // namespace Yogi

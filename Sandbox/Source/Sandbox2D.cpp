@@ -45,7 +45,9 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
             Yogi::ShaderResourceAttribute{ 2, 1, Yogi::ShaderResourceType::StorageBuffer, Yogi::ShaderStage::Mesh },
             Yogi::ShaderResourceAttribute{
                 3, 1, Yogi::ShaderResourceType::StorageBuffer, Yogi::ShaderStage::Task | Yogi::ShaderStage::Mesh },
-            Yogi::ShaderResourceAttribute{ 4, 1, Yogi::ShaderResourceType::StorageBuffer, Yogi::ShaderStage::Task } },
+            Yogi::ShaderResourceAttribute{
+                4, 1, Yogi::ShaderResourceType::StorageBuffer, Yogi::ShaderStage::Task | Yogi::ShaderStage::Mesh },
+            Yogi::ShaderResourceAttribute{ 5, 1, Yogi::ShaderResourceType::StorageBuffer, Yogi::ShaderStage::Task } },
         std::vector<Yogi::PushConstantRange>{ Yogi::PushConstantRange{
             Yogi::ShaderStage::Task | Yogi::ShaderStage::Mesh, 0, static_cast<uint32_t>(sizeof(SceneData)) } });
 
@@ -65,32 +67,68 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
     m_world = Yogi::Owner<Yogi::World>::Create();
     m_world->AddSystem<Yogi::ForwardRenderSystem>();
 
-    auto  entity                 = m_world->CreateEntity();
-    auto& transform              = entity.AddComponent<Yogi::TransformComponent>();
-    transform.Transform.Position = { 0, 0, 5 };
-    auto& camera                 = entity.AddComponent<Yogi::CameraComponent>();
+    std::vector<Yogi::Ref<Yogi::Mesh>> meshes = {
+        Yogi::AssetManager::GetAsset<Yogi::Mesh>("EngineAssets/Meshes/Armadillo.obj::defaultobject"),
+        Yogi::AssetManager::GetAsset<Yogi::Mesh>("EngineAssets/Meshes/Cube.obj::cube"),
+        Yogi::AssetManager::GetAsset<Yogi::Mesh>("EngineAssets/Meshes/Bunny.obj::defaultobject")
+    };
 
-    m_box = m_world->CreateEntity();
-    m_box.AddComponent<Yogi::TransformComponent>();
-    auto& meshRenderer = m_box.AddComponent<Yogi::MeshRendererComponent>();
-    meshRenderer.Mesh  = Yogi::AssetManager::GetAsset<Yogi::Mesh>("EngineAssets/Meshes/Armadillo.obj::defaultobject");
     Yogi::Ref<Yogi::Material> material = Yogi::ResourceManager::GetResource<Yogi::Material>();
     material->AddPass(Yogi::Material::MaterialPass{ pipeline, {} });
-    meshRenderer.Material = material;
 
-    entity                                                             = m_world->CreateEntity();
-    entity.AddComponent<Yogi::TransformComponent>().Transform.Position = { 2, 0, 0 };
-    auto& mr    = entity.AddComponent<Yogi::MeshRendererComponent>();
-    mr.Mesh     = Yogi::AssetManager::GetAsset<Yogi::Mesh>("EngineAssets/Meshes/Cube.obj::cube");
-    mr.Material = material;
+    srand(41);
+    for (int i = 0; i < 1000; i++)
+    {
+        float x = float(rand()) / RAND_MAX * 4.0f - 2.0f;
+        float y = float(rand()) / RAND_MAX * 4.0f - 2.0f;
+        float z = float(rand()) / RAND_MAX * 4.0f - 2.0f;
 
-    entity                        = m_world->CreateEntity();
-    auto& transform2              = entity.AddComponent<Yogi::TransformComponent>();
-    transform2.Transform.Position = { -2, 0, 0 };
-    transform2.Transform.Scale    = { 5.f, 5.f, 5.f };
-    auto& mr1                     = entity.AddComponent<Yogi::MeshRendererComponent>();
-    mr1.Mesh     = Yogi::AssetManager::GetAsset<Yogi::Mesh>("EngineAssets/Meshes/Bunny.obj::defaultobject");
-    mr1.Material = material;
+        float x_axis = float(rand()) / RAND_MAX * 2 - 1.0f;
+        float y_axis = float(rand()) / RAND_MAX * 2 - 1.0f;
+        float z_axis = float(rand()) / RAND_MAX * 2 - 1.0f;
+        float angle  = float(rand()) / RAND_MAX * 360.0f;
+
+        float x_scale = float(rand()) / RAND_MAX / 10;
+        float y_scale = float(rand()) / RAND_MAX / 10;
+        float z_scale = float(rand()) / RAND_MAX / 10;
+
+        m_box                    = m_world->CreateEntity();
+        auto& entityTransform    = m_box.AddComponent<Yogi::TransformComponent>().Transform;
+        entityTransform.Position = { x, y, z };
+        entityTransform.Rotation =
+            Yogi::Quaternion::AngleAxis(angle, Yogi::Vector3(x_axis, y_axis, z_axis).Normalized());
+        entityTransform.Scale = { x_scale, y_scale, z_scale };
+        auto& meshRenderer    = m_box.AddComponent<Yogi::MeshRendererComponent>();
+        meshRenderer.Mesh     = meshes[rand() % meshes.size()];
+        meshRenderer.Material = material;
+    }
+
+    m_box                        = m_world->CreateEntity();
+    auto& transform              = m_box.AddComponent<Yogi::TransformComponent>();
+    transform.Transform.Position = { 0, 0, 0 };
+    auto& camera                 = m_box.AddComponent<Yogi::CameraComponent>();
+
+    // m_box = m_world->CreateEntity();
+    // m_box.AddComponent<Yogi::TransformComponent>();
+    // auto& meshRenderer = m_box.AddComponent<Yogi::MeshRendererComponent>();
+    // meshRenderer.Mesh  = Yogi::AssetManager::GetAsset<Yogi::Mesh>("EngineAssets/Meshes/Armadillo.obj::defaultobject");
+    // Yogi::Ref<Yogi::Material> material = Yogi::ResourceManager::GetResource<Yogi::Material>();
+    // material->AddPass(Yogi::Material::MaterialPass{ pipeline, {} });
+    // meshRenderer.Material = material;
+
+    // entity                                                             = m_world->CreateEntity();
+    // entity.AddComponent<Yogi::TransformComponent>().Transform.Position = { 2, 0, 0 };
+    // auto& mr    = entity.AddComponent<Yogi::MeshRendererComponent>();
+    // mr.Mesh     = Yogi::AssetManager::GetAsset<Yogi::Mesh>("EngineAssets/Meshes/Cube.obj::cube");
+    // mr.Material = material;
+
+    // entity                        = m_world->CreateEntity();
+    // auto& transform2              = entity.AddComponent<Yogi::TransformComponent>();
+    // transform2.Transform.Position = { -2, 0, 0 };
+    // transform2.Transform.Scale    = { 5.f, 5.f, 5.f };
+    // auto& mr1                     = entity.AddComponent<Yogi::MeshRendererComponent>();
+    // mr1.Mesh     = Yogi::AssetManager::GetAsset<Yogi::Mesh>("EngineAssets/Meshes/Bunny.obj::defaultobject");
+    // mr1.Material = material;
 }
 
 Sandbox2D::~Sandbox2D() { m_world = nullptr; }
@@ -111,8 +149,38 @@ void Sandbox2D::OnUpdate(Yogi::Timestep ts)
 
     {
         YG_PROFILE_SCOPE("Render draw");
-        auto& transform    = m_box.GetComponent<Yogi::TransformComponent>().Transform;
-        transform.Rotation = Yogi::Quaternion::AngleAxis((float)ts * 20.0f, Yogi::Vector3::Up()) * transform.Rotation;
+        auto& transform = m_box.GetComponent<Yogi::TransformComponent>().Transform;
+        if (Yogi::Input::IsKeyPressed(YG_KEY_A))
+        {
+            transform.Position -= 2.0f * (float)ts * (transform.Rotation * Yogi::Vector3::Right());
+        }
+        if (Yogi::Input::IsKeyPressed(YG_KEY_D))
+        {
+            transform.Position += 2.0f * (float)ts * (transform.Rotation * Yogi::Vector3::Right());
+        }
+        if (Yogi::Input::IsKeyPressed(YG_KEY_W))
+        {
+            transform.Position -= 2.0f * (float)ts * (transform.Rotation * Yogi::Vector3::Backward());
+        }
+        if (Yogi::Input::IsKeyPressed(YG_KEY_S))
+        {
+            transform.Position += 2.0f * (float)ts * (transform.Rotation * Yogi::Vector3::Backward());
+        }
+        if (firstMouse)
+        {
+            lastX      = Yogi::Input::GetMouseX();
+            lastY      = Yogi::Input::GetMouseY();
+            firstMouse = false;
+        }
+        transform.Rotation = Yogi::Quaternion::AngleAxis((float)ts * (lastX - Yogi::Input::GetMouseX()),
+                                                         transform.Rotation * Yogi::Vector3::Up()) *
+            transform.Rotation;
+        transform.Rotation = Yogi::Quaternion::AngleAxis((float)ts * (lastY - Yogi::Input::GetMouseY()),
+                                                         transform.Rotation * Yogi::Vector3::Right()) *
+            transform.Rotation;
+        lastX = Yogi::Input::GetMouseX();
+        lastY = Yogi::Input::GetMouseY();
+        // transform.Rotation = Yogi::Quaternion::AngleAxis((float)ts * 20.0f, Yogi::Vector3::Up()) * transform.Rotation;
         m_world->OnUpdate(ts);
         // auto&                            swapChain     = Yogi::Application::GetInstance().GetSwapChain();
         // auto                             currentTarget = swapChain->GetCurrentTarget();

@@ -31,7 +31,12 @@ layout(binding = 2) readonly buffer MeshletData8Buffer
 	uint8_t meshletData8[];
 };
 
-layout(binding = 3) readonly buffer MeshDrawBuffer
+layout(binding = 3) readonly buffer MeshDataBuffer
+{
+    MeshData meshData[];
+};
+
+layout(binding = 4) readonly buffer MeshDrawBuffer
 {
     MeshDraw meshDraws[];
 };
@@ -63,10 +68,11 @@ vec3 hashToColor(uint id)
 void main()
 {
     MeshDraw draw = meshDraws[payload.drawIndex];
+    MeshData mesh = meshData[draw.MeshIndex];
     uint mi = payload.meshletIndices[gl_WorkGroupID.x];
     uint ti = gl_LocalInvocationIndex;
 
-    uint dataOffset = uint(meshlets[mi].DataOffset) + draw.MeshletDataBase;
+    uint dataOffset = uint(meshlets[mi].DataOffset) + mesh.MeshletDataBase;
     uint vertexCount = uint(meshlets[mi].VertexCount);
     uint triangleCount = uint(meshlets[mi].TriangleCount);
 
@@ -74,7 +80,7 @@ void main()
 
     for (uint i = ti; i < vertexCount; i += MESH_WGSIZE)
     {
-        uint vi = meshletData[dataOffset + i] + draw.VertexOffset;
+        uint vi = meshletData[dataOffset + i] + mesh.VertexOffset;
         VertexData v = vertices[vi];
         vec3 localPosition = vec3(v.vx, v.vy, v.vz) * draw.Scale;
         vec3 position = RotateByQuaternion(localPosition, draw.Orientation) + draw.Position;

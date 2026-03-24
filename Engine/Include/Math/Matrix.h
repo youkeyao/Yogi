@@ -21,6 +21,8 @@ struct Matrix4 : public Matrix<4, 4, float>
 {
     using Matrix<4, 4, float>::Matrix;
 
+    Matrix4 Transpose() const { return glm::transpose(*this); }
+
     static Matrix4 Translation(const Vector3& translation)
     {
         return glm::translate(glm::mat4(1.0f), glm::vec3(translation.x, translation.y, translation.z));
