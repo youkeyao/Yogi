@@ -227,7 +227,6 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
             commandBuffer->SetPipeline(m_cullPipeline);
             commandBuffer->SetShaderResourceBinding(m_cullShaderResourceBinding);
 
-            constexpr uint32_t CULL_WORKGROUP_SIZE = 64;
             for (size_t batchIndex = 0; batchIndex < renderBatches.size(); ++batchIndex)
             {
                 auto& batch = renderBatches[batchIndex];

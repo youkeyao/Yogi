@@ -15,6 +15,7 @@
 #define TASK_WGSIZE           32
 #define MESHLET_MAX_VERTICES  64
 #define MESHLET_MAX_TRIANGLES 126
+#define CULL_WORKGROUP_SIZE   64
 
 struct VertexData
 {

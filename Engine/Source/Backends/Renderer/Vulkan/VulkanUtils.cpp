@@ -165,6 +165,10 @@ VkFormat YgTextureFormat2VkFormat(ITexture::Format format)
 {
     switch (format)
     {
+        case ITexture::Format::R8G8B8_UNORM:
+            return VK_FORMAT_R8G8B8_UNORM;
+        case ITexture::Format::R8G8B8_SRGB:
+            return VK_FORMAT_R8G8B8_SRGB;
         case ITexture::Format::R8G8B8A8_UNORM:
             return VK_FORMAT_R8G8B8A8_UNORM;
         case ITexture::Format::R8G8B8A8_SRGB:
@@ -173,6 +177,12 @@ VkFormat YgTextureFormat2VkFormat(ITexture::Format format)
             return VK_FORMAT_B8G8R8A8_UNORM;
         case ITexture::Format::B8G8R8A8_SRGB:
             return VK_FORMAT_B8G8R8A8_SRGB;
+        case ITexture::Format::R32G32B32A32_FLOAT:
+            return VK_FORMAT_R32G32B32A32_SFLOAT;
+        case ITexture::Format::R32G32B32_FLOAT:
+            return VK_FORMAT_R32G32B32_SFLOAT;
+        case ITexture::Format::R32_FLOAT:
+            return VK_FORMAT_R32_SFLOAT;
         case ITexture::Format::D32_FLOAT:
             return VK_FORMAT_D32_SFLOAT;
         case ITexture::Format::D24_UNORM_S8_UINT:
@@ -199,6 +209,12 @@ ITexture::Format VkFormat2YgTextureFormat(VkFormat format)
             return ITexture::Format::B8G8R8A8_UNORM;
         case VK_FORMAT_B8G8R8A8_SRGB:
             return ITexture::Format::B8G8R8A8_SRGB;
+        case VK_FORMAT_R32G32B32A32_SFLOAT:
+            return ITexture::Format::R32G32B32A32_FLOAT;
+        case VK_FORMAT_R32G32B32_SFLOAT:
+            return ITexture::Format::R32G32B32_FLOAT;
+        case VK_FORMAT_R32_SFLOAT:
+            return ITexture::Format::R32_FLOAT;
         case VK_FORMAT_D32_SFLOAT:
             return ITexture::Format::D32_FLOAT;
         case VK_FORMAT_D24_UNORM_S8_UINT:

@@ -12,6 +12,7 @@ Owner<ITexture> ITexture::Create(const TextureDesc& desc) { return Owner<VulkanT
 VulkanTexture::VulkanTexture(const TextureDesc& desc) :
     m_width(desc.Width),
     m_height(desc.Height),
+    m_mipLevels(std::max(1u, desc.MipLevels)),
     m_format(desc.Format),
     m_usage(desc.Usage),
     m_numSamples(desc.NumSamples)
@@ -22,13 +23,17 @@ VulkanTexture::VulkanTexture(const TextureDesc& desc) :
                   YgTextureFormat2VkFormat(desc.Format),
                   VK_IMAGE_TILING_OPTIMAL,
                   VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+                      (desc.Usage == ITexture::Usage::Storage ? VK_IMAGE_USAGE_STORAGE_BIT : 0) |
                       (desc.Usage == ITexture::Usage::RenderTarget ? VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT : 0) |
                       (desc.Usage == ITexture::Usage::DepthStencil ? VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT : 0),
                   VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    CreateVkImageView(m_image,
-                      YgTextureFormat2VkFormat(desc.Format),
-                      desc.Usage == ITexture::Usage::DepthStencil ? VK_IMAGE_ASPECT_DEPTH_BIT :
-                                                                    VK_IMAGE_ASPECT_COLOR_BIT);
+    const VkImageAspectFlags aspectFlags =
+        desc.Usage == ITexture::Usage::DepthStencil ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+
+    for (uint32_t mip = 0; mip < m_mipLevels; ++mip)
+    {
+        m_imageViews.push_back(CreateVkImageView(m_image, YgTextureFormat2VkFormat(desc.Format), aspectFlags, mip, 1));
+    }
     CreateVkSampler(VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT);
 }
 
@@ -41,19 +46,22 @@ VulkanTexture::VulkanTexture(uint32_t         width,
     m_sampler(VK_NULL_HANDLE),
     m_width(width),
     m_height(height),
+    m_mipLevels(1),
     m_format(format),
     m_usage(usage)
-{
-    CreateVkImageView(image, YgTextureFormat2VkFormat(format), VK_IMAGE_ASPECT_COLOR_BIT);
-}
+{ m_imageViews.push_back(CreateVkImageView(image, YgTextureFormat2VkFormat(format), VK_IMAGE_ASPECT_COLOR_BIT, 0, 1)); }
 
 VulkanTexture::~VulkanTexture()
 {
     VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
     VkDevice             device  = context->GetVkDevice();
 
-    if (m_imageView != VK_NULL_HANDLE)
-        vkDestroyImageView(device, m_imageView, nullptr);
+    for (auto& imageView : m_imageViews)
+    {
+        if (imageView != VK_NULL_HANDLE)
+            vkDestroyImageView(device, imageView, nullptr);
+    }
+    m_imageViews.clear();
     if (m_sampler != VK_NULL_HANDLE)
     {
         vkDestroyImage(device, m_image, nullptr);
@@ -118,7 +126,7 @@ void VulkanTexture::CreateVkImage(uint32_t              width,
     imageInfo.extent.width  = width;
     imageInfo.extent.height = height;
     imageInfo.extent.depth  = 1;
-    imageInfo.mipLevels     = 1;
+    imageInfo.mipLevels     = m_mipLevels;
     imageInfo.arrayLayers   = 1;
     imageInfo.format        = format;
     imageInfo.tiling        = tiling;
@@ -144,7 +152,11 @@ void VulkanTexture::CreateVkImage(uint32_t              width,
     vkBindImageMemory(device, m_image, m_imageMemory, 0);
 }
 
-void VulkanTexture::CreateVkImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags)
+VkImageView VulkanTexture::CreateVkImageView(VkImage            image,
+                                             VkFormat           format,
+                                             VkImageAspectFlags aspectFlags,
+                                             uint32_t           baseMipLevel,
+                                             uint32_t           levelCount)
 {
     VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
     VkPhysicalDevice     physicalDevice = context->GetVkPhysicalDevice();
@@ -156,13 +168,15 @@ void VulkanTexture::CreateVkImageView(VkImage image, VkFormat format, VkImageAsp
     viewInfo.viewType                        = VK_IMAGE_VIEW_TYPE_2D;
     viewInfo.format                          = format;
     viewInfo.subresourceRange.aspectMask     = aspectFlags;
-    viewInfo.subresourceRange.baseMipLevel   = 0;
-    viewInfo.subresourceRange.levelCount     = 1;
+    viewInfo.subresourceRange.baseMipLevel   = baseMipLevel;
+    viewInfo.subresourceRange.levelCount     = levelCount;
     viewInfo.subresourceRange.baseArrayLayer = 0;
     viewInfo.subresourceRange.layerCount     = 1;
 
-    VkResult result = vkCreateImageView(device, &viewInfo, nullptr, &m_imageView);
+    VkImageView imageView = VK_NULL_HANDLE;
+    VkResult    result    = vkCreateImageView(device, &viewInfo, nullptr, &imageView);
     YG_CORE_ASSERT(result == VK_SUCCESS, "Vulkan: Failed to create texture image view!");
+    return imageView;
 }
 
 void VulkanTexture::CreateVkSampler(VkFilter magFilter, VkFilter minFilter, VkSamplerAddressMode addressMode)
@@ -186,7 +200,7 @@ void VulkanTexture::CreateVkSampler(VkFilter magFilter, VkFilter minFilter, VkSa
     samplerInfo.mipmapMode              = VK_SAMPLER_MIPMAP_MODE_NEAREST;
     samplerInfo.mipLodBias              = 0.0f;
     samplerInfo.minLod                  = 0.0f;
-    samplerInfo.maxLod                  = 0.0f;
+    samplerInfo.maxLod                  = static_cast<float>(m_mipLevels - 1);
 
     VkResult result = vkCreateSampler(device, &samplerInfo, nullptr, &m_sampler);
     YG_CORE_ASSERT(result == VK_SUCCESS, "Vulkan: Failed to create texture sampler!");
