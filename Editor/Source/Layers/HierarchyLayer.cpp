@@ -11,7 +11,7 @@ namespace Yogi
 
 HierarchyLayer::HierarchyLayer() : Layer("Hierarchy Layer")
 {
-    m_viewportLayer = Ref<ViewportLayer>::Cast(Application::GetInstance().GetLayer("Viewport Layer"));
+    m_viewportLayer = WRef<ViewportLayer>::Cast(Application::GetInstance().GetLayer("Viewport Layer"));
 }
 
 HierarchyLayer::~HierarchyLayer() { m_allEntities.clear(); }
@@ -357,9 +357,9 @@ void HierarchyLayer::DrawField(Field& field, uint8_t* component)
             ImGui::EndCombo();
         }
     }
-    else if (field.TypeHash == GetTypeHash<Ref<Mesh>>())
+    else if (field.TypeHash == GetTypeHash<WRef<Mesh>>())
     {
-        Ref<Mesh>&  mesh    = *reinterpret_cast<Ref<Mesh>*>((uint8_t*)component + field.Offset);
+        WRef<Mesh>&  mesh    = *reinterpret_cast<WRef<Mesh>*>((uint8_t*)component + field.Offset);
         std::string meshKey = AssetManager::GetAssetKey(mesh);
         if (ImGui::BeginCombo(field.Name.c_str(), meshKey.c_str()))
         {
@@ -373,9 +373,9 @@ void HierarchyLayer::DrawField(Field& field, uint8_t* component)
             ImGui::EndCombo();
         }
     }
-    else if (field.TypeHash == GetTypeHash<Ref<Material>>())
+    else if (field.TypeHash == GetTypeHash<WRef<Material>>())
     {
-        Ref<Material>& material    = *(Ref<Material>*)((uint8_t*)component + field.Offset);
+        WRef<Material>& material    = *(WRef<Material>*)((uint8_t*)component + field.Offset);
         std::string    materialKey = AssetManager::GetAssetKey(material);
         if (ImGui::BeginCombo(field.Name.c_str(), materialKey.c_str()))
         {
@@ -389,12 +389,12 @@ void HierarchyLayer::DrawField(Field& field, uint8_t* component)
             ImGui::EndCombo();
         }
     }
-    // else if (value.type_hash == typeid(Ref<RenderTexture>).hash_code())
+    // else if (value.type_hash == typeid(WRef<RenderTexture>).hash_code())
     // {
-    //     Ref<RenderTexture>& texture = *(Ref<RenderTexture>*)((uint8_t*)component + value.offset);
+    //     WRef<RenderTexture>& texture = *(WRef<RenderTexture>*)((uint8_t*)component + value.offset);
     //     if (ImGui::BeginCombo(key.c_str(), texture ? (texture->get_name()).c_str() : "None"))
     //     {
-    //         TextureManager::each_render_texture([&](const Ref<RenderTexture>& each_texture) {
+    //         TextureManager::each_render_texture([&](const WRef<RenderTexture>& each_texture) {
     //             bool is_selected = texture == each_texture;
     //             if (ImGui::Selectable(each_texture->get_name().c_str(), is_selected))
     //             {

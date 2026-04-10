@@ -93,7 +93,7 @@ AllowAllParametersOfDeclarationOnNextLine: false
 #                int c);
 
 
-AllowShortBlocksOnASingleLine: Always
+AllowShortBlocksOnASingleLine: Never
 # Always:
 # while (true) {}
 # while (true) {continue;}
@@ -106,7 +106,7 @@ AllowShortCaseLabelsOnASingleLine: false
 #     case 1: x = 1; break;  
 
 
-AllowShortFunctionsOnASingleLine: All
+AllowShortFunctionsOnASingleLine: Inline
 AllowShortLambdasOnASingleLine: Inline
 AllowShortIfStatementsOnASingleLine: Never
 AllowShortLoopsOnASingleLine: false

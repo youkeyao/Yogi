@@ -3,7 +3,7 @@
 namespace Yogi
 {
 
-MeshGPUUploadCache::Key MeshGPUUploadCache::BuildKey(const Ref<Mesh>& mesh,
+MeshGPUUploadCache::Key MeshGPUUploadCache::BuildKey(const WRef<Mesh>&  mesh,
                                                      const std::string& assetKey,
                                                      uint32_t           submeshIndex)
 {

@@ -19,18 +19,20 @@ Application::Application(const std::string& name)
     m_window = Window::Create(WindowProps{ name, 1280, 720 });
     m_window->SetEventCallback(YG_BIND_FN(Application::OnEvent));
 
-    m_context   = Owner<IDeviceContext>::Create(Ref<Window>::Create(m_window));
+    m_context   = Owner<IDeviceContext>::Create(View<Window>::Create(m_window));
     m_swapChain = Owner<ISwapChain>::Create(SwapChainDesc{ m_window->GetWidth(),
-                                                            m_window->GetHeight(),
-                                                            ITexture::Format::B8G8R8A8_UNORM,
-                                                            ITexture::Format::D32_FLOAT,
-                                                            SampleCountFlagBits::Count4,
-                                                            Ref<Window>::Create(m_window) });
+                                                           m_window->GetHeight(),
+                                                           ITexture::Format::B8G8R8A8_UNORM,
+                                                           ITexture::Format::D32_FLOAT,
+                                                           SampleCountFlagBits::Count4,
+                                                           m_window.Get() });
 }
 
 Application::~Application()
 {
     YG_PROFILE_FUNCTION();
+
+    m_context->WaitIdle();
 
     for (auto& layer : m_layers)
     {
@@ -52,13 +54,13 @@ void Application::PushLayer(Owner<Layer>&& layer)
     m_layers.push_back(std::move(layer));
 }
 
-Ref<Layer> Application::GetLayer(const std::string& name)
+WRef<Layer> Application::GetLayer(const std::string& name)
 {
     for (auto& layer : m_layers)
     {
         if (layer->GetName() == name)
         {
-            return Ref<Layer>::Create(layer);
+            return WRef<Layer>::Create(layer);
         }
     }
     return nullptr;
@@ -83,7 +85,10 @@ void Application::OnEvent(Event& e)
     dispatcher.Dispatch<WindowResizeEvent>(YG_BIND_FN(Application::OnWindowResize));
 }
 
-void Application::Close() { m_isRunning = false; }
+void Application::Close()
+{
+    m_isRunning = false;
+}
 
 void Application::Run()
 {
@@ -121,6 +126,9 @@ void Application::Run()
         }
 
         m_window->OnUpdate();
+
+        AssetManager::CollectUnusedAssetsAll();
+        ResourceManager::CollectUnusedResourcesAll();
     }
 }
 

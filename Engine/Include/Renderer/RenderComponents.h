@@ -9,17 +9,17 @@ namespace Yogi
 
 struct CameraComponent
 {
-    Ref<ITexture> Target    = nullptr;
-    float         Fov       = 45.0f;
-    float         ZoomLevel = 1.0f;
-    bool          IsOrtho   = false;
+    WRef<ITexture> Target    = nullptr;
+    float          Fov       = 45.0f;
+    float          ZoomLevel = 1.0f;
+    bool           IsOrtho   = false;
 };
 
 struct MeshRendererComponent
 {
-    Ref<Mesh>     Mesh;
-    Ref<Material> Material;
-    bool          CastShadow = true;
+    WRef<Mesh>     Mesh;
+    WRef<Material> Material;
+    bool           CastShadow = true;
 };
 
 } // namespace Yogi

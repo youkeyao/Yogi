@@ -29,7 +29,7 @@ private:
 private:
     std::vector<Entity>       m_allEntities;
     std::map<Entity, Vector3> m_entitiesEulerAngles;
-    Ref<ViewportLayer>        m_viewportLayer;
+    WRef<ViewportLayer>        m_viewportLayer;
 };
 
 } // namespace Yogi

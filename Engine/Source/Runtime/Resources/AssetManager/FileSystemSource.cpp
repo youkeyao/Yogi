@@ -9,13 +9,12 @@
 namespace Yogi
 {
 
-std::vector<uint8_t> LoadBinaryFile(const std::string& filepath)
+std::optional<std::vector<uint8_t>> LoadBinaryFile(const std::string& filepath)
 {
     std::ifstream file(filepath, std::ios::binary);
     if (!file)
     {
-        YG_CORE_ERROR("Failed to open file: {0}", filepath);
-        return {};
+        return std::nullopt;
     }
 
     file.seekg(0, std::ios::end);
@@ -40,7 +39,7 @@ FileSystemSource::FileSystemSource(const std::string& rootDir) : m_rootDir(rootD
     AssetManager::RegisterAssetSerializer<IRenderPass, RenderPassSerializer>();
 }
 
-std::vector<uint8_t> FileSystemSource::LoadSource(const std::string& key)
+std::optional<std::vector<uint8_t>> FileSystemSource::LoadSource(const std::string& key)
 {
     size_t sepPos = key.find("::");
 

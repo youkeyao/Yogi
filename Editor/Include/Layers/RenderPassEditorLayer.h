@@ -18,7 +18,7 @@ protected:
     bool ImGuiAttachment(AttachmentDesc& attachment);
 
 private:
-    Ref<IRenderPass> m_renderPass;
+    WRef<IRenderPass> m_renderPass;
     std::string   m_key;
 };
 

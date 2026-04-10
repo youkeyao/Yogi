@@ -10,7 +10,7 @@ public:
     virtual ~AssetSerializer() = default;
 
     virtual Owner<T>             Deserialize(const std::vector<uint8_t>& binary, const std::string& key) = 0;
-    virtual std::vector<uint8_t> Serialize(const Ref<T>& asset, const std::string& key)                  = 0;
+    virtual std::vector<uint8_t> Serialize(const WRef<T>& asset, const std::string& key)                 = 0;
 };
 
 } // namespace Yogi

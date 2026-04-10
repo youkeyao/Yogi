@@ -31,7 +31,7 @@ public:
     };
 
 public:
-    static Key BuildKey(const Ref<Mesh>& mesh, const std::string& assetKey, uint32_t submeshIndex = 0);
+    static Key BuildKey(const WRef<Mesh>& mesh, const std::string& assetKey, uint32_t submeshIndex = 0);
 
     bool TryGet(const Key& key, uint32_t& outRecord) const;
     void Upsert(const Key& key, const uint32_t& record);

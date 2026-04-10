@@ -10,7 +10,7 @@ class YG_API TextureSerializer : public AssetSerializer<ITexture>
 {
 public:
     Owner<ITexture>      Deserialize(const std::vector<uint8_t>& binary, const std::string& key) override;
-    std::vector<uint8_t> Serialize(const Ref<ITexture>& asset, const std::string& key) override;
+    std::vector<uint8_t> Serialize(const WRef<ITexture>& asset, const std::string& key) override;
 };
 
 } // namespace Yogi

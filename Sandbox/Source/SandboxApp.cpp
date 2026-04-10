@@ -11,4 +11,7 @@ public:
     ~Sandbox() {}
 };
 
-Yogi::Application* Yogi::CreateApplication() { return new Sandbox(); }
+Yogi::Application* Yogi::CreateApplication()
+{
+    return new Sandbox();
+}

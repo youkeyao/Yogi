@@ -62,9 +62,9 @@ void ImGuiEndLayer::RendererInit()
 
     VkExtent2D extent = { swapChain->GetWidth(), swapChain->GetHeight() };
 
-    m_renderPass = ResourceManager::GetResource<IRenderPass>(
-        RenderPassDesc{ { AttachmentDesc{ swapChain->GetColorFormat(), AttachmentUsage::Present } },
-                        AttachmentDesc{ ITexture::Format::NONE, AttachmentUsage::ShaderRead },
+    m_renderPass = ResourceManager::GetSharedResource<IRenderPass>(
+        RenderPassDesc{ { AttachmentDesc{ swapChain->GetColorFormat(), ResourceState::Present } },
+                        AttachmentDesc{ ITexture::Format::NONE, ResourceState::FragmentShaderResource },
                         swapChain->GetNumSamples() });
 
     QueueFamilyIndices indices = FindQueueFamilies(context->GetVkPhysicalDevice(), context->GetVkSurface());
@@ -85,7 +85,7 @@ void ImGuiEndLayer::RendererInit()
     ImGui_ImplVulkan_LoadFunctions(0, &VkLoadFunction, initInfo.Instance);
     ImGui_ImplVulkan_Init(&initInfo);
 
-    m_commandBuffer = ResourceManager::GetResource<ICommandBuffer>(
+    m_commandBuffer = ResourceManager::CreateResource<ICommandBuffer>(
         CommandBufferDesc{ CommandBufferUsage::Persistent, SubmitQueue::Graphics });
 #endif
 }
@@ -103,7 +103,7 @@ void ImGuiEndLayer::RendererDraw()
     auto     it  = m_frameBuffers.find(key);
     if (it == m_frameBuffers.end())
     {
-        it = m_frameBuffers.insert({ key, ResourceManager::GetResource<IFrameBuffer>(desc) }).first;
+        it = m_frameBuffers.insert({ key, ResourceManager::GetSharedResource<IFrameBuffer>(desc) }).first;
     }
     auto& frameBuffer = it->second;
 

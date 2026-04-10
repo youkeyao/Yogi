@@ -18,7 +18,7 @@ private:
     bool ImGuiMaterialData(const std::vector<std::string> shaderKeys, std::vector<uint8_t>& data);
 
 private:
-    Ref<Material> m_material;
+    WRef<Material> m_material;
     std::string   m_key;
 };
 

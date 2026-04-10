@@ -13,9 +13,9 @@ ViewportLayer::ViewportLayer() :
     m_selectedEntity(Entity::Null()),
     m_editRenderSystem(Owner<ForwardRenderSystem>::Create())
 {
-    m_frameTexture = ResourceManager::GetResource<ITexture>(
+    m_frameTexture = ResourceManager::CreateResource<ITexture>(
         TextureDesc{ 1, 1, 1, ITexture::Format::B8G8R8A8_UNORM, ITexture::Usage::RenderTarget });
-    m_frameTextureBinding = ResourceManager::GetResource<IShaderResourceBinding>(std::vector<ShaderResourceAttribute>{
+    m_frameTextureBinding = ResourceManager::CreateResource<IShaderResourceBinding>(std::vector<ShaderResourceAttribute>{
         ShaderResourceAttribute{ 0, 1, ShaderResourceType::Texture, ShaderStage::Fragment } });
     m_frameTextureBinding->BindTexture(m_frameTexture, 0, 0);
 }
@@ -58,7 +58,7 @@ void ViewportLayer::OnGUI()
             if (ImGui::MenuItem("New"))
             {
                 m_world = Owner<World>::Create();
-                // m_hierarchy_panel = CreateRef<SceneHierarchyPanel>(m_scene);
+                // m_hierarchy_panel = CreateWRef<SceneHierarchyPanel>(m_scene);
                 // m_editor_camera   = EditorCamera{};
             }
             if (ImGui::MenuItem("Open Project..."))
@@ -96,11 +96,11 @@ void ViewportLayer::OnGUI()
         m_viewportSize = newViewportSize;
         if (m_viewportSize.x > 0 && m_viewportSize.y > 0)
         {
-            m_frameTexture = ResourceManager::GetResource<ITexture>(TextureDesc{ (uint32_t)m_viewportSize.x,
-                                                                                 (uint32_t)m_viewportSize.y,
-                                                                                 1,
-                                                                                 ITexture::Format::B8G8R8A8_UNORM,
-                                                                                 ITexture::Usage::RenderTarget });
+            m_frameTexture = ResourceManager::CreateResource<ITexture>(TextureDesc{ (uint32_t)m_viewportSize.x,
+                                                                                    (uint32_t)m_viewportSize.y,
+                                                                                    1,
+                                                                                    ITexture::Format::B8G8R8A8_UNORM,
+                                                                                    ITexture::Usage::RenderTarget });
             m_frameTextureBinding->BindTexture(m_frameTexture, 0, 0);
         }
     }

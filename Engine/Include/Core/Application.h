@@ -21,7 +21,7 @@ public:
     void OnEvent(Event& e);
     void PushLayer(Owner<Layer>&& layer);
 
-    Ref<Layer> GetLayer(const std::string& name);
+    WRef<Layer> GetLayer(const std::string& name);
 
     inline const Owner<Window>&         GetWindow() const { return m_window; }
     inline const Owner<IDeviceContext>& GetContext() const { return m_context; }

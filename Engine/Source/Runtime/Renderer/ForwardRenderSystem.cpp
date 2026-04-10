@@ -8,28 +8,55 @@
 namespace Yogi
 {
 
+namespace
+{
+struct DepthPyramidPushConstant
+{
+    uint32_t SourceWidth;
+    uint32_t SourceHeight;
+    uint32_t SourceTexelStride;
+    uint32_t UseMinReduction;
+};
+
+uint32_t CalcDepthPyramidMips(uint32_t width, uint32_t height)
+{
+    uint32_t longest = std::max(width, height);
+    uint32_t levels  = 1;
+    while (longest > 1)
+    {
+        longest >>= 1;
+        ++levels;
+    }
+    return levels;
+}
+} // namespace
+
 ForwardRenderSystem::ForwardRenderSystem()
 {
-    m_vertexStorageBuffer = ResourceManager::GetResource<IBuffer>(
+    m_vertexStorageBuffer = ResourceManager::GetSharedResource<IBuffer>(
         BufferDesc{ MAX_VERTICES_SIZE, BufferUsage::Storage, BufferAccess::Dynamic });
-    m_meshletBuffer = ResourceManager::GetResource<IBuffer>(
+    m_meshletBuffer = ResourceManager::GetSharedResource<IBuffer>(
         BufferDesc{ MAX_MESHLET_SIZE, BufferUsage::Storage, BufferAccess::Dynamic });
-    m_meshletDataBuffer = ResourceManager::GetResource<IBuffer>(
+    m_meshletDataBuffer = ResourceManager::GetSharedResource<IBuffer>(
         BufferDesc{ MAX_MESHLET_DATA_SIZE, BufferUsage::Storage, BufferAccess::Dynamic });
-    m_meshBuffer =
-        ResourceManager::GetResource<IBuffer>(BufferDesc{ MAX_MESH_SIZE, BufferUsage::Storage, BufferAccess::Dynamic });
-    m_meshDrawBuffer = ResourceManager::GetResource<IBuffer>(
+    m_meshBuffer = ResourceManager::GetSharedResource<IBuffer>(
+        BufferDesc{ MAX_MESH_SIZE, BufferUsage::Storage, BufferAccess::Dynamic });
+    m_meshDrawBuffer = ResourceManager::GetSharedResource<IBuffer>(
         BufferDesc{ MAX_MESH_DRAW_SIZE, BufferUsage::Storage, BufferAccess::Dynamic });
-    m_meshTaskIndirectBuffer = ResourceManager::GetResource<IBuffer>(BufferDesc{
+    m_meshTaskIndirectBuffer = ResourceManager::GetSharedResource<IBuffer>(BufferDesc{
         MAX_INDIRECT_DRAW_COMMAND_SIZE, BufferUsage::Storage | BufferUsage::Indirect, BufferAccess::Dynamic });
-    m_visibleDrawIndexBuffer = ResourceManager::GetResource<IBuffer>(
+    m_visibleDrawIndexBuffer = ResourceManager::GetSharedResource<IBuffer>(
         BufferDesc{ MAX_VISIBLE_DRAW_INDEX_SIZE, BufferUsage::Storage, BufferAccess::Dynamic });
-    m_meshTaskIndirectCountBuffer = ResourceManager::GetResource<IBuffer>(BufferDesc{
+    m_meshTaskIndirectCountBuffer = ResourceManager::GetSharedResource<IBuffer>(BufferDesc{
         MAX_INDIRECT_DRAW_COUNT_SIZE, BufferUsage::Storage | BufferUsage::Indirect, BufferAccess::Dynamic });
 
-    m_renderPasses.push_back(AssetManager::GetAsset<IRenderPass>("EngineAssets/RenderPasses/Default.rp"));
+    auto& swapChain = Application::GetInstance().GetSwapChain();
+    m_renderPasses.push_back(Yogi::ResourceManager::GetSharedResource<Yogi::IRenderPass>(
+        Yogi::RenderPassDesc{ { Yogi::AttachmentDesc{ swapChain->GetColorFormat(), Yogi::ResourceState::Present } },
+                              Yogi::AttachmentDesc{ swapChain->GetDepthFormat(), Yogi::ResourceState::DepthRead },
+                              swapChain->GetNumSamples() }));
 
-    m_shaderResourceBinding = ResourceManager::GetResource<IShaderResourceBinding>(
+    m_shaderResourceBinding = ResourceManager::GetSharedResource<IShaderResourceBinding>(
         std::vector<ShaderResourceAttribute>{
             ShaderResourceAttribute{ 0, 1, ShaderResourceType::StorageBuffer, ShaderStage::Mesh },
             ShaderResourceAttribute{ 1, 1, ShaderResourceType::StorageBuffer, ShaderStage::Task | ShaderStage::Mesh },
@@ -40,14 +67,14 @@ ForwardRenderSystem::ForwardRenderSystem()
         std::vector<PushConstantRange>{
             PushConstantRange{ ShaderStage::Task | ShaderStage::Mesh, 0, static_cast<uint32_t>(sizeof(SceneData)) } });
 
-    m_shaderResourceBinding->BindBuffer(m_vertexStorageBuffer, 0);
-    m_shaderResourceBinding->BindBuffer(m_meshletBuffer, 1);
-    m_shaderResourceBinding->BindBuffer(m_meshletDataBuffer, 2);
-    m_shaderResourceBinding->BindBuffer(m_meshBuffer, 3);
-    m_shaderResourceBinding->BindBuffer(m_meshDrawBuffer, 4);
-    m_shaderResourceBinding->BindBuffer(m_visibleDrawIndexBuffer, 5);
+    m_shaderResourceBinding->BindBuffer(View<IBuffer>::Create(m_vertexStorageBuffer), 0);
+    m_shaderResourceBinding->BindBuffer(View<IBuffer>::Create(m_meshletBuffer), 1);
+    m_shaderResourceBinding->BindBuffer(View<IBuffer>::Create(m_meshletDataBuffer), 2);
+    m_shaderResourceBinding->BindBuffer(View<IBuffer>::Create(m_meshBuffer), 3);
+    m_shaderResourceBinding->BindBuffer(View<IBuffer>::Create(m_meshDrawBuffer), 4);
+    m_shaderResourceBinding->BindBuffer(View<IBuffer>::Create(m_visibleDrawIndexBuffer), 5);
 
-    m_cullShaderResourceBinding = ResourceManager::GetResource<IShaderResourceBinding>(
+    m_cullShaderResourceBinding = ResourceManager::GetSharedResource<IShaderResourceBinding>(
         std::vector<ShaderResourceAttribute>{
             ShaderResourceAttribute{ 0, 1, ShaderResourceType::StorageBuffer, ShaderStage::Compute },
             ShaderResourceAttribute{ 1, 1, ShaderResourceType::StorageBuffer, ShaderStage::Compute },
@@ -56,17 +83,41 @@ ForwardRenderSystem::ForwardRenderSystem()
             ShaderResourceAttribute{ 4, 1, ShaderResourceType::StorageBuffer, ShaderStage::Compute } },
         std::vector<PushConstantRange>{
             PushConstantRange{ ShaderStage::Compute, 0, static_cast<uint32_t>(sizeof(CullData)) } });
-    m_cullShaderResourceBinding->BindBuffer(m_meshBuffer, 0);
-    m_cullShaderResourceBinding->BindBuffer(m_meshDrawBuffer, 1);
-    m_cullShaderResourceBinding->BindBuffer(m_meshTaskIndirectBuffer, 2);
-    m_cullShaderResourceBinding->BindBuffer(m_visibleDrawIndexBuffer, 3);
-    m_cullShaderResourceBinding->BindBuffer(m_meshTaskIndirectCountBuffer, 4);
+    m_cullShaderResourceBinding->BindBuffer(View<IBuffer>::Create(m_meshBuffer), 0);
+    m_cullShaderResourceBinding->BindBuffer(View<IBuffer>::Create(m_meshDrawBuffer), 1);
+    m_cullShaderResourceBinding->BindBuffer(View<IBuffer>::Create(m_meshTaskIndirectBuffer), 2);
+    m_cullShaderResourceBinding->BindBuffer(View<IBuffer>::Create(m_visibleDrawIndexBuffer), 3);
+    m_cullShaderResourceBinding->BindBuffer(View<IBuffer>::Create(m_meshTaskIndirectCountBuffer), 4);
 
-    PipelineDesc cullPipelineDesc{};
-    cullPipelineDesc.Type    = PipelineType::Compute;
-    cullPipelineDesc.Shaders = { AssetManager::GetAsset<ShaderDesc>("EngineAssets/Shaders/ObjectCull.comp") };
-    cullPipelineDesc.ShaderResourceBinding = m_cullShaderResourceBinding;
-    m_cullPipeline                         = ResourceManager::GetResource<IPipeline>(cullPipelineDesc);
+    WRef<ShaderDesc> cullShader = AssetManager::GetAsset<ShaderDesc>("EngineAssets/Shaders/ObjectCull.comp");
+    PipelineDesc     cullPipelineDesc{};
+    cullPipelineDesc.Type                  = PipelineType::Compute;
+    cullPipelineDesc.Shaders               = { View<ShaderDesc>::Create(cullShader) };
+    cullPipelineDesc.ShaderResourceBinding = View<IShaderResourceBinding>::Create(m_cullShaderResourceBinding);
+    m_cullPipeline                         = ResourceManager::GetSharedResource<IPipeline>(cullPipelineDesc);
+
+    m_depthPyramidMipBinding = IShaderResourceBinding::Create(
+        std::vector<ShaderResourceAttribute>{
+            ShaderResourceAttribute{ 0, 1, ShaderResourceType::Texture, ShaderStage::Compute },
+            ShaderResourceAttribute{ 1, 1, ShaderResourceType::StorageImage, ShaderStage::Compute } },
+        std::vector<PushConstantRange>{
+            PushConstantRange{ ShaderStage::Compute, 0, static_cast<uint32_t>(sizeof(DepthPyramidPushConstant)) } });
+
+    PipelineDesc depthPyramidPipelineDesc{};
+    depthPyramidPipelineDesc.Type = PipelineType::Compute;
+    WRef<ShaderDesc> depthPyramidFirstMipShader =
+        AssetManager::GetAsset<ShaderDesc>("EngineAssets/Shaders/DepthPyramidFirstMip.comp");
+    depthPyramidPipelineDesc.Shaders = { View<ShaderDesc>::Create(depthPyramidFirstMipShader) };
+    depthPyramidPipelineDesc.ShaderResourceBinding =
+        View<IShaderResourceBinding>::Create(WRef<IShaderResourceBinding>::Create(m_depthPyramidMipBinding));
+    m_depthPyramidFirstMipPipeline = ResourceManager::GetSharedResource<IPipeline>(depthPyramidPipelineDesc);
+
+    depthPyramidPipelineDesc.Type       = PipelineType::Compute;
+    WRef<ShaderDesc> depthPyramidShader = AssetManager::GetAsset<ShaderDesc>("EngineAssets/Shaders/DepthPyramid.comp");
+    depthPyramidPipelineDesc.Shaders    = { View<ShaderDesc>::Create(depthPyramidShader) };
+    depthPyramidPipelineDesc.ShaderResourceBinding =
+        View<IShaderResourceBinding>::Create(WRef<IShaderResourceBinding>::Create(m_depthPyramidMipBinding));
+    m_depthPyramidPipeline = ResourceManager::GetSharedResource<IPipeline>(depthPyramidPipelineDesc);
 }
 
 ForwardRenderSystem::~ForwardRenderSystem()
@@ -82,7 +133,12 @@ ForwardRenderSystem::~ForwardRenderSystem()
     m_meshTaskIndirectCountBuffer = nullptr;
     m_shaderResourceBinding       = nullptr;
     m_cullShaderResourceBinding   = nullptr;
-    m_cullPipeline                = nullptr;
+    m_depthPyramidMipBindings.clear();
+    m_depthPyramidFirstMipBindingCache.clear();
+    m_cullPipeline                 = nullptr;
+    m_depthPyramidFirstMipPipeline = nullptr;
+    m_depthPyramidPipeline         = nullptr;
+    m_depthPyramidTexture          = nullptr;
 }
 
 void ForwardRenderSystem::OnUpdate(Timestep ts, World& world)
@@ -105,6 +161,13 @@ bool ForwardRenderSystem::OnWindowResize(WindowResizeEvent& e, World& world)
     auto& swapChain = Application::GetInstance().GetSwapChain();
     swapChain->GetCurrentCommandBuffer()->Wait();
     m_frameBuffers.clear();
+    m_depthPyramidTexture = nullptr;
+    m_depthPyramidMipBindings.clear();
+    m_depthPyramidFirstMipBindingCache.clear();
+    m_depthPyramidValid  = false;
+    m_depthPyramidWidth  = 0;
+    m_depthPyramidHeight = 0;
+    m_depthPyramidMips   = 1;
     return false;
 }
 
@@ -120,18 +183,24 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
 {
     YG_PROFILE_FUNCTION();
 
-    auto&               swapChain     = Application::GetInstance().GetSwapChain();
-    Ref<ICommandBuffer> commandBuffer = swapChain->GetCurrentCommandBuffer();
-    auto                currentTarget = camera.Target ? camera.Target : swapChain->GetCurrentTarget();
-    auto                currentDepth  = swapChain->GetCurrentDepth();
-    FrameBufferDesc     desc{
-        currentTarget->GetWidth(), currentTarget->GetHeight(), m_renderPasses[0], { currentTarget }, currentDepth,
-    };
-    uint64_t key = HashArgs(desc);
-    auto     it  = m_frameBuffers.find(key);
+    auto&                swapChain     = Application::GetInstance().GetSwapChain();
+    WRef<ICommandBuffer> commandBuffer = swapChain->GetCurrentCommandBuffer();
+    WRef<ITexture>       currentTarget = swapChain->GetCurrentTarget();
+    if (camera.Target)
+    {
+        currentTarget = camera.Target;
+    }
+    auto            currentDepth = swapChain->GetCurrentDepth();
+    FrameBufferDesc desc{ currentTarget->GetWidth(),
+                          currentTarget->GetHeight(),
+                          View<IRenderPass>::Create(m_renderPasses[0]),
+                          { View<ITexture>::Create(currentTarget) },
+                          View<ITexture>::Create(currentDepth) };
+    uint64_t        key = HashArgs(desc);
+    auto            it  = m_frameBuffers.find(key);
     if (it == m_frameBuffers.end())
     {
-        it = m_frameBuffers.insert({ key, ResourceManager::GetResource<IFrameBuffer>(desc) }).first;
+        it = m_frameBuffers.insert({ key, ResourceManager::GetSharedResource<IFrameBuffer>(desc) }).first;
     }
     auto& frameBuffer = it->second;
 
@@ -178,7 +247,7 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
     struct RenderBatch
     {
         uint64_t              PipelineKey = 0;
-        Ref<IPipeline>        Pipeline;
+        WRef<IPipeline>       Pipeline;
         std::vector<MeshDraw> MeshDraws;
         uint32_t              DrawBase            = 0;
         uint32_t              DrawCount           = 0;
@@ -189,6 +258,7 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
     std::unordered_map<uint64_t, int> renderBatchLookup;
 
     auto flushBatch = [&]() {
+        commandBuffer->Wait();
         if (renderBatches.empty())
             return;
 
@@ -224,8 +294,8 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
             m_meshTaskIndirectCountBuffer->UpdateData(
                 zeroCounts.data(), static_cast<uint32_t>(zeroCounts.size() * sizeof(uint32_t)), 0);
 
-            commandBuffer->SetPipeline(m_cullPipeline);
-            commandBuffer->SetShaderResourceBinding(m_cullShaderResourceBinding);
+            commandBuffer->SetPipeline(View<IPipeline>::Create(m_cullPipeline));
+            commandBuffer->SetShaderResourceBinding(View<IShaderResourceBinding>::Create(m_cullShaderResourceBinding));
 
             for (size_t batchIndex = 0; batchIndex < renderBatches.size(); ++batchIndex)
             {
@@ -238,21 +308,27 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
                 cullData.OutputBase = batch.DrawBase;
                 cullData.CountIndex = static_cast<uint32_t>(batchIndex);
 
-                commandBuffer->SetPushConstants(
-                    m_cullShaderResourceBinding, ShaderStage::Compute, 0, sizeof(CullData), &cullData);
+                commandBuffer->SetPushConstants(View<IShaderResourceBinding>::Create(m_cullShaderResourceBinding),
+                                                ShaderStage::Compute,
+                                                0,
+                                                sizeof(CullData),
+                                                &cullData);
 
                 uint32_t dispatchX = (batch.DrawCount + CULL_WORKGROUP_SIZE - 1) / CULL_WORKGROUP_SIZE;
                 commandBuffer->Dispatch(dispatchX, 1, 1);
             }
             if (totalDrawCount > 0)
-                commandBuffer->Barrier(PipelineStage::ComputeShader,
-                                       PipelineStage::DrawIndirect | PipelineStage::TaskShader |
-                                           PipelineStage::MeshShader,
-                                       BarrierAccess::ShaderWrite,
-                                       BarrierAccess::IndirectCommandRead | BarrierAccess::ShaderRead);
+            {
+                BarrierDesc barrierDesc{};
+                barrierDesc.Buffer      = View<IBuffer>::Create(m_meshTaskIndirectBuffer);
+                barrierDesc.BeforeState = ResourceState::UnorderedAccess;
+                barrierDesc.AfterState =
+                    ResourceState::IndirectArg | ResourceState::TaskShaderResource | ResourceState::MeshShaderResource;
+                commandBuffer->Barrier(barrierDesc);
+            }
         }
 
-        BeginRender(commandBuffer, frameBuffer);
+        BeginRender(View<ICommandBuffer>::Create(commandBuffer), View<IFrameBuffer>::Create(frameBuffer));
         commandBuffer->SetViewport({ 0, 0, (float)frameBuffer->GetWidth(), (float)frameBuffer->GetHeight() });
         commandBuffer->SetScissor({ 0, 0, frameBuffer->GetWidth(), frameBuffer->GetHeight() });
 
@@ -262,22 +338,35 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
             if (!batch.Pipeline || batch.DrawCount == 0)
                 continue;
 
-            commandBuffer->SetPipeline(batch.Pipeline);
-            commandBuffer->SetShaderResourceBinding(m_shaderResourceBinding);
+            commandBuffer->SetPipeline(View<IPipeline>::Create(batch.Pipeline));
+            commandBuffer->SetShaderResourceBinding(View<IShaderResourceBinding>::Create(m_shaderResourceBinding));
 
             SceneData drawSceneData = m_sceneData;
             drawSceneData.DrawBase  = batch.DrawBase;
-            commandBuffer->SetPushConstants(
-                m_shaderResourceBinding, ShaderStage::Task | ShaderStage::Mesh, 0, sizeof(SceneData), &drawSceneData);
-            commandBuffer->DrawMeshTasksIndirectCount(m_meshTaskIndirectBuffer,
+            commandBuffer->SetPushConstants(View<IShaderResourceBinding>::Create(m_shaderResourceBinding),
+                                            ShaderStage::Task | ShaderStage::Mesh,
+                                            0,
+                                            sizeof(SceneData),
+                                            &drawSceneData);
+            commandBuffer->DrawMeshTasksIndirectCount(View<IBuffer>::Create(m_meshTaskIndirectBuffer),
                                                       batch.IndirectOffsetBytes,
-                                                      m_meshTaskIndirectCountBuffer,
+                                                      View<IBuffer>::Create(m_meshTaskIndirectCountBuffer),
                                                       static_cast<uint32_t>(batchIndex * sizeof(uint32_t)),
                                                       batch.DrawCount,
                                                       sizeof(uint32_t) * 3);
         }
 
-        EndRender(commandBuffer);
+        EndRender(View<ICommandBuffer>::Create(commandBuffer));
+        BuildDepthPyramid(View<ICommandBuffer>::Create(commandBuffer), View<ITexture>::Create(currentDepth));
+        if (m_depthPyramidTexture && m_depthPyramidValid && m_depthPyramidTexture->GetMipLevels() > 1)
+        {
+            BlitDesc blitDesc{};
+            blitDesc.SrcMipLevel = 6;
+            commandBuffer->Blit(
+                View<ITexture>::Create(m_depthPyramidTexture), View<ITexture>::Create(currentTarget), blitDesc);
+        }
+        commandBuffer->End();
+        commandBuffer->Submit();
 
         renderBatches.clear();
         renderBatchLookup.clear();
@@ -305,7 +394,6 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
         if (totalMeshDraws + passCount > MAX_MESH_DRAWS)
         {
             flushBatch();
-            commandBuffer->Wait();
         }
 
         std::string assetKey = AssetManager::GetAssetKey(mesh);
@@ -321,7 +409,6 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
                 m_cachedMeshletDataSize + meshletDataSize > MAX_MESHLET_DATA_SIZE / sizeof(uint32_t))
             {
                 flushBatch();
-                commandBuffer->Wait();
                 ResetMeshUploadCache();
             }
 
@@ -362,7 +449,7 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
 
         for (auto& materialPass : material->GetPasses())
         {
-            Ref<IPipeline> pipeline = materialPass.Pipeline;
+            WRef<IPipeline> pipeline = materialPass.Pipeline;
             if (!pipeline)
                 continue;
 
@@ -395,17 +482,175 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
     flushBatch();
 }
 
-void ForwardRenderSystem::BeginRender(Ref<ICommandBuffer>& commandBuffer, Ref<IFrameBuffer>& frameBuffer)
+void ForwardRenderSystem::BeginRender(View<ICommandBuffer> commandBuffer, View<IFrameBuffer> frameBuffer)
 {
-    commandBuffer->BeginRenderPass(frameBuffer, { ClearValue{ 0.1f, 0.1f, 0.1f, 1.0f } }, ClearValue{ 1.0f, 0 });
-    commandBuffer->SetShaderResourceBinding(m_shaderResourceBinding);
+    auto* mutableCommandBuffer = const_cast<ICommandBuffer*>(commandBuffer.Get());
+    mutableCommandBuffer->BeginRenderPass(View<IRenderPass>::Create(m_renderPasses[0]),
+                                          frameBuffer,
+                                          { ClearValue{ 0.1f, 0.1f, 0.1f, 1.0f } },
+                                          ClearValue{ 1.0f, 0 });
+    mutableCommandBuffer->SetShaderResourceBinding(View<IShaderResourceBinding>::Create(m_shaderResourceBinding));
 }
 
-void ForwardRenderSystem::EndRender(Ref<ICommandBuffer>& commandBuffer)
+void ForwardRenderSystem::EndRender(View<ICommandBuffer> commandBuffer)
 {
-    commandBuffer->EndRenderPass();
-    commandBuffer->End();
-    commandBuffer->Submit();
+    const_cast<ICommandBuffer*>(commandBuffer.Get())->EndRenderPass();
+}
+
+void ForwardRenderSystem::EnsureDepthPyramidResources(View<ICommandBuffer> commandBuffer,
+                                                      uint32_t             width,
+                                                      uint32_t             height,
+                                                      View<ITexture>       depthTexture)
+{
+    auto* mutableCommandBuffer = const_cast<ICommandBuffer*>(commandBuffer.Get());
+    if (width == 0 || height == 0)
+        return;
+
+    uint32_t mipCount = CalcDepthPyramidMips(width, height);
+    if (m_depthPyramidTexture && m_depthPyramidWidth == width && m_depthPyramidHeight == height &&
+        m_depthPyramidMips == mipCount)
+    {
+        return;
+    }
+
+    m_depthPyramidTexture = ResourceManager::CreateResource<ITexture>(TextureDesc{
+        width, height, mipCount, ITexture::Format::R32_FLOAT, ITexture::Usage::Storage, SampleCountFlagBits::Count1 });
+    m_depthPyramidWidth   = width;
+    m_depthPyramidHeight  = height;
+    m_depthPyramidMips    = mipCount;
+    m_depthPyramidValid   = false;
+
+    m_depthPyramidMipBindings.clear();
+    m_depthPyramidFirstMipBindingCache.clear();
+    for (uint32_t mip = 0; mip < m_depthPyramidMips; ++mip)
+    {
+        auto mipBinding = IShaderResourceBinding::Create(
+            std::vector<ShaderResourceAttribute>{
+                ShaderResourceAttribute{ 0, 1, ShaderResourceType::Texture, ShaderStage::Compute },
+                ShaderResourceAttribute{ 1, 1, ShaderResourceType::StorageImage, ShaderStage::Compute } },
+            std::vector<PushConstantRange>{ PushConstantRange{
+                ShaderStage::Compute, 0, static_cast<uint32_t>(sizeof(DepthPyramidPushConstant)) } });
+
+        if (mip == 0)
+        {
+            mipBinding->BindTexture(depthTexture, 0);
+        }
+        else
+        {
+            mipBinding->BindTexture(View<ITexture>::Create(m_depthPyramidTexture), 0, 0, mip - 1);
+        }
+        mipBinding->BindTexture(View<ITexture>::Create(m_depthPyramidTexture), 1, 0, mip);
+
+        m_depthPyramidMipBindings.push_back(std::move(mipBinding));
+    }
+
+    mutableCommandBuffer->Barrier(BarrierDesc{ View<ITexture>::Create(m_depthPyramidTexture),
+                                               nullptr,
+                                               ResourceState::None,
+                                               ResourceState::ComputeShaderResource,
+                                               0,
+                                               0,
+                                               0,
+                                               0 });
+}
+
+void ForwardRenderSystem::BuildDepthPyramid(View<ICommandBuffer> commandBuffer, View<ITexture> depthTexture)
+{
+    if (!commandBuffer || !depthTexture || !m_depthPyramidFirstMipPipeline || !m_depthPyramidPipeline)
+        return;
+
+    auto* mutableCommandBuffer = const_cast<ICommandBuffer*>(commandBuffer.Get());
+
+    EnsureDepthPyramidResources(commandBuffer, depthTexture->GetWidth(), depthTexture->GetHeight(), depthTexture);
+    if (!m_depthPyramidTexture)
+        return;
+
+    mutableCommandBuffer->Barrier(BarrierDesc{
+        depthTexture, nullptr, ResourceState::DepthRead, ResourceState::ComputeShaderResource, 0, 0, 0, 1 });
+
+    for (uint32_t mip = 0; mip < m_depthPyramidMips; ++mip)
+    {
+        mutableCommandBuffer->SetPipeline(
+            View<IPipeline>::Create(mip == 0 ? m_depthPyramidFirstMipPipeline : m_depthPyramidPipeline));
+
+        WRef<IShaderResourceBinding> mipBinding;
+        if (mip == 0)
+        {
+            uint64_t depthKey = reinterpret_cast<uint64_t>(depthTexture.Get());
+            auto     it       = m_depthPyramidFirstMipBindingCache.find(depthKey);
+            if (it == m_depthPyramidFirstMipBindingCache.end())
+            {
+                auto firstMipBinding = IShaderResourceBinding::Create(
+                    std::vector<ShaderResourceAttribute>{
+                        ShaderResourceAttribute{ 0, 1, ShaderResourceType::Texture, ShaderStage::Compute },
+                        ShaderResourceAttribute{ 1, 1, ShaderResourceType::StorageImage, ShaderStage::Compute } },
+                    std::vector<PushConstantRange>{ PushConstantRange{
+                        ShaderStage::Compute, 0, static_cast<uint32_t>(sizeof(DepthPyramidPushConstant)) } });
+                firstMipBinding->BindTexture(depthTexture, 0);
+                firstMipBinding->BindTexture(View<ITexture>::Create(m_depthPyramidTexture), 1, 0, 0);
+                it = m_depthPyramidFirstMipBindingCache.emplace(depthKey, std::move(firstMipBinding)).first;
+            }
+            mipBinding = WRef<IShaderResourceBinding>::Create(it->second);
+        }
+        else
+        {
+            mipBinding = WRef<IShaderResourceBinding>::Create(m_depthPyramidMipBindings[mip]);
+        }
+
+        mutableCommandBuffer->Barrier(BarrierDesc{ View<ITexture>::Create(m_depthPyramidTexture),
+                                                   nullptr,
+                                                   ResourceState::ComputeShaderResource,
+                                                   ResourceState::UnorderedAccess,
+                                                   0,
+                                                   0,
+                                                   mip,
+                                                   1 });
+
+        mutableCommandBuffer->SetShaderResourceBinding(View<IShaderResourceBinding>::Create(mipBinding));
+
+        uint32_t dstWidth  = std::max(1u, m_depthPyramidWidth >> mip);
+        uint32_t dstHeight = std::max(1u, m_depthPyramidHeight >> mip);
+
+        DepthPyramidPushConstant push{};
+        if (mip == 0)
+        {
+            push.SourceWidth       = m_depthPyramidWidth;
+            push.SourceHeight      = m_depthPyramidHeight;
+            push.SourceTexelStride = 1;
+        }
+        else
+        {
+            push.SourceWidth       = std::max(1u, m_depthPyramidWidth >> (mip - 1));
+            push.SourceHeight      = std::max(1u, m_depthPyramidHeight >> (mip - 1));
+            push.SourceTexelStride = 2;
+        }
+        push.UseMinReduction = 1;
+
+        mutableCommandBuffer->SetPushConstants(View<IShaderResourceBinding>::Create(mipBinding),
+                                               ShaderStage::Compute,
+                                               0,
+                                               sizeof(DepthPyramidPushConstant),
+                                               &push);
+
+        constexpr uint32_t GROUP_SIZE = 8;
+        uint32_t           dispatchX  = (dstWidth + GROUP_SIZE - 1) / GROUP_SIZE;
+        uint32_t           dispatchY  = (dstHeight + GROUP_SIZE - 1) / GROUP_SIZE;
+        mutableCommandBuffer->Dispatch(dispatchX, dispatchY, 1);
+
+        mutableCommandBuffer->Barrier(BarrierDesc{ View<ITexture>::Create(m_depthPyramidTexture),
+                                                   nullptr,
+                                                   ResourceState::UnorderedAccess,
+                                                   ResourceState::ComputeShaderResource,
+                                                   0,
+                                                   0,
+                                                   mip,
+                                                   1 });
+    }
+
+    mutableCommandBuffer->Barrier(BarrierDesc{
+        depthTexture, nullptr, ResourceState::ComputeShaderResource, ResourceState::DepthWrite, 0, 0, 0, 1 });
+
+    m_depthPyramidValid = true;
 }
 
 } // namespace Yogi

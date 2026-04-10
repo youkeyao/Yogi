@@ -17,8 +17,8 @@
 #    define IMGUI_IMPL_VULKAN_NO_PROTOTYPES
 #    include <backends/imgui_impl_vulkan.h>
 
-inline void ImGuiImage(Yogi::Ref<Yogi::ITexture>               texture,
-                       Yogi::Ref<Yogi::IShaderResourceBinding> shaderResourceBinding,
+inline void ImGuiImage(Yogi::View<Yogi::ITexture>               texture,
+                       Yogi::View<Yogi::IShaderResourceBinding> shaderResourceBinding,
                        const ImVec2&                           size,
                        const ImVec2&                           uv0 = { 0, 0 },
                        const ImVec2&                           uv1 = { 1, 1 })

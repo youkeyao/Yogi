@@ -23,10 +23,10 @@ private:
     void RendererShutdown();
 
 private:
-    Ref<ICommandBuffer> m_commandBuffer;
-    Ref<IRenderPass>    m_renderPass;
+    WRef<ICommandBuffer> m_commandBuffer;
+    WRef<IRenderPass>    m_renderPass;
 
-    std::unordered_map<uint64_t, Ref<IFrameBuffer>> m_frameBuffers;
+    std::unordered_map<uint64_t, WRef<IFrameBuffer>> m_frameBuffers;
 };
 
 } // namespace Yogi

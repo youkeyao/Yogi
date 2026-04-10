@@ -7,7 +7,10 @@
 namespace Yogi
 {
 
-Owner<IRenderPass> IRenderPass::Create(const RenderPassDesc& desc) { return Owner<VulkanRenderPass>::Create(desc); }
+Owner<IRenderPass> IRenderPass::Create(const RenderPassDesc& desc)
+{
+    return Owner<VulkanRenderPass>::Create(desc);
+}
 
 VulkanRenderPass::VulkanRenderPass(const RenderPassDesc& desc)
 {
@@ -41,14 +44,15 @@ void VulkanRenderPass::CreateVkRenderPass()
         colorAttachment.format  = YgTextureFormat2VkFormat(attachment.Format);
         colorAttachment.samples = (VkSampleCountFlagBits)m_desc.NumSamples;
         colorAttachment.loadOp  = attachment.LoadAction == LoadOp::Clear ? VK_ATTACHMENT_LOAD_OP_CLEAR :
-             attachment.LoadAction == LoadOp::Load                       ? VK_ATTACHMENT_LOAD_OP_LOAD :
+            attachment.LoadAction == LoadOp::Load                        ? VK_ATTACHMENT_LOAD_OP_LOAD :
                                                                            VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         colorAttachment.storeOp =
             attachment.StoreAction == StoreOp::Store ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE;
         colorAttachment.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
         colorAttachment.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
-        colorAttachment.finalLayout    = AttachmentUsage2VkImageLayout(attachment.Usage);
+        colorAttachment.finalLayout =
+            YgResourceState2VkImageLayout(attachment.FinalState, ITexture::Usage::RenderTarget);
 
         VkAttachmentReference colorAttachmentRef{};
         colorAttachmentRef.attachment = static_cast<uint32_t>(allAttachments.size());
@@ -79,15 +83,16 @@ void VulkanRenderPass::CreateVkRenderPass()
         depthAttachment.format  = YgTextureFormat2VkFormat(m_desc.DepthAttachment.Format);
         depthAttachment.samples = (VkSampleCountFlagBits)m_desc.NumSamples;
         depthAttachment.loadOp  = m_desc.DepthAttachment.LoadAction == LoadOp::Clear ? VK_ATTACHMENT_LOAD_OP_CLEAR :
-             m_desc.DepthAttachment.LoadAction == LoadOp::Load                       ? VK_ATTACHMENT_LOAD_OP_LOAD :
+            m_desc.DepthAttachment.LoadAction == LoadOp::Load                        ? VK_ATTACHMENT_LOAD_OP_LOAD :
                                                                                        VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         depthAttachment.storeOp = m_desc.DepthAttachment.StoreAction == StoreOp::Store ?
             VK_ATTACHMENT_STORE_OP_STORE :
             VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        depthAttachment.stencilLoadOp   = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        depthAttachment.stencilStoreOp  = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        depthAttachment.initialLayout   = VK_IMAGE_LAYOUT_UNDEFINED;
-        depthAttachment.finalLayout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        depthAttachment.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depthAttachment.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
+        depthAttachment.finalLayout =
+            YgResourceState2VkImageLayout(m_desc.DepthAttachment.FinalState, ITexture::Usage::DepthStencil);
         depthAttachmentRef.attachment   = static_cast<uint32_t>(allAttachments.size());
         depthAttachmentRef.layout       = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
         subpass.pDepthStencilAttachment = &depthAttachmentRef;

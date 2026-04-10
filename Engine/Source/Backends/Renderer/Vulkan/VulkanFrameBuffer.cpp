@@ -14,14 +14,15 @@ Owner<IFrameBuffer> IFrameBuffer::Create(const FrameBufferDesc& desc)
 VulkanFrameBuffer::VulkanFrameBuffer(const FrameBufferDesc& desc) :
     m_width(desc.Width),
     m_height(desc.Height),
-    m_renderPass(desc.RenderPass),
-    m_colorAttachments(desc.ColorAttachments),
-    m_depthAttachment(desc.DepthAttachment)
+    m_hasDepthAttachment(desc.DepthAttachment)
 {
-    CreateVkFrameBuffer();
+    CreateVkFrameBuffer(desc);
 }
 
-VulkanFrameBuffer::~VulkanFrameBuffer() { Cleanup(); }
+VulkanFrameBuffer::~VulkanFrameBuffer()
+{
+    Cleanup();
+}
 
 // ----------------------------------------------------------------------------------------------
 
@@ -36,16 +37,16 @@ void VulkanFrameBuffer::Cleanup()
     m_msaaTextures.clear();
 }
 
-void VulkanFrameBuffer::CreateVkFrameBuffer()
+void VulkanFrameBuffer::CreateVkFrameBuffer(const FrameBufferDesc& desc)
 {
     VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
     Cleanup();
 
-    SampleCountFlagBits      numSamples = m_renderPass->GetDesc().NumSamples;
+    SampleCountFlagBits      numSamples = desc.RenderPass->GetDesc().NumSamples;
     std::vector<VkImageView> attachments;
-    for (int i = 0; i < m_colorAttachments.size(); ++i)
+    for (int i = 0; i < desc.ColorAttachments.size(); ++i)
     {
-        Ref<VulkanTexture> texture = Ref<VulkanTexture>::Cast(m_colorAttachments[i]);
+        View<VulkanTexture> texture = View<VulkanTexture>::Cast(desc.ColorAttachments[i]);
         if (numSamples > SampleCountFlagBits::Count1)
         {
             TextureDesc msaaDesc{};
@@ -61,14 +62,14 @@ void VulkanFrameBuffer::CreateVkFrameBuffer()
         attachments.push_back(texture->GetVkImageView());
     }
 
-    if (m_depthAttachment)
+    if (desc.DepthAttachment)
     {
-        attachments.push_back(Ref<VulkanTexture>::Cast(m_depthAttachment)->GetVkImageView());
+        attachments.push_back(View<VulkanTexture>::Cast(desc.DepthAttachment)->GetVkImageView());
     }
 
     VkFramebufferCreateInfo framebufferInfo{};
     framebufferInfo.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    framebufferInfo.renderPass      = Ref<VulkanRenderPass>::Cast(m_renderPass)->GetVkRenderPass();
+    framebufferInfo.renderPass      = View<VulkanRenderPass>::Cast(desc.RenderPass)->GetVkRenderPass();
     framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
     framebufferInfo.pAttachments    = attachments.data();
     framebufferInfo.width           = m_width;

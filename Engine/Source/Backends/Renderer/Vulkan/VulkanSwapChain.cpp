@@ -6,7 +6,10 @@
 namespace Yogi
 {
 
-Owner<ISwapChain> ISwapChain::Create(const SwapChainDesc& desc) { return Owner<VulkanSwapChain>::Create(desc); }
+Owner<ISwapChain> ISwapChain::Create(const SwapChainDesc& desc)
+{
+    return Owner<VulkanSwapChain>::Create(desc);
+}
 
 VulkanSwapChain::VulkanSwapChain(const SwapChainDesc& desc) :
     m_width(desc.Width),
@@ -135,7 +138,7 @@ void VulkanSwapChain::CreateVkSwapChain()
     }
     m_colorFormat                = VkFormat2YgTextureFormat(surfaceFormat.format);
     VkPresentModeKHR presentMode = ChooseSwapPresentMode(swapChainSupport.presentModes);
-    VkExtent2D       extent      = ChooseSwapExtent(swapChainSupport.capabilities, m_window);
+    VkExtent2D       extent      = ChooseSwapExtent(swapChainSupport.capabilities, View<Window>::Create(m_window));
 
     uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
     if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount)
@@ -152,7 +155,8 @@ void VulkanSwapChain::CreateVkSwapChain()
     createInfo.imageColorSpace  = surfaceFormat.colorSpace;
     createInfo.imageExtent      = extent;
     createInfo.imageArrayLayers = 1;
-    createInfo.imageUsage       = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    createInfo.imageUsage =
+        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
     QueueFamilyIndices indices              = FindQueueFamilies(physicalDevice, surface);
     uint32_t           queueFamilyIndices[] = { indices.graphicsFamily.value(), indices.presentFamily.value() };

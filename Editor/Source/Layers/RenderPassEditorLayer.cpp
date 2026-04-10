@@ -50,7 +50,7 @@ void RenderPassEditorLayer::OnUpdate(Timestep ts)
             {
                 renderPassDesc.ColorAttachments.push_back({
                     ITexture::Format::R8G8B8A8_UNORM,
-                    AttachmentUsage::ShaderRead,
+                    ResourceState::FragmentShaderResource,
                     LoadOp::Clear,
                     StoreOp::Store,
                 });
@@ -107,7 +107,7 @@ bool RenderPassEditorLayer::ImGuiAttachment(AttachmentDesc& attachment)
 {
     bool changed = false;
     changed |= ImGuiEnumCombo("Format", attachment.Format);
-    changed |= ImGuiEnumCombo("Usage", attachment.Usage);
+    changed |= ImGuiEnumCombo("Final State", attachment.FinalState);
     changed |= ImGuiEnumCombo("Load Action", attachment.LoadAction);
     changed |= ImGuiEnumCombo("Store Action", attachment.StoreAction);
     return changed;

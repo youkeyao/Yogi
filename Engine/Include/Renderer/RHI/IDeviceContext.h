@@ -19,7 +19,7 @@ public:
 
     virtual void WaitIdle() = 0;
 
-    static Owner<IDeviceContext> Create(const Ref<Window>& window);
+    static Owner<IDeviceContext> Create(View<Window> window);
 };
 
 template <>

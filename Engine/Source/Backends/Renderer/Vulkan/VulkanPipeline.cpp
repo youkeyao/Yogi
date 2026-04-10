@@ -8,7 +8,10 @@
 namespace Yogi
 {
 
-Owner<IPipeline> IPipeline::Create(const PipelineDesc& desc) { return Owner<VulkanPipeline>::Create(desc); }
+Owner<IPipeline> IPipeline::Create(const PipelineDesc& desc)
+{
+    return Owner<VulkanPipeline>::Create(desc);
+}
 
 VulkanPipeline::VulkanPipeline(const PipelineDesc& desc)
 {
@@ -65,7 +68,7 @@ void VulkanPipeline::CreateVkPipeline(const PipelineDesc& desc)
         }
     }
 
-    Ref<VulkanShaderResourceBinding> vkSRB = Ref<VulkanShaderResourceBinding>::Cast(desc.ShaderResourceBinding);
+    View<VulkanShaderResourceBinding> vkSRB = View<VulkanShaderResourceBinding>::Cast(desc.ShaderResourceBinding);
 
     if (desc.Type == PipelineType::Compute)
     {
@@ -193,7 +196,7 @@ void VulkanPipeline::CreateVkPipeline(const PipelineDesc& desc)
     pipelineInfo.pColorBlendState    = &colorBlending;
     pipelineInfo.pDynamicState       = &dynamicState;
     pipelineInfo.layout              = vkSRB->GetVkPipelineLayout();
-    pipelineInfo.renderPass          = Ref<VulkanRenderPass>::Cast(desc.RenderPass)->GetVkRenderPass();
+    pipelineInfo.renderPass          = View<VulkanRenderPass>::Cast(desc.RenderPass)->GetVkRenderPass();
     pipelineInfo.subpass             = 0;
     pipelineInfo.pDepthStencilState  = &depthStencil;
 

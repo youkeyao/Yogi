@@ -20,7 +20,7 @@ public:
     // void open_scene(const std::string& path);
     // void save_scene();
 
-    inline Ref<World> GetWorld() const { return Ref<World>::Create(m_world); }
+    inline WRef<World> GetWorld() const { return WRef<World>::Create(m_world); }
     inline Entity     GetSelectedEntity() const { return m_selectedEntity; }
 
     void SetSelectedEntity(Entity entity) { m_selectedEntity = entity; }
@@ -37,11 +37,11 @@ private:
 private:
     Owner<World> m_world;
     Entity        m_selectedEntity;
-    // Ref<SceneHierarchyPanel> m_hierarchy_panel;
-    // Ref<ContentBrowserPanel> m_content_browser_panel;
-    // Ref<MaterialEditorPanel> m_material_editor_panel;
+    // WRef<SceneHierarchyPanel> m_hierarchy_panel;
+    // WRef<ContentBrowserPanel> m_content_browser_panel;
+    // WRef<MaterialEditorPanel> m_material_editor_panel;
 
-    // Ref<RenderSystem> m_editor_render_system;
+    // WRef<RenderSystem> m_editor_render_system;
     // EditorCamera      m_editor_camera;
 
     EditorCamera                m_editorCamera;
@@ -51,16 +51,16 @@ private:
     Vector2 m_viewportSize    = { 1, 1 };
     Vector2 m_viewportBounds[2];
 
-    Ref<IRenderPass>            m_entityIDRenderPass  = nullptr;
-    Ref<ITexture>               m_frameTexture        = nullptr;
-    Ref<IShaderResourceBinding> m_frameTextureBinding = nullptr;
+    WRef<IRenderPass>            m_entityIDRenderPass  = nullptr;
+    WRef<ITexture>               m_frameTexture        = nullptr;
+    WRef<IShaderResourceBinding> m_frameTextureBinding = nullptr;
     // ImGuizmo::OPERATION m_gizmo_type = ImGuizmo::OPERATION::TRANSLATE;
 
-    // Ref<RenderTexture> m_frame_texture;
-    // Ref<RenderTexture> m_entity_id_texture;
-    // Ref<FrameBuffer>   m_frame_buffer;
-    // Ref<FrameBuffer>   m_entity_frame_buffer;
-    // Ref<Material>      m_entity_id_mat;
+    // WRef<RenderTexture> m_frame_texture;
+    // WRef<RenderTexture> m_entity_id_texture;
+    // WRef<FrameBuffer>   m_frame_buffer;
+    // WRef<FrameBuffer>   m_entity_frame_buffer;
+    // WRef<Material>      m_entity_id_mat;
 
     enum class SceneState
     {

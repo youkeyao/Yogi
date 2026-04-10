@@ -11,8 +11,8 @@ class YG_API Material
 public:
     struct MaterialPass
     {
-        Ref<IPipeline>             Pipeline;
-        std::vector<Ref<ITexture>> Textures;
+        WRef<IPipeline>             Pipeline;
+        std::vector<WRef<ITexture>> Textures;
     };
 
 public:

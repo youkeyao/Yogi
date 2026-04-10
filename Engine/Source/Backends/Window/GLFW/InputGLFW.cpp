@@ -28,8 +28,14 @@ std::pair<float, float> Input::GetMousePosition()
     return { float(x_pos), float(y_pos) };
 }
 
-float Input::GetMouseX() { return GetMousePosition().first; }
+float Input::GetMouseX()
+{
+    return GetMousePosition().first;
+}
 
-float Input::GetMouseY() { return GetMousePosition().second; }
+float Input::GetMouseY()
+{
+    return GetMousePosition().second;
+}
 
 } // namespace Yogi

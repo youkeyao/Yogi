@@ -38,6 +38,9 @@ VulkanShaderResourceBinding::VulkanShaderResourceBinding(
             case ShaderResourceType::Texture:
                 bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
                 break;
+            case ShaderResourceType::StorageImage:
+                bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                break;
             default:
                 YG_CORE_ERROR("Vulkan: Unsupported shader resource type!");
                 break;
@@ -89,9 +92,9 @@ VulkanShaderResourceBinding::~VulkanShaderResourceBinding()
         vkDestroyPipelineLayout(device, m_pipelineLayout, nullptr);
 }
 
-void VulkanShaderResourceBinding::BindBuffer(const Ref<IBuffer>& buffer, int binding, int slot)
+void VulkanShaderResourceBinding::BindBuffer(View<IBuffer> buffer, int binding, int slot)
 {
-    Ref<VulkanBuffer> vkBuffer = Ref<VulkanBuffer>::Cast(buffer);
+    View<VulkanBuffer> vkBuffer = View<VulkanBuffer>::Cast(buffer);
 
     VkDescriptorBufferInfo bufferInfo{};
     bufferInfo.buffer = vkBuffer->GetVkBuffer();
@@ -125,20 +128,54 @@ void VulkanShaderResourceBinding::BindBuffer(const Ref<IBuffer>& buffer, int bin
     vkUpdateDescriptorSets(context->GetVkDevice(), 1, &descriptorWrite, 0, nullptr);
 }
 
-void VulkanShaderResourceBinding::BindTexture(const Ref<ITexture>& texture, int binding, int slot)
+void VulkanShaderResourceBinding::BindTexture(View<ITexture> texture, int binding, int slot, uint32_t mipLevel)
 {
-    Ref<VulkanTexture>    vkTexture = Ref<VulkanTexture>::Cast(texture);
+    const ShaderResourceAttribute* bindingAttr = nullptr;
+    for (const auto& attr : m_layout)
+    {
+        if (attr.Binding == binding)
+        {
+            bindingAttr = &attr;
+            break;
+        }
+    }
+
+    if (!bindingAttr)
+    {
+        YG_CORE_ERROR("Vulkan: Binding {0} not found in shader resource layout", binding);
+        return;
+    }
+
+    View<VulkanTexture>   vkTexture = View<VulkanTexture>::Cast(texture);
     VkDescriptorImageInfo imageInfo{};
-    imageInfo.imageView   = vkTexture->GetVkImageView();
-    imageInfo.sampler     = vkTexture->GetVkSampler();
-    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    imageInfo.imageView = vkTexture->GetVkImageView(mipLevel);
+
+    VkDescriptorType descriptorType = VK_DESCRIPTOR_TYPE_MAX_ENUM;
+    switch (bindingAttr->Type)
+    {
+        case ShaderResourceType::Texture:
+            descriptorType        = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            imageInfo.sampler     = vkTexture->GetVkSampler();
+            imageInfo.imageLayout = texture->GetUsage() == ITexture::Usage::DepthStencil ?
+                VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL :
+                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            break;
+        case ShaderResourceType::StorageImage:
+            descriptorType        = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+            imageInfo.sampler     = VK_NULL_HANDLE;
+            imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+            break;
+        default:
+            YG_CORE_ERROR("Vulkan: Binding {0} is not an image resource", binding);
+            return;
+    }
 
     VkWriteDescriptorSet descriptorWrite{};
     descriptorWrite.sType            = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     descriptorWrite.dstSet           = m_descriptorSet;
     descriptorWrite.dstBinding       = binding;
     descriptorWrite.dstArrayElement  = slot;
-    descriptorWrite.descriptorType   = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptorWrite.descriptorType   = descriptorType;
     descriptorWrite.descriptorCount  = 1;
     descriptorWrite.pImageInfo       = &imageInfo;
     descriptorWrite.pBufferInfo      = nullptr;

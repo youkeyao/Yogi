@@ -18,7 +18,7 @@ Owner<IRenderPass> RenderPassSerializer::Deserialize(const std::vector<uint8_t>&
     return Owner<IRenderPass>::Create(renderPassDesc);
 }
 
-std::vector<uint8_t> RenderPassSerializer::Serialize(const Ref<IRenderPass>& asset, const std::string& key)
+std::vector<uint8_t> RenderPassSerializer::Serialize(const WRef<IRenderPass>& asset, const std::string& key)
 {
     std::vector<uint8_t> data;
     zpp::bits::out       outArchive(data);

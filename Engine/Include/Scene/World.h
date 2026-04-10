@@ -49,7 +49,7 @@ public:
         entt::view<entt::get_t<Args...>> view;
         ((view.storage(m_registry->storage<Args>(GetTypeHash<Args>()))), ...);
         view.each([this, func](entt::entity entity, Args&... args) {
-            Entity e(entity, Ref<entt::registry>::Create(m_registry));
+            Entity e(entity, WRef<entt::registry>::Create(m_registry));
             func(e, args...);
         });
     }

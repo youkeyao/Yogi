@@ -53,13 +53,13 @@ struct VertexAttribute
 
 struct PipelineDesc
 {
-    std::vector<Ref<ShaderDesc>> Shaders;
-    std::vector<VertexAttribute> VertexLayout;
-    Ref<IShaderResourceBinding>  ShaderResourceBinding;
-    Ref<IRenderPass>             RenderPass;
-    int                          SubPassIndex;
-    PrimitiveTopology            Topology = PrimitiveTopology::TriangleList;
-    PipelineType                 Type     = PipelineType::Graphics;
+    std::vector<View<ShaderDesc>> Shaders;
+    std::vector<VertexAttribute>  VertexLayout;
+    View<IShaderResourceBinding>  ShaderResourceBinding;
+    View<IRenderPass>             RenderPass;
+    int                           SubPassIndex;
+    PrimitiveTopology             Topology = PrimitiveTopology::TriangleList;
+    PipelineType                  Type     = PipelineType::Graphics;
 };
 
 class YG_API IPipeline

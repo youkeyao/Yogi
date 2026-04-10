@@ -16,8 +16,8 @@ public:
                                 const std::vector<PushConstantRange>&       pushConstantRanges);
     virtual ~VulkanShaderResourceBinding();
 
-    void BindBuffer(const Ref<IBuffer>& buffer, int binding, int slot = 0) override;
-    void BindTexture(const Ref<ITexture>& texture, int binding, int slot = 0) override;
+    void BindBuffer(View<IBuffer> buffer, int binding, int slot = 0) override;
+    void BindTexture(View<ITexture> texture, int binding, int slot = 0, uint32_t mipLevel = 0) override;
 
     inline VkDescriptorSet       GetVkDescriptorSet() const { return m_descriptorSet; }
     inline VkDescriptorSetLayout GetVkDescriptorSetLayout() const { return m_descriptorSetLayout; }

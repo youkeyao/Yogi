@@ -124,7 +124,7 @@ VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& avai
     }
     return VK_PRESENT_MODE_FIFO_KHR;
 }
-VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, const Ref<Window>& window)
+VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, View<Window> window)
 {
     if (capabilities.currentExtent.width != UINT32_MAX)
     {
@@ -251,18 +251,31 @@ VkFormat YgShaderElementType2VkFormat(ShaderElementType type)
     }
 }
 
-VkImageLayout AttachmentUsage2VkImageLayout(AttachmentUsage usage)
+VkImageLayout YgResourceState2VkImageLayout(ResourceState state, ITexture::Usage usage)
 {
-    switch (usage)
+    if (state & ResourceState::Present)
+        return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    if (state & ResourceState::UnorderedAccess)
+        return VK_IMAGE_LAYOUT_GENERAL;
+    if (state & ResourceState::CopyDestination)
+        return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    if (state & ResourceState::CopySource)
+        return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    if (state & ResourceState::ColorAttachment)
+        return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    if (state & ResourceState::DepthWrite)
+        return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    if (state & ResourceState::DepthRead)
+        return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+    if (state & ResourceState::VertexShaderResource || state & ResourceState::FragmentShaderResource ||
+        state & ResourceState::ComputeShaderResource || state & ResourceState::TaskShaderResource ||
+        state & ResourceState::MeshShaderResource)
     {
-        case AttachmentUsage::ShaderRead:
-            return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        case AttachmentUsage::Present:
-            return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-        default:
-            YG_CORE_ERROR("Vulkan: Unsupported attachment usage!");
-            return VK_IMAGE_LAYOUT_UNDEFINED;
+        return usage == ITexture::Usage::DepthStencil ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL :
+                                                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     }
+
+    return VK_IMAGE_LAYOUT_UNDEFINED;
 }
 
 VkAccessFlags AccessMaskFromImageLayout(VkImageLayout Layout, bool IsDstMask)
@@ -473,48 +486,76 @@ VkPrimitiveTopology YgPrimitiveTopology2VkPrimitiveTopology(PrimitiveTopology to
     }
 }
 
-VkPipelineStageFlags YgPipelineStage2VkPipelineStage(PipelineStage stage)
+VkPipelineStageFlags YgResourceState2VkPipelineStage(ResourceState state)
 {
     VkPipelineStageFlags flags = 0;
 
-    if (stage & PipelineStage::DrawIndirect)
+    if (state & ResourceState::IndirectArg)
         flags |= VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT;
-    if (stage & PipelineStage::VertexShader)
+    if (state & ResourceState::VertexBuffer || state & ResourceState::IndexBuffer)
+        flags |= VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
+    if (state & ResourceState::VertexShaderResource)
         flags |= VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
-    if (stage & PipelineStage::FragmentShader)
+    if (state & ResourceState::FragmentShaderResource)
         flags |= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-    if (stage & PipelineStage::ComputeShader)
+    if (state & ResourceState::ComputeShaderResource)
         flags |= VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-    if (stage & PipelineStage::TaskShader)
+    if (state & ResourceState::TaskShaderResource)
         flags |= VK_PIPELINE_STAGE_TASK_SHADER_BIT_EXT;
-    if (stage & PipelineStage::MeshShader)
+    if (state & ResourceState::MeshShaderResource)
         flags |= VK_PIPELINE_STAGE_MESH_SHADER_BIT_EXT;
-    if (stage & PipelineStage::Transfer)
+    if (state & ResourceState::UnorderedAccess)
+    {
+        flags |= VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
+            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TASK_SHADER_BIT_EXT |
+            VK_PIPELINE_STAGE_MESH_SHADER_BIT_EXT;
+    }
+    if (state & ResourceState::UniformBuffer)
+    {
+        flags |= VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
+            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TASK_SHADER_BIT_EXT |
+            VK_PIPELINE_STAGE_MESH_SHADER_BIT_EXT;
+    }
+    if (state & ResourceState::CopySource || state & ResourceState::CopyDestination)
         flags |= VK_PIPELINE_STAGE_TRANSFER_BIT;
-    if (stage & PipelineStage::ColorAttachment)
+    if (state & ResourceState::ColorAttachment)
         flags |= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    if (state & ResourceState::DepthRead || state & ResourceState::DepthWrite)
+        flags |= VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+    if (state & ResourceState::Present)
+        flags |= VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
 
     return flags == 0 ? VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT : flags;
 }
 
-VkAccessFlags YgBarrierAccess2VkAccess(BarrierAccess access)
+VkAccessFlags YgResourceState2VkAccess(ResourceState state)
 {
     VkAccessFlags flags = 0;
 
-    if (access & BarrierAccess::ShaderRead)
+    if (state & ResourceState::VertexShaderResource || state & ResourceState::FragmentShaderResource ||
+        state & ResourceState::ComputeShaderResource || state & ResourceState::TaskShaderResource ||
+        state & ResourceState::MeshShaderResource)
         flags |= VK_ACCESS_SHADER_READ_BIT;
-    if (access & BarrierAccess::ShaderWrite)
-        flags |= VK_ACCESS_SHADER_WRITE_BIT;
-    if (access & BarrierAccess::IndirectCommandRead)
+    if (state & ResourceState::UnorderedAccess)
+        flags |= VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+    if (state & ResourceState::UniformBuffer)
+        flags |= VK_ACCESS_UNIFORM_READ_BIT;
+    if (state & ResourceState::IndirectArg)
         flags |= VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
-    if (access & BarrierAccess::TransferRead)
+    if (state & ResourceState::CopySource)
         flags |= VK_ACCESS_TRANSFER_READ_BIT;
-    if (access & BarrierAccess::TransferWrite)
+    if (state & ResourceState::CopyDestination)
         flags |= VK_ACCESS_TRANSFER_WRITE_BIT;
-    if (access & BarrierAccess::ColorAttachmentRead)
-        flags |= VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
-    if (access & BarrierAccess::ColorAttachmentWrite)
-        flags |= VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    if (state & ResourceState::ColorAttachment)
+        flags |= VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    if (state & ResourceState::DepthRead)
+        flags |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+    if (state & ResourceState::DepthWrite)
+        flags |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    if (state & ResourceState::VertexBuffer)
+        flags |= VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+    if (state & ResourceState::IndexBuffer)
+        flags |= VK_ACCESS_INDEX_READ_BIT;
 
     return flags;
 }

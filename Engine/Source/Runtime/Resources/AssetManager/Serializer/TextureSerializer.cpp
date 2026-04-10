@@ -58,7 +58,7 @@ Owner<ITexture> TextureSerializer::Deserialize(const std::vector<uint8_t>& binar
     }
 }
 
-std::vector<uint8_t> TextureSerializer::Serialize(const Ref<ITexture>& asset, const std::string& key)
+std::vector<uint8_t> TextureSerializer::Serialize(const WRef<ITexture>& asset, const std::string& key)
 {
     std::string ext = std::filesystem::path(key).extension().string();
 

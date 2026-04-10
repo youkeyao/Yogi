@@ -105,7 +105,7 @@ void MaterialEditorLayer::OnUpdate(Timestep ts)
 
         if (ImGui::Button("+", { ImGui::GetContentRegionAvail().x, 0.0f }))
         {
-            auto shaderResourceBinding = Yogi::ResourceManager::GetResource<Yogi::IShaderResourceBinding>(
+            auto shaderResourceBinding = Yogi::ResourceManager::CreateResource<Yogi::IShaderResourceBinding>(
                 std::vector<Yogi::ShaderResourceAttribute>{ Yogi::ShaderResourceAttribute{
                     0, 1, Yogi::ShaderResourceType::Buffer, Yogi::ShaderStage::Vertex } });
             m_material->AddPass({ nullptr, {}, {} });

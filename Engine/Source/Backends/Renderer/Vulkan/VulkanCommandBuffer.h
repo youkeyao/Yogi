@@ -18,22 +18,23 @@ public:
     void Submit() override;
     void Wait() override;
 
-    void BeginRenderPass(const Ref<IFrameBuffer>&       frameBuffer,
+    void BeginRenderPass(View<IRenderPass>              renderPass,
+                         View<IFrameBuffer>             frameBuffer,
                          const std::vector<ClearValue>& colorClearValues,
                          const ClearValue&              depthClearValue) override;
     void EndRenderPass() override;
 
-    void SetPipeline(const Ref<IPipeline>& pipeline) override;
-    void SetVertexBuffer(const Ref<IBuffer>& buffer, uint32_t offset = 0) override;
-    void SetIndexBuffer(const Ref<IBuffer>& buffer, uint32_t offset = 0) override;
+    void SetPipeline(View<IPipeline> pipeline) override;
+    void SetVertexBuffer(View<IBuffer> buffer, uint32_t offset = 0) override;
+    void SetIndexBuffer(View<IBuffer> buffer, uint32_t offset = 0) override;
     void SetViewport(const Viewport& viewport) override;
     void SetScissor(const Scissor& scissor) override;
-    void SetShaderResourceBinding(const Ref<IShaderResourceBinding>& binding) override;
-    void SetPushConstants(const Ref<IShaderResourceBinding>& binding,
-                          ShaderStage                        stage,
-                          uint32_t                           offset,
-                          uint32_t                           size,
-                          const void*                        data) override;
+    void SetShaderResourceBinding(View<IShaderResourceBinding> binding) override;
+    void SetPushConstants(View<IShaderResourceBinding> binding,
+                          ShaderStage                  stage,
+                          uint32_t                     offset,
+                          uint32_t                     size,
+                          const void*                  data) override;
 
     void Draw(uint32_t vertexCount,
               uint32_t instanceCount = 1,
@@ -45,25 +46,20 @@ public:
                      int32_t  vertexOffset  = 0,
                      uint32_t firstInstance = 0) override;
     void DrawMeshTasks(uint32_t groupCountX, uint32_t groupCountY = 1, uint32_t groupCountZ = 1) override;
-    void DrawMeshTasksIndirect(const Ref<IBuffer>& indirectBuffer,
-                               uint32_t            offset,
-                               uint32_t            drawCount,
-                               uint32_t            stride) override;
-    void DrawMeshTasksIndirectCount(const Ref<IBuffer>& indirectBuffer,
-                                    uint32_t            indirectOffset,
-                                    const Ref<IBuffer>& countBuffer,
-                                    uint32_t            countOffset,
-                                    uint32_t            maxDrawCount,
-                                    uint32_t            stride) override;
+    void DrawMeshTasksIndirect(View<IBuffer> indirectBuffer,
+                               uint32_t      offset,
+                               uint32_t      drawCount,
+                               uint32_t      stride) override;
+    void DrawMeshTasksIndirectCount(View<IBuffer> indirectBuffer,
+                                    uint32_t      indirectOffset,
+                                    View<IBuffer> countBuffer,
+                                    uint32_t      countOffset,
+                                    uint32_t      maxDrawCount,
+                                    uint32_t      stride) override;
     void Dispatch(uint32_t groupCountX, uint32_t groupCountY = 1, uint32_t groupCountZ = 1) override;
-    void Barrier(PipelineStage sourceStage,
-                 PipelineStage destinationStage,
-                 BarrierAccess sourceAccess,
-                 BarrierAccess destinationAccess) override;
+    void Barrier(const BarrierDesc& barrierDesc) override;
 
-    void Blit(const Ref<ITexture>& src, const Ref<ITexture>& dst) override;
-
-    void TransitionImageLayout(VkImage image, ITexture::Usage usage, VkImageLayout oldLayout, VkImageLayout newLayout);
+    void Blit(View<ITexture> src, View<ITexture> dst, const BlitDesc& blitDesc = {}) override;
 
     inline VkCommandBuffer    GetVkCommandBuffer() const { return m_commandBuffer; }
     inline VkFence            GetFence() const { return m_commandFence; }

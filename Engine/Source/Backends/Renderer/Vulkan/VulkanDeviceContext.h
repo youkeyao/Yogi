@@ -10,7 +10,7 @@ namespace Yogi
 class VulkanDeviceContext : public IDeviceContext
 {
 public:
-    VulkanDeviceContext(const Ref<Window>& window);
+    VulkanDeviceContext(View<Window> window);
     virtual ~VulkanDeviceContext();
 
     void WaitIdle() override;
@@ -31,7 +31,7 @@ public:
 
 private:
     void CreateVkInstance();
-    void CreateVkSurface(const Ref<Window>& window);
+    void CreateVkSurface(View<Window> window);
     void PickPhysicalDevice();
     void CreateLogicalDevice();
     void CreateCommandPool();

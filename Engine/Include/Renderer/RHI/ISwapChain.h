@@ -14,7 +14,7 @@ struct SwapChainDesc
     ITexture::Format    ColorFormat;
     ITexture::Format    DepthFormat;
     SampleCountFlagBits NumSamples;
-    Ref<Window>         Window;
+    Window*             Window;
 };
 
 class YG_API ISwapChain
@@ -28,9 +28,9 @@ public:
     virtual ITexture::Format    GetDepthFormat() const = 0;
     virtual SampleCountFlagBits GetNumSamples() const  = 0;
 
-    virtual Ref<ITexture>       GetCurrentTarget() const        = 0;
-    virtual Ref<ITexture>       GetCurrentDepth() const         = 0;
-    virtual Ref<ICommandBuffer> GetCurrentCommandBuffer() const = 0;
+    virtual WRef<ITexture>       GetCurrentTarget() const        = 0;
+    virtual WRef<ITexture>       GetCurrentDepth() const         = 0;
+    virtual WRef<ICommandBuffer> GetCurrentCommandBuffer() const = 0;
 
     virtual void AcquireNextImage()                      = 0;
     virtual void Present()                               = 0;

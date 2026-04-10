@@ -44,11 +44,11 @@ public:
 public:
     virtual ~ITexture() = default;
 
-    virtual uint32_t         GetWidth() const  = 0;
-    virtual uint32_t         GetHeight() const = 0;
+    virtual uint32_t         GetWidth() const     = 0;
+    virtual uint32_t         GetHeight() const    = 0;
     virtual uint32_t         GetMipLevels() const = 0;
-    virtual ITexture::Format GetFormat() const = 0;
-    virtual Usage            GetUsage() const  = 0;
+    virtual ITexture::Format GetFormat() const    = 0;
+    virtual Usage            GetUsage() const     = 0;
 
     virtual void SetData(void* data, uint32_t size) = 0;
 

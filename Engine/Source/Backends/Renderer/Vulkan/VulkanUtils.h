@@ -38,20 +38,20 @@ struct SwapChainSupportDetails
 };
 SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surface);
 VkPresentModeKHR        ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
-VkExtent2D              ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, const Ref<Window>& window);
+VkExtent2D              ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, View<Window> window);
 
 uint32_t FindMemoryType(uint32_t typeFilter, VkPhysicalDevice physicalDevice, VkMemoryPropertyFlags properties);
 
 VkFormat             YgTextureFormat2VkFormat(ITexture::Format format);
 ITexture::Format     VkFormat2YgTextureFormat(VkFormat format);
 VkFormat             YgShaderElementType2VkFormat(ShaderElementType type);
-VkImageLayout        AttachmentUsage2VkImageLayout(AttachmentUsage usage);
+VkImageLayout        YgResourceState2VkImageLayout(ResourceState state, ITexture::Usage usage);
 VkAccessFlags        AccessMaskFromImageLayout(VkImageLayout Layout, bool IsDstMask);
 VkPipelineStageFlags PipelineStageFromImageLayout(VkImageLayout Layout, bool IsDstStage);
 VkShaderStageFlags   YgShaderStage2VkShaderStage(ShaderStage stage);
 VkPrimitiveTopology  YgPrimitiveTopology2VkPrimitiveTopology(PrimitiveTopology topology);
-VkPipelineStageFlags YgPipelineStage2VkPipelineStage(PipelineStage stage);
-VkAccessFlags        YgBarrierAccess2VkAccess(BarrierAccess access);
+VkPipelineStageFlags YgResourceState2VkPipelineStage(ResourceState state);
+VkAccessFlags        YgResourceState2VkAccess(ResourceState state);
 
 YG_API PFN_vkVoidFunction VkLoadFunction(const char* funcName, void* instance);
 

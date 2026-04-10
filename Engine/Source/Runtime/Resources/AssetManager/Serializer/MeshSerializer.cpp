@@ -94,6 +94,9 @@ Owner<Mesh> MeshSerializer::Deserialize(const std::vector<uint8_t>& binary, cons
     return ProcessNode(scene->mRootNode, scene, meshName);
 }
 
-std::vector<uint8_t> MeshSerializer::Serialize(const Ref<Mesh>& mesh, const std::string& key) { return {}; }
+std::vector<uint8_t> MeshSerializer::Serialize(const WRef<Mesh>& mesh, const std::string& key)
+{
+    return {};
+}
 
 } // namespace Yogi

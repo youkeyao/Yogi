@@ -31,28 +31,28 @@ void ContentBrowserLayer::OnUpdate(Timestep ts)
             {
                 name = "_" + name;
             }
-            AssetManager::SaveAsset(Ref<Material>::Create(material),
+            AssetManager::SaveAsset(WRef<Material>::Create(material),
                                     (m_relativeDirectory / (name + ".mat")).lexically_normal().generic_string());
         }
         if (ImGui::MenuItem("Create Render Pass"))
         {
             auto&               swapChain  = Application::GetInstance().GetSwapChain();
             Owner<IRenderPass> renderPass = Owner<IRenderPass>::Create(RenderPassDesc{
-                { AttachmentDesc{ swapChain->GetColorFormat(), AttachmentUsage::Present } },
+                { AttachmentDesc{ swapChain->GetColorFormat(), ResourceState::Present } },
                 AttachmentDesc{
-                    swapChain->GetDepthFormat(), AttachmentUsage::ShaderRead, LoadOp::Clear, StoreOp::DontCare },
+                    swapChain->GetDepthFormat(), ResourceState::DepthRead, LoadOp::Clear, StoreOp::DontCare },
                 swapChain->GetNumSamples() });
             std::string         name       = "NewRenderPass";
             while (std::filesystem::exists(m_baseDirectory / m_relativeDirectory / (name + ".rp")))
             {
                 name = "_" + name;
             }
-            AssetManager::SaveAsset(Ref<IRenderPass>::Create(renderPass),
+            AssetManager::SaveAsset(WRef<IRenderPass>::Create(renderPass),
                                     (m_relativeDirectory / (name + ".rp")).lexically_normal().generic_string());
         }
         if (ImGui::MenuItem("Create Pipeline"))
         {
-            auto shaderResourceBinding = Yogi::ResourceManager::GetResource<Yogi::IShaderResourceBinding>(
+            auto shaderResourceBinding = Yogi::ResourceManager::CreateResource<Yogi::IShaderResourceBinding>(
                 std::vector<Yogi::ShaderResourceAttribute>{ Yogi::ShaderResourceAttribute{
                     0, 1, Yogi::ShaderResourceType::Buffer, Yogi::ShaderStage::Vertex } });
             Owner<IPipeline> pipeline = Owner<IPipeline>::Create(
@@ -69,7 +69,7 @@ void ContentBrowserLayer::OnUpdate(Timestep ts)
             {
                 name = "_" + name;
             }
-            AssetManager::SaveAsset(Ref<IPipeline>::Create(pipeline),
+            AssetManager::SaveAsset(WRef<IPipeline>::Create(pipeline),
                                     (m_relativeDirectory / (name + ".pipeline")).lexically_normal().generic_string());
         }
         if (ImGui::MenuItem("Create Render Texture"))
@@ -87,7 +87,7 @@ void ContentBrowserLayer::OnUpdate(Timestep ts)
             {
                 name = "_" + name;
             }
-            AssetManager::SaveAsset(Ref<ITexture>::Create(renderTexture),
+            AssetManager::SaveAsset(WRef<ITexture>::Create(renderTexture),
                                     (m_relativeDirectory / (name + ".rt")).lexically_normal().generic_string());
         }
         ImGui::EndPopup();

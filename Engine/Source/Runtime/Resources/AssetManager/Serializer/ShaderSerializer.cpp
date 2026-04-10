@@ -107,9 +107,15 @@ std::vector<uint8_t> CompileGlslToSpirv(const std::vector<uint8_t>& glslBinary,
     return out;
 }
 
-ShaderSerializer::ShaderSerializer() { glslang::InitializeProcess(); }
+ShaderSerializer::ShaderSerializer()
+{
+    glslang::InitializeProcess();
+}
 
-ShaderSerializer::~ShaderSerializer() { glslang::FinalizeProcess(); }
+ShaderSerializer::~ShaderSerializer()
+{
+    glslang::FinalizeProcess();
+}
 
 Owner<ShaderDesc> ShaderSerializer::Deserialize(const std::vector<uint8_t>& binary, const std::string& key)
 {
@@ -127,6 +133,9 @@ Owner<ShaderDesc> ShaderSerializer::Deserialize(const std::vector<uint8_t>& bina
     return nullptr;
 }
 
-std::vector<uint8_t> ShaderSerializer::Serialize(const Ref<ShaderDesc>& asset, const std::string& key) { return {}; }
+std::vector<uint8_t> ShaderSerializer::Serialize(const WRef<ShaderDesc>& asset, const std::string& key)
+{
+    return {};
+}
 
 } // namespace Yogi

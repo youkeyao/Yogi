@@ -68,9 +68,9 @@ public:
     static Entity Null() { return Entity(entt::null, nullptr); }
 
 private:
-    Entity(entt::entity handle, const Ref<entt::registry>& registry);
-    entt::entity        m_entityHandle;
-    Ref<entt::registry> m_registry;
+    Entity(entt::entity handle, const WRef<entt::registry>& registry);
+    entt::entity         m_entityHandle;
+    WRef<entt::registry> m_registry;
 };
 
 } // namespace Yogi

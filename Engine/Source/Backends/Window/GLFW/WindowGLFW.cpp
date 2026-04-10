@@ -10,7 +10,10 @@ static void GLFWErrorCallback(int error, const char* description)
     YG_CORE_ERROR("GLFW Error ({0}): {1}", error, description);
 }
 
-Owner<Window> Window::Create(const WindowProps& props) { return Owner<WindowGLFW>::Create(props); }
+Owner<Window> Window::Create(const WindowProps& props)
+{
+    return Owner<WindowGLFW>::Create(props);
+}
 
 WindowGLFW::WindowGLFW(const WindowProps& props) : m_data({ props.Title, props.Width, props.Height })
 {
@@ -114,6 +117,9 @@ WindowGLFW::~WindowGLFW()
     glfwTerminate();
 }
 
-void WindowGLFW::OnUpdate() { glfwPollEvents(); }
+void WindowGLFW::OnUpdate()
+{
+    glfwPollEvents();
+}
 
 } // namespace Yogi

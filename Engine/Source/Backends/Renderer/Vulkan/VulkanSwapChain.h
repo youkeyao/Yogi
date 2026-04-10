@@ -19,14 +19,17 @@ public:
     inline ITexture::Format    GetDepthFormat() const override { return m_depthFormat; }
     inline SampleCountFlagBits GetNumSamples() const override { return m_numSamples; }
 
-    Ref<ITexture> GetCurrentTarget() const override
+    WRef<ITexture> GetCurrentTarget() const override
     {
-        return Ref<VulkanTexture>::Create(m_colorTextures[m_imageIndex]);
+        return WRef<VulkanTexture>::Create(m_colorTextures[m_imageIndex]);
     }
-    Ref<ITexture> GetCurrentDepth() const override { return Ref<VulkanTexture>::Create(m_depthTextures[m_imageIndex]); }
-    Ref<ICommandBuffer> GetCurrentCommandBuffer() const override
+    WRef<ITexture> GetCurrentDepth() const override
     {
-        return Ref<VulkanCommandBuffer>::Create(m_commandBuffers[m_currentFrame]);
+        return WRef<VulkanTexture>::Create(m_depthTextures[m_imageIndex]);
+    }
+    WRef<ICommandBuffer> GetCurrentCommandBuffer() const override
+    {
+        return WRef<VulkanCommandBuffer>::Create(m_commandBuffers[m_currentFrame]);
     }
 
     void AcquireNextImage() override;
@@ -51,7 +54,7 @@ private:
     std::vector<Owner<VulkanTexture>> m_colorTextures;
     std::vector<Owner<VulkanTexture>> m_depthTextures;
 
-    std::vector<VkSemaphore>                 m_imageAvailableSemaphores;
+    std::vector<VkSemaphore>                m_imageAvailableSemaphores;
     std::vector<Owner<VulkanCommandBuffer>> m_commandBuffers;
 
     uint32_t            m_width;
@@ -59,7 +62,7 @@ private:
     ITexture::Format    m_colorFormat;
     ITexture::Format    m_depthFormat;
     SampleCountFlagBits m_numSamples;
-    Ref<Window>         m_window;
+    Window*             m_window = nullptr;
 };
 
 } // namespace Yogi

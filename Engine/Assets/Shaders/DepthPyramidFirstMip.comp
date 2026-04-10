@@ -1,0 +1,30 @@
+#version 460 core
+
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+
+layout(binding = 0) uniform sampler2DMS u_SourceDepth;
+layout(binding = 1, r32f) writeonly uniform image2D u_DstMip;
+
+layout(push_constant) uniform DepthPyramidPushConstant
+{
+    uint SourceWidth;
+    uint SourceHeight;
+    uint SourceTexelStride;
+    uint UseMinReduction;
+} pc;
+
+void main()
+{
+    ivec2 dstCoord = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 dstSize  = imageSize(u_DstMip);
+    if (dstCoord.x >= dstSize.x || dstCoord.y >= dstSize.y)
+        return;
+
+    // For the first mip, source and destination are both full resolution.
+    ivec2 srcCoord = dstCoord;
+    srcCoord.x     = clamp(srcCoord.x, 0, int(pc.SourceWidth) - 1);
+    srcCoord.y     = clamp(srcCoord.y, 0, int(pc.SourceHeight) - 1);
+
+    float reducedDepth = texelFetch(u_SourceDepth, srcCoord, 0).r;
+    imageStore(u_DstMip, dstCoord, vec4(reducedDepth, 0.0, 0.0, 1.0));
+}

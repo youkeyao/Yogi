@@ -81,16 +81,18 @@ Owner<Material> MaterialSerializer::Deserialize(const std::vector<uint8_t>& bina
         PipelineDesc pipelineDesc;
         for (auto& shaderKey : pipelineData.ShaderKeys)
         {
-            pipelineDesc.Shaders.push_back(AssetManager::GetAsset<ShaderDesc>(shaderKey));
+            pipelineDesc.Shaders.push_back(View<ShaderDesc>::Create(AssetManager::GetAsset<ShaderDesc>(shaderKey)));
         }
-        pipelineDesc.VertexLayout          = pipelineData.VertexLayout;
-        pipelineDesc.ShaderResourceBinding = ResourceManager::GetResource<IShaderResourceBinding>(
-            pipelineData.ShaderResourceLayout, pipelineData.PushConstantRanges);
-        pipelineDesc.RenderPass   = AssetManager::GetAsset<IRenderPass>(pipelineData.RenderPassKey);
+        pipelineDesc.VertexLayout = pipelineData.VertexLayout;
+        pipelineDesc.ShaderResourceBinding =
+            View<IShaderResourceBinding>::Create(ResourceManager::CreateResource<IShaderResourceBinding>(
+                pipelineData.ShaderResourceLayout, pipelineData.PushConstantRanges));
+        pipelineDesc.RenderPass =
+            View<IRenderPass>::Create(AssetManager::GetAsset<IRenderPass>(pipelineData.RenderPassKey));
         pipelineDesc.SubPassIndex = pipelineData.SubPassIndex;
         pipelineDesc.Topology     = pipelineData.Topology;
 
-        auto passPipeline = ResourceManager::GetResource<IPipeline>(pipelineDesc);
+        auto passPipeline = ResourceManager::GetSharedResource<IPipeline>(pipelineDesc);
         material->AddPass(Material::MaterialPass{ passPipeline, {} });
     }
     auto materialPasses = material->GetPasses();
@@ -112,7 +114,7 @@ Owner<Material> MaterialSerializer::Deserialize(const std::vector<uint8_t>& bina
     return material;
 }
 
-std::vector<uint8_t> MaterialSerializer::Serialize(const Ref<Material>& asset, const std::string& key)
+std::vector<uint8_t> MaterialSerializer::Serialize(const WRef<Material>& asset, const std::string& key)
 {
     std::vector<uint8_t> data;
     zpp::bits::out       outArchive(data);

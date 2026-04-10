@@ -9,7 +9,7 @@
 namespace Yogi
 {
 
-Owner<IDeviceContext> IDeviceContext::Create(const Ref<Window>& window)
+Owner<IDeviceContext> IDeviceContext::Create(View<Window> window)
 {
     return Owner<VulkanDeviceContext>::Create(window);
 }
@@ -31,7 +31,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityF
     return VK_FALSE;
 }
 
-VulkanDeviceContext::VulkanDeviceContext(const Ref<Window>& window)
+VulkanDeviceContext::VulkanDeviceContext(View<Window> window)
 {
     volkInitialize();
     CreateVkInstance();
@@ -63,7 +63,10 @@ VulkanDeviceContext::~VulkanDeviceContext()
     vkDestroyInstance(m_instance, nullptr);
 }
 
-void VulkanDeviceContext::WaitIdle() { vkDeviceWaitIdle(m_device); }
+void VulkanDeviceContext::WaitIdle()
+{
+    vkDeviceWaitIdle(m_device);
+}
 
 VkDescriptorSet VulkanDeviceContext::AllocateVkDescriptorSet(VkDescriptorSetLayout layout)
 {
@@ -147,7 +150,7 @@ void VulkanDeviceContext::CreateVkInstance()
 #endif
 }
 
-void VulkanDeviceContext::CreateVkSurface(const Ref<Window>& window)
+void VulkanDeviceContext::CreateVkSurface(View<Window> window)
 {
     VkResult result = VK_ERROR_INITIALIZATION_FAILED;
 #ifdef YG_WINDOW_GLFW

@@ -23,8 +23,13 @@ public:
 
 private:
     bool OnWindowResize(WindowResizeEvent& e, World& world);
-    void BeginRender(Ref<ICommandBuffer>& commandBuffer, Ref<IFrameBuffer>& frameBuffer);
-    void EndRender(Ref<ICommandBuffer>& commandBuffer);
+    void BeginRender(View<ICommandBuffer> commandBuffer, View<IFrameBuffer> frameBuffer);
+    void EndRender(View<ICommandBuffer> commandBuffer);
+    void EnsureDepthPyramidResources(View<ICommandBuffer> commandBuffer,
+                                     uint32_t             width,
+                                     uint32_t             height,
+                                     View<ITexture>       depthTexture);
+    void BuildDepthPyramid(View<ICommandBuffer> commandBuffer, View<ITexture> depthTexture);
     void ResetMeshUploadCache();
 
 private:
@@ -44,14 +49,14 @@ private:
 
     SceneData m_sceneData;
 
-    Ref<IBuffer> m_vertexStorageBuffer         = nullptr;
-    Ref<IBuffer> m_meshletBuffer               = nullptr;
-    Ref<IBuffer> m_meshletDataBuffer           = nullptr;
-    Ref<IBuffer> m_meshBuffer                  = nullptr;
-    Ref<IBuffer> m_meshDrawBuffer              = nullptr;
-    Ref<IBuffer> m_meshTaskIndirectBuffer      = nullptr;
-    Ref<IBuffer> m_visibleDrawIndexBuffer      = nullptr;
-    Ref<IBuffer> m_meshTaskIndirectCountBuffer = nullptr;
+    WRef<IBuffer> m_vertexStorageBuffer         = nullptr;
+    WRef<IBuffer> m_meshletBuffer               = nullptr;
+    WRef<IBuffer> m_meshletDataBuffer           = nullptr;
+    WRef<IBuffer> m_meshBuffer                  = nullptr;
+    WRef<IBuffer> m_meshDrawBuffer              = nullptr;
+    WRef<IBuffer> m_meshTaskIndirectBuffer      = nullptr;
+    WRef<IBuffer> m_visibleDrawIndexBuffer      = nullptr;
+    WRef<IBuffer> m_meshTaskIndirectCountBuffer = nullptr;
 
     MeshGPUUploadCache m_meshUploadCache;
     uint32_t           m_cachedVertexCount     = 0;
@@ -59,12 +64,23 @@ private:
     uint32_t           m_cachedMeshletDataSize = 0;
     uint32_t           m_cachedMeshCount       = 0;
 
-    std::vector<Ref<IRenderPass>> m_renderPasses;
-    Ref<IShaderResourceBinding>   m_shaderResourceBinding     = nullptr;
-    Ref<IShaderResourceBinding>   m_cullShaderResourceBinding = nullptr;
-    Ref<IPipeline>                m_cullPipeline              = nullptr;
+    std::vector<WRef<IRenderPass>>                              m_renderPasses;
+    WRef<IShaderResourceBinding>                                m_shaderResourceBinding     = nullptr;
+    WRef<IShaderResourceBinding>                                m_cullShaderResourceBinding = nullptr;
+    Owner<IShaderResourceBinding>                               m_depthPyramidMipBinding;
+    std::vector<Owner<IShaderResourceBinding>>                  m_depthPyramidMipBindings;
+    std::unordered_map<uint64_t, Owner<IShaderResourceBinding>> m_depthPyramidFirstMipBindingCache;
+    WRef<IPipeline>                                             m_cullPipeline                 = nullptr;
+    WRef<IPipeline>                                             m_depthPyramidFirstMipPipeline = nullptr;
+    WRef<IPipeline>                                             m_depthPyramidPipeline         = nullptr;
 
-    std::unordered_map<uint64_t, Ref<IFrameBuffer>> m_frameBuffers;
+    WRef<ITexture> m_depthPyramidTexture = nullptr;
+    uint32_t       m_depthPyramidWidth   = 0;
+    uint32_t       m_depthPyramidHeight  = 0;
+    uint32_t       m_depthPyramidMips    = 1;
+    bool           m_depthPyramidValid   = false;
+
+    std::unordered_map<uint64_t, WRef<IFrameBuffer>> m_frameBuffers;
 };
 
 } // namespace Yogi

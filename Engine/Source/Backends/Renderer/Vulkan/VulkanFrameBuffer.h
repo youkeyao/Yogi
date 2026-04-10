@@ -14,28 +14,24 @@ public:
     VulkanFrameBuffer(const FrameBufferDesc& desc);
     virtual ~VulkanFrameBuffer();
 
-    inline uint32_t                          GetWidth() const override { return m_width; }
-    inline uint32_t                          GetHeight() const override { return m_height; }
-    inline Ref<IRenderPass>                  GetRenderPass() const override { return m_renderPass; }
-    inline const std::vector<Ref<ITexture>>& GetColorAttachments() const override { return m_colorAttachments; }
-    inline Ref<ITexture>                     GetDepthAttachment() const override { return m_depthAttachment; }
+    inline uint32_t GetWidth() const override { return m_width; }
+    inline uint32_t GetHeight() const override { return m_height; }
 
     inline VkFramebuffer GetVkFrameBuffer() const { return m_frameBuffer; }
+    inline bool          HasDepthAttachment() const { return m_hasDepthAttachment; }
 
 private:
     void Cleanup();
-    void CreateVkFrameBuffer();
+    void CreateVkFrameBuffer(const FrameBufferDesc& desc);
 
 private:
     VkFramebuffer m_frameBuffer = VK_NULL_HANDLE;
 
     std::vector<Owner<VulkanTexture>> m_msaaTextures;
 
-    uint32_t                   m_width;
-    uint32_t                   m_height;
-    Ref<IRenderPass>           m_renderPass = nullptr;
-    std::vector<Ref<ITexture>> m_colorAttachments;
-    Ref<ITexture>              m_depthAttachment = nullptr;
+    uint32_t m_width;
+    uint32_t m_height;
+    bool     m_hasDepthAttachment = false;
 };
 
 } // namespace Yogi

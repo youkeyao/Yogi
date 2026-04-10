@@ -1,13 +1,17 @@
 #include "VulkanTexture.h"
 #include "VulkanCommandBuffer.h"
 #include "VulkanBuffer.h"
+#include "VulkanUtils.h"
 
 #include <volk.h>
 
 namespace Yogi
 {
 
-Owner<ITexture> ITexture::Create(const TextureDesc& desc) { return Owner<VulkanTexture>::Create(desc); }
+Owner<ITexture> ITexture::Create(const TextureDesc& desc)
+{
+    return Owner<VulkanTexture>::Create(desc);
+}
 
 VulkanTexture::VulkanTexture(const TextureDesc& desc) :
     m_width(desc.Width),
@@ -22,7 +26,7 @@ VulkanTexture::VulkanTexture(const TextureDesc& desc) :
                   (VkSampleCountFlagBits)desc.NumSamples,
                   YgTextureFormat2VkFormat(desc.Format),
                   VK_IMAGE_TILING_OPTIMAL,
-                  VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+                  VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT |
                       (desc.Usage == ITexture::Usage::Storage ? VK_IMAGE_USAGE_STORAGE_BIT : 0) |
                       (desc.Usage == ITexture::Usage::RenderTarget ? VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT : 0) |
                       (desc.Usage == ITexture::Usage::DepthStencil ? VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT : 0),
@@ -49,7 +53,9 @@ VulkanTexture::VulkanTexture(uint32_t         width,
     m_mipLevels(1),
     m_format(format),
     m_usage(usage)
-{ m_imageViews.push_back(CreateVkImageView(image, YgTextureFormat2VkFormat(format), VK_IMAGE_ASPECT_COLOR_BIT, 0, 1)); }
+{
+    m_imageViews.push_back(CreateVkImageView(image, YgTextureFormat2VkFormat(format), VK_IMAGE_ASPECT_COLOR_BIT, 0, 1));
+}
 
 VulkanTexture::~VulkanTexture()
 {
@@ -78,8 +84,14 @@ void VulkanTexture::SetData(void* data, uint32_t size)
 
     VulkanCommandBuffer commandBuffer({ CommandBufferUsage::OneTimeSubmit, SubmitQueue::Transfer });
     commandBuffer.Begin();
-    commandBuffer.TransitionImageLayout(
-        m_image, m_usage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+    commandBuffer.Barrier({
+        .Texture      = View<ITexture>::Create(this),
+        .BeforeState  = ResourceState::Common,
+        .AfterState   = ResourceState::CopyDestination,
+        .BaseMipLevel = 0,
+        .LevelCount   = 1,
+    });
 
     VkBufferImageCopy region{};
     region.bufferOffset                    = 0;
@@ -100,8 +112,13 @@ void VulkanTexture::SetData(void* data, uint32_t size)
                            1,
                            &region);
 
-    commandBuffer.TransitionImageLayout(
-        m_image, m_usage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    commandBuffer.Barrier({
+        .Texture      = View<ITexture>::Create(this),
+        .BeforeState  = ResourceState::CopyDestination,
+        .AfterState   = ResourceState::FragmentShaderResource,
+        .BaseMipLevel = 0,
+        .LevelCount   = 1,
+    });
     commandBuffer.End();
     commandBuffer.Submit();
 }

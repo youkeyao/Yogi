@@ -12,7 +12,10 @@ static void sdl_error_callback(int error, const char* description)
     YG_CORE_ERROR("SDL Error ({0}): {1}", error, description);
 }
 
-Scope<Window> Window::create(const WindowProps& props) { return CreateScope<WindowSDL>(props); }
+Scope<Window> Window::create(const WindowProps& props)
+{
+    return CreateScope<WindowSDL>(props);
+}
 
 WindowSDL::WindowSDL(const WindowProps& props)
 {
@@ -126,9 +129,15 @@ void WindowSDL::on_update()
     m_context->swap_buffers();
 }
 
-void WindowSDL::get_size(int32_t* width, int32_t* height) const { SDL_GetWindowSize(m_window, width, height); }
+void WindowSDL::get_size(int32_t* width, int32_t* height) const
+{
+    SDL_GetWindowSize(m_window, width, height);
+}
 
-void WindowSDL::wait_events() { SDL_WaitEvent(nullptr); }
+void WindowSDL::wait_events()
+{
+    SDL_WaitEvent(nullptr);
+}
 
 // OpenGL
 void WindowSDL::make_gl_context()
@@ -136,9 +145,18 @@ void WindowSDL::make_gl_context()
     SDL_GLContext gl_context = SDL_GL_CreateContext(m_window);
     SDL_GL_MakeCurrent(m_window, gl_context);
 }
-WindowSDL::GLLoadProc WindowSDL::gl_get_proc_address() const { return SDL_GL_GetProcAddress; }
-void                  WindowSDL::gl_set_swap_interval(int32_t interval) { SDL_GL_SetSwapInterval(interval); }
-void                  WindowSDL::gl_swap_buffers() { SDL_GL_SwapWindow(m_window); }
+WindowSDL::GLLoadProc WindowSDL::gl_get_proc_address() const
+{
+    return SDL_GL_GetProcAddress;
+}
+void WindowSDL::gl_set_swap_interval(int32_t interval)
+{
+    SDL_GL_SetSwapInterval(interval);
+}
+void WindowSDL::gl_swap_buffers()
+{
+    SDL_GL_SwapWindow(m_window);
+}
 // Vulkan
 std::vector<const char*> WindowSDL::vk_get_instance_extensions(uint32_t* count) const
 {

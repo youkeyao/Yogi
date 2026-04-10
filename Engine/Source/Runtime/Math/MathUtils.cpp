@@ -15,7 +15,10 @@ Matrix4 Orthographic(float left, float right, float bottom, float top, float nea
     return glm::ortho(left, right, bottom, top, nearPlane, farPlane);
 }
 
-Matrix4 Inverse(const Matrix4& mat) { return glm::inverse(mat); }
+Matrix4 Inverse(const Matrix4& mat)
+{
+    return glm::inverse(mat);
+}
 
 } // namespace MathUtils
 } // namespace Yogi
