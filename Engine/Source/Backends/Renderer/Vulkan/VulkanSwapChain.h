@@ -16,16 +16,11 @@ public:
     inline uint32_t            GetWidth() const override { return m_width; }
     inline uint32_t            GetHeight() const override { return m_height; }
     inline ITexture::Format    GetColorFormat() const override { return m_colorFormat; }
-    inline ITexture::Format    GetDepthFormat() const override { return m_depthFormat; }
     inline SampleCountFlagBits GetNumSamples() const override { return m_numSamples; }
 
     WRef<ITexture> GetCurrentTarget() const override
     {
         return WRef<VulkanTexture>::Create(m_colorTextures[m_imageIndex]);
-    }
-    WRef<ITexture> GetCurrentDepth() const override
-    {
-        return WRef<VulkanTexture>::Create(m_depthTextures[m_imageIndex]);
     }
     WRef<ICommandBuffer> GetCurrentCommandBuffer() const override
     {
@@ -52,7 +47,6 @@ private:
     VkQueue        m_presentQueue = VK_NULL_HANDLE;
 
     std::vector<Owner<VulkanTexture>> m_colorTextures;
-    std::vector<Owner<VulkanTexture>> m_depthTextures;
 
     std::vector<VkSemaphore>                m_imageAvailableSemaphores;
     std::vector<Owner<VulkanCommandBuffer>> m_commandBuffers;
@@ -60,7 +54,6 @@ private:
     uint32_t            m_width;
     uint32_t            m_height;
     ITexture::Format    m_colorFormat;
-    ITexture::Format    m_depthFormat;
     SampleCountFlagBits m_numSamples;
     Window*             m_window = nullptr;
 };

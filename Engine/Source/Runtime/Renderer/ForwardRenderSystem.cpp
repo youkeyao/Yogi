@@ -51,10 +51,12 @@ ForwardRenderSystem::ForwardRenderSystem()
         MAX_INDIRECT_DRAW_COUNT_SIZE, BufferUsage::Storage | BufferUsage::Indirect, BufferAccess::Dynamic });
 
     auto& swapChain = Application::GetInstance().GetSwapChain();
+    m_depthFormat   = ITexture::Format::D32_FLOAT;
+    m_numSamples    = swapChain->GetNumSamples();
     m_renderPasses.push_back(Yogi::ResourceManager::GetSharedResource<Yogi::IRenderPass>(
         Yogi::RenderPassDesc{ { Yogi::AttachmentDesc{ swapChain->GetColorFormat(), Yogi::ResourceState::Present } },
-                              Yogi::AttachmentDesc{ swapChain->GetDepthFormat(), Yogi::ResourceState::DepthRead },
-                              swapChain->GetNumSamples() }));
+                              Yogi::AttachmentDesc{ m_depthFormat, Yogi::ResourceState::DepthRead },
+                              m_numSamples }));
 
     m_shaderResourceBinding = ResourceManager::GetSharedResource<IShaderResourceBinding>(
         std::vector<ShaderResourceAttribute>{
@@ -139,6 +141,7 @@ ForwardRenderSystem::~ForwardRenderSystem()
     m_depthPyramidFirstMipPipeline = nullptr;
     m_depthPyramidPipeline         = nullptr;
     m_depthPyramidTexture          = nullptr;
+    m_depthTexture                 = nullptr;
 }
 
 void ForwardRenderSystem::OnUpdate(Timestep ts, World& world)
@@ -161,6 +164,7 @@ bool ForwardRenderSystem::OnWindowResize(WindowResizeEvent& e, World& world)
     auto& swapChain = Application::GetInstance().GetSwapChain();
     swapChain->GetCurrentCommandBuffer()->Wait();
     m_frameBuffers.clear();
+    m_depthTexture = nullptr;
     m_depthPyramidTexture = nullptr;
     m_depthPyramidMipBindings.clear();
     m_depthPyramidFirstMipBindingCache.clear();
@@ -190,7 +194,8 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
     {
         currentTarget = camera.Target;
     }
-    auto            currentDepth = swapChain->GetCurrentDepth();
+    EnsureDepthTexture(currentTarget->GetWidth(), currentTarget->GetHeight());
+    auto            currentDepth = m_depthTexture;
     FrameBufferDesc desc{ currentTarget->GetWidth(),
                           currentTarget->GetHeight(),
                           View<IRenderPass>::Create(m_renderPasses[0]),
@@ -495,6 +500,15 @@ void ForwardRenderSystem::BeginRender(View<ICommandBuffer> commandBuffer, View<I
 void ForwardRenderSystem::EndRender(View<ICommandBuffer> commandBuffer)
 {
     const_cast<ICommandBuffer*>(commandBuffer.Get())->EndRenderPass();
+}
+
+void ForwardRenderSystem::EnsureDepthTexture(uint32_t width, uint32_t height)
+{
+    if (m_depthTexture && m_depthTexture->GetWidth() == width && m_depthTexture->GetHeight() == height)
+        return;
+
+    m_depthTexture = ResourceManager::CreateResource<ITexture>(TextureDesc{
+        width, height, 1, m_depthFormat, ITexture::Usage::DepthStencil, m_numSamples });
 }
 
 void ForwardRenderSystem::EnsureDepthPyramidResources(View<ICommandBuffer> commandBuffer,

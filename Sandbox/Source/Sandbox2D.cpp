@@ -32,7 +32,7 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
     auto renderPass = Yogi::ResourceManager::GetSharedResource<Yogi::IRenderPass>(Yogi::RenderPassDesc{
         { Yogi::AttachmentDesc{ swapChain->GetColorFormat(), Yogi::ResourceState::Present } },
         Yogi::AttachmentDesc{
-            swapChain->GetDepthFormat(), Yogi::ResourceState::DepthRead, Yogi::LoadOp::Clear, Yogi::StoreOp::DontCare },
+            Yogi::ITexture::Format::D32_FLOAT, Yogi::ResourceState::DepthRead, Yogi::LoadOp::Clear, Yogi::StoreOp::DontCare },
         swapChain->GetNumSamples() });
 
     auto shaderResourceBinding = Yogi::ResourceManager::CreateResource<Yogi::IShaderResourceBinding>(

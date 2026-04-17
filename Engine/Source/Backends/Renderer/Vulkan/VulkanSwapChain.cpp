@@ -15,7 +15,6 @@ VulkanSwapChain::VulkanSwapChain(const SwapChainDesc& desc) :
     m_width(desc.Width),
     m_height(desc.Height),
     m_colorFormat(desc.ColorFormat),
-    m_depthFormat(desc.DepthFormat),
     m_numSamples(desc.NumSamples),
     m_window(desc.Window)
 {
@@ -105,12 +104,6 @@ void VulkanSwapChain::CleanupSwapChain()
     }
     m_colorTextures.clear();
 
-    for (auto& texture : m_depthTextures)
-    {
-        texture = nullptr;
-    }
-    m_depthTextures.clear();
-
     if (m_swapChain != VK_NULL_HANDLE)
     {
         vkDestroySwapchainKHR(context->GetVkDevice(), m_swapChain, nullptr);
@@ -190,14 +183,6 @@ void VulkanSwapChain::CreateVkSwapChain()
     {
         m_colorTextures.emplace_back(Owner<VulkanTexture>::Create(
             extent.width, extent.height, m_colorFormat, ITexture::Usage::RenderTarget, swapChainImages[i]));
-    }
-
-    m_depthTextures.reserve(imageCount);
-    m_depthTextures.clear();
-    for (size_t i = 0; i < swapChainImages.size(); ++i)
-    {
-        m_depthTextures.emplace_back(Owner<VulkanTexture>::Create(
-            TextureDesc{ extent.width, extent.height, 1, m_depthFormat, ITexture::Usage::DepthStencil, m_numSamples }));
     }
 }
 

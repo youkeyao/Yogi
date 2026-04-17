@@ -31,6 +31,7 @@ private:
                                      View<ITexture>       depthTexture);
     void BuildDepthPyramid(View<ICommandBuffer> commandBuffer, View<ITexture> depthTexture);
     void ResetMeshUploadCache();
+    void EnsureDepthTexture(uint32_t width, uint32_t height);
 
 private:
     static const uint64_t MAX_TRIANGLES     = 10000000;
@@ -79,6 +80,10 @@ private:
     uint32_t       m_depthPyramidHeight  = 0;
     uint32_t       m_depthPyramidMips    = 1;
     bool           m_depthPyramidValid   = false;
+
+    WRef<ITexture>       m_depthTexture  = nullptr;
+    ITexture::Format     m_depthFormat;
+    SampleCountFlagBits  m_numSamples    = SampleCountFlagBits::Count1;
 
     std::unordered_map<uint64_t, WRef<IFrameBuffer>> m_frameBuffers;
 };

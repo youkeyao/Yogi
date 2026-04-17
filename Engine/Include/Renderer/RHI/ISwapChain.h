@@ -25,11 +25,9 @@ public:
     virtual uint32_t            GetWidth() const       = 0;
     virtual uint32_t            GetHeight() const      = 0;
     virtual ITexture::Format    GetColorFormat() const = 0;
-    virtual ITexture::Format    GetDepthFormat() const = 0;
     virtual SampleCountFlagBits GetNumSamples() const  = 0;
 
     virtual WRef<ITexture>       GetCurrentTarget() const        = 0;
-    virtual WRef<ITexture>       GetCurrentDepth() const         = 0;
     virtual WRef<ICommandBuffer> GetCurrentCommandBuffer() const = 0;
 
     virtual void AcquireNextImage()                      = 0;
