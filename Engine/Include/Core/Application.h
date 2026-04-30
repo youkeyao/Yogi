@@ -21,11 +21,11 @@ public:
     void OnEvent(Event& e);
     void PushLayer(Owner<Layer>&& layer);
 
-    WRef<Layer> GetLayer(const std::string& name);
+    WRef<Layer> AcquireLayer(const std::string& name);
 
-    inline const Owner<Window>&         GetWindow() const { return m_window; }
-    inline const Owner<IDeviceContext>& GetContext() const { return m_context; }
-    inline const Owner<ISwapChain>&     GetSwapChain() const { return m_swapChain; }
+    inline Window*         GetWindow() const { return m_window.Get(); }
+    inline IDeviceContext* GetContext() const { return m_context.Get(); }
+    inline ISwapChain*     GetSwapChain() const { return m_swapChain.Get(); }
 
     inline static Application& GetInstance() { return *s_instance; }
 

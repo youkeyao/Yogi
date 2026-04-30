@@ -27,8 +27,8 @@ public:
     virtual ITexture::Format    GetColorFormat() const = 0;
     virtual SampleCountFlagBits GetNumSamples() const  = 0;
 
-    virtual WRef<ITexture>       GetCurrentTarget() const        = 0;
-    virtual WRef<ICommandBuffer> GetCurrentCommandBuffer() const = 0;
+    virtual ITexture*       GetCurrentTarget() const        = 0;
+    virtual ICommandBuffer* GetCurrentCommandBuffer() const = 0;
 
     virtual void AcquireNextImage()                      = 0;
     virtual void Present()                               = 0;

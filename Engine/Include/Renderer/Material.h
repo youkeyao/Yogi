@@ -6,11 +6,25 @@
 namespace Yogi
 {
 
+// Serialization-friendly description of how a pipeline was built. Stored on the material so the
+// serializer can round-trip a material without reflecting back through the opaque IPipeline.
+struct PipelineData
+{
+    std::vector<std::string>             ShaderKeys;
+    std::vector<VertexAttribute>         VertexLayout;
+    std::vector<ShaderResourceAttribute> ShaderResourceLayout;
+    std::vector<PushConstantRange>       PushConstantRanges;
+    std::string                          RenderPassKey;
+    int                                  SubPassIndex = 0;
+    PrimitiveTopology                    Topology     = PrimitiveTopology::TriangleList;
+};
+
 class YG_API Material
 {
 public:
     struct MaterialPass
     {
+        PipelineData                PipelineInfo;
         WRef<IPipeline>             Pipeline;
         std::vector<WRef<ITexture>> Textures;
     };

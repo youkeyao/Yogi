@@ -72,9 +72,23 @@ public:
     inline const T& operator*() const noexcept { return *Get(); }
 
     inline bool operator==(const WRef& other) const noexcept { return m_cb == other.m_cb; }
+    inline bool operator!=(const WRef& other) const noexcept { return m_cb != other.m_cb; }
 
     inline explicit operator bool() const noexcept { return Get() != nullptr; }
     inline bool     Expired() const noexcept { return Get() == nullptr; }
+
+    inline int GetCount() const noexcept { return m_cb ? m_cb->GetCount() : 0; }
+
+    template <typename U>
+    WRef<U> DynamicCast() const noexcept
+    {
+        T* p = Get();
+        if (p == nullptr)
+            return WRef<U>{};
+        if (dynamic_cast<U*>(p) == nullptr)
+            return WRef<U>{};
+        return WRef<U>(m_cb);
+    }
 
     static WRef Create(const Owner<T>& owner) noexcept { return WRef(owner.m_cb); }
 

@@ -44,7 +44,7 @@ void MaterialEditorLayer::OnUpdate(Timestep ts)
                     {
                         if (ImGui::Selectable(key.c_str(), key == renderPassKey))
                         {
-                            pass.RenderPass = AssetManager::GetAsset<IRenderPass>(key);
+                            pass.RenderPass = AssetManager::AcquireAsset<IRenderPass>(key);
                             changed |= true;
                         }
                     }
@@ -134,7 +134,7 @@ void MaterialEditorLayer::OnUpdate(Timestep ts)
             if (fpath.extension().string() == ".mat")
             {
                 m_key      = path;
-                m_material = AssetManager::GetAsset<Material>(m_key);
+                m_material = AssetManager::AcquireAsset<Material>(m_key);
             }
         }
         ImGui::EndDragDropTarget();

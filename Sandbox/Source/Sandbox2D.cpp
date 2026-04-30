@@ -27,13 +27,10 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
 
     Yogi::AssetManager::PushAssetSource<Yogi::FileSystemSource>(".");
 
-    auto& swapChain = Yogi::Application::GetInstance().GetSwapChain();
-
-    auto renderPass = Yogi::ResourceManager::GetSharedResource<Yogi::IRenderPass>(Yogi::RenderPassDesc{
+    auto swapChain   = Yogi::Application::GetInstance().GetSwapChain();
+    auto renderPass  = Yogi::ResourceManager::AcquireSharedResource<Yogi::IRenderPass>(Yogi::RenderPassDesc{
         { Yogi::AttachmentDesc{ swapChain->GetColorFormat(), Yogi::ResourceState::Present } },
-        Yogi::AttachmentDesc{
-            Yogi::ITexture::Format::D32_FLOAT, Yogi::ResourceState::DepthRead, Yogi::LoadOp::Clear, Yogi::StoreOp::DontCare },
-        swapChain->GetNumSamples() });
+        Yogi::AttachmentDesc{ Yogi::ITexture::Format::D32_FLOAT, Yogi::ResourceState::DepthRead } });
 
     auto shaderResourceBinding = Yogi::ResourceManager::CreateResource<Yogi::IShaderResourceBinding>(
         std::vector<Yogi::ShaderResourceAttribute>{
@@ -50,22 +47,20 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
             Yogi::ShaderStage::Task | Yogi::ShaderStage::Mesh, 0, static_cast<uint32_t>(sizeof(SceneData)) } });
 
     // Yogi::WRef<Yogi::ShaderDesc> vertexShader =
-    //     Yogi::AssetManager::GetAsset<Yogi::ShaderDesc>("EngineAssets/Shaders/Test.vert");
+    //     Yogi::AssetManager::AcquireAsset<Yogi::ShaderDesc>("EngineAssets/Shaders/Test.vert");
     Yogi::WRef<Yogi::ShaderDesc> fragmentShader =
-        Yogi::AssetManager::GetAsset<Yogi::ShaderDesc>("EngineAssets/Shaders/Test.frag");
+        Yogi::AssetManager::AcquireAsset<Yogi::ShaderDesc>("EngineAssets/Shaders/Test.frag");
     Yogi::WRef<Yogi::ShaderDesc> taskShader =
-        Yogi::AssetManager::GetAsset<Yogi::ShaderDesc>("EngineAssets/Shaders/Test.task");
+        Yogi::AssetManager::AcquireAsset<Yogi::ShaderDesc>("EngineAssets/Shaders/Test.task");
     Yogi::WRef<Yogi::ShaderDesc> meshShader =
-        Yogi::AssetManager::GetAsset<Yogi::ShaderDesc>("EngineAssets/Shaders/Test.mesh");
-    std::vector<Yogi::View<Yogi::ShaderDesc>> shaders = { Yogi::View<Yogi::ShaderDesc>::Create(taskShader),
-                                                          Yogi::View<Yogi::ShaderDesc>::Create(meshShader),
-                                                          Yogi::View<Yogi::ShaderDesc>::Create(fragmentShader) };
+        Yogi::AssetManager::AcquireAsset<Yogi::ShaderDesc>("EngineAssets/Shaders/Test.mesh");
+    std::vector<const Yogi::ShaderDesc*> shaders = { taskShader.Get(), meshShader.Get(), fragmentShader.Get() };
 
-    auto pipeline = Yogi::ResourceManager::GetSharedResource<Yogi::IPipeline>(
+    auto pipeline = Yogi::ResourceManager::AcquireSharedResource<Yogi::IPipeline>(
         Yogi::PipelineDesc{ shaders,
                             {},
-                            Yogi::View<Yogi::IShaderResourceBinding>::Create(shaderResourceBinding),
-                            Yogi::View<Yogi::IRenderPass>::Create(renderPass),
+                            shaderResourceBinding.Get(),
+                            renderPass.Get(),
                             0,
                             Yogi::PrimitiveTopology::TriangleList });
 
@@ -73,13 +68,13 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
     m_world->AddSystem<Yogi::ForwardRenderSystem>();
 
     std::vector<Yogi::WRef<Yogi::Mesh>> meshes = {
-        Yogi::AssetManager::GetAsset<Yogi::Mesh>("EngineAssets/Meshes/Armadillo.obj::defaultobject"),
-        Yogi::AssetManager::GetAsset<Yogi::Mesh>("EngineAssets/Meshes/Cube.obj::cube"),
-        Yogi::AssetManager::GetAsset<Yogi::Mesh>("EngineAssets/Meshes/Bunny.obj::defaultobject")
+        Yogi::AssetManager::AcquireAsset<Yogi::Mesh>("EngineAssets/Meshes/Armadillo.obj::defaultobject"),
+        Yogi::AssetManager::AcquireAsset<Yogi::Mesh>("EngineAssets/Meshes/Cube.obj::cube"),
+        Yogi::AssetManager::AcquireAsset<Yogi::Mesh>("EngineAssets/Meshes/Bunny.obj::defaultobject")
     };
 
     Yogi::WRef<Yogi::Material> material = Yogi::ResourceManager::CreateResource<Yogi::Material>();
-    material->AddPass(Yogi::Material::MaterialPass{ pipeline, {} });
+    material->AddPass(Yogi::Material::MaterialPass{ {}, pipeline, {} });
 
     srand(41);
     for (int i = 0; i < 1000; i++)
@@ -116,7 +111,7 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
     // m_box = m_world->CreateEntity();
     // m_box.AddComponent<Yogi::TransformComponent>();
     // auto& meshRenderer = m_box.AddComponent<Yogi::MeshRendererComponent>();
-    // meshRenderer.Mesh  = Yogi::AssetManager::GetAsset<Yogi::Mesh>("EngineAssets/Meshes/Armadillo.obj::defaultobject");
+    // meshRenderer.Mesh  = Yogi::AssetManager::AcquireAsset<Yogi::Mesh>("EngineAssets/Meshes/Armadillo.obj::defaultobject");
     // Yogi::WRef<Yogi::Material> material = Yogi::ResourceManager::GetResource<Yogi::Material>();
     // material->AddPass(Yogi::Material::MaterialPass{ pipeline, {} });
     // meshRenderer.Material = material;
@@ -124,7 +119,7 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
     // entity                                                             = m_world->CreateEntity();
     // entity.AddComponent<Yogi::TransformComponent>().Transform.Position = { 2, 0, 0 };
     // auto& mr    = entity.AddComponent<Yogi::MeshRendererComponent>();
-    // mr.Mesh     = Yogi::AssetManager::GetAsset<Yogi::Mesh>("EngineAssets/Meshes/Cube.obj::cube");
+    // mr.Mesh     = Yogi::AssetManager::AcquireAsset<Yogi::Mesh>("EngineAssets/Meshes/Cube.obj::cube");
     // mr.Material = material;
 
     // entity                        = m_world->CreateEntity();
@@ -132,7 +127,7 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
     // transform2.Transform.Position = { -2, 0, 0 };
     // transform2.Transform.Scale    = { 5.f, 5.f, 5.f };
     // auto& mr1                     = entity.AddComponent<Yogi::MeshRendererComponent>();
-    // mr1.Mesh     = Yogi::AssetManager::GetAsset<Yogi::Mesh>("EngineAssets/Meshes/Bunny.obj::defaultobject");
+    // mr1.Mesh     = Yogi::AssetManager::AcquireAsset<Yogi::Mesh>("EngineAssets/Meshes/Bunny.obj::defaultobject");
     // mr1.Material = material;
 }
 

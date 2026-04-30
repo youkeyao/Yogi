@@ -5,6 +5,8 @@
 #include "VulkanShaderResourceBinding.h"
 #include "VulkanUtils.h"
 
+#include "Math/MathUtils.h"
+
 #include <volk.h>
 
 namespace Yogi
@@ -20,7 +22,7 @@ VulkanCommandBuffer::VulkanCommandBuffer(const CommandBufferDesc& desc) :
     m_usage(desc.Usage),
     m_queue(desc.Queue)
 {
-    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
 
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -45,7 +47,7 @@ VulkanCommandBuffer::VulkanCommandBuffer(const CommandBufferDesc& desc) :
 
 VulkanCommandBuffer::~VulkanCommandBuffer()
 {
-    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
     if (m_commandBuffer != VK_NULL_HANDLE)
     {
         Wait();
@@ -80,8 +82,8 @@ void VulkanCommandBuffer::Submit()
 {
     YG_PROFILE_FUNCTION();
 
-    VulkanDeviceContext* context   = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
-    VulkanSwapChain*     swapChain = static_cast<VulkanSwapChain*>(Application::GetInstance().GetSwapChain().Get());
+    VulkanDeviceContext* context   = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
+    VulkanSwapChain*     swapChain = static_cast<VulkanSwapChain*>(Application::GetInstance().GetSwapChain());
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -127,27 +129,27 @@ void VulkanCommandBuffer::Wait()
 
     if (m_submitted)
     {
-        VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+        VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
         vkWaitForFences(context->GetVkDevice(), 1, &m_commandFence, VK_TRUE, UINT64_MAX);
         vkResetFences(context->GetVkDevice(), 1, &m_commandFence);
         m_submitted = false;
     }
 }
 
-void VulkanCommandBuffer::BeginRenderPass(View<IRenderPass>              renderPass,
-                                          View<IFrameBuffer>             frameBuffer,
+void VulkanCommandBuffer::BeginRenderPass(const IRenderPass*             renderPass,
+                                          const IFrameBuffer*            frameBuffer,
                                           const std::vector<ClearValue>& colorClearValues,
                                           const ClearValue&              depthClearValue)
 {
-    View<VulkanFrameBuffer> vkFrameBuffer = View<VulkanFrameBuffer>::Cast(frameBuffer);
-    View<VulkanRenderPass>  vkRenderPass  = View<VulkanRenderPass>::Cast(renderPass);
-    SampleCountFlagBits     numSamples    = vkRenderPass->GetDesc().NumSamples;
-    VkRenderPassBeginInfo   renderPassInfo{};
+    const VulkanFrameBuffer& vkFrameBuffer = *static_cast<const VulkanFrameBuffer*>(frameBuffer);
+    const VulkanRenderPass&  vkRenderPass  = *static_cast<const VulkanRenderPass*>(renderPass);
+    SampleCountFlagBits      numSamples    = vkRenderPass.GetDesc().NumSamples;
+    VkRenderPassBeginInfo    renderPassInfo{};
     renderPassInfo.sType             = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    renderPassInfo.renderPass        = vkRenderPass->GetVkRenderPass();
-    renderPassInfo.framebuffer       = vkFrameBuffer->GetVkFrameBuffer();
+    renderPassInfo.renderPass        = vkRenderPass.GetVkRenderPass();
+    renderPassInfo.framebuffer       = vkFrameBuffer.GetVkFrameBuffer();
     renderPassInfo.renderArea.offset = { 0, 0 };
-    renderPassInfo.renderArea.extent = { vkFrameBuffer->GetWidth(), vkFrameBuffer->GetHeight() };
+    renderPassInfo.renderArea.extent = { vkFrameBuffer.GetWidth(), vkFrameBuffer.GetHeight() };
     std::vector<VkClearValue> vkClearValues;
     for (size_t i = 0; i < colorClearValues.size(); ++i)
     {
@@ -161,7 +163,7 @@ void VulkanCommandBuffer::BeginRenderPass(View<IRenderPass>              renderP
             vkClearValues.push_back(vkClearValue);
         }
     }
-    if (vkFrameBuffer->HasDepthAttachment())
+    if (vkFrameBuffer.HasDepthAttachment())
     {
         vkClearValues.push_back(VkClearValue{
             depthClearValue.Color[0], depthClearValue.Color[1], depthClearValue.Color[2], depthClearValue.Color[3] });
@@ -176,26 +178,26 @@ void VulkanCommandBuffer::EndRenderPass()
     vkCmdEndRenderPass(m_commandBuffer);
 }
 
-void VulkanCommandBuffer::SetPipeline(View<IPipeline> pipeline)
+void VulkanCommandBuffer::SetPipeline(const IPipeline* pipeline)
 {
-    View<VulkanPipeline> vkPipeline = View<VulkanPipeline>::Cast(pipeline);
-    m_currentBindPoint = pipeline->GetDesc().Type == PipelineType::Compute ? VK_PIPELINE_BIND_POINT_COMPUTE :
-                                                                             VK_PIPELINE_BIND_POINT_GRAPHICS;
-    vkCmdBindPipeline(m_commandBuffer, m_currentBindPoint, vkPipeline->GetVkPipeline());
+    const VulkanPipeline& vkPipeline = *static_cast<const VulkanPipeline*>(pipeline);
+    m_currentBindPoint =
+        pipeline->GetType() == PipelineType::Compute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS;
+    vkCmdBindPipeline(m_commandBuffer, m_currentBindPoint, vkPipeline.GetVkPipeline());
 }
 
-void VulkanCommandBuffer::SetVertexBuffer(View<IBuffer> buffer, uint32_t offset)
+void VulkanCommandBuffer::SetVertexBuffer(const IBuffer* buffer, uint32_t offset)
 {
-    View<VulkanBuffer> vkBuffer        = View<VulkanBuffer>::Cast(buffer);
-    VkBuffer           vertexBuffers[] = { vkBuffer->GetVkBuffer() };
-    VkDeviceSize       offsets[]       = { offset };
+    const VulkanBuffer& vkBuffer        = *static_cast<const VulkanBuffer*>(buffer);
+    VkBuffer            vertexBuffers[] = { vkBuffer.GetVkBuffer() };
+    VkDeviceSize        offsets[]       = { offset };
     vkCmdBindVertexBuffers(m_commandBuffer, 0, 1, vertexBuffers, offsets);
 }
 
-void VulkanCommandBuffer::SetIndexBuffer(View<IBuffer> buffer, uint32_t offset)
+void VulkanCommandBuffer::SetIndexBuffer(const IBuffer* buffer, uint32_t offset)
 {
-    View<VulkanBuffer> vkBuffer = View<VulkanBuffer>::Cast(buffer);
-    vkCmdBindIndexBuffer(m_commandBuffer, vkBuffer->GetVkBuffer(), offset, VK_INDEX_TYPE_UINT32);
+    const VulkanBuffer& vkBuffer = *static_cast<const VulkanBuffer*>(buffer);
+    vkCmdBindIndexBuffer(m_commandBuffer, vkBuffer.GetVkBuffer(), offset, VK_INDEX_TYPE_UINT32);
 }
 
 void VulkanCommandBuffer::SetViewport(const Viewport& viewport)
@@ -218,24 +220,24 @@ void VulkanCommandBuffer::SetScissor(const Scissor& scissor)
     vkCmdSetScissor(m_commandBuffer, 0, 1, &vkScissor);
 }
 
-void VulkanCommandBuffer::SetShaderResourceBinding(View<IShaderResourceBinding> binding)
+void VulkanCommandBuffer::SetShaderResourceBinding(const IShaderResourceBinding* binding)
 {
-    View<VulkanShaderResourceBinding> vkBinding = View<VulkanShaderResourceBinding>::Cast(binding);
+    const VulkanShaderResourceBinding& vkBinding = *static_cast<const VulkanShaderResourceBinding*>(binding);
 
-    VkDescriptorSet set = vkBinding->GetVkDescriptorSet();
+    VkDescriptorSet set = vkBinding.GetVkDescriptorSet();
     vkCmdBindDescriptorSets(
-        m_commandBuffer, m_currentBindPoint, vkBinding->GetVkPipelineLayout(), 0, 1, &set, 0, nullptr);
+        m_commandBuffer, m_currentBindPoint, vkBinding.GetVkPipelineLayout(), 0, 1, &set, 0, nullptr);
 }
 
-void VulkanCommandBuffer::SetPushConstants(View<IShaderResourceBinding> binding,
-                                           ShaderStage                  stage,
-                                           uint32_t                     offset,
-                                           uint32_t                     size,
-                                           const void*                  data)
+void VulkanCommandBuffer::SetPushConstants(const IShaderResourceBinding* binding,
+                                           ShaderStage                   stage,
+                                           uint32_t                      offset,
+                                           uint32_t                      size,
+                                           const void*                   data)
 {
-    View<VulkanShaderResourceBinding> vkBinding = View<VulkanShaderResourceBinding>::Cast(binding);
+    const VulkanShaderResourceBinding& vkBinding = *static_cast<const VulkanShaderResourceBinding*>(binding);
     vkCmdPushConstants(
-        m_commandBuffer, vkBinding->GetVkPipelineLayout(), YgShaderStage2VkShaderStage(stage), offset, size, data);
+        m_commandBuffer, vkBinding.GetVkPipelineLayout(), YgShaderStage2VkShaderStage(stage), offset, size, data);
 }
 
 void VulkanCommandBuffer::Draw(uint32_t vertexCount,
@@ -260,28 +262,28 @@ void VulkanCommandBuffer::DrawMeshTasks(uint32_t groupCountX, uint32_t groupCoun
     vkCmdDrawMeshTasksEXT(m_commandBuffer, groupCountX, groupCountY, groupCountZ);
 }
 
-void VulkanCommandBuffer::DrawMeshTasksIndirect(View<IBuffer> indirectBuffer,
-                                                uint32_t      offset,
-                                                uint32_t      drawCount,
-                                                uint32_t      stride)
+void VulkanCommandBuffer::DrawMeshTasksIndirect(const IBuffer* indirectBuffer,
+                                                uint32_t       offset,
+                                                uint32_t       drawCount,
+                                                uint32_t       stride)
 {
-    View<VulkanBuffer> vkIndirectBuffer = View<VulkanBuffer>::Cast(indirectBuffer);
-    vkCmdDrawMeshTasksIndirectEXT(m_commandBuffer, vkIndirectBuffer->GetVkBuffer(), offset, drawCount, stride);
+    const VulkanBuffer& vkIndirectBuffer = *static_cast<const VulkanBuffer*>(indirectBuffer);
+    vkCmdDrawMeshTasksIndirectEXT(m_commandBuffer, vkIndirectBuffer.GetVkBuffer(), offset, drawCount, stride);
 }
 
-void VulkanCommandBuffer::DrawMeshTasksIndirectCount(View<IBuffer> indirectBuffer,
-                                                     uint32_t      indirectOffset,
-                                                     View<IBuffer> countBuffer,
-                                                     uint32_t      countOffset,
-                                                     uint32_t      maxDrawCount,
-                                                     uint32_t      stride)
+void VulkanCommandBuffer::DrawMeshTasksIndirectCount(const IBuffer* indirectBuffer,
+                                                     uint32_t       indirectOffset,
+                                                     const IBuffer* countBuffer,
+                                                     uint32_t       countOffset,
+                                                     uint32_t       maxDrawCount,
+                                                     uint32_t       stride)
 {
-    View<VulkanBuffer> vkIndirectBuffer = View<VulkanBuffer>::Cast(indirectBuffer);
-    View<VulkanBuffer> vkCountBuffer    = View<VulkanBuffer>::Cast(countBuffer);
+    const VulkanBuffer& vkIndirectBuffer = *static_cast<const VulkanBuffer*>(indirectBuffer);
+    const VulkanBuffer& vkCountBuffer    = *static_cast<const VulkanBuffer*>(countBuffer);
     vkCmdDrawMeshTasksIndirectCountEXT(m_commandBuffer,
-                                       vkIndirectBuffer->GetVkBuffer(),
+                                       vkIndirectBuffer.GetVkBuffer(),
                                        indirectOffset,
-                                       vkCountBuffer->GetVkBuffer(),
+                                       vkCountBuffer.GetVkBuffer(),
                                        countOffset,
                                        maxDrawCount,
                                        stride);
@@ -296,7 +298,7 @@ void VulkanCommandBuffer::Barrier(const BarrierDesc& barrierDesc)
 {
     if (barrierDesc.Texture)
     {
-        View<VulkanTexture> vkTexture = View<VulkanTexture>::Cast(barrierDesc.Texture);
+        const VulkanTexture* vkTexture = static_cast<const VulkanTexture*>(barrierDesc.Texture);
 
         VkImageLayout oldLayout =
             YgResourceState2VkImageLayout(barrierDesc.BeforeState, barrierDesc.Texture->GetUsage());
@@ -332,7 +334,7 @@ void VulkanCommandBuffer::Barrier(const BarrierDesc& barrierDesc)
 
     else if (barrierDesc.Buffer)
     {
-        View<VulkanBuffer> vkBuffer = View<VulkanBuffer>::Cast(barrierDesc.Buffer);
+        const VulkanBuffer* vkBuffer = static_cast<const VulkanBuffer*>(barrierDesc.Buffer);
 
         VkBufferMemoryBarrier barrier{};
         barrier.sType               = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
@@ -366,22 +368,19 @@ void VulkanCommandBuffer::Barrier(const BarrierDesc& barrierDesc)
     }
 }
 
-void VulkanCommandBuffer::Blit(View<ITexture> src, View<ITexture> dst, const BlitDesc& blitDesc)
+void VulkanCommandBuffer::Blit(const ITexture* src, const ITexture* dst, const BlitDesc& blitDesc)
 {
-    if (!src || !dst)
-        return;
-
     YG_CORE_ASSERT(blitDesc.LayerCount > 0, "Vulkan: Blit layer count must be greater than zero!");
     YG_CORE_ASSERT(blitDesc.SrcMipLevel < src->GetMipLevels(), "Vulkan: Source mip level out of range!");
     YG_CORE_ASSERT(blitDesc.DstMipLevel < dst->GetMipLevels(), "Vulkan: Destination mip level out of range!");
     YG_CORE_ASSERT(blitDesc.SrcBaseArrayLayer == 0 && blitDesc.DstBaseArrayLayer == 0 && blitDesc.LayerCount == 1,
                    "Vulkan: Barrier-based blit currently supports only single-layer textures.");
 
-    View<VulkanTexture> vkSrc = View<VulkanTexture>::Cast(src);
-    View<VulkanTexture> vkDst = View<VulkanTexture>::Cast(dst);
+    const VulkanTexture& vkSrc = *static_cast<const VulkanTexture*>(src);
+    const VulkanTexture& vkDst = *static_cast<const VulkanTexture*>(dst);
 
     auto mipExtent = [](uint32_t width, uint32_t height, uint32_t mip) {
-        return std::pair<uint32_t, uint32_t>{ std::max(1u, width >> mip), std::max(1u, height >> mip) };
+        return std::pair<uint32_t, uint32_t>{ MathUtils::Max(1u, width >> mip), MathUtils::Max(1u, height >> mip) };
     };
 
     auto [srcMipWidth, srcMipHeight] = mipExtent(src->GetWidth(), src->GetHeight(), blitDesc.SrcMipLevel);
@@ -391,24 +390,24 @@ void VulkanCommandBuffer::Blit(View<ITexture> src, View<ITexture> dst, const Bli
     uint32_t dstWidth                = blitDesc.DstWidth == 0 ? dstMipWidth : blitDesc.DstWidth;
     uint32_t dstHeight               = blitDesc.DstHeight == 0 ? dstMipHeight : blitDesc.DstHeight;
 
-    auto inferReadableState = [](View<ITexture> texture) {
-        if (texture->GetUsage() == ITexture::Usage::DepthStencil)
+    auto inferReadableState = [](const ITexture& texture) {
+        if (texture.GetUsage() == ITexture::Usage::DepthStencil)
             return ResourceState::DepthRead;
         return ResourceState::FragmentShaderResource;
     };
 
-    auto inferWritableState = [](View<ITexture> texture) {
-        if (texture->GetUsage() == ITexture::Usage::DepthStencil)
+    auto inferWritableState = [](const ITexture& texture) {
+        if (texture.GetUsage() == ITexture::Usage::DepthStencil)
             return ResourceState::DepthWrite;
-        if (texture->GetUsage() == ITexture::Usage::RenderTarget)
+        if (texture.GetUsage() == ITexture::Usage::RenderTarget)
             return ResourceState::Present;
-        if (texture->GetUsage() == ITexture::Usage::Storage)
+        if (texture.GetUsage() == ITexture::Usage::Storage)
             return ResourceState::UnorderedAccess;
         return ResourceState::FragmentShaderResource;
     };
 
-    ResourceState srcStableState = inferReadableState(src);
-    ResourceState dstStableState = inferWritableState(dst);
+    ResourceState srcStableState = inferReadableState(*src);
+    ResourceState dstStableState = inferWritableState(*dst);
 
     VkImageAspectFlags srcAspect =
         src->GetUsage() == ITexture::Usage::DepthStencil ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
@@ -437,9 +436,9 @@ void VulkanCommandBuffer::Blit(View<ITexture> src, View<ITexture> dst, const Bli
         blit.dstOffsets[1]                 = { (int32_t)dstWidth, (int32_t)dstHeight, 1 };
 
         vkCmdBlitImage(m_commandBuffer,
-                       vkSrc->GetVkImage(),
+                       vkSrc.GetVkImage(),
                        YgResourceState2VkImageLayout(ResourceState::CopySource, src->GetUsage()),
-                       vkDst->GetVkImage(),
+                       vkDst.GetVkImage(),
                        YgResourceState2VkImageLayout(ResourceState::CopyDestination, dst->GetUsage()),
                        1,
                        &blit,
@@ -448,8 +447,8 @@ void VulkanCommandBuffer::Blit(View<ITexture> src, View<ITexture> dst, const Bli
                            VK_FILTER_LINEAR);
 
         Barrier(BarrierDesc{ src, nullptr, ResourceState::CopySource, srcStableState, 0, 0, blitDesc.SrcMipLevel, 1 });
-        Barrier(
-            BarrierDesc{ dst, nullptr, ResourceState::CopyDestination, dstStableState, 0, 0, blitDesc.DstMipLevel, 1 });
+        Barrier(BarrierDesc{
+            dst, nullptr, ResourceState::CopyDestination, dstStableState, 0, 0, blitDesc.DstMipLevel, 1 });
         return;
     }
 

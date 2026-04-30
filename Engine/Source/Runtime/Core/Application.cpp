@@ -19,7 +19,7 @@ Application::Application(const std::string& name)
     m_window = Window::Create(WindowProps{ name, 1280, 720 });
     m_window->SetEventCallback(YG_BIND_FN(Application::OnEvent));
 
-    m_context   = Owner<IDeviceContext>::Create(View<Window>::Create(m_window));
+    m_context   = Owner<IDeviceContext>::Create(m_window.Get());
     m_swapChain = Owner<ISwapChain>::Create(SwapChainDesc{ m_window->GetWidth(),
                                                            m_window->GetHeight(),
                                                            ITexture::Format::B8G8R8A8_UNORM,
@@ -54,7 +54,7 @@ void Application::PushLayer(Owner<Layer>&& layer)
     m_layers.push_back(std::move(layer));
 }
 
-WRef<Layer> Application::GetLayer(const std::string& name)
+WRef<Layer> Application::AcquireLayer(const std::string& name)
 {
     for (auto& layer : m_layers)
     {

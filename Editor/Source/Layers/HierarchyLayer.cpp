@@ -11,7 +11,7 @@ namespace Yogi
 
 HierarchyLayer::HierarchyLayer() : Layer("Hierarchy Layer")
 {
-    m_viewportLayer = WRef<ViewportLayer>::Cast(Application::GetInstance().GetLayer("Viewport Layer"));
+    m_viewportLayer = WRef<ViewportLayer>::Cast(Application::GetInstance().AcquireLayer("Viewport Layer"));
 }
 
 HierarchyLayer::~HierarchyLayer() { m_allEntities.clear(); }
@@ -367,7 +367,7 @@ void HierarchyLayer::DrawField(Field& field, uint8_t* component)
             {
                 if (ImGui::Selectable(key.c_str(), meshKey == key))
                 {
-                    mesh = AssetManager::GetAsset<Mesh>(key);
+                    mesh = AssetManager::AcquireAsset<Mesh>(key);
                 }
             }
             ImGui::EndCombo();
@@ -383,7 +383,7 @@ void HierarchyLayer::DrawField(Field& field, uint8_t* component)
             {
                 if (ImGui::Selectable(key.c_str(), materialKey == key))
                 {
-                    material = AssetManager::GetAsset<Material>(key);
+                    material = AssetManager::AcquireAsset<Material>(key);
                 }
             }
             ImGui::EndCombo();

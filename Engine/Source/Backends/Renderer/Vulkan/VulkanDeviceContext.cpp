@@ -9,7 +9,7 @@
 namespace Yogi
 {
 
-Owner<IDeviceContext> IDeviceContext::Create(View<Window> window)
+Owner<IDeviceContext> IDeviceContext::Create(const Window* window)
 {
     return Owner<VulkanDeviceContext>::Create(window);
 }
@@ -31,7 +31,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityF
     return VK_FALSE;
 }
 
-VulkanDeviceContext::VulkanDeviceContext(View<Window> window)
+VulkanDeviceContext::VulkanDeviceContext(const Window* window)
 {
     volkInitialize();
     CreateVkInstance();
@@ -150,7 +150,7 @@ void VulkanDeviceContext::CreateVkInstance()
 #endif
 }
 
-void VulkanDeviceContext::CreateVkSurface(View<Window> window)
+void VulkanDeviceContext::CreateVkSurface(const Window* window)
 {
     VkResult result = VK_ERROR_INITIALIZATION_FAILED;
 #ifdef YG_WINDOW_GLFW
@@ -205,16 +205,21 @@ void VulkanDeviceContext::CreateLogicalDevice()
     VkPhysicalDeviceFeatures deviceFeatures{};
     deviceFeatures.independentBlend  = VK_TRUE;
     deviceFeatures.multiDrawIndirect = VK_TRUE;
+
+    VkPhysicalDeviceFeatures2 deviceFeatures2{};
+    deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
     VkPhysicalDeviceVulkan11Features vulkan11Features{};
     vulkan11Features.sType                    = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
     vulkan11Features.shaderDrawParameters     = VK_TRUE;
     vulkan11Features.storageBuffer16BitAccess = VK_TRUE;
+    deviceFeatures2.pNext                     = &vulkan11Features;
     VkPhysicalDeviceVulkan12Features vulkan12Features{};
     vulkan12Features.sType                   = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
     vulkan12Features.storageBuffer8BitAccess = VK_TRUE;
     vulkan12Features.shaderFloat16           = VK_TRUE;
     vulkan12Features.shaderInt8              = VK_TRUE;
     vulkan12Features.drawIndirectCount       = VK_TRUE;
+    vulkan12Features.samplerFilterMinmax     = VK_TRUE;
     vulkan11Features.pNext                   = &vulkan12Features;
     VkPhysicalDeviceExtendedDynamicStateFeaturesEXT extendedFeature{};
     extendedFeature.sType                = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT;

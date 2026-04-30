@@ -7,11 +7,11 @@ namespace Yogi
 
 struct FrameBufferDesc
 {
-    uint32_t                    Width;
-    uint32_t                    Height;
-    View<IRenderPass>           RenderPass;
-    std::vector<View<ITexture>> ColorAttachments;
-    View<ITexture>              DepthAttachment;
+    uint32_t                     Width;
+    uint32_t                     Height;
+    const IRenderPass*           RenderPass = nullptr;
+    std::vector<const ITexture*> ColorAttachments;
+    const ITexture*              DepthAttachment = nullptr;
 };
 
 class YG_API IFrameBuffer

@@ -18,13 +18,13 @@ public:
     inline ITexture::Format    GetColorFormat() const override { return m_colorFormat; }
     inline SampleCountFlagBits GetNumSamples() const override { return m_numSamples; }
 
-    WRef<ITexture> GetCurrentTarget() const override
+    ITexture* GetCurrentTarget() const override
     {
-        return WRef<VulkanTexture>::Create(m_colorTextures[m_imageIndex]);
+        return m_colorTextures[m_imageIndex].Get();
     }
-    WRef<ICommandBuffer> GetCurrentCommandBuffer() const override
+    ICommandBuffer* GetCurrentCommandBuffer() const override
     {
-        return WRef<VulkanCommandBuffer>::Create(m_commandBuffers[m_currentFrame]);
+        return m_commandBuffers[m_currentFrame].Get();
     }
 
     void AcquireNextImage() override;

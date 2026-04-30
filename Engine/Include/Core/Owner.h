@@ -30,6 +30,8 @@ public:
         m_alive = false;
     }
 
+    int GetCount() const noexcept { return m_count; }
+
     template <typename T>
     T* PtrAs() const noexcept
     {

@@ -73,7 +73,7 @@ public:
     }
 
     template <typename T, typename... Args>
-    static WRef<T> GetSharedResource(Args&&... args)
+    static WRef<T> AcquireSharedResource(Args&&... args)
     {
         auto&    resourceMap = GetResourceMap<T>();
         uint64_t key         = HashArgs(std::forward<Args>(args)...);

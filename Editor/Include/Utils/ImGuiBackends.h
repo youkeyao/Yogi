@@ -17,25 +17,22 @@
 #    define IMGUI_IMPL_VULKAN_NO_PROTOTYPES
 #    include <backends/imgui_impl_vulkan.h>
 
-inline void ImGuiImage(Yogi::View<Yogi::ITexture>               texture,
-                       Yogi::View<Yogi::IShaderResourceBinding> shaderResourceBinding,
-                       const ImVec2&                           size,
-                       const ImVec2&                           uv0 = { 0, 0 },
-                       const ImVec2&                           uv1 = { 1, 1 })
+inline void ImGuiImage(const Yogi::ITexture&               texture,
+                       const Yogi::IShaderResourceBinding& shaderResourceBinding,
+                       const ImVec2&                       size,
+                       const ImVec2&                       uv0 = { 0, 0 },
+                       const ImVec2&                       uv1 = { 1, 1 })
 {
-    if (!texture)
-        return;
-
     Yogi::Owner<Yogi::ICommandBuffer> commandBuffer = Yogi::Owner<Yogi::ICommandBuffer>::Create(
         Yogi::CommandBufferDesc{ Yogi::CommandBufferUsage::OneTimeSubmit, Yogi::SubmitQueue::Graphics });
     commandBuffer->Begin();
-    commandBuffer->Blit(texture, texture);
+    commandBuffer->Blit(&texture, &texture);
     commandBuffer->End();
     commandBuffer->Submit();
 
-    Yogi::VulkanShaderResourceBinding* vkSRB =
-        static_cast<Yogi::VulkanShaderResourceBinding*>(shaderResourceBinding.Get());
-    ImGui::Image((void*)(intptr_t)vkSRB->GetVkDescriptorSet(),
+    const Yogi::VulkanShaderResourceBinding& vkSRB =
+        static_cast<const Yogi::VulkanShaderResourceBinding&>(shaderResourceBinding);
+    ImGui::Image((void*)(intptr_t)vkSRB.GetVkDescriptorSet(),
                  size,
                  uv0,
                  uv1,

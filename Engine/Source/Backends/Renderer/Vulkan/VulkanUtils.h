@@ -38,7 +38,7 @@ struct SwapChainSupportDetails
 };
 SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surface);
 VkPresentModeKHR        ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
-VkExtent2D              ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, View<Window> window);
+VkExtent2D              ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, const Window& window);
 
 uint32_t FindMemoryType(uint32_t typeFilter, VkPhysicalDevice physicalDevice, VkMemoryPropertyFlags properties);
 

@@ -4,7 +4,10 @@
 namespace Yogi
 {
 
-ImGuiEndLayer::ImGuiEndLayer() : Layer("ImGuiEndLayer") { RendererInit(); }
+ImGuiEndLayer::ImGuiEndLayer() : Layer("ImGuiEndLayer")
+{
+    RendererInit();
+}
 
 ImGuiEndLayer::~ImGuiEndLayer()
 {
@@ -56,13 +59,13 @@ void ImGuiEndLayer::WindowShutdown()
 void ImGuiEndLayer::RendererInit()
 {
 #ifdef YG_RENDERER_VULKAN
-    ImGui_ImplVulkan_InitInfo initInfo = {};
-    VulkanDeviceContext* context   = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
-    VulkanSwapChain*     swapChain = static_cast<VulkanSwapChain*>(Application::GetInstance().GetSwapChain().Get());
+    ImGui_ImplVulkan_InitInfo initInfo  = {};
+    VulkanDeviceContext*      context   = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
+    VulkanSwapChain*          swapChain = static_cast<VulkanSwapChain*>(Application::GetInstance().GetSwapChain());
 
     VkExtent2D extent = { swapChain->GetWidth(), swapChain->GetHeight() };
 
-    m_renderPass = ResourceManager::GetSharedResource<IRenderPass>(
+    m_renderPass = ResourceManager::AcquireSharedResource<IRenderPass>(
         RenderPassDesc{ { AttachmentDesc{ swapChain->GetColorFormat(), ResourceState::Present } },
                         AttachmentDesc{ ITexture::Format::NONE, ResourceState::FragmentShaderResource },
                         swapChain->GetNumSamples() });
@@ -94,21 +97,22 @@ void ImGuiEndLayer::RendererDraw()
 {
     ImDrawData* mainDrawData = ImGui::GetDrawData();
 #ifdef YG_RENDERER_VULKAN
-    auto&           swapChain     = Application::GetInstance().GetSwapChain();
+    auto            swapChain     = Application::GetInstance().GetSwapChain();
     auto            currentTarget = swapChain->GetCurrentTarget();
     FrameBufferDesc desc{
-        swapChain->GetWidth(), swapChain->GetHeight(), m_renderPass, { currentTarget }, nullptr,
+        swapChain->GetWidth(), swapChain->GetHeight(), m_renderPass.Get(), { currentTarget }, nullptr,
     };
     uint64_t key = HashArgs(desc);
     auto     it  = m_frameBuffers.find(key);
     if (it == m_frameBuffers.end())
     {
-        it = m_frameBuffers.insert({ key, ResourceManager::GetSharedResource<IFrameBuffer>(desc) }).first;
+        it = m_frameBuffers.insert({ key, ResourceManager::AcquireSharedResource<IFrameBuffer>(desc) }).first;
     }
     auto& frameBuffer = it->second;
 
     m_commandBuffer->Begin();
-    m_commandBuffer->BeginRenderPass(frameBuffer, { ClearValue{ 0.1f, 0.1f, 0.1f, 1.0f } }, ClearValue{ 1.0f, 0 });
+    m_commandBuffer->BeginRenderPass(
+        m_renderPass.Get(), frameBuffer.Get(), { ClearValue{ 0.1f, 0.1f, 0.1f, 1.0f } }, ClearValue{ 1.0f, 0 });
     ImGui_ImplVulkan_RenderDrawData(mainDrawData,
                                     static_cast<VulkanCommandBuffer*>(m_commandBuffer.Get())->GetVkCommandBuffer());
     m_commandBuffer->EndRenderPass();

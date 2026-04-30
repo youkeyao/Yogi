@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Core/View.h"
 #include "Resources/AssetManager/IAssetSource.h"
 #include "Resources/AssetManager/Serializer/AssetSerializer.h"
 
@@ -114,7 +113,7 @@ public:
     }
 
     template <typename T>
-    static WRef<T> GetAsset(const std::string& key)
+    static WRef<T> AcquireAsset(const std::string& key)
     {
         auto& assetMap = GetAssetMap<T>();
         auto  it       = assetMap.find(key);
@@ -167,9 +166,9 @@ public:
     }
 
     template <typename T>
-    static std::string GetAssetKey(const View<T>& asset)
+    static std::string GetAssetKey(const T* asset)
     {
-        return FindAssetKeyOrEmpty<T>(GetAssetIdentity(asset));
+        return FindAssetKeyOrEmpty<T>(static_cast<const void*>(asset));
     }
 
     template <typename T, typename SerializerType>
@@ -197,7 +196,7 @@ public:
         s_sources.pop_back();
     }
 
-    static WRef<IAssetSource> GetAssetSource(int sourceIndex = 0)
+    static WRef<IAssetSource> AcquireAssetSource(int sourceIndex = 0)
     {
         if (sourceIndex < 0 || sourceIndex >= static_cast<int>(s_sources.size()))
         {
@@ -298,12 +297,6 @@ protected:
 
     template <typename T>
     static const void* GetAssetIdentity(const WRef<T>& asset)
-    {
-        return asset.Get();
-    }
-
-    template <typename T>
-    static const void* GetAssetIdentity(const View<T>& asset)
     {
         return asset.Get();
     }

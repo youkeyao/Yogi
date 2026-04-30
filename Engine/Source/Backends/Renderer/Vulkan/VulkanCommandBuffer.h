@@ -18,23 +18,23 @@ public:
     void Submit() override;
     void Wait() override;
 
-    void BeginRenderPass(View<IRenderPass>              renderPass,
-                         View<IFrameBuffer>             frameBuffer,
+    void BeginRenderPass(const IRenderPass*             renderPass,
+                         const IFrameBuffer*            frameBuffer,
                          const std::vector<ClearValue>& colorClearValues,
                          const ClearValue&              depthClearValue) override;
     void EndRenderPass() override;
 
-    void SetPipeline(View<IPipeline> pipeline) override;
-    void SetVertexBuffer(View<IBuffer> buffer, uint32_t offset = 0) override;
-    void SetIndexBuffer(View<IBuffer> buffer, uint32_t offset = 0) override;
+    void SetPipeline(const IPipeline* pipeline) override;
+    void SetVertexBuffer(const IBuffer* buffer, uint32_t offset = 0) override;
+    void SetIndexBuffer(const IBuffer* buffer, uint32_t offset = 0) override;
     void SetViewport(const Viewport& viewport) override;
     void SetScissor(const Scissor& scissor) override;
-    void SetShaderResourceBinding(View<IShaderResourceBinding> binding) override;
-    void SetPushConstants(View<IShaderResourceBinding> binding,
-                          ShaderStage                  stage,
-                          uint32_t                     offset,
-                          uint32_t                     size,
-                          const void*                  data) override;
+    void SetShaderResourceBinding(const IShaderResourceBinding* binding) override;
+    void SetPushConstants(const IShaderResourceBinding* binding,
+                          ShaderStage                   stage,
+                          uint32_t                      offset,
+                          uint32_t                      size,
+                          const void*                   data) override;
 
     void Draw(uint32_t vertexCount,
               uint32_t instanceCount = 1,
@@ -46,20 +46,20 @@ public:
                      int32_t  vertexOffset  = 0,
                      uint32_t firstInstance = 0) override;
     void DrawMeshTasks(uint32_t groupCountX, uint32_t groupCountY = 1, uint32_t groupCountZ = 1) override;
-    void DrawMeshTasksIndirect(View<IBuffer> indirectBuffer,
-                               uint32_t      offset,
-                               uint32_t      drawCount,
-                               uint32_t      stride) override;
-    void DrawMeshTasksIndirectCount(View<IBuffer> indirectBuffer,
-                                    uint32_t      indirectOffset,
-                                    View<IBuffer> countBuffer,
-                                    uint32_t      countOffset,
-                                    uint32_t      maxDrawCount,
-                                    uint32_t      stride) override;
+    void DrawMeshTasksIndirect(const IBuffer* indirectBuffer,
+                               uint32_t       offset,
+                               uint32_t       drawCount,
+                               uint32_t       stride) override;
+    void DrawMeshTasksIndirectCount(const IBuffer* indirectBuffer,
+                                    uint32_t       indirectOffset,
+                                    const IBuffer* countBuffer,
+                                    uint32_t       countOffset,
+                                    uint32_t       maxDrawCount,
+                                    uint32_t       stride) override;
     void Dispatch(uint32_t groupCountX, uint32_t groupCountY = 1, uint32_t groupCountZ = 1) override;
     void Barrier(const BarrierDesc& barrierDesc) override;
 
-    void Blit(View<ITexture> src, View<ITexture> dst, const BlitDesc& blitDesc = {}) override;
+    void Blit(const ITexture* src, const ITexture* dst, const BlitDesc& blitDesc = {}) override;
 
     inline VkCommandBuffer    GetVkCommandBuffer() const { return m_commandBuffer; }
     inline VkFence            GetFence() const { return m_commandFence; }

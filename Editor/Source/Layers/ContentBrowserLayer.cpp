@@ -26,7 +26,7 @@ void ContentBrowserLayer::OnUpdate(Timestep ts)
         if (ImGui::MenuItem("Create Material"))
         {
             Owner<Material> material = Owner<Material>::Create();
-            std::string      name     = "NewMaterial";
+            std::string     name     = "NewMaterial";
             while (std::filesystem::exists(m_baseDirectory / m_relativeDirectory / (name + ".mat")))
             {
                 name = "_" + name;
@@ -36,13 +36,13 @@ void ContentBrowserLayer::OnUpdate(Timestep ts)
         }
         if (ImGui::MenuItem("Create Render Pass"))
         {
-            auto&               swapChain  = Application::GetInstance().GetSwapChain();
+            auto               swapChain  = Application::GetInstance().GetSwapChain();
             Owner<IRenderPass> renderPass = Owner<IRenderPass>::Create(RenderPassDesc{
                 { AttachmentDesc{ swapChain->GetColorFormat(), ResourceState::Present } },
                 AttachmentDesc{
                     swapChain->GetDepthFormat(), ResourceState::DepthRead, LoadOp::Clear, StoreOp::DontCare },
                 swapChain->GetNumSamples() });
-            std::string         name       = "NewRenderPass";
+            std::string        name       = "NewRenderPass";
             while (std::filesystem::exists(m_baseDirectory / m_relativeDirectory / (name + ".rp")))
             {
                 name = "_" + name;
@@ -55,13 +55,18 @@ void ContentBrowserLayer::OnUpdate(Timestep ts)
             auto shaderResourceBinding = Yogi::ResourceManager::CreateResource<Yogi::IShaderResourceBinding>(
                 std::vector<Yogi::ShaderResourceAttribute>{ Yogi::ShaderResourceAttribute{
                     0, 1, Yogi::ShaderResourceType::Buffer, Yogi::ShaderStage::Vertex } });
+            Yogi::WRef<Yogi::ShaderDesc> vertShader =
+                AssetManager::AcquireAsset<ShaderDesc>("EngineAssets/Shaders/Test.vert");
+            Yogi::WRef<Yogi::ShaderDesc> fragShader =
+                AssetManager::AcquireAsset<ShaderDesc>("EngineAssets/Shaders/Test.frag");
+            Yogi::WRef<Yogi::IRenderPass> renderPass =
+                AssetManager::AcquireAsset<IRenderPass>("EngineAssets/RenderPasses/Default.rp");
             Owner<IPipeline> pipeline = Owner<IPipeline>::Create(
-                PipelineDesc{ { AssetManager::GetAsset<ShaderDesc>("EngineAssets/Shaders/Test.vert"),
-                                AssetManager::GetAsset<ShaderDesc>("EngineAssets/Shaders/Test.frag") },
+                PipelineDesc{ { vertShader.Get(), fragShader.Get() },
                               { Yogi::VertexAttribute{ "a_Position", 0, 12, Yogi::ShaderElementType::Float3 },
                                 Yogi::VertexAttribute{ "a_TexCoord", 12, 8, Yogi::ShaderElementType::Float2 } },
-                              shaderResourceBinding,
-                              AssetManager::GetAsset<IRenderPass>("EngineAssets/RenderPasses/Default.rp"),
+                              shaderResourceBinding.Get(),
+                              renderPass.Get(),
                               0,
                               PrimitiveTopology::TriangleList });
             std::string name = "NewPipeline";
@@ -82,7 +87,7 @@ void ContentBrowserLayer::OnUpdate(Timestep ts)
                 ITexture::Usage::RenderTarget,
                 SampleCountFlagBits::Count1,
             });
-            std::string      name          = "NewRenderTexture";
+            std::string     name          = "NewRenderTexture";
             while (std::filesystem::exists(m_baseDirectory / m_relativeDirectory / (name + ".rt")))
             {
                 name = "_" + name;

@@ -20,7 +20,7 @@ VulkanRenderPass::VulkanRenderPass(const RenderPassDesc& desc)
 
 VulkanRenderPass::~VulkanRenderPass()
 {
-    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
 
     if (m_RenderPass != VK_NULL_HANDLE)
     {
@@ -33,7 +33,7 @@ VulkanRenderPass::~VulkanRenderPass()
 
 void VulkanRenderPass::CreateVkRenderPass()
 {
-    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
 
     std::vector<VkAttachmentDescription> allAttachments;
     std::vector<VkAttachmentReference>   colorAttachmentRefs;

@@ -15,7 +15,7 @@ Owner<IPipeline> IPipeline::Create(const PipelineDesc& desc)
 
 VulkanPipeline::VulkanPipeline(const PipelineDesc& desc)
 {
-    m_desc = desc;
+    m_type = desc.Type;
     CreateVkPipeline(desc);
 }
 
@@ -23,14 +23,14 @@ VulkanPipeline::~VulkanPipeline()
 {
     if (m_pipeline != VK_NULL_HANDLE)
     {
-        VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
         vkDestroyPipeline(context->GetVkDevice(), m_pipeline, nullptr);
     }
 }
 
 void VulkanPipeline::CreateVkPipeline(const PipelineDesc& desc)
 {
-    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
     VkDevice             device  = context->GetVkDevice();
 
     bool isMeshShading = false;
@@ -68,7 +68,8 @@ void VulkanPipeline::CreateVkPipeline(const PipelineDesc& desc)
         }
     }
 
-    View<VulkanShaderResourceBinding> vkSRB = View<VulkanShaderResourceBinding>::Cast(desc.ShaderResourceBinding);
+    const VulkanShaderResourceBinding* vkSRB =
+        static_cast<const VulkanShaderResourceBinding*>(desc.ShaderResourceBinding);
 
     if (desc.Type == PipelineType::Compute)
     {
@@ -196,7 +197,7 @@ void VulkanPipeline::CreateVkPipeline(const PipelineDesc& desc)
     pipelineInfo.pColorBlendState    = &colorBlending;
     pipelineInfo.pDynamicState       = &dynamicState;
     pipelineInfo.layout              = vkSRB->GetVkPipelineLayout();
-    pipelineInfo.renderPass          = View<VulkanRenderPass>::Cast(desc.RenderPass)->GetVkRenderPass();
+    pipelineInfo.renderPass          = static_cast<const VulkanRenderPass*>(desc.RenderPass)->GetVkRenderPass();
     pipelineInfo.subpass             = 0;
     pipelineInfo.pDepthStencilState  = &depthStencil;
 

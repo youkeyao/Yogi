@@ -52,14 +52,14 @@ struct CommandBufferDesc
 
 struct BarrierDesc
 {
-    View<ITexture> Texture;
-    View<IBuffer>  Buffer;
-    ResourceState  BeforeState  = ResourceState::None;
-    ResourceState  AfterState   = ResourceState::None;
-    uint64_t       BufferOffset = 0;
-    uint64_t       BufferSize   = 0;
-    uint32_t       BaseMipLevel = 0;
-    uint32_t       LevelCount   = 1;
+    const ITexture* Texture      = nullptr;
+    const IBuffer*  Buffer       = nullptr;
+    ResourceState   BeforeState  = ResourceState::None;
+    ResourceState   AfterState   = ResourceState::None;
+    uint64_t        BufferOffset = 0;
+    uint64_t        BufferSize   = 0;
+    uint32_t        BaseMipLevel = 0;
+    uint32_t        LevelCount   = 1;
 };
 
 enum class BlitFilter : uint8_t
@@ -92,23 +92,23 @@ public:
     virtual void Submit() = 0;
     virtual void Wait()   = 0;
 
-    virtual void BeginRenderPass(View<IRenderPass>              renderPass,
-                                 View<IFrameBuffer>             frameBuffer,
+    virtual void BeginRenderPass(const IRenderPass*             renderPass,
+                                 const IFrameBuffer*            frameBuffer,
                                  const std::vector<ClearValue>& colorClearValues,
                                  const ClearValue&              depthClearValue) = 0;
     virtual void EndRenderPass()                                                 = 0;
 
-    virtual void SetPipeline(View<IPipeline> pipeline)                          = 0;
-    virtual void SetVertexBuffer(View<IBuffer> buffer, uint32_t offset = 0)     = 0;
-    virtual void SetIndexBuffer(View<IBuffer> buffer, uint32_t offset = 0)      = 0;
-    virtual void SetViewport(const Viewport& viewport)                          = 0;
-    virtual void SetScissor(const Scissor& scissor)                             = 0;
-    virtual void SetShaderResourceBinding(View<IShaderResourceBinding> binding) = 0;
-    virtual void SetPushConstants(View<IShaderResourceBinding> binding,
-                                  ShaderStage                  stage,
-                                  uint32_t                     offset,
-                                  uint32_t                     size,
-                                  const void*                  data)            = 0;
+    virtual void SetPipeline(const IPipeline* pipeline)                          = 0;
+    virtual void SetVertexBuffer(const IBuffer* buffer, uint32_t offset = 0)     = 0;
+    virtual void SetIndexBuffer(const IBuffer* buffer, uint32_t offset = 0)      = 0;
+    virtual void SetViewport(const Viewport& viewport)                           = 0;
+    virtual void SetScissor(const Scissor& scissor)                              = 0;
+    virtual void SetShaderResourceBinding(const IShaderResourceBinding* binding) = 0;
+    virtual void SetPushConstants(const IShaderResourceBinding* binding,
+                                  ShaderStage                   stage,
+                                  uint32_t                      offset,
+                                  uint32_t                      size,
+                                  const void*                   data)            = 0;
 
     virtual void Draw(uint32_t vertexCount,
                       uint32_t instanceCount = 1,
@@ -123,23 +123,23 @@ public:
 
     virtual void DrawMeshTasks(uint32_t groupCountX, uint32_t groupCountY = 1, uint32_t groupCountZ = 1) = 0;
 
-    virtual void DrawMeshTasksIndirect(View<IBuffer> indirectBuffer,
-                                       uint32_t      offset,
-                                       uint32_t      drawCount,
-                                       uint32_t      stride) = 0;
+    virtual void DrawMeshTasksIndirect(const IBuffer* indirectBuffer,
+                                       uint32_t       offset,
+                                       uint32_t       drawCount,
+                                       uint32_t       stride) = 0;
 
-    virtual void DrawMeshTasksIndirectCount(View<IBuffer> indirectBuffer,
-                                            uint32_t      indirectOffset,
-                                            View<IBuffer> countBuffer,
-                                            uint32_t      countOffset,
-                                            uint32_t      maxDrawCount,
-                                            uint32_t      stride) = 0;
+    virtual void DrawMeshTasksIndirectCount(const IBuffer* indirectBuffer,
+                                            uint32_t       indirectOffset,
+                                            const IBuffer* countBuffer,
+                                            uint32_t       countOffset,
+                                            uint32_t       maxDrawCount,
+                                            uint32_t       stride) = 0;
 
     virtual void Dispatch(uint32_t groupCountX, uint32_t groupCountY = 1, uint32_t groupCountZ = 1) = 0;
 
     virtual void Barrier(const BarrierDesc& barrierDesc) = 0;
 
-    virtual void Blit(View<ITexture> src, View<ITexture> dst, const BlitDesc& blitDesc = {}) = 0;
+    virtual void Blit(const ITexture* src, const ITexture* dst, const BlitDesc& blitDesc = {}) = 0;
 
     static Owner<ICommandBuffer> Create(const CommandBufferDesc& desc);
 };

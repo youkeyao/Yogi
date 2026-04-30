@@ -47,8 +47,8 @@ VulkanBuffer::VulkanBuffer(const BufferDesc& desc) : m_size(desc.Size), m_usage(
         bufferInfo.usage |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
     }
 
-    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
-    VkDevice             device  = context->GetVkDevice();
+    VulkanDeviceContext* context        = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
+    VkDevice             device         = context->GetVkDevice();
     VkPhysicalDevice     physicalDevice = context->GetVkPhysicalDevice();
     vkCreateBuffer(device, &bufferInfo, nullptr, &m_buffer);
 
@@ -72,7 +72,7 @@ VulkanBuffer::VulkanBuffer(const BufferDesc& desc) : m_size(desc.Size), m_usage(
 
 VulkanBuffer::~VulkanBuffer()
 {
-    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
     VkDevice             device  = context->GetVkDevice();
 
     vkDeviceWaitIdle(device);

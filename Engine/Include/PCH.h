@@ -43,7 +43,6 @@
 #include "Core/Log.h"
 #include "Core/Owner.h"
 #include "Core/WRef.h"
-#include "Core/View.h"
 #include "Debug/Instrumentor.h"
 
 namespace Yogi

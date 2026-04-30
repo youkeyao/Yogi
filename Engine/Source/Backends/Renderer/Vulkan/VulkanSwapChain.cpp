@@ -32,7 +32,7 @@ VulkanSwapChain::VulkanSwapChain(const SwapChainDesc& desc) :
 
 VulkanSwapChain::~VulkanSwapChain()
 {
-    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
 
     m_commandBuffers.clear();
     CleanupSwapChain();
@@ -44,7 +44,7 @@ VulkanSwapChain::~VulkanSwapChain()
 
 void VulkanSwapChain::AcquireNextImage()
 {
-    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
     VkDevice             device  = context->GetVkDevice();
 
     m_commandBuffers[m_currentFrame]->Wait();
@@ -57,7 +57,7 @@ void VulkanSwapChain::Present()
 {
     YG_PROFILE_FUNCTION();
 
-    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
     VkDevice             device  = context->GetVkDevice();
 
     VkPresentInfoKHR presentInfo{};
@@ -85,7 +85,7 @@ void VulkanSwapChain::Resize(uint32_t width, uint32_t height)
     m_width  = width;
     m_height = height;
 
-    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
     vkDeviceWaitIdle(context->GetVkDevice());
 
     CleanupSwapChain();
@@ -96,7 +96,7 @@ void VulkanSwapChain::Resize(uint32_t width, uint32_t height)
 
 void VulkanSwapChain::CleanupSwapChain()
 {
-    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
 
     for (auto& texture : m_colorTextures)
     {
@@ -113,7 +113,7 @@ void VulkanSwapChain::CleanupSwapChain()
 
 void VulkanSwapChain::CreateVkSwapChain()
 {
-    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
     VkPhysicalDevice     physicalDevice = context->GetVkPhysicalDevice();
     VkDevice             device         = context->GetVkDevice();
     VkSurfaceKHR         surface        = context->GetVkSurface();
@@ -131,7 +131,7 @@ void VulkanSwapChain::CreateVkSwapChain()
     }
     m_colorFormat                = VkFormat2YgTextureFormat(surfaceFormat.format);
     VkPresentModeKHR presentMode = ChooseSwapPresentMode(swapChainSupport.presentModes);
-    VkExtent2D       extent      = ChooseSwapExtent(swapChainSupport.capabilities, View<Window>::Create(m_window));
+    VkExtent2D       extent      = ChooseSwapExtent(swapChainSupport.capabilities, *m_window);
 
     uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
     if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount)
@@ -188,7 +188,7 @@ void VulkanSwapChain::CreateVkSwapChain()
 
 void VulkanSwapChain::CreateVkSyncObjects()
 {
-    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
     VkPhysicalDevice     physicalDevice = context->GetVkPhysicalDevice();
     VkDevice             device         = context->GetVkDevice();
 

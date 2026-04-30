@@ -4,6 +4,7 @@
 #include "Events/ApplicationEvent.h"
 #include "Renderer/MeshGPUUploadCache.h"
 #include "Renderer/RenderComponents.h"
+#include "Renderer/DepthPyramid.h"
 #include "Renderer/RHI/ICommandBuffer.h"
 #include "Renderer/RHI/IFrameBuffer.h"
 
@@ -22,16 +23,27 @@ public:
     void RenderCamera(const CameraComponent& camera, const TransformComponent& transform, World& world);
 
 private:
+    struct RenderBatch
+    {
+        uint64_t              PipelineKey = 0;
+        WRef<IPipeline>       Pipeline;
+        std::vector<MeshDraw> MeshDraws;
+        uint32_t              DrawBase            = 0;
+        uint32_t              DrawCount           = 0;
+        uint32_t              IndirectOffsetBytes = 0;
+    };
+
     bool OnWindowResize(WindowResizeEvent& e, World& world);
-    void BeginRender(View<ICommandBuffer> commandBuffer, View<IFrameBuffer> frameBuffer);
-    void EndRender(View<ICommandBuffer> commandBuffer);
-    void EnsureDepthPyramidResources(View<ICommandBuffer> commandBuffer,
-                                     uint32_t             width,
-                                     uint32_t             height,
-                                     View<ITexture>       depthTexture);
-    void BuildDepthPyramid(View<ICommandBuffer> commandBuffer, View<ITexture> depthTexture);
+    void BeginRender(ICommandBuffer* commandBuffer, const IFrameBuffer* frameBuffer);
+    void EndRender(ICommandBuffer* commandBuffer);
     void ResetMeshUploadCache();
     void EnsureDepthTexture(uint32_t width, uint32_t height);
+    void FlushBatch(ICommandBuffer*                    commandBuffer,
+                    const IFrameBuffer*                frameBuffer,
+                    ITexture*                          blitTarget,
+                    CullData&                          cullData,
+                    std::vector<RenderBatch>&          renderBatches,
+                    std::unordered_map<uint64_t, int>& renderBatchLookup);
 
 private:
     static const uint64_t MAX_TRIANGLES     = 10000000;
@@ -65,25 +77,15 @@ private:
     uint32_t           m_cachedMeshletDataSize = 0;
     uint32_t           m_cachedMeshCount       = 0;
 
-    std::vector<WRef<IRenderPass>>                              m_renderPasses;
-    WRef<IShaderResourceBinding>                                m_shaderResourceBinding     = nullptr;
-    WRef<IShaderResourceBinding>                                m_cullShaderResourceBinding = nullptr;
-    Owner<IShaderResourceBinding>                               m_depthPyramidMipBinding;
-    std::vector<Owner<IShaderResourceBinding>>                  m_depthPyramidMipBindings;
-    std::unordered_map<uint64_t, Owner<IShaderResourceBinding>> m_depthPyramidFirstMipBindingCache;
-    WRef<IPipeline>                                             m_cullPipeline                 = nullptr;
-    WRef<IPipeline>                                             m_depthPyramidFirstMipPipeline = nullptr;
-    WRef<IPipeline>                                             m_depthPyramidPipeline         = nullptr;
+    std::vector<WRef<IRenderPass>> m_renderPasses;
+    WRef<IShaderResourceBinding>   m_shaderResourceBinding     = nullptr;
+    WRef<IShaderResourceBinding>   m_cullShaderResourceBinding = nullptr;
+    WRef<IPipeline>                m_cullPipeline              = nullptr;
+    WRef<IPipeline>                m_depthReducePipeline       = nullptr;
+    DepthPyramid                   m_depthPyramid;
 
-    WRef<ITexture> m_depthPyramidTexture = nullptr;
-    uint32_t       m_depthPyramidWidth   = 0;
-    uint32_t       m_depthPyramidHeight  = 0;
-    uint32_t       m_depthPyramidMips    = 1;
-    bool           m_depthPyramidValid   = false;
-
-    WRef<ITexture>       m_depthTexture  = nullptr;
-    ITexture::Format     m_depthFormat;
-    SampleCountFlagBits  m_numSamples    = SampleCountFlagBits::Count1;
+    WRef<ITexture>   m_depthTexture = nullptr;
+    ITexture::Format m_depthFormat  = ITexture::Format::D32_FLOAT;
 
     std::unordered_map<uint64_t, WRef<IFrameBuffer>> m_frameBuffers;
 };

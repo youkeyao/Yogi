@@ -1,0 +1,46 @@
+#version 460 core
+
+// Depth Pyramid (Hi-Z) downsample.
+//
+// Reads the previous mip (or the original scene depth for mip 0) and writes a single reduced
+// sample to the current mip. We use a manual 4-tap `max` reduction rather than relying on
+// VK_SAMPLER_REDUCTION_MODE_MAX so the shader stays correct on any device, and on any depth
+// format (including D24S8, which frequently is not in
+// VkPhysicalDeviceVulkan12Properties::filterMinmaxSingleComponentFormats).
+//
+// The engine uses standard Z (clear depth = 1.0, far = 1.0), so reduction is MAX: the
+// pyramid stores the farthest depth inside each footprint, which is the conservative value
+// for a future occlusion-culling pass (an object is drawn unless its nearest point is
+// already behind the pyramid).
+
+layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+
+layout(push_constant) uniform DepthReducePushConstants
+{
+    // Size of the destination mip (matches imageSize(u_DstMip)).
+    uvec2 imageSize;
+} u_push;
+
+layout(binding = 0) uniform sampler2D u_SrcMip;
+layout(binding = 1, r32f) uniform writeonly image2D u_DstMip;
+
+void main()
+{
+    uvec2 pos = gl_GlobalInvocationID.xy;
+    if (pos.x >= u_push.imageSize.x || pos.y >= u_push.imageSize.y)
+        return;
+
+    ivec2 srcSize = textureSize(u_SrcMip, 0);
+    ivec2 base    = ivec2(pos) * 2;
+    ivec2 p0      = clamp(base + ivec2(0, 0), ivec2(0), srcSize - 1);
+    ivec2 p1      = clamp(base + ivec2(1, 0), ivec2(0), srcSize - 1);
+    ivec2 p2      = clamp(base + ivec2(0, 1), ivec2(0), srcSize - 1);
+    ivec2 p3      = clamp(base + ivec2(1, 1), ivec2(0), srcSize - 1);
+    float d0      = texelFetch(u_SrcMip, p0, 0).r;
+    float d1      = texelFetch(u_SrcMip, p1, 0).r;
+    float d2      = texelFetch(u_SrcMip, p2, 0).r;
+    float d3      = texelFetch(u_SrcMip, p3, 0).r;
+    float depth   = max(max(d0, d1), max(d2, d3));
+
+    imageStore(u_DstMip, ivec2(pos), vec4(depth, 0.0, 0.0, 0.0));
+}

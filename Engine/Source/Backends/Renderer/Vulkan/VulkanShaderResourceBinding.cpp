@@ -22,7 +22,7 @@ VulkanShaderResourceBinding::VulkanShaderResourceBinding(
     m_layout             = shaderResourceLayout;
     m_pushConstantRanges = pushConstantRanges;
 
-    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
     VkDevice             device  = context->GetVkDevice();
 
     std::vector<VkDescriptorSetLayoutBinding> bindings(shaderResourceLayout.size());
@@ -84,7 +84,7 @@ VulkanShaderResourceBinding::VulkanShaderResourceBinding(
 
 VulkanShaderResourceBinding::~VulkanShaderResourceBinding()
 {
-    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
     VkDevice             device  = context->GetVkDevice();
     if (m_descriptorSetLayout != VK_NULL_HANDLE)
         vkDestroyDescriptorSetLayout(device, m_descriptorSetLayout, nullptr);
@@ -92,25 +92,25 @@ VulkanShaderResourceBinding::~VulkanShaderResourceBinding()
         vkDestroyPipelineLayout(device, m_pipelineLayout, nullptr);
 }
 
-void VulkanShaderResourceBinding::BindBuffer(View<IBuffer> buffer, int binding, int slot)
+void VulkanShaderResourceBinding::BindBuffer(const IBuffer* buffer, int binding, int slot)
 {
-    View<VulkanBuffer> vkBuffer = View<VulkanBuffer>::Cast(buffer);
+    const VulkanBuffer& vkBuffer = *static_cast<const VulkanBuffer*>(buffer);
 
     VkDescriptorBufferInfo bufferInfo{};
-    bufferInfo.buffer = vkBuffer->GetVkBuffer();
+    bufferInfo.buffer = vkBuffer.GetVkBuffer();
     bufferInfo.offset = 0;
-    bufferInfo.range  = vkBuffer->GetSize();
+    bufferInfo.range  = vkBuffer.GetSize();
 
     VkWriteDescriptorSet descriptorWrite{};
     descriptorWrite.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     descriptorWrite.dstSet          = m_descriptorSet;
     descriptorWrite.dstBinding      = binding;
     descriptorWrite.dstArrayElement = slot;
-    if (vkBuffer->GetUsage() & BufferUsage::Storage)
+    if (vkBuffer.GetUsage() & BufferUsage::Storage)
     {
         descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     }
-    else if (vkBuffer->GetUsage() & BufferUsage::Uniform)
+    else if (vkBuffer.GetUsage() & BufferUsage::Uniform)
     {
         descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     }
@@ -124,11 +124,11 @@ void VulkanShaderResourceBinding::BindBuffer(View<IBuffer> buffer, int binding, 
     descriptorWrite.pImageInfo       = nullptr;
     descriptorWrite.pTexelBufferView = nullptr;
 
-    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
     vkUpdateDescriptorSets(context->GetVkDevice(), 1, &descriptorWrite, 0, nullptr);
 }
 
-void VulkanShaderResourceBinding::BindTexture(View<ITexture> texture, int binding, int slot, uint32_t mipLevel)
+void VulkanShaderResourceBinding::BindTexture(const ITexture* texture, int binding, int slot, uint32_t mipLevel)
 {
     const ShaderResourceAttribute* bindingAttr = nullptr;
     for (const auto& attr : m_layout)
@@ -146,19 +146,22 @@ void VulkanShaderResourceBinding::BindTexture(View<ITexture> texture, int bindin
         return;
     }
 
-    View<VulkanTexture>   vkTexture = View<VulkanTexture>::Cast(texture);
+    const VulkanTexture&  vkTexture = *static_cast<const VulkanTexture*>(texture);
     VkDescriptorImageInfo imageInfo{};
-    imageInfo.imageView = vkTexture->GetVkImageView(mipLevel);
+    imageInfo.imageView = vkTexture.GetVkImageView(mipLevel);
 
     VkDescriptorType descriptorType = VK_DESCRIPTOR_TYPE_MAX_ENUM;
     switch (bindingAttr->Type)
     {
         case ShaderResourceType::Texture:
-            descriptorType        = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            imageInfo.sampler     = vkTexture->GetVkSampler();
-            imageInfo.imageLayout = texture->GetUsage() == ITexture::Usage::DepthStencil ?
-                VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL :
-                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            descriptorType    = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            imageInfo.sampler = vkTexture.GetVkSampler();
+            if (texture->GetUsage() == ITexture::Usage::Storage)
+                imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+            else if (texture->GetUsage() == ITexture::Usage::DepthStencil)
+                imageInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+            else
+                imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
             break;
         case ShaderResourceType::StorageImage:
             descriptorType        = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
@@ -181,7 +184,7 @@ void VulkanShaderResourceBinding::BindTexture(View<ITexture> texture, int bindin
     descriptorWrite.pBufferInfo      = nullptr;
     descriptorWrite.pTexelBufferView = nullptr;
 
-    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
     vkUpdateDescriptorSets(context->GetVkDevice(), 1, &descriptorWrite, 0, nullptr);
 }
 

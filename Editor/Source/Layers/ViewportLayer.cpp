@@ -15,9 +15,10 @@ ViewportLayer::ViewportLayer() :
 {
     m_frameTexture = ResourceManager::CreateResource<ITexture>(
         TextureDesc{ 1, 1, 1, ITexture::Format::B8G8R8A8_UNORM, ITexture::Usage::RenderTarget });
-    m_frameTextureBinding = ResourceManager::CreateResource<IShaderResourceBinding>(std::vector<ShaderResourceAttribute>{
-        ShaderResourceAttribute{ 0, 1, ShaderResourceType::Texture, ShaderStage::Fragment } });
-    m_frameTextureBinding->BindTexture(m_frameTexture, 0, 0);
+    m_frameTextureBinding =
+        ResourceManager::CreateResource<IShaderResourceBinding>(std::vector<ShaderResourceAttribute>{
+            ShaderResourceAttribute{ 0, 1, ShaderResourceType::Texture, ShaderStage::Fragment } });
+    m_frameTextureBinding->BindTexture(m_frameTexture.Get(), 0, 0);
 }
 
 void ViewportLayer::OnUpdate(Timestep ts)
@@ -45,7 +46,10 @@ void ViewportLayer::OnUpdate(Timestep ts)
     OnGUI();
 }
 
-void ViewportLayer::OnEvent(Event& event) { m_world->OnEvent(event); }
+void ViewportLayer::OnEvent(Event& event)
+{
+    m_world->OnEvent(event);
+}
 
 // --------------------------------------------------------------------------
 
@@ -101,10 +105,10 @@ void ViewportLayer::OnGUI()
                                                                                     1,
                                                                                     ITexture::Format::B8G8R8A8_UNORM,
                                                                                     ITexture::Usage::RenderTarget });
-            m_frameTextureBinding->BindTexture(m_frameTexture, 0, 0);
+            m_frameTextureBinding->BindTexture(m_frameTexture.Get(), 0, 0);
         }
     }
-    ImGuiImage(m_frameTexture, m_frameTextureBinding, ImVec2(m_viewportSize.x, m_viewportSize.y));
+    ImGuiImage(*m_frameTexture, *m_frameTextureBinding, ImVec2(m_viewportSize.x, m_viewportSize.y));
 
     // Drop scene
     if (ImGui::BeginDragDropTarget())

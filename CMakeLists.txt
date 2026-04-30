@@ -43,9 +43,7 @@ else()
 endif()
 #-------------------------------------------------------------
 
-if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
-    add_compile_definitions( YG_DEBUG )
-endif()
+add_compile_definitions( $<$<CONFIG:Debug>:YG_DEBUG> )
 
 set( BUILD_SHARED_LIBS ON )
 

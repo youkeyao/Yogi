@@ -90,7 +90,7 @@ void RenderPassEditorLayer::OnUpdate(Timestep ts)
             if (fpath.extension().string() == ".rp")
             {
                 m_key        = path;
-                m_renderPass = AssetManager::GetAsset<IRenderPass>(m_key);
+                m_renderPass = AssetManager::AcquireAsset<IRenderPass>(m_key);
             }
         }
         ImGui::EndDragDropTarget();

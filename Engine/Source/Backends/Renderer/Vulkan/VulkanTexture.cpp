@@ -3,6 +3,8 @@
 #include "VulkanBuffer.h"
 #include "VulkanUtils.h"
 
+#include "Math/MathUtils.h"
+
 #include <volk.h>
 
 namespace Yogi
@@ -16,7 +18,7 @@ Owner<ITexture> ITexture::Create(const TextureDesc& desc)
 VulkanTexture::VulkanTexture(const TextureDesc& desc) :
     m_width(desc.Width),
     m_height(desc.Height),
-    m_mipLevels(std::max(1u, desc.MipLevels)),
+    m_mipLevels(MathUtils::Max(1u, desc.MipLevels)),
     m_format(desc.Format),
     m_usage(desc.Usage),
     m_numSamples(desc.NumSamples)
@@ -38,7 +40,7 @@ VulkanTexture::VulkanTexture(const TextureDesc& desc) :
     {
         m_imageViews.push_back(CreateVkImageView(m_image, YgTextureFormat2VkFormat(desc.Format), aspectFlags, mip, 1));
     }
-    CreateVkSampler(VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT);
+    CreateVkSampler(VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, desc.Reduction);
 }
 
 VulkanTexture::VulkanTexture(uint32_t         width,
@@ -59,7 +61,7 @@ VulkanTexture::VulkanTexture(uint32_t         width,
 
 VulkanTexture::~VulkanTexture()
 {
-    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
     VkDevice             device  = context->GetVkDevice();
 
     for (auto& imageView : m_imageViews)
@@ -79,14 +81,14 @@ VulkanTexture::~VulkanTexture()
 
 void VulkanTexture::SetData(void* data, uint32_t size)
 {
-    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
     VkDevice             device  = context->GetVkDevice();
 
     VulkanCommandBuffer commandBuffer({ CommandBufferUsage::OneTimeSubmit, SubmitQueue::Transfer });
     commandBuffer.Begin();
 
-    commandBuffer.Barrier({
-        .Texture      = View<ITexture>::Create(this),
+    commandBuffer.Barrier(BarrierDesc{
+        .Texture      = this,
         .BeforeState  = ResourceState::Common,
         .AfterState   = ResourceState::CopyDestination,
         .BaseMipLevel = 0,
@@ -112,8 +114,8 @@ void VulkanTexture::SetData(void* data, uint32_t size)
                            1,
                            &region);
 
-    commandBuffer.Barrier({
-        .Texture      = View<ITexture>::Create(this),
+    commandBuffer.Barrier(BarrierDesc{
+        .Texture      = this,
         .BeforeState  = ResourceState::CopyDestination,
         .AfterState   = ResourceState::FragmentShaderResource,
         .BaseMipLevel = 0,
@@ -133,7 +135,7 @@ void VulkanTexture::CreateVkImage(uint32_t              width,
                                   VkImageUsageFlags     usage,
                                   VkMemoryPropertyFlags properties)
 {
-    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VulkanDeviceContext* context        = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
     VkPhysicalDevice     physicalDevice = context->GetVkPhysicalDevice();
     VkDevice             device         = context->GetVkDevice();
 
@@ -175,7 +177,7 @@ VkImageView VulkanTexture::CreateVkImageView(VkImage            image,
                                              uint32_t           baseMipLevel,
                                              uint32_t           levelCount)
 {
-    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VulkanDeviceContext* context        = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
     VkPhysicalDevice     physicalDevice = context->GetVkPhysicalDevice();
     VkDevice             device         = context->GetVkDevice();
 
@@ -196,9 +198,12 @@ VkImageView VulkanTexture::CreateVkImageView(VkImage            image,
     return imageView;
 }
 
-void VulkanTexture::CreateVkSampler(VkFilter magFilter, VkFilter minFilter, VkSamplerAddressMode addressMode)
+void VulkanTexture::CreateVkSampler(VkFilter                       magFilter,
+                                    VkFilter                       minFilter,
+                                    VkSamplerAddressMode           addressMode,
+                                    ITexture::SamplerReductionMode reduction)
 {
-    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext().Get());
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
     VkDevice             device  = context->GetVkDevice();
 
     VkSamplerCreateInfo samplerInfo{};
@@ -218,6 +223,16 @@ void VulkanTexture::CreateVkSampler(VkFilter magFilter, VkFilter minFilter, VkSa
     samplerInfo.mipLodBias              = 0.0f;
     samplerInfo.minLod                  = 0.0f;
     samplerInfo.maxLod                  = static_cast<float>(m_mipLevels - 1);
+
+    VkSamplerReductionModeCreateInfo reductionInfo{};
+    if (reduction != ITexture::SamplerReductionMode::None)
+    {
+        reductionInfo.sType         = VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO;
+        reductionInfo.reductionMode = (reduction == ITexture::SamplerReductionMode::Max) ?
+            VK_SAMPLER_REDUCTION_MODE_MAX :
+            VK_SAMPLER_REDUCTION_MODE_MIN;
+        samplerInfo.pNext           = &reductionInfo;
+    }
 
     VkResult result = vkCreateSampler(device, &samplerInfo, nullptr, &m_sampler);
     YG_CORE_ASSERT(result == VK_SUCCESS, "Vulkan: Failed to create texture sampler!");

@@ -40,7 +40,10 @@ private:
                                   uint32_t           baseMipLevel,
                                   uint32_t           levelCount);
 
-    void CreateVkSampler(VkFilter magFilter, VkFilter minFilter, VkSamplerAddressMode addressMode);
+    void CreateVkSampler(VkFilter                       magFilter,
+                         VkFilter                       minFilter,
+                         VkSamplerAddressMode           addressMode,
+                         ITexture::SamplerReductionMode reduction);
 
 private:
     VkImage                  m_image;
