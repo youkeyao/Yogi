@@ -447,8 +447,8 @@ void VulkanCommandBuffer::Blit(const ITexture* src, const ITexture* dst, const B
                            VK_FILTER_LINEAR);
 
         Barrier(BarrierDesc{ src, nullptr, ResourceState::CopySource, srcStableState, 0, 0, blitDesc.SrcMipLevel, 1 });
-        Barrier(BarrierDesc{
-            dst, nullptr, ResourceState::CopyDestination, dstStableState, 0, 0, blitDesc.DstMipLevel, 1 });
+        Barrier(
+            BarrierDesc{ dst, nullptr, ResourceState::CopyDestination, dstStableState, 0, 0, blitDesc.DstMipLevel, 1 });
         return;
     }
 

@@ -67,15 +67,15 @@ Owner<Material> MaterialSerializer::Deserialize(const std::vector<uint8_t>& bina
             }
         }
 
-        PipelineDesc                              pipelineDesc;
-        std::vector<WRef<ShaderDesc>>             shaderRefs;
+        PipelineDesc                  pipelineDesc;
+        std::vector<WRef<ShaderDesc>> shaderRefs;
         shaderRefs.reserve(pipelineData.ShaderKeys.size());
         for (auto& shaderKey : pipelineData.ShaderKeys)
         {
             shaderRefs.push_back(AssetManager::AcquireAsset<ShaderDesc>(shaderKey));
             pipelineDesc.Shaders.push_back(shaderRefs.back().Get());
         }
-        pipelineDesc.VertexLayout = pipelineData.VertexLayout;
+        pipelineDesc.VertexLayout        = pipelineData.VertexLayout;
         WRef<IShaderResourceBinding> srb = ResourceManager::CreateResource<IShaderResourceBinding>(
             pipelineData.ShaderResourceLayout, pipelineData.PushConstantRanges);
         pipelineDesc.ShaderResourceBinding = srb.Get();

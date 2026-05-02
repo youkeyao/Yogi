@@ -18,14 +18,8 @@ public:
     inline ITexture::Format    GetColorFormat() const override { return m_colorFormat; }
     inline SampleCountFlagBits GetNumSamples() const override { return m_numSamples; }
 
-    ITexture* GetCurrentTarget() const override
-    {
-        return m_colorTextures[m_imageIndex].Get();
-    }
-    ICommandBuffer* GetCurrentCommandBuffer() const override
-    {
-        return m_commandBuffers[m_currentFrame].Get();
-    }
+    ITexture*       GetCurrentTarget() const override { return m_colorTextures[m_imageIndex].Get(); }
+    ICommandBuffer* GetCurrentCommandBuffer() const override { return m_commandBuffers[m_currentFrame].Get(); }
 
     void AcquireNextImage() override;
     void Present() override;

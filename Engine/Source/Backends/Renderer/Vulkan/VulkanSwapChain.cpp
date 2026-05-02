@@ -113,7 +113,7 @@ void VulkanSwapChain::CleanupSwapChain()
 
 void VulkanSwapChain::CreateVkSwapChain()
 {
-    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
+    VulkanDeviceContext* context        = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
     VkPhysicalDevice     physicalDevice = context->GetVkPhysicalDevice();
     VkDevice             device         = context->GetVkDevice();
     VkSurfaceKHR         surface        = context->GetVkSurface();
@@ -188,7 +188,7 @@ void VulkanSwapChain::CreateVkSwapChain()
 
 void VulkanSwapChain::CreateVkSyncObjects()
 {
-    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
+    VulkanDeviceContext* context        = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
     VkPhysicalDevice     physicalDevice = context->GetVkPhysicalDevice();
     VkDevice             device         = context->GetVkDevice();
 

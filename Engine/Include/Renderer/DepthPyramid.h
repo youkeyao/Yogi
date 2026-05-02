@@ -4,6 +4,7 @@
 #include "Renderer/RHI/IShaderResourceBinding.h"
 #include "Renderer/RHI/ICommandBuffer.h"
 #include "Renderer/RHI/IPipeline.h"
+#include "Math/Vector.h"
 
 namespace Yogi
 {
@@ -36,15 +37,9 @@ public:
     static Owner<IShaderResourceBinding> CreateReduceBindingLayout();
 
 private:
-    struct MipSize
-    {
-        uint32_t x;
-        uint32_t y;
-    };
-
     WRef<ITexture>                             m_texture;
     std::vector<Owner<IShaderResourceBinding>> m_mipBindings;
-    std::vector<MipSize>                       m_mipSizes;
+    std::vector<Vector<2, uint32_t>>           m_mipSizes;
     uint32_t                                   m_mipCount = 0;
     uint32_t                                   m_width    = 0;
     uint32_t                                   m_height   = 0;

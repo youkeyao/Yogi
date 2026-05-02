@@ -30,7 +30,7 @@ void VulkanFrameBuffer::Cleanup()
 {
     if (m_frameBuffer != VK_NULL_HANDLE)
     {
-    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
+        VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
         vkDestroyFramebuffer(context->GetVkDevice(), m_frameBuffer, nullptr);
         m_frameBuffer = VK_NULL_HANDLE;
     }

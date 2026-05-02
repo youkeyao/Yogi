@@ -34,6 +34,7 @@ private:
     };
 
     bool OnWindowResize(WindowResizeEvent& e, World& world);
+    void UpdateDebugInput();
     void BeginRender(ICommandBuffer* commandBuffer, const IFrameBuffer* frameBuffer);
     void EndRender(ICommandBuffer* commandBuffer);
     void ResetMeshUploadCache();
@@ -86,6 +87,12 @@ private:
 
     WRef<ITexture>   m_depthTexture = nullptr;
     ITexture::Format m_depthFormat  = ITexture::Format::D32_FLOAT;
+
+    bool     m_debugShowDepth = false;
+    uint32_t m_debugDepthMip  = 0;
+    bool     m_prevToggleKey  = false;
+    bool     m_prevMipDownKey = false;
+    bool     m_prevMipUpKey   = false;
 
     std::unordered_map<uint64_t, WRef<IFrameBuffer>> m_frameBuffers;
 };

@@ -2,6 +2,8 @@
 #include "Resources/AssetManager/AssetManager.h"
 #include "Resources/ResourceManager/ResourceManager.h"
 #include "Core/Application.h"
+#include "Core/Input.h"
+#include "Events/KeyCodes.h"
 #include "Scene/World.h"
 #include "Math/Vector.h"
 
@@ -77,8 +79,9 @@ ForwardRenderSystem::ForwardRenderSystem()
     // DepthPyramid::CreateReduceBindingLayout() so the two stay in lockstep.
     WRef<IShaderResourceBinding> depthReduceBindingTemplate =
         ResourceManager::AddResource(DepthPyramid::CreateReduceBindingLayout());
-    WRef<ShaderDesc> depthReduceShader = AssetManager::AcquireAsset<ShaderDesc>("EngineAssets/Shaders/DepthReduce.comp");
-    PipelineDesc     depthReducePipelineDesc{};
+    WRef<ShaderDesc> depthReduceShader =
+        AssetManager::AcquireAsset<ShaderDesc>("EngineAssets/Shaders/DepthReduce.comp");
+    PipelineDesc depthReducePipelineDesc{};
     depthReducePipelineDesc.Type                  = PipelineType::Compute;
     depthReducePipelineDesc.Shaders               = { depthReduceShader.Get() };
     depthReducePipelineDesc.ShaderResourceBinding = depthReduceBindingTemplate.Get();
@@ -131,6 +134,24 @@ bool ForwardRenderSystem::OnWindowResize(WindowResizeEvent& e, World& world)
     return false;
 }
 
+void ForwardRenderSystem::UpdateDebugInput()
+{
+    const bool toggleKey  = Input::IsKeyPressed(YG_KEY_F9);
+    const bool mipDownKey = Input::IsKeyPressed(YG_KEY_LEFT_BRACKET);
+    const bool mipUpKey   = Input::IsKeyPressed(YG_KEY_RIGHT_BRACKET);
+
+    if (toggleKey && !m_prevToggleKey)
+        m_debugShowDepth = !m_debugShowDepth;
+    if (mipDownKey && !m_prevMipDownKey && m_debugDepthMip > 0)
+        --m_debugDepthMip;
+    if (mipUpKey && !m_prevMipUpKey)
+        ++m_debugDepthMip;
+
+    m_prevToggleKey  = toggleKey;
+    m_prevMipDownKey = mipDownKey;
+    m_prevMipUpKey   = mipUpKey;
+}
+
 void ForwardRenderSystem::ResetMeshUploadCache()
 {
     m_meshUploadCache.Clear();
@@ -143,6 +164,8 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
 {
     YG_PROFILE_FUNCTION();
 
+    UpdateDebugInput();
+
     auto            swapChain     = Application::GetInstance().GetSwapChain();
     ICommandBuffer* commandBuffer = swapChain->GetCurrentCommandBuffer();
     ITexture*       currentTarget = swapChain->GetCurrentTarget();
@@ -151,14 +174,14 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
         currentTarget = camera.Target.Get();
     }
     EnsureDepthTexture(currentTarget->GetWidth(), currentTarget->GetHeight());
-    auto            currentDepth = m_depthTexture;
     FrameBufferDesc desc{ currentTarget->GetWidth(),
                           currentTarget->GetHeight(),
                           m_renderPasses[0].Get(),
                           { currentTarget },
-                          currentDepth.Get() };
-    uint64_t        key = HashArgs(desc);
-    auto            it  = m_frameBuffers.find(key);
+                          m_depthTexture.Get() };
+
+    uint64_t key = HashArgs(desc);
+    auto     it  = m_frameBuffers.find(key);
     if (it == m_frameBuffers.end())
     {
         it = m_frameBuffers.insert({ key, ResourceManager::AcquireSharedResource<IFrameBuffer>(desc) }).first;
@@ -244,12 +267,7 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
                 m_cachedMeshletCount + meshMeshletCount > MAX_MESHLETS ||
                 m_cachedMeshletDataSize + meshletDataSize > MAX_MESHLET_DATA_SIZE / sizeof(uint32_t))
             {
-                FlushBatch(commandBuffer,
-                           frameBuffer.Get(),
-                           currentTarget,
-                           cullData,
-                           renderBatches,
-                           renderBatchLookup);
+                FlushBatch(commandBuffer, frameBuffer.Get(), currentTarget, cullData, renderBatches, renderBatchLookup);
                 ResetMeshUploadCache();
             }
 
@@ -380,11 +398,8 @@ void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandB
             cullData.OutputBase = batch.DrawBase;
             cullData.CountIndex = static_cast<uint32_t>(batchIndex);
 
-            commandBuffer->SetPushConstants(m_cullShaderResourceBinding.Get(),
-                                            ShaderStage::Compute,
-                                            0,
-                                            sizeof(CullData),
-                                            &cullData);
+            commandBuffer->SetPushConstants(
+                m_cullShaderResourceBinding.Get(), ShaderStage::Compute, 0, sizeof(CullData), &cullData);
 
             uint32_t dispatchX = (batch.DrawCount + CULL_WORKGROUP_SIZE - 1) / CULL_WORKGROUP_SIZE;
             commandBuffer->Dispatch(dispatchX, 1, 1);
@@ -415,11 +430,8 @@ void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandB
 
         SceneData drawSceneData = m_sceneData;
         drawSceneData.DrawBase  = batch.DrawBase;
-        commandBuffer->SetPushConstants(m_shaderResourceBinding.Get(),
-                                        ShaderStage::Task | ShaderStage::Mesh,
-                                        0,
-                                        sizeof(SceneData),
-                                        &drawSceneData);
+        commandBuffer->SetPushConstants(
+            m_shaderResourceBinding.Get(), ShaderStage::Task | ShaderStage::Mesh, 0, sizeof(SceneData), &drawSceneData);
         commandBuffer->DrawMeshTasksIndirectCount(m_meshTaskIndirectBuffer.Get(),
                                                   batch.IndirectOffsetBytes,
                                                   m_meshTaskIndirectCountBuffer.Get(),
@@ -490,14 +502,20 @@ void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandB
     // mip from UnorderedAccess (GENERAL) to FragmentShaderResource (SHADER_READ_ONLY)
     // before the Blit, and restore it to GENERAL afterwards so the next frame's
     // DepthPyramid::Build still sees the image in the layout its descriptors record.
-    if (blitTarget && m_depthPyramid.IsValid())
+    if (m_debugShowDepth && blitTarget && m_depthTexture)
     {
-        const ITexture* pyramidTex = m_depthPyramid.GetTexture();
-        const uint32_t  srcMip     = 4;
+        const bool     usePyramid  = (m_debugDepthMip > 0) && m_depthPyramid.IsValid();
+        const uint32_t pyramidMips = m_depthPyramid.IsValid() ? m_depthPyramid.GetMipCount() : 0;
+        const uint32_t totalLevels = 1 + pyramidMips;
+        if (m_debugDepthMip >= totalLevels)
+            m_debugDepthMip = totalLevels - 1;
 
-        commandBuffer->Barrier(BarrierDesc{ pyramidTex,
+        const ITexture* srcTex = usePyramid ? m_depthPyramid.GetTexture() : m_depthTexture.Get();
+        const uint32_t  srcMip = usePyramid ? (m_debugDepthMip - 1) : 0;
+
+        commandBuffer->Barrier(BarrierDesc{ srcTex,
                                             nullptr,
-                                            ResourceState::UnorderedAccess,
+                                            usePyramid ? ResourceState::UnorderedAccess : ResourceState::DepthRead,
                                             ResourceState::FragmentShaderResource,
                                             0,
                                             0,
@@ -513,24 +531,24 @@ void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandB
         // of dragging the clamped edge pixels into view.
         const uint32_t depthW     = m_depthTexture->GetWidth();
         const uint32_t depthH     = m_depthTexture->GetHeight();
-        const uint32_t validShift = srcMip + 1;
+        const uint32_t validShift = usePyramid ? (srcMip + 1) : 0;
         const uint32_t validW     = MathUtils::Max(1u, depthW >> validShift);
         const uint32_t validH     = MathUtils::Max(1u, depthH >> validShift);
 
         BlitDesc blit{};
         blit.SrcMipLevel = srcMip;
         blit.DstMipLevel = 0;
-        blit.SrcWidth    = MathUtils::Min(validW, m_depthPyramid.GetMipWidth(srcMip));
-        blit.SrcHeight   = MathUtils::Min(validH, m_depthPyramid.GetMipHeight(srcMip));
+        blit.SrcWidth    = usePyramid ? MathUtils::Min(validW, m_depthPyramid.GetMipWidth(srcMip)) : validW;
+        blit.SrcHeight   = usePyramid ? MathUtils::Min(validH, m_depthPyramid.GetMipHeight(srcMip)) : validH;
         blit.DstWidth    = blitTarget->GetWidth();
         blit.DstHeight   = blitTarget->GetHeight();
         blit.Filter      = BlitFilter::Nearest;
-        commandBuffer->Blit(pyramidTex, blitTarget, blit);
+        commandBuffer->Blit(srcTex, blitTarget, blit);
 
-        commandBuffer->Barrier(BarrierDesc{ pyramidTex,
+        commandBuffer->Barrier(BarrierDesc{ srcTex,
                                             nullptr,
                                             ResourceState::FragmentShaderResource,
-                                            ResourceState::UnorderedAccess,
+                                            usePyramid ? ResourceState::UnorderedAccess : ResourceState::DepthRead,
                                             0,
                                             0,
                                             srcMip,
@@ -546,10 +564,8 @@ void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandB
 
 void ForwardRenderSystem::BeginRender(ICommandBuffer* commandBuffer, const IFrameBuffer* frameBuffer)
 {
-    commandBuffer->BeginRenderPass(m_renderPasses[0].Get(),
-                                   frameBuffer,
-                                   { ClearValue{ 0.1f, 0.1f, 0.1f, 1.0f } },
-                                   ClearValue{ 1.0f, 0 });
+    commandBuffer->BeginRenderPass(
+        m_renderPasses[0].Get(), frameBuffer, { ClearValue{ 0.1f, 0.1f, 0.1f, 1.0f } }, ClearValue{ 1.0f, 0 });
     commandBuffer->SetShaderResourceBinding(m_shaderResourceBinding.Get());
 }
 

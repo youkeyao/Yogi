@@ -23,7 +23,7 @@ VulkanPipeline::~VulkanPipeline()
 {
     if (m_pipeline != VK_NULL_HANDLE)
     {
-    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
+        VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
         vkDestroyPipeline(context->GetVkDevice(), m_pipeline, nullptr);
     }
 }

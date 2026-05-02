@@ -8,28 +8,28 @@ namespace Yogi
 
 namespace
 {
-    // Cap the mip count at 16 (covers 65536x65536 sources), which is well within the limits
-    // of common hardware and keeps the per-frame descriptor allocations bounded.
-    constexpr uint32_t kMaxPyramidMips = 16;
+// Cap the mip count at 16 (covers 65536x65536 sources), which is well within the limits
+// of common hardware and keeps the per-frame descriptor allocations bounded.
+constexpr uint32_t kMaxPyramidMips = 16;
 
-    // Push constant layout mirrors DepthReduce.comp: uvec2 imageSize (8 bytes).
-    struct DepthReducePushConstants
-    {
-        uint32_t ImageWidth;
-        uint32_t ImageHeight;
-    };
+// Push constant layout mirrors DepthReduce.comp: uvec2 imageSize (8 bytes).
+struct DepthReducePushConstants
+{
+    uint32_t ImageWidth;
+    uint32_t ImageHeight;
+};
 
-    uint32_t ComputeMipCount(uint32_t w, uint32_t h)
+uint32_t ComputeMipCount(uint32_t w, uint32_t h)
+{
+    uint32_t maxDim = MathUtils::Max(w, h);
+    uint32_t mips   = 1;
+    while (maxDim > 1 && mips < kMaxPyramidMips)
     {
-        uint32_t maxDim = MathUtils::Max(w, h);
-        uint32_t mips   = 1;
-        while (maxDim > 1 && mips < kMaxPyramidMips)
-        {
-            maxDim >>= 1;
-            ++mips;
-        }
-        return mips;
+        maxDim >>= 1;
+        ++mips;
     }
+    return mips;
+}
 } // namespace
 
 Owner<IShaderResourceBinding> DepthPyramid::CreateReduceBindingLayout()
@@ -86,10 +86,7 @@ bool DepthPyramid::Resize(uint32_t sourceWidth, uint32_t sourceHeight)
     m_mipSizes.reserve(m_mipCount);
     for (uint32_t mip = 0; mip < m_mipCount; ++mip)
     {
-        MipSize sz{};
-        sz.x = MathUtils::Max(1u, width >> mip);
-        sz.y = MathUtils::Max(1u, height >> mip);
-        m_mipSizes.push_back(sz);
+        m_mipSizes.emplace_back(MathUtils::Max(1u, width >> mip), MathUtils::Max(1u, height >> mip));
     }
 
     // One descriptor set per mip. Wire binding 1 (the write target) here since it never
@@ -121,9 +118,7 @@ void DepthPyramid::Reset()
     m_initialLayoutTransitioned = false;
 }
 
-void DepthPyramid::Build(ICommandBuffer* commandBuffer,
-                         const IPipeline* reducePipeline,
-                         const ITexture* sourceDepth)
+void DepthPyramid::Build(ICommandBuffer* commandBuffer, const IPipeline* reducePipeline, const ITexture* sourceDepth)
 {
     if (!m_texture || !reducePipeline || !sourceDepth)
         return;
