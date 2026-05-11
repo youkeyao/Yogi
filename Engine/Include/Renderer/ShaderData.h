@@ -58,11 +58,31 @@ struct SceneData
 
 struct CullData
 {
-    vec4 FrustumPlanes[6];
-    uint DrawBase;
-    uint DrawCount;
-    uint OutputBase;
-    uint CountIndex;
+    mat4 View;          // world -> view (GLM convention, -Z forward)
+
+    // niagara-style symmetric frustum: (Lx, Lz, Ty, Tz) of normalized L/T plane normals
+    // expressed in view space. Right/Bottom planes are mirrored via abs() in the cull
+    // shader. 4 floats replace 6 frustum planes (saves 80 bytes of push constant).
+    vec4 Frustum;
+
+    // P00, P11: projection diagonal entries (tan-half-fov reciprocals).
+    // ZNear, ZFar: positive view-space distances. Used for the perspectiveRH_ZO depth
+    //   formula z_ndc = far * (d - near) / (d * (far - near)).
+    float P00;
+    float P11;
+    float ZNear;
+    float ZFar;
+
+    uint  DrawBase;
+    uint  DrawCount;
+    uint  OutputBase;
+    uint  CountIndex;
+    uint  IsLate;        // 0 = EARLY pass (gate on prev visibility), 1 = LATE pass (Hi-Z + write visibility)
+
+    // Pad to 128 bytes (Vulkan-guaranteed minimum maxPushConstantsSize).
+    uint  _Pad0;
+    uint  _Pad1;
+    uint  _Pad2;
 };
 
 struct MeshDraw

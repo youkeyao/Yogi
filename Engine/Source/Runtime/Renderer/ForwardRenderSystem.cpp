@@ -28,11 +28,27 @@ ForwardRenderSystem::ForwardRenderSystem()
         BufferDesc{ MAX_VISIBLE_DRAW_INDEX_SIZE, BufferUsage::Storage, BufferAccess::Dynamic });
     m_meshTaskIndirectCountBuffer = ResourceManager::AcquireSharedResource<IBuffer>(BufferDesc{
         MAX_INDIRECT_DRAW_COUNT_SIZE, BufferUsage::Storage | BufferUsage::Indirect, BufferAccess::Dynamic });
+    m_visibilityBuffer = ResourceManager::AcquireSharedResource<IBuffer>(
+        BufferDesc{ MAX_VISIBILITY_SIZE, BufferUsage::Storage, BufferAccess::Dynamic });
+    // Zero-init: first frame's EARLY skips everything (USE_PREV_VIS gate fails for all),
+    // LATE then sees an empty pyramid (all depth = 1.0) and emits every visible draw.
+    // From frame 2 onwards LATE's writes seed the canonical visibility for EARLY.
+    {
+        std::vector<uint32_t> zeros(MAX_MESH_DRAWS, 0u);
+        m_visibilityBuffer->UpdateData(zeros.data(), static_cast<uint32_t>(MAX_VISIBILITY_SIZE), 0);
+    }
 
     auto swapChain = Application::GetInstance().GetSwapChain();
+    // Render pass 0: EARLY pass. Clears color + depth (same as before the Hi-Z rework).
     m_renderPasses.push_back(ResourceManager::AcquireSharedResource<IRenderPass>(
         RenderPassDesc{ { AttachmentDesc{ swapChain->GetColorFormat(), ResourceState::Present } },
                         AttachmentDesc{ ITexture::Format::D32_FLOAT, ResourceState::DepthRead } }));
+    // Render pass 1: LATE pass. Preserves both color and depth written by the EARLY pass
+    // plus the pyramid build's depth-read; LoadOp::Load is what makes the two half-frames
+    // composite correctly into a single final image.
+    m_renderPasses.push_back(ResourceManager::AcquireSharedResource<IRenderPass>(RenderPassDesc{
+        { AttachmentDesc{ swapChain->GetColorFormat(), ResourceState::Present, LoadOp::Load, StoreOp::Store } },
+        AttachmentDesc{ ITexture::Format::D32_FLOAT, ResourceState::DepthRead, LoadOp::Load, StoreOp::Store } }));
 
     m_shaderResourceBinding = ResourceManager::AcquireSharedResource<IShaderResourceBinding>(
         std::vector<ShaderResourceAttribute>{
@@ -58,7 +74,12 @@ ForwardRenderSystem::ForwardRenderSystem()
             ShaderResourceAttribute{ 1, 1, ShaderResourceType::StorageBuffer, ShaderStage::Compute },
             ShaderResourceAttribute{ 2, 1, ShaderResourceType::StorageBuffer, ShaderStage::Compute },
             ShaderResourceAttribute{ 3, 1, ShaderResourceType::StorageBuffer, ShaderStage::Compute },
-            ShaderResourceAttribute{ 4, 1, ShaderResourceType::StorageBuffer, ShaderStage::Compute } },
+            ShaderResourceAttribute{ 4, 1, ShaderResourceType::StorageBuffer, ShaderStage::Compute },
+            // 5: Hi-Z pyramid (combined image sampler; image lives in GENERAL layout).
+            ShaderResourceAttribute{ 5, 1, ShaderResourceType::Texture, ShaderStage::Compute },
+            // 6: single-buffered visibility[]. Read (EARLY gating) + write (LATE verdict)
+            // through a compute-to-compute barrier between the two dispatches.
+            ShaderResourceAttribute{ 6, 1, ShaderResourceType::StorageBuffer, ShaderStage::Compute } },
         std::vector<PushConstantRange>{
             PushConstantRange{ ShaderStage::Compute, 0, static_cast<uint32_t>(sizeof(CullData)) } });
     m_cullShaderResourceBinding->BindBuffer(m_meshBuffer.Get(), 0);
@@ -66,6 +87,9 @@ ForwardRenderSystem::ForwardRenderSystem()
     m_cullShaderResourceBinding->BindBuffer(m_meshTaskIndirectBuffer.Get(), 2);
     m_cullShaderResourceBinding->BindBuffer(m_visibleDrawIndexBuffer.Get(), 3);
     m_cullShaderResourceBinding->BindBuffer(m_meshTaskIndirectCountBuffer.Get(), 4);
+    // Binding 5 (pyramid) is deferred to FlushBatch() because the pyramid texture is
+    // created lazily on the first Resize() -- binding a null texture trips validation.
+    m_cullShaderResourceBinding->BindBuffer(m_visibilityBuffer.Get(), 6);
 
     WRef<ShaderDesc> cullShader = AssetManager::AcquireAsset<ShaderDesc>("EngineAssets/Shaders/ObjectCull.comp");
     PipelineDesc     cullPipelineDesc{};
@@ -99,6 +123,7 @@ ForwardRenderSystem::~ForwardRenderSystem()
     m_meshTaskIndirectBuffer      = nullptr;
     m_visibleDrawIndexBuffer      = nullptr;
     m_meshTaskIndirectCountBuffer = nullptr;
+    m_visibilityBuffer            = nullptr;
     m_shaderResourceBinding       = nullptr;
     m_cullShaderResourceBinding   = nullptr;
     m_cullPipeline                = nullptr;
@@ -134,24 +159,6 @@ bool ForwardRenderSystem::OnWindowResize(WindowResizeEvent& e, World& world)
     return false;
 }
 
-void ForwardRenderSystem::UpdateDebugInput()
-{
-    const bool toggleKey  = Input::IsKeyPressed(YG_KEY_F9);
-    const bool mipDownKey = Input::IsKeyPressed(YG_KEY_LEFT_BRACKET);
-    const bool mipUpKey   = Input::IsKeyPressed(YG_KEY_RIGHT_BRACKET);
-
-    if (toggleKey && !m_prevToggleKey)
-        m_debugShowDepth = !m_debugShowDepth;
-    if (mipDownKey && !m_prevMipDownKey && m_debugDepthMip > 0)
-        --m_debugDepthMip;
-    if (mipUpKey && !m_prevMipUpKey)
-        ++m_debugDepthMip;
-
-    m_prevToggleKey  = toggleKey;
-    m_prevMipDownKey = mipDownKey;
-    m_prevMipUpKey   = mipUpKey;
-}
-
 void ForwardRenderSystem::ResetMeshUploadCache()
 {
     m_meshUploadCache.Clear();
@@ -163,8 +170,6 @@ void ForwardRenderSystem::ResetMeshUploadCache()
 void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const TransformComponent& transform, World& world)
 {
     YG_PROFILE_FUNCTION();
-
-    UpdateDebugInput();
 
     auto            swapChain     = Application::GetInstance().GetSwapChain();
     ICommandBuffer* commandBuffer = swapChain->GetCurrentCommandBuffer();
@@ -203,7 +208,7 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
     }
     else
     {
-        projectionMatrix = MathUtils::Perspective(camera.Fov, aspectRatio, 0.1f, 100.0f);
+        projectionMatrix = MathUtils::Perspective(camera.Fov, aspectRatio, k_zNear, k_zFar);
     }
     m_sceneData.ProjectionViewMatrix = projectionMatrix * viewMatrix;
     m_sceneData.ViewMatrix           = viewMatrix;
@@ -213,20 +218,33 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
     m_sceneData._Pad2                = 0;
 
     CullData cullData{};
-    auto     PVT              = m_sceneData.ProjectionViewMatrix.Transpose();
-    cullData.FrustumPlanes[0] = PVT[3] + PVT[0];
-    cullData.FrustumPlanes[1] = PVT[3] - PVT[0];
-    cullData.FrustumPlanes[2] = PVT[3] + PVT[1];
-    cullData.FrustumPlanes[3] = PVT[3] - PVT[1];
-    cullData.FrustumPlanes[4] = PVT[3] + PVT[2];
-    cullData.FrustumPlanes[5] = PVT[3] - PVT[2];
-    for (int i = 0; i < 6; ++i)
-    {
-        float length =
-            Vector3(cullData.FrustumPlanes[i].x, cullData.FrustumPlanes[i].y, cullData.FrustumPlanes[i].z).Length();
-        if (length > 0.0f)
-            cullData.FrustumPlanes[i] /= length;
-    }
+    cullData.View      = viewMatrix;
+
+    // niagara-style symmetric frustum. Extract left/top planes from the projection
+    // matrix in view space (P^T row 3 +/- row 0/1), normalize, and store only the
+    // (x, z) of left and (y, z) of top -- right/bottom are mirror images about x=0
+    // / y=0 in view space and reconstructed in the cull shader via abs(). Note we
+    // use the projection matrix alone (not P*V) so the planes are in view space.
+    auto     PT       = projectionMatrix.Transpose();
+    Vector4  leftRaw  = PT[3] + PT[0];
+    Vector4  topRaw   = PT[3] + PT[1];
+    Vector3  leftN    = Vector3(leftRaw.x, leftRaw.y, leftRaw.z);
+    Vector3  topN     = Vector3(topRaw.x,  topRaw.y,  topRaw.z);
+    float    leftLen  = leftN.Length();
+    float    topLen   = topN.Length();
+    Vector4  left     = leftLen > 0.0f ? leftRaw / leftLen : leftRaw;
+    Vector4  top      = topLen  > 0.0f ? topRaw  / topLen  : topRaw;
+    // GLM view space has -Z forward, but the cull shader negates viewPos.z so it
+    // works in niagara's +Z-forward space. Negate the plane's z component to match.
+    cullData.Frustum  = Vector4(left.x, -left.z, top.y, -top.z);
+
+    // P00, P11: projection diagonal entries (1/tan(fovY/2)/aspect, 1/tan(fovY/2)).
+    // Read directly out of the matrix so the orthographic path stays well-defined.
+    cullData.P00       = projectionMatrix[0][0];
+    cullData.P11       = projectionMatrix[1][1];
+    cullData.ZNear     = k_zNear;
+    cullData.ZFar      = k_zFar;
+    cullData.IsLate    = 0u;
 
     std::vector<RenderBatch>          renderBatches;
     std::unordered_map<uint64_t, int> renderBatchLookup;
@@ -376,45 +394,82 @@ void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandB
     uint32_t totalDrawCount  = static_cast<uint32_t>(uploadMeshDraws.size());
     uint32_t totalBatchCount = static_cast<uint32_t>(renderBatches.size());
 
+    // LATE pass offsets its indirect/visible-index writes into the second half of the
+    // shared buffers so they don't stomp EARLY's output (which the main render pass is
+    // still going to read via DrawMeshTasksIndirectCount).
+    const uint32_t kLateRegionBase = static_cast<uint32_t>(MAX_MESH_DRAWS);
+
     commandBuffer->Begin();
 
+    // -------- Resize + (re)bind the pyramid texture for the cull shader --------
+    // Resize() returns true only when it (re)allocated the texture (first frame /
+    // window resize), which is exactly when descriptor 5 needs to be rewritten.
+    if (m_depthPyramid.Resize(m_depthTexture->GetWidth(), m_depthTexture->GetHeight()))
     {
-        // Reset per-batch visible draw counters before compute compaction.
-        std::vector<uint32_t> zeroCounts(totalBatchCount, 0);
+        m_cullShaderResourceBinding->BindTexture(m_depthPyramid.GetTexture(), 5, 0, UINT32_MAX);
+    }
+    const bool pyramidValid = m_depthPyramid.IsValid();
+
+    // -------- Zero the per-batch counters for BOTH EARLY (slots [0..B)) and LATE --------
+    // (slots [B..2B)). Per-frame zeroing is required because the count buffer is
+    // atomicAdd'd in the cull shader.
+    {
+        std::vector<uint32_t> zeroCounts(2 * totalBatchCount, 0);
         m_meshTaskIndirectCountBuffer->UpdateData(
             zeroCounts.data(), static_cast<uint32_t>(zeroCounts.size() * sizeof(uint32_t)), 0);
-
-        commandBuffer->SetPipeline(m_cullPipeline.Get());
-        commandBuffer->SetShaderResourceBinding(m_cullShaderResourceBinding.Get());
-
-        for (size_t batchIndex = 0; batchIndex < renderBatches.size(); ++batchIndex)
-        {
-            auto& batch = renderBatches[batchIndex];
-            if (!batch.Pipeline || batch.DrawCount == 0)
-                continue;
-
-            cullData.DrawBase   = batch.DrawBase;
-            cullData.DrawCount  = batch.DrawCount;
-            cullData.OutputBase = batch.DrawBase;
-            cullData.CountIndex = static_cast<uint32_t>(batchIndex);
-
-            commandBuffer->SetPushConstants(
-                m_cullShaderResourceBinding.Get(), ShaderStage::Compute, 0, sizeof(CullData), &cullData);
-
-            uint32_t dispatchX = (batch.DrawCount + CULL_WORKGROUP_SIZE - 1) / CULL_WORKGROUP_SIZE;
-            commandBuffer->Dispatch(dispatchX, 1, 1);
-        }
-        if (totalDrawCount > 0)
-        {
-            BarrierDesc barrierDesc{};
-            barrierDesc.Buffer      = m_meshTaskIndirectBuffer.Get();
-            barrierDesc.BeforeState = ResourceState::UnorderedAccess;
-            barrierDesc.AfterState =
-                ResourceState::IndirectArg | ResourceState::TaskShaderResource | ResourceState::MeshShaderResource;
-            commandBuffer->Barrier(barrierDesc);
-        }
     }
 
+    // Pyramid descriptor records imageLayout = GENERAL (Storage-usage path in
+    // VulkanShaderResourceBinding::BindTexture). On the very first frame after a
+    // (re)allocation the image itself is still in UNDEFINED -- DepthPyramid::Build does
+    // the Undefined->General transition internally, but Build() runs AFTER the EARLY
+    // cull dispatch, so the EARLY dispatch would read a descriptor whose recorded
+    // layout doesn't match the image's actual layout (VUID-vkCmdDispatch-None-09600).
+    // Hoist the transition up to right before EARLY via DepthPyramid's idempotent helper;
+    // Build()'s own internal call becomes a no-op thanks to the shared
+    // `m_initialLayoutTransitioned` flag.
+    if (pyramidValid)
+    {
+        m_depthPyramid.EnsureInitialLayout(commandBuffer);
+    }
+
+    // ================ EARLY cull dispatch ================
+    commandBuffer->SetPipeline(m_cullPipeline.Get());
+    commandBuffer->SetShaderResourceBinding(m_cullShaderResourceBinding.Get());
+
+    for (size_t batchIndex = 0; batchIndex < renderBatches.size(); ++batchIndex)
+    {
+        auto& batch = renderBatches[batchIndex];
+        if (!batch.Pipeline || batch.DrawCount == 0)
+            continue;
+
+        cullData.DrawBase   = batch.DrawBase;
+        cullData.DrawCount  = batch.DrawCount;
+        cullData.OutputBase = batch.DrawBase;                       // EARLY region
+        cullData.CountIndex = static_cast<uint32_t>(batchIndex);    // EARLY count slot
+        cullData.IsLate     = 0u;
+
+        commandBuffer->SetPushConstants(
+            m_cullShaderResourceBinding.Get(), ShaderStage::Compute, 0, sizeof(CullData), &cullData);
+
+        uint32_t dispatchX = (batch.DrawCount + CULL_WORKGROUP_SIZE - 1) / CULL_WORKGROUP_SIZE;
+        commandBuffer->Dispatch(dispatchX, 1, 1);
+    }
+
+    // Indirect buffer EARLY region: compute write -> task/mesh/indirect read.
+    if (totalDrawCount > 0)
+    {
+        BarrierDesc barrierDesc{};
+        barrierDesc.Buffer      = m_meshTaskIndirectBuffer.Get();
+        barrierDesc.BeforeState = ResourceState::UnorderedAccess;
+        barrierDesc.AfterState =
+            ResourceState::IndirectArg | ResourceState::TaskShaderResource | ResourceState::MeshShaderResource;
+        commandBuffer->Barrier(barrierDesc);
+    }
+
+    // ================ EARLY render pass ================
+    // LoadOp::Clear on both attachments -- this is the "draws visible last frame" pass and
+    // establishes the new frame's color + depth baseline.
     BeginRender(commandBuffer, frameBuffer);
     commandBuffer->SetViewport({ 0, 0, (float)frameBuffer->GetWidth(), (float)frameBuffer->GetHeight() });
     commandBuffer->SetScissor({ 0, 0, frameBuffer->GetWidth(), frameBuffer->GetHeight() });
@@ -429,7 +484,7 @@ void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandB
         commandBuffer->SetShaderResourceBinding(m_shaderResourceBinding.Get());
 
         SceneData drawSceneData = m_sceneData;
-        drawSceneData.DrawBase  = batch.DrawBase;
+        drawSceneData.DrawBase  = batch.DrawBase; // reads visibleDrawIndices[batch.DrawBase + i]
         commandBuffer->SetPushConstants(
             m_shaderResourceBinding.Get(), ShaderStage::Task | ShaderStage::Mesh, 0, sizeof(SceneData), &drawSceneData);
         commandBuffer->DrawMeshTasksIndirectCount(m_meshTaskIndirectBuffer.Get(),
@@ -442,20 +497,16 @@ void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandB
 
     EndRender(commandBuffer);
 
-    // ---- Depth Pyramid (Hi-Z) build -------------------------------------------------
-    // Main render pass just wrote depth. Transition depth to a shader-readable state,
-    // (re)build the pyramid if the target resolution changed, generate all mips, then
-    // hand depth back to the graphics pipeline for future passes (the render pass'
-    // initialLayout = UNDEFINED + loadOp = CLEAR still covers the next frame start, but
-    // transitioning back keeps the resource in a well-defined state for any intermediate
-    // reader).
-    m_depthPyramid.Resize(m_depthTexture->GetWidth(), m_depthTexture->GetHeight());
-    if (m_depthPyramid.IsValid() && m_depthReducePipeline)
+    // ================ Depth Pyramid (Hi-Z) build ================
+    // After EARLY render we have a depth buffer representing everything we know was
+    // visible last frame + passed frustum. Build the pyramid from that -- it's the
+    // "conservative occluder set" the LATE pass will query. Resize / (re)bind already
+    // happened at the top of FlushBatch (the depth texture doesn't resize mid-frame).
+    const bool pyramidReady = m_depthPyramid.IsValid() && m_depthReducePipeline;
+    if (pyramidReady)
     {
-        // The render pass declared its depth attachment with FinalState = DepthRead, so on
-        // exit the image is already in DEPTH_STENCIL_READ_ONLY_OPTIMAL. Transition from
-        // DepthRead (not DepthWrite) to keep the validated oldLayout matching the tracked
-        // layout; otherwise VUID-VkImageMemoryBarrier-oldLayout-01197 fires.
+        // Same dance as before: DepthRead (render pass finalLayout) -> ComputeShaderResource
+        // for sampling in DepthReduce.comp, then back to DepthRead.
         commandBuffer->Barrier(BarrierDesc{ m_depthTexture.Get(),
                                             nullptr,
                                             ResourceState::DepthRead,
@@ -467,23 +518,18 @@ void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandB
 
         m_depthPyramid.Build(commandBuffer, m_depthReducePipeline.Get(), m_depthTexture.Get());
 
-        // Make the final mip's write visible to any subsequent shader reader (e.g. a
-        // future occlusion-culling compute pass). The pyramid image contract is that it
-        // stays in VK_IMAGE_LAYOUT_GENERAL for its entire lifetime (see DepthPyramid.h
-        // and VulkanShaderResourceBinding::BindTexture's Storage-usage special case),
-        // so this is a pure memory-visibility barrier -- oldLayout == newLayout == GENERAL.
+        // Make ALL mip levels of the pyramid visible to the subsequent LATE cull dispatch.
+        // Build() only barriers between consecutive mips; we need a full barrier so the
+        // compute shader can safely read any mip level. Stays in GENERAL layout (matches
+        // the descriptor's imageLayout = GENERAL for Storage-usage textures).
         commandBuffer->Barrier(BarrierDesc{ m_depthPyramid.GetTexture(),
                                             nullptr,
                                             ResourceState::UnorderedAccess,
                                             ResourceState::UnorderedAccess,
                                             0,
                                             0,
-                                            m_depthPyramid.GetMipCount() - 1,
-                                            1 });
-        // Restore depth to DepthRead (matches the render pass' declared finalLayout and
-        // its initialLayout for the next frame, so vkCmdBeginRenderPass' implicit
-        // transition from DepthRead -> DEPTH_STENCIL_ATTACHMENT_OPTIMAL is a no-op from
-        // the validator's point of view).
+                                            0,
+                                            m_depthPyramid.GetMipCount() });
         commandBuffer->Barrier(BarrierDesc{ m_depthTexture.Get(),
                                             nullptr,
                                             ResourceState::ComputeShaderResource,
@@ -494,65 +540,96 @@ void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandB
                                             1 });
     }
 
-    // ---- Debug visualisation: copy final pyramid mip onto the render target ---------
-    // The pyramid texture stays in GENERAL for its entire lifetime (see DepthPyramid.h).
-    // ICommandBuffer::Blit infers the source's stable state via Usage -- for a Storage
-    // texture that is FragmentShaderResource -- and its internal barriers use that state
-    // as the oldLayout when transitioning to CopySource. We therefore flip the sampled
-    // mip from UnorderedAccess (GENERAL) to FragmentShaderResource (SHADER_READ_ONLY)
-    // before the Blit, and restore it to GENERAL afterwards so the next frame's
-    // DepthPyramid::Build still sees the image in the layout its descriptors record.
-    if (m_debugShowDepth && blitTarget && m_depthTexture)
+    // ================ LATE cull dispatch ================
+    // Re-test every draw against the freshly-built pyramid; the shader skips any draw
+    // that EARLY already marked visible (prevVisible[i] != 0), so this only adds the
+    // draws that EARLY rejected but the new pyramid now reveals as visible.
+    const bool runLatePass = pyramidReady && totalDrawCount > 0;
+    if (runLatePass)
     {
-        const bool     usePyramid  = (m_debugDepthMip > 0) && m_depthPyramid.IsValid();
-        const uint32_t pyramidMips = m_depthPyramid.IsValid() ? m_depthPyramid.GetMipCount() : 0;
-        const uint32_t totalLevels = 1 + pyramidMips;
-        if (m_debugDepthMip >= totalLevels)
-            m_debugDepthMip = totalLevels - 1;
+        // Make EARLY's visibility[] writes visible to LATE's reads. Both map to the
+        // same VkBuffer; a compute->compute memory barrier is what makes the single-
+        // buffered aliasing of bindings 6 and 7 safe.
+        BarrierDesc visBarrier{};
+        visBarrier.Buffer      = m_visibilityBuffer.Get();
+        visBarrier.BeforeState = ResourceState::UnorderedAccess;
+        visBarrier.AfterState  = ResourceState::UnorderedAccess;
+        commandBuffer->Barrier(visBarrier);
 
-        const ITexture* srcTex = usePyramid ? m_depthPyramid.GetTexture() : m_depthTexture.Get();
-        const uint32_t  srcMip = usePyramid ? (m_debugDepthMip - 1) : 0;
+        commandBuffer->SetPipeline(m_cullPipeline.Get());
+        commandBuffer->SetShaderResourceBinding(m_cullShaderResourceBinding.Get());
 
-        commandBuffer->Barrier(BarrierDesc{ srcTex,
-                                            nullptr,
-                                            usePyramid ? ResourceState::UnorderedAccess : ResourceState::DepthRead,
-                                            ResourceState::FragmentShaderResource,
+        for (size_t batchIndex = 0; batchIndex < renderBatches.size(); ++batchIndex)
+        {
+            auto& batch = renderBatches[batchIndex];
+            if (!batch.Pipeline || batch.DrawCount == 0)
+                continue;
+
+            cullData.DrawBase   = batch.DrawBase;
+            cullData.DrawCount  = batch.DrawCount;
+            cullData.OutputBase = kLateRegionBase + batch.DrawBase;           // LATE region
+            cullData.CountIndex = totalBatchCount + static_cast<uint32_t>(batchIndex); // LATE count slot
+            cullData.IsLate     = 1u;
+
+            commandBuffer->SetPushConstants(
+                m_cullShaderResourceBinding.Get(), ShaderStage::Compute, 0, sizeof(CullData), &cullData);
+
+            uint32_t dispatchX = (batch.DrawCount + CULL_WORKGROUP_SIZE - 1) / CULL_WORKGROUP_SIZE;
+            commandBuffer->Dispatch(dispatchX, 1, 1);
+        }
+
+        // LATE indirect region visible to next draw pass.
+        BarrierDesc barrierDesc{};
+        barrierDesc.Buffer      = m_meshTaskIndirectBuffer.Get();
+        barrierDesc.BeforeState = ResourceState::UnorderedAccess;
+        barrierDesc.AfterState =
+            ResourceState::IndirectArg | ResourceState::TaskShaderResource | ResourceState::MeshShaderResource;
+        commandBuffer->Barrier(barrierDesc);
+
+        // ================ LATE render pass ================
+        // LoadOp::Load preserves both color (from EARLY) and depth (from EARLY + pyramid
+        // build roundtrip) so the late draws composite on top.
+        commandBuffer->BeginRenderPass(m_renderPasses[1].Get(),
+                                       frameBuffer,
+                                       { ClearValue{ 0.0f, 0.0f, 0.0f, 0.0f } }, // ignored -- LoadOp::Load
+                                       ClearValue{ 1.0f, 0 });
+        commandBuffer->SetShaderResourceBinding(m_shaderResourceBinding.Get());
+        commandBuffer->SetViewport({ 0, 0, (float)frameBuffer->GetWidth(), (float)frameBuffer->GetHeight() });
+        commandBuffer->SetScissor({ 0, 0, frameBuffer->GetWidth(), frameBuffer->GetHeight() });
+
+        for (size_t batchIndex = 0; batchIndex < renderBatches.size(); ++batchIndex)
+        {
+            auto& batch = renderBatches[batchIndex];
+            if (!batch.Pipeline || batch.DrawCount == 0)
+                continue;
+
+            commandBuffer->SetPipeline(batch.Pipeline.Get());
+            commandBuffer->SetShaderResourceBinding(m_shaderResourceBinding.Get());
+
+            // The main rendering shader reads visibleDrawIndices[drawSceneData.DrawBase + i],
+            // which must point at the LATE region.
+            SceneData drawSceneData = m_sceneData;
+            drawSceneData.DrawBase  = kLateRegionBase + batch.DrawBase;
+            commandBuffer->SetPushConstants(m_shaderResourceBinding.Get(),
+                                            ShaderStage::Task | ShaderStage::Mesh,
                                             0,
-                                            0,
-                                            srcMip,
-                                            1 });
+                                            sizeof(SceneData),
+                                            &drawSceneData);
 
-        // Pyramid mip0 is allocated at previousPow2(depth) which is usually smaller than the
-        // source depth (e.g. 1024x1024 for a 1920x1080 depth). DepthReduce.comp's clamp-based
-        // fetch therefore only fills the top-left (depthW/2, depthH/2) region of mip0 with
-        // meaningful data; the rest is edge-replicated. At mip N the valid region shrinks by
-        // another factor of 2 per level. Restrict the blit source to this valid region so
-        // the debug view stretches real depth content across the full render target instead
-        // of dragging the clamped edge pixels into view.
-        const uint32_t depthW     = m_depthTexture->GetWidth();
-        const uint32_t depthH     = m_depthTexture->GetHeight();
-        const uint32_t validShift = usePyramid ? (srcMip + 1) : 0;
-        const uint32_t validW     = MathUtils::Max(1u, depthW >> validShift);
-        const uint32_t validH     = MathUtils::Max(1u, depthH >> validShift);
+            const uint32_t lateIndirectOffset =
+                static_cast<uint32_t>(kLateRegionBase + batch.DrawBase) * sizeof(uint32_t) * 3;
+            const uint32_t lateCountOffset =
+                static_cast<uint32_t>((totalBatchCount + batchIndex) * sizeof(uint32_t));
 
-        BlitDesc blit{};
-        blit.SrcMipLevel = srcMip;
-        blit.DstMipLevel = 0;
-        blit.SrcWidth    = usePyramid ? MathUtils::Min(validW, m_depthPyramid.GetMipWidth(srcMip)) : validW;
-        blit.SrcHeight   = usePyramid ? MathUtils::Min(validH, m_depthPyramid.GetMipHeight(srcMip)) : validH;
-        blit.DstWidth    = blitTarget->GetWidth();
-        blit.DstHeight   = blitTarget->GetHeight();
-        blit.Filter      = BlitFilter::Nearest;
-        commandBuffer->Blit(srcTex, blitTarget, blit);
+            commandBuffer->DrawMeshTasksIndirectCount(m_meshTaskIndirectBuffer.Get(),
+                                                      lateIndirectOffset,
+                                                      m_meshTaskIndirectCountBuffer.Get(),
+                                                      lateCountOffset,
+                                                      batch.DrawCount,
+                                                      sizeof(uint32_t) * 3);
+        }
 
-        commandBuffer->Barrier(BarrierDesc{ srcTex,
-                                            nullptr,
-                                            ResourceState::FragmentShaderResource,
-                                            usePyramid ? ResourceState::UnorderedAccess : ResourceState::DepthRead,
-                                            0,
-                                            0,
-                                            srcMip,
-                                            1 });
+        commandBuffer->EndRenderPass();
     }
 
     commandBuffer->End();
@@ -579,8 +656,17 @@ void ForwardRenderSystem::EnsureDepthTexture(uint32_t width, uint32_t height)
     if (m_depthTexture && m_depthTexture->GetWidth() == width && m_depthTexture->GetHeight() == height)
         return;
 
-    m_depthTexture = ResourceManager::CreateResource<ITexture>(
-        TextureDesc{ width, height, 1, m_depthFormat, ITexture::Usage::DepthStencil, SampleCountFlagBits::Count1 });
+    // Reduction::Max: DepthReduce.comp samples this texture for the source -> pyramid-mip-0
+    // pass and relies on the sampler doing the 2x2 max in hardware.
+    TextureDesc desc{};
+    desc.Width      = width;
+    desc.Height     = height;
+    desc.MipLevels  = 1;
+    desc.Format     = m_depthFormat;
+    desc.Usage      = ITexture::Usage::DepthStencil;
+    desc.NumSamples = SampleCountFlagBits::Count1;
+    desc.Reduction  = ITexture::SamplerReductionMode::Max;
+    m_depthTexture  = ResourceManager::CreateResource<ITexture>(desc);
 }
 
 } // namespace Yogi

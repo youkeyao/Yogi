@@ -88,9 +88,9 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
         float z_axis = float(rand()) / RAND_MAX * 2 - 1.0f;
         float angle  = float(rand()) / RAND_MAX * 360.0f;
 
-        float x_scale = float(rand()) / RAND_MAX / 10;
-        float y_scale = float(rand()) / RAND_MAX / 10;
-        float z_scale = float(rand()) / RAND_MAX / 10;
+        float x_scale = float(rand()) / RAND_MAX / 2;
+        float y_scale = float(rand()) / RAND_MAX / 2;
+        float z_scale = float(rand()) / RAND_MAX / 2;
 
         m_box                    = m_world->CreateEntity();
         auto& entityTransform    = m_box.AddComponent<Yogi::TransformComponent>().Transform;
@@ -175,10 +175,15 @@ void Sandbox2D::OnUpdate(Yogi::Timestep ts)
             lastY      = Yogi::Input::GetMouseY();
             firstMouse = false;
         }
-        transform.Rotation = Yogi::Quaternion::AngleAxis((float)ts * (lastX - Yogi::Input::GetMouseX()),
+        // Mouse delta is already a per-frame quantity (pixels travelled this frame),
+        // so we must NOT multiply by ts -- doing so double-integrates over time and
+        // produces a huge view jump on any frame stall (large ts * large delta).
+        // sensitivity is just a constant pixels-to-radians scale.
+        const float kMouseSensitivity = 0.02f;
+        transform.Rotation = Yogi::Quaternion::AngleAxis(kMouseSensitivity * (lastX - Yogi::Input::GetMouseX()),
                                                          transform.Rotation * Yogi::Vector3::Up()) *
             transform.Rotation;
-        transform.Rotation = Yogi::Quaternion::AngleAxis((float)ts * (lastY - Yogi::Input::GetMouseY()),
+        transform.Rotation = Yogi::Quaternion::AngleAxis(kMouseSensitivity * (lastY - Yogi::Input::GetMouseY()),
                                                          transform.Rotation * Yogi::Vector3::Right()) *
             transform.Rotation;
         lastX = Yogi::Input::GetMouseX();

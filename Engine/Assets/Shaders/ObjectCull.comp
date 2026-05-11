@@ -1,5 +1,7 @@
 #version 460 core
 
+// Two-phase GPU object culling
+
 #extension GL_EXT_shader_explicit_arithmetic_types: require
 #extension GL_EXT_shader_16bit_storage: require
 #extension GL_EXT_shader_8bit_storage: require
@@ -13,25 +15,26 @@ layout(binding = 0) readonly buffer MeshDataBuffer
 {
     MeshData meshData[];
 };
-
 layout(binding = 1) readonly buffer MeshDrawBuffer
 {
     MeshDraw meshDraws[];
 };
-
 layout(binding = 2) writeonly buffer IndirectCommandBuffer
 {
     uint commands[];
 };
-
 layout(binding = 3) writeonly buffer VisibleDrawIndexBuffer
 {
     uint visibleDrawIndices[];
 };
-
 layout(binding = 4) buffer IndirectCountBuffer
 {
     uint drawCounts[];
+};
+layout(binding = 5) uniform sampler2D u_depthPyramid;
+layout(binding = 6) buffer VisibilityBuffer
+{
+    uint visibility[];
 };
 
 layout(push_constant) uniform CullDataBlock
@@ -39,16 +42,33 @@ layout(push_constant) uniform CullDataBlock
     CullData cullData;
 };
 
-bool sphereInsideFrustum(vec3 center, float radius)
+bool sphereInsideFrustum(vec3 c, float r)
 {
-    for (int i = 0; i < 6; ++i)
-    {
-        float dist = dot(cullData.FrustumPlanes[i].xyz, center) + cullData.FrustumPlanes[i].w;
-        if (dist < -radius) {
-            return false;
-        }
-    }
+    bool visible = true;
+    visible = visible && c.z * cullData.Frustum.y - abs(c.x) * cullData.Frustum.x > -r;
+    visible = visible && c.z * cullData.Frustum.w - abs(c.y) * cullData.Frustum.z > -r;
+    visible = visible && c.z + r > cullData.ZNear && c.z - r < cullData.ZFar;
+    return visible;
+}
 
+bool projectSphere(vec3 c, float r, float znear, float P00, float P11, out vec4 aabb)
+{
+    if (c.z < r + znear)
+        return false;
+
+    vec3  cr   = c * r;
+    float czr2 = c.z * c.z - r * r;
+
+    float vx   = sqrt(c.x * c.x + czr2);
+    float minx = (vx * c.x - cr.z) / (vx * c.z + cr.x);
+    float maxx = (vx * c.x + cr.z) / (vx * c.z - cr.x);
+
+    float vy   = sqrt(c.y * c.y + czr2);
+    float miny = (vy * c.y - cr.z) / (vy * c.z + cr.y);
+    float maxy = (vy * c.y + cr.z) / (vy * c.z - cr.y);
+
+    aabb = vec4(minx * P00, miny * P11, maxx * P00, maxy * P11);
+    aabb = aabb.xwzy * vec4(0.5, -0.5, 0.5, -0.5) + vec4(0.5);
     return true;
 }
 
@@ -59,17 +79,65 @@ void main()
         return;
 
     uint meshDrawIndex = cullData.DrawBase + drawIndex;
+    bool isLate        = cullData.IsLate != 0u;
 
+    // EARLY: skip objects invisible last frame (LATE will catch them).
+    if (!isLate && visibility[meshDrawIndex] == 0u)
+        return;
+
+    uint prevVisibility = visibility[meshDrawIndex];
     MeshDraw draw = meshDraws[meshDrawIndex];
     MeshData mesh = meshData[draw.MeshIndex];
-    vec3 center = mesh.BoundingCenter * draw.Scale + draw.Position;
+
+    // World-space sphere center: matches the vertex shader's TRS (rotate(localPos * S) + T).
+    vec3 center = RotateByQuaternion(mesh.BoundingCenter * draw.Scale, draw.Orientation) + draw.Position;
     float maxScale = max(max(abs(draw.Scale.x), abs(draw.Scale.y)), abs(draw.Scale.z));
     float radius = mesh.BoundingRadius * maxScale;
 
-    if (sphereInsideFrustum(center, radius))
+    // GLM (-Z forward) -> niagara view-space (+Z forward).
+    vec3 viewPos = (cullData.View * vec4(center, 1.0)).xyz;
+    viewPos.z = -viewPos.z;
+
+    bool visible = sphereInsideFrustum(viewPos, radius);
+
+    // Hi-Z is only run by LATE -- EARLY trusts the previous frame's visibility[] verdict
+    // and skips occlusion testing entirely (avoids stale-pyramid feedback loops).
+    if (visible && isLate)
     {
-        uint compactIndex = atomicAdd(drawCounts[cullData.CountIndex], 1);
-        uint commandOffset = (cullData.OutputBase + compactIndex) * 3;
+        vec4 aabb;
+        if (projectSphere(viewPos, radius, cullData.ZNear, cullData.P00, cullData.P11, aabb))
+        {
+            // Single-tap Hi-Z. ceil-mip makes the AABB <= 1 texel on the chosen mip;
+            // LINEAR + MAX-reduction sampler does a 2x2 max around the sample point,
+            // strictly covering every mip-k texel the AABB touches. The pyramid's
+            // mip-k texels are themselves max-reductions of their mip-0 footprint
+            // (DepthReduce.comp + previousPow2 mip-0 sizing keep that exact), so the
+            // overall test is conservative.
+            float w     = aabb.z - aabb.x;
+            float h     = aabb.w - aabb.y;
+            ivec2 p0    = textureSize(u_depthPyramid, 0);
+            float level = ceil(log2(max(w * float(p0.x), h * float(p0.y))));
+            float depth = textureLod(u_depthPyramid, (aabb.xy + aabb.zw) * 0.5, level).r;
+
+            // Sphere closest-point NDC depth (perspectiveRH_ZO finite-far):
+            //   z = far * (d - near) / (d * (far - near))
+            float closestZ    = viewPos.z - radius;
+            float depthSphere = cullData.ZFar * (closestZ - cullData.ZNear)
+                              / (closestZ * (cullData.ZFar - cullData.ZNear));
+            visible           = depthSphere <= depth;
+        }
+    }
+
+    // LATE writes the canonical visibility for next frame's EARLY gating.
+    if (isLate)
+        visibility[meshDrawIndex] = visible ? 1u : 0u;
+
+    // EARLY emits all that pass; LATE only emits the "newly-visible" set
+    // (prevVisibility == 0) to avoid duplicates with EARLY's draws.
+    if (visible && (!isLate || prevVisibility == 0u))
+    {
+        uint compactIndex           = atomicAdd(drawCounts[cullData.CountIndex], 1);
+        uint commandOffset          = (cullData.OutputBase + compactIndex) * 3;
         commands[commandOffset + 0] = (mesh.MeshletCount + TASK_WGSIZE - 1) / TASK_WGSIZE;
         commands[commandOffset + 1] = 1;
         commands[commandOffset + 2] = 1;

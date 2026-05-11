@@ -23,6 +23,9 @@ public:
 
     inline VkImage     GetVkImage() const { return m_image; }
     inline VkImageView GetVkImageView(uint32_t mipLevel = 0) const { return m_imageViews[mipLevel]; }
+    // Full-mip image view covering all mip levels of this texture. Used by the Hi-Z
+    // cull shader to access any mip level via texelFetch(view, coord, lod).
+    inline VkImageView GetVkImageViewAllMips() const { return m_fullMipView; }
     inline VkSampler   GetVkSampler() const { return m_sampler; }
 
 private:
@@ -48,6 +51,7 @@ private:
 private:
     VkImage                  m_image;
     std::vector<VkImageView> m_imageViews;
+    VkImageView              m_fullMipView = VK_NULL_HANDLE;
     VkDeviceMemory           m_imageMemory = VK_NULL_HANDLE;
     VkSampler                m_sampler     = VK_NULL_HANDLE;
 

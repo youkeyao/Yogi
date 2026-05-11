@@ -40,6 +40,16 @@ VulkanTexture::VulkanTexture(const TextureDesc& desc) :
     {
         m_imageViews.push_back(CreateVkImageView(m_image, YgTextureFormat2VkFormat(desc.Format), aspectFlags, mip, 1));
     }
+    // Also create a "full mip" view covering all mip levels — used for Hi-Z cull shader
+    // sampling that needs textureLod / texelFetch with arbitrary lod values.
+    if (m_mipLevels > 1)
+    {
+        m_fullMipView = CreateVkImageView(m_image, YgTextureFormat2VkFormat(desc.Format), aspectFlags, 0, m_mipLevels);
+    }
+    else
+    {
+        m_fullMipView = m_imageViews[0];
+    }
     CreateVkSampler(VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, desc.Reduction);
 }
 
@@ -70,6 +80,12 @@ VulkanTexture::~VulkanTexture()
             vkDestroyImageView(device, imageView, nullptr);
     }
     m_imageViews.clear();
+    // Only destroy m_fullMipView if it's distinct from the per-mip views (i.e. mipLevels > 1).
+    if (m_fullMipView != VK_NULL_HANDLE && m_mipLevels > 1)
+    {
+        vkDestroyImageView(device, m_fullMipView, nullptr);
+    }
+    m_fullMipView = VK_NULL_HANDLE;
     if (m_sampler != VK_NULL_HANDLE)
     {
         vkDestroyImage(device, m_image, nullptr);

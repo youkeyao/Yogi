@@ -25,6 +25,14 @@ public:
 
     bool IsValid() const { return m_texture != nullptr; }
 
+    // Perform the one-time Undefined->General transition if it hasn't happened yet.
+    // `Build()` does this implicitly, but code that samples the pyramid before the
+    // first Build (e.g. niagara-style EARLY cull reading last frame's pyramid -- or
+    // on the very first frame, reading an image that was just allocated) needs the
+    // descriptor's recorded GENERAL layout to match the image's actual layout, so we
+    // expose this for them to invoke eagerly.
+    void EnsureInitialLayout(ICommandBuffer* commandBuffer);
+
     void Build(ICommandBuffer* commandBuffer, const IPipeline* reducePipeline, const ITexture* sourceDepth);
 
     const ITexture* GetTexture() const { return m_texture.Get(); }

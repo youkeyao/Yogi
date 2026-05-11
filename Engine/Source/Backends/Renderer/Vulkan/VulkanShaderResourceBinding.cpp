@@ -148,7 +148,11 @@ void VulkanShaderResourceBinding::BindTexture(const ITexture* texture, int bindi
 
     const VulkanTexture&  vkTexture = *static_cast<const VulkanTexture*>(texture);
     VkDescriptorImageInfo imageInfo{};
-    imageInfo.imageView = vkTexture.GetVkImageView(mipLevel);
+    // mipLevel == UINT32_MAX means "bind a view covering all mip levels" (for Hi-Z
+    // sampling shaders that need textureLod with arbitrary lod). Otherwise bind the
+    // single-mip view at the requested level.
+    imageInfo.imageView = (mipLevel == UINT32_MAX) ? vkTexture.GetVkImageViewAllMips()
+                                                    : vkTexture.GetVkImageView(mipLevel);
 
     VkDescriptorType descriptorType = VK_DESCRIPTOR_TYPE_MAX_ENUM;
     switch (bindingAttr->Type)
