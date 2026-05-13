@@ -57,8 +57,6 @@ public:
     virtual ITexture::Format GetFormat() const    = 0;
     virtual Usage            GetUsage() const     = 0;
 
-    virtual void SetData(void* data, uint32_t size) = 0;
-
     static Owner<ITexture> Create(const TextureDesc& desc);
 };
 

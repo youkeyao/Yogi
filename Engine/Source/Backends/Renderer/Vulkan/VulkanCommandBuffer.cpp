@@ -3,6 +3,8 @@
 #include "VulkanPipeline.h"
 #include "VulkanBuffer.h"
 #include "VulkanShaderResourceBinding.h"
+#include "VulkanTexture.h"
+#include "VulkanTextureView.h"
 #include "VulkanUtils.h"
 
 #include "Math/MathUtils.h"
@@ -296,14 +298,15 @@ void VulkanCommandBuffer::Dispatch(uint32_t groupCountX, uint32_t groupCountY, u
 
 void VulkanCommandBuffer::Barrier(const BarrierDesc& barrierDesc)
 {
-    if (barrierDesc.Texture)
+    if (barrierDesc.TextureView)
     {
-        const VulkanTexture* vkTexture = static_cast<const VulkanTexture*>(barrierDesc.Texture);
+        const VulkanTextureView* vkView = static_cast<const VulkanTextureView*>(barrierDesc.TextureView);
+        const ITexture*          tex    = vkView->GetTexture();
+        YG_CORE_ASSERT(tex, "Vulkan: Barrier called on a view whose texture is destroyed");
+        const VulkanTexture* vkTex = static_cast<const VulkanTexture*>(tex);
 
-        VkImageLayout oldLayout =
-            YgResourceState2VkImageLayout(barrierDesc.BeforeState, barrierDesc.Texture->GetUsage());
-        VkImageLayout newLayout =
-            YgResourceState2VkImageLayout(barrierDesc.AfterState, barrierDesc.Texture->GetUsage());
+        VkImageLayout oldLayout = YgResourceState2VkImageLayout(barrierDesc.BeforeState, tex->GetUsage());
+        VkImageLayout newLayout = YgResourceState2VkImageLayout(barrierDesc.AfterState, tex->GetUsage());
 
         VkImageMemoryBarrier barrier{};
         barrier.sType               = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -311,22 +314,13 @@ void VulkanCommandBuffer::Barrier(const BarrierDesc& barrierDesc)
         barrier.newLayout           = newLayout;
         barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barrier.image               = vkTexture->GetVkImage();
+        barrier.image               = vkTex->GetVkImage();
         barrier.srcAccessMask       = YgResourceState2VkAccess(barrierDesc.BeforeState);
         barrier.dstAccessMask       = YgResourceState2VkAccess(barrierDesc.AfterState);
+        barrier.subresourceRange    = vkView->GetVkSubresourceRange();
 
         VkPipelineStageFlags sourceStage      = YgResourceState2VkPipelineStage(barrierDesc.BeforeState);
         VkPipelineStageFlags destinationStage = YgResourceState2VkPipelineStage(barrierDesc.AfterState);
-
-        barrier.subresourceRange.aspectMask     = barrierDesc.Texture->GetUsage() == ITexture::Usage::DepthStencil ?
-            VK_IMAGE_ASPECT_DEPTH_BIT :
-            VK_IMAGE_ASPECT_COLOR_BIT;
-        barrier.subresourceRange.baseMipLevel   = barrierDesc.BaseMipLevel;
-        barrier.subresourceRange.levelCount     = barrierDesc.LevelCount == 0 ?
-            (barrierDesc.Texture->GetMipLevels() - barrierDesc.BaseMipLevel) :
-            barrierDesc.LevelCount;
-        barrier.subresourceRange.baseArrayLayer = 0;
-        barrier.subresourceRange.layerCount     = 1;
 
         vkCmdPipelineBarrier(m_commandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
         return;
@@ -368,23 +362,35 @@ void VulkanCommandBuffer::Barrier(const BarrierDesc& barrierDesc)
     }
 }
 
-void VulkanCommandBuffer::Blit(const ITexture* src, const ITexture* dst, const BlitDesc& blitDesc)
+void VulkanCommandBuffer::Blit(const ITextureView* src, const ITextureView* dst, const BlitDesc& blitDesc)
 {
-    YG_CORE_ASSERT(blitDesc.LayerCount > 0, "Vulkan: Blit layer count must be greater than zero!");
-    YG_CORE_ASSERT(blitDesc.SrcMipLevel < src->GetMipLevels(), "Vulkan: Source mip level out of range!");
-    YG_CORE_ASSERT(blitDesc.DstMipLevel < dst->GetMipLevels(), "Vulkan: Destination mip level out of range!");
-    YG_CORE_ASSERT(blitDesc.SrcBaseArrayLayer == 0 && blitDesc.DstBaseArrayLayer == 0 && blitDesc.LayerCount == 1,
-                   "Vulkan: Barrier-based blit currently supports only single-layer textures.");
+    YG_CORE_ASSERT(src && dst, "Vulkan: Blit called with null view");
 
-    const VulkanTexture& vkSrc = *static_cast<const VulkanTexture*>(src);
-    const VulkanTexture& vkDst = *static_cast<const VulkanTexture*>(dst);
+    const VulkanTextureView* vkSrcView = static_cast<const VulkanTextureView*>(src);
+    const VulkanTextureView* vkDstView = static_cast<const VulkanTextureView*>(dst);
+
+    const ITexture* srcTex = src->GetTexture();
+    const ITexture* dstTex = dst->GetTexture();
+    YG_CORE_ASSERT(srcTex && dstTex, "Vulkan: Blit called with view whose texture is destroyed");
+
+    YG_CORE_ASSERT(src->GetMipLevelCount() == 1 && dst->GetMipLevelCount() == 1,
+                   "Vulkan: Blit currently supports single-mip views only.");
+    YG_CORE_ASSERT(src->GetArrayLayerCount() == dst->GetArrayLayerCount(),
+                   "Vulkan: Blit src/dst layer counts must match.");
+    YG_CORE_ASSERT(src->GetArrayLayerCount() == 1, "Vulkan: Blit currently supports single-layer views only.");
+
+    const VulkanTexture& vkSrc = *static_cast<const VulkanTexture*>(srcTex);
+    const VulkanTexture& vkDst = *static_cast<const VulkanTexture*>(dstTex);
 
     auto mipExtent = [](uint32_t width, uint32_t height, uint32_t mip) {
         return std::pair<uint32_t, uint32_t>{ MathUtils::Max(1u, width >> mip), MathUtils::Max(1u, height >> mip) };
     };
 
-    auto [srcMipWidth, srcMipHeight] = mipExtent(src->GetWidth(), src->GetHeight(), blitDesc.SrcMipLevel);
-    auto [dstMipWidth, dstMipHeight] = mipExtent(dst->GetWidth(), dst->GetHeight(), blitDesc.DstMipLevel);
+    const uint32_t srcMip = src->GetBaseMipLevel();
+    const uint32_t dstMip = dst->GetBaseMipLevel();
+
+    auto [srcMipWidth, srcMipHeight] = mipExtent(srcTex->GetWidth(), srcTex->GetHeight(), srcMip);
+    auto [dstMipWidth, dstMipHeight] = mipExtent(dstTex->GetWidth(), dstTex->GetHeight(), dstMip);
     uint32_t srcWidth                = blitDesc.SrcWidth == 0 ? srcMipWidth : blitDesc.SrcWidth;
     uint32_t srcHeight               = blitDesc.SrcHeight == 0 ? srcMipHeight : blitDesc.SrcHeight;
     uint32_t dstWidth                = blitDesc.DstWidth == 0 ? dstMipWidth : blitDesc.DstWidth;
@@ -406,54 +412,69 @@ void VulkanCommandBuffer::Blit(const ITexture* src, const ITexture* dst, const B
         return ResourceState::FragmentShaderResource;
     };
 
-    ResourceState srcStableState = inferReadableState(*src);
-    ResourceState dstStableState = inferWritableState(*dst);
+    ResourceState srcStableState = inferReadableState(*srcTex);
+    ResourceState dstStableState = inferWritableState(*dstTex);
 
-    VkImageAspectFlags srcAspect =
-        src->GetUsage() == ITexture::Usage::DepthStencil ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
-    VkImageAspectFlags dstAspect =
-        dst->GetUsage() == ITexture::Usage::DepthStencil ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+    VkImageAspectFlags srcAspect = vkSrcView->GetVkAspectMask();
+    VkImageAspectFlags dstAspect = vkDstView->GetVkAspectMask();
 
-    if (src != dst)
+    if (srcTex != dstTex)
     {
-        Barrier(BarrierDesc{ src, nullptr, srcStableState, ResourceState::CopySource, 0, 0, blitDesc.SrcMipLevel, 1 });
+        Barrier(BarrierDesc{
+            .TextureView = src,
+            .BeforeState = srcStableState,
+            .AfterState  = ResourceState::CopySource,
+        });
         // Destination is fully overwritten by the blit, so transitioning from UNDEFINED is valid.
         Barrier(BarrierDesc{
-            dst, nullptr, ResourceState::None, ResourceState::CopyDestination, 0, 0, blitDesc.DstMipLevel, 1 });
+            .TextureView = dst,
+            .BeforeState = ResourceState::None,
+            .AfterState  = ResourceState::CopyDestination,
+        });
 
         VkImageBlit blit{};
         blit.srcSubresource.aspectMask     = srcAspect;
-        blit.srcSubresource.mipLevel       = blitDesc.SrcMipLevel;
-        blit.srcSubresource.baseArrayLayer = blitDesc.SrcBaseArrayLayer;
-        blit.srcSubresource.layerCount     = blitDesc.LayerCount;
+        blit.srcSubresource.mipLevel       = srcMip;
+        blit.srcSubresource.baseArrayLayer = src->GetBaseArrayLayer();
+        blit.srcSubresource.layerCount     = src->GetArrayLayerCount();
         blit.srcOffsets[0]                 = { 0, 0, 0 };
         blit.srcOffsets[1]                 = { (int32_t)srcWidth, (int32_t)srcHeight, 1 };
         blit.dstSubresource.aspectMask     = dstAspect;
-        blit.dstSubresource.mipLevel       = blitDesc.DstMipLevel;
-        blit.dstSubresource.baseArrayLayer = blitDesc.DstBaseArrayLayer;
-        blit.dstSubresource.layerCount     = blitDesc.LayerCount;
+        blit.dstSubresource.mipLevel       = dstMip;
+        blit.dstSubresource.baseArrayLayer = dst->GetBaseArrayLayer();
+        blit.dstSubresource.layerCount     = dst->GetArrayLayerCount();
         blit.dstOffsets[0]                 = { 0, 0, 0 };
         blit.dstOffsets[1]                 = { (int32_t)dstWidth, (int32_t)dstHeight, 1 };
 
         vkCmdBlitImage(m_commandBuffer,
                        vkSrc.GetVkImage(),
-                       YgResourceState2VkImageLayout(ResourceState::CopySource, src->GetUsage()),
+                       YgResourceState2VkImageLayout(ResourceState::CopySource, srcTex->GetUsage()),
                        vkDst.GetVkImage(),
-                       YgResourceState2VkImageLayout(ResourceState::CopyDestination, dst->GetUsage()),
+                       YgResourceState2VkImageLayout(ResourceState::CopyDestination, dstTex->GetUsage()),
                        1,
                        &blit,
                        blitDesc.Filter == BlitFilter::Nearest || srcAspect == VK_IMAGE_ASPECT_DEPTH_BIT ?
                            VK_FILTER_NEAREST :
                            VK_FILTER_LINEAR);
 
-        Barrier(BarrierDesc{ src, nullptr, ResourceState::CopySource, srcStableState, 0, 0, blitDesc.SrcMipLevel, 1 });
-        Barrier(
-            BarrierDesc{ dst, nullptr, ResourceState::CopyDestination, dstStableState, 0, 0, blitDesc.DstMipLevel, 1 });
+        Barrier(BarrierDesc{
+            .TextureView = src,
+            .BeforeState = ResourceState::CopySource,
+            .AfterState  = srcStableState,
+        });
+        Barrier(BarrierDesc{
+            .TextureView = dst,
+            .BeforeState = ResourceState::CopyDestination,
+            .AfterState  = dstStableState,
+        });
         return;
     }
 
     Barrier(BarrierDesc{
-        dst, nullptr, dstStableState, ResourceState::FragmentShaderResource, 0, 0, blitDesc.DstMipLevel, 1 });
+        .TextureView = dst,
+        .BeforeState = dstStableState,
+        .AfterState  = ResourceState::FragmentShaderResource,
+    });
 }
 
 } // namespace Yogi

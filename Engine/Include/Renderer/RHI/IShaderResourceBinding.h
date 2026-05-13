@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Renderer/RHI/IBuffer.h"
-#include "Renderer/RHI/ITexture.h"
+#include "Renderer/RHI/ITextureView.h"
 
 namespace Yogi
 {
@@ -52,8 +52,8 @@ class YG_API IShaderResourceBinding
 public:
     virtual ~IShaderResourceBinding() = default;
 
-    virtual void BindBuffer(const IBuffer* buffer, int binding, int slot = 0)                           = 0;
-    virtual void BindTexture(const ITexture* texture, int binding, int slot = 0, uint32_t mipLevel = 0) = 0;
+    virtual void BindBuffer(const IBuffer* buffer, int binding, int slot = 0)         = 0;
+    virtual void BindTextureView(const ITextureView* view, int binding, int slot = 0) = 0;
 
     const std::vector<ShaderResourceAttribute>& GetLayout() const { return m_layout; }
     const std::vector<PushConstantRange>&       GetPushConstantRanges() const { return m_pushConstantRanges; }

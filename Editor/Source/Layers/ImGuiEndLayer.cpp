@@ -98,9 +98,9 @@ void ImGuiEndLayer::RendererDraw()
     ImDrawData* mainDrawData = ImGui::GetDrawData();
 #ifdef YG_RENDERER_VULKAN
     auto            swapChain     = Application::GetInstance().GetSwapChain();
-    auto            currentTarget = swapChain->GetCurrentTarget();
+    auto            currentTarget = swapChain->AcquireCurrentTarget();
     FrameBufferDesc desc{
-        swapChain->GetWidth(), swapChain->GetHeight(), m_renderPass.Get(), { currentTarget }, nullptr,
+        swapChain->GetWidth(), swapChain->GetHeight(), m_renderPass.Get(), { currentTarget.Get() }, nullptr,
     };
     uint64_t key = HashArgs(desc);
     auto     it  = m_frameBuffers.find(key);

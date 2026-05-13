@@ -59,7 +59,7 @@ public:
     void Dispatch(uint32_t groupCountX, uint32_t groupCountY = 1, uint32_t groupCountZ = 1) override;
     void Barrier(const BarrierDesc& barrierDesc) override;
 
-    void Blit(const ITexture* src, const ITexture* dst, const BlitDesc& blitDesc = {}) override;
+    void Blit(const ITextureView* src, const ITextureView* dst, const BlitDesc& blitDesc = {}) override;
 
     inline VkCommandBuffer    GetVkCommandBuffer() const { return m_commandBuffer; }
     inline VkFence            GetFence() const { return m_commandFence; }

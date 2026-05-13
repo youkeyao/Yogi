@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Renderer/RHI/ISwapChain.h"
+#include "Renderer/RHI/ITextureView.h"
 #include "VulkanTexture.h"
 #include "VulkanCommandBuffer.h"
 
@@ -18,8 +19,14 @@ public:
     inline ITexture::Format    GetColorFormat() const override { return m_colorFormat; }
     inline SampleCountFlagBits GetNumSamples() const override { return m_numSamples; }
 
-    ITexture*       GetCurrentTarget() const override { return m_colorTextures[m_imageIndex].Get(); }
-    ICommandBuffer* GetCurrentCommandBuffer() const override { return m_commandBuffers[m_currentFrame].Get(); }
+    WRef<ITextureView> AcquireCurrentTarget() const override
+    {
+        return WRef<ITextureView>::Create(m_colorViews[m_imageIndex]);
+    }
+    WRef<ICommandBuffer> AcquireCurrentCommandBuffer() const override
+    {
+        return WRef<VulkanCommandBuffer>::Create(m_commandBuffers[m_currentFrame]);
+    }
 
     void AcquireNextImage() override;
     void Present() override;
@@ -40,7 +47,8 @@ private:
     VkSwapchainKHR m_swapChain    = VK_NULL_HANDLE;
     VkQueue        m_presentQueue = VK_NULL_HANDLE;
 
-    std::vector<Owner<VulkanTexture>> m_colorTextures;
+    std::vector<Owner<ITexture>>     m_colorTextures;
+    std::vector<Owner<ITextureView>> m_colorViews;
 
     std::vector<VkSemaphore>                m_imageAvailableSemaphores;
     std::vector<Owner<VulkanCommandBuffer>> m_commandBuffers;

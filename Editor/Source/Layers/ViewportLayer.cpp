@@ -15,10 +15,11 @@ ViewportLayer::ViewportLayer() :
 {
     m_frameTexture = ResourceManager::CreateResource<ITexture>(
         TextureDesc{ 1, 1, 1, ITexture::Format::B8G8R8A8_UNORM, ITexture::Usage::RenderTarget });
+    m_frameView           = ResourceManager::CreateResource<ITextureView>(m_frameTexture);
     m_frameTextureBinding =
         ResourceManager::CreateResource<IShaderResourceBinding>(std::vector<ShaderResourceAttribute>{
             ShaderResourceAttribute{ 0, 1, ShaderResourceType::Texture, ShaderStage::Fragment } });
-    m_frameTextureBinding->BindTexture(m_frameTexture.Get(), 0, 0);
+    m_frameTextureBinding->BindTextureView(m_frameView.Get(), 0, 0);
 }
 
 void ViewportLayer::OnUpdate(Timestep ts)
@@ -26,7 +27,7 @@ void ViewportLayer::OnUpdate(Timestep ts)
     if (m_sceneState == SceneState::Edit)
     {
         auto camera   = m_editorCamera.GetCameraComponent();
-        camera.Target = m_frameTexture;
+        camera.Target = m_frameView;
         m_editRenderSystem->RenderCamera(camera, m_editorCamera.GetTransformComponent(), *m_world);
         m_editorCamera.SetCameraComponent(camera);
     }
@@ -34,11 +35,11 @@ void ViewportLayer::OnUpdate(Timestep ts)
     {
         m_world->ViewComponents<CameraComponent>([&](Entity entity, CameraComponent& camera) {
             if (!camera.Target)
-                camera.Target = m_frameTexture;
+                camera.Target = m_frameView;
         });
         m_world->OnUpdate(ts);
         m_world->ViewComponents<CameraComponent>([&](Entity entity, CameraComponent& camera) {
-            if (camera.Target == m_frameTexture)
+            if (camera.Target == m_frameView)
                 camera.Target = nullptr;
         });
     }
@@ -100,15 +101,18 @@ void ViewportLayer::OnGUI()
         m_viewportSize = newViewportSize;
         if (m_viewportSize.x > 0 && m_viewportSize.y > 0)
         {
+            // Drop old view first (Vulkan: VkImageView must die before its VkImage).
+            m_frameView    = nullptr;
             m_frameTexture = ResourceManager::CreateResource<ITexture>(TextureDesc{ (uint32_t)m_viewportSize.x,
                                                                                     (uint32_t)m_viewportSize.y,
                                                                                     1,
                                                                                     ITexture::Format::B8G8R8A8_UNORM,
                                                                                     ITexture::Usage::RenderTarget });
-            m_frameTextureBinding->BindTexture(m_frameTexture.Get(), 0, 0);
+            m_frameView    = ResourceManager::CreateResource<ITextureView>(m_frameTexture);
+            m_frameTextureBinding->BindTextureView(m_frameView.Get(), 0, 0);
         }
     }
-    ImGuiImage(*m_frameTexture, *m_frameTextureBinding, ImVec2(m_viewportSize.x, m_viewportSize.y));
+    ImGuiImage(*m_frameView, *m_frameTextureBinding, ImVec2(m_viewportSize.x, m_viewportSize.y));
 
     // Drop scene
     if (ImGui::BeginDragDropTarget())

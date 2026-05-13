@@ -40,7 +40,7 @@ private:
     void EnsureDepthTexture(uint32_t width, uint32_t height);
     void FlushBatch(ICommandBuffer*                    commandBuffer,
                     const IFrameBuffer*                frameBuffer,
-                    ITexture*                          blitTarget,
+                    ITextureView*                      blitTarget,
                     CullData&                          cullData,
                     std::vector<RenderBatch>&          renderBatches,
                     std::unordered_map<uint64_t, int>& renderBatchLookup);
@@ -53,9 +53,9 @@ private:
     static const uint64_t MAX_MESHLET_SIZE  = MAX_MESHLETS * sizeof(MeshletData);
     static const uint64_t MAX_MESHLET_DATA_SIZE =
         MAX_MESHLETS * (MESHLET_MAX_VERTICES + MESHLET_MAX_TRIANGLES * 3) * sizeof(uint32_t);
-    static const uint64_t MAX_MESH_DRAWS                 = 1000000;
-    static const uint64_t MAX_MESH_SIZE                  = MAX_MESH_DRAWS * sizeof(MeshData);
-    static const uint64_t MAX_MESH_DRAW_SIZE             = MAX_MESH_DRAWS * sizeof(MeshDraw);
+    static const uint64_t MAX_MESH_DRAWS     = 1000000;
+    static const uint64_t MAX_MESH_SIZE      = MAX_MESH_DRAWS * sizeof(MeshData);
+    static const uint64_t MAX_MESH_DRAW_SIZE = MAX_MESH_DRAWS * sizeof(MeshDraw);
     // Indirect command / visible-index / count buffers hold BOTH the EARLY and LATE
     // passes' output in non-overlapping halves: [0, MAX_MESH_DRAWS) is EARLY and
     // [MAX_MESH_DRAWS, 2*MAX_MESH_DRAWS) is LATE. Count buffer similarly has 2 slots
@@ -67,7 +67,7 @@ private:
     // One uint of "was visible last frame" per MeshDraw slot. Persistent across frames,
     // never explicitly cleared (GPU buffers zero-init on allocation, which matches the
     // niagara semantics of "unseen = hasn't been visible yet = go through LATE pass").
-    static const uint64_t MAX_VISIBILITY_SIZE            = MAX_MESH_DRAWS * sizeof(uint32_t);
+    static const uint64_t MAX_VISIBILITY_SIZE = MAX_MESH_DRAWS * sizeof(uint32_t);
 
     SceneData m_sceneData;
 
@@ -83,7 +83,7 @@ private:
     // both "prev" (binding 6) and "curr" (binding 7) in ObjectCull.comp -- a compute-to-
     // compute barrier between EARLY and LATE dispatches is what makes the single-buffer
     // scheme correct.
-    WRef<IBuffer> m_visibilityBuffer            = nullptr;
+    WRef<IBuffer> m_visibilityBuffer = nullptr;
 
     MeshGPUUploadCache m_meshUploadCache;
     uint32_t           m_cachedVertexCount     = 0;
@@ -99,11 +99,12 @@ private:
     DepthPyramid                   m_depthPyramid;
 
     // Scene znear/zfar match MathUtils::Perspective(..., 0.1f, 100.0f) in RenderCamera().
-    static constexpr float         k_zNear                     = 0.1f;
-    static constexpr float         k_zFar                      = 100.0f;
+    static constexpr float k_zNear = 0.1f;
+    static constexpr float k_zFar  = 100.0f;
 
-    WRef<ITexture>   m_depthTexture = nullptr;
-    ITexture::Format m_depthFormat  = ITexture::Format::D32_FLOAT;
+    WRef<ITexture>     m_depthTexture = nullptr;
+    WRef<ITextureView> m_depthView    = nullptr;
+    ITexture::Format   m_depthFormat  = ITexture::Format::D32_FLOAT;
 
     std::unordered_map<uint64_t, WRef<IFrameBuffer>> m_frameBuffers;
 };

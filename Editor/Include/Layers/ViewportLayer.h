@@ -53,6 +53,7 @@ private:
 
     WRef<IRenderPass>            m_entityIDRenderPass  = nullptr;
     WRef<ITexture>               m_frameTexture        = nullptr;
+    WRef<ITextureView>           m_frameView           = nullptr;
     WRef<IShaderResourceBinding> m_frameTextureBinding = nullptr;
     // ImGuizmo::OPERATION m_gizmo_type = ImGuizmo::OPERATION::TRANSLATE;
 

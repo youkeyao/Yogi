@@ -107,12 +107,6 @@ void main()
         vec4 aabb;
         if (projectSphere(viewPos, radius, cullData.ZNear, cullData.P00, cullData.P11, aabb))
         {
-            // Single-tap Hi-Z. ceil-mip makes the AABB <= 1 texel on the chosen mip;
-            // LINEAR + MAX-reduction sampler does a 2x2 max around the sample point,
-            // strictly covering every mip-k texel the AABB touches. The pyramid's
-            // mip-k texels are themselves max-reductions of their mip-0 footprint
-            // (DepthReduce.comp + previousPow2 mip-0 sizing keep that exact), so the
-            // overall test is conservative.
             float w     = aabb.z - aabb.x;
             float h     = aabb.w - aabb.y;
             ivec2 p0    = textureSize(u_depthPyramid, 0);

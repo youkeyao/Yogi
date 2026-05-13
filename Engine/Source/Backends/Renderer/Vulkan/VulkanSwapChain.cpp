@@ -98,10 +98,7 @@ void VulkanSwapChain::CleanupSwapChain()
 {
     VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
 
-    for (auto& texture : m_colorTextures)
-    {
-        texture = nullptr;
-    }
+    m_colorViews.clear();
     m_colorTextures.clear();
 
     if (m_swapChain != VK_NULL_HANDLE)
@@ -177,12 +174,17 @@ void VulkanSwapChain::CreateVkSwapChain()
     std::vector<VkImage> swapChainImages(imageCount);
     vkGetSwapchainImagesKHR(device, m_swapChain, &imageCount, swapChainImages.data());
 
-    m_colorTextures.reserve(imageCount);
     m_colorTextures.clear();
+    m_colorTextures.reserve(imageCount);
+    m_colorViews.clear();
+    m_colorViews.reserve(imageCount);
     for (size_t i = 0; i < swapChainImages.size(); ++i)
     {
-        m_colorTextures.emplace_back(Owner<VulkanTexture>::Create(
-            extent.width, extent.height, m_colorFormat, ITexture::Usage::RenderTarget, swapChainImages[i]));
+        Owner<ITexture> tex = Owner<VulkanTexture>::Create(
+            extent.width, extent.height, m_colorFormat, ITexture::Usage::RenderTarget, swapChainImages[i]);
+        Owner<ITextureView> view = ITextureView::Create(WRef<ITexture>::Create(tex), {});
+        m_colorTextures.push_back(std::move(tex));
+        m_colorViews.push_back(std::move(view));
     }
 }
 

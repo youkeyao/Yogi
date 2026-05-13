@@ -14,14 +14,6 @@ struct DepthReducePushConstants
     uint32_t ImageHeight;
 };
 
-uint32_t PreviousPow2(uint32_t v)
-{
-    uint32_t r = 1;
-    while ((r << 1) < v)
-        r <<= 1;
-    return r;
-}
-
 uint32_t ComputeMipCount(uint32_t w, uint32_t h)
 {
     uint32_t maxDim = MathUtils::Max(w, h);
@@ -55,11 +47,9 @@ bool DepthPyramid::Resize(uint32_t sourceWidth, uint32_t sourceHeight)
         return false;
     }
 
-    // Pyramid mip 0 = previousPow2(source). Forces every later reduction to be a
-    // clean 2:1 divide -- otherwise Vulkan's truncating mip-extent rule would drop
-    // the last odd row/column of an intermediate mip from the max reduction.
-    uint32_t width  = MathUtils::Max(1u, PreviousPow2(sourceWidth));
-    uint32_t height = MathUtils::Max(1u, PreviousPow2(sourceHeight));
+    // Pyramid mip 0 = previousPow2(source). Forces every later reduction to be a clean 2:1 divide
+    uint32_t width  = MathUtils::Max(1u, MathUtils::PreviousPow2(sourceWidth));
+    uint32_t height = MathUtils::Max(1u, MathUtils::PreviousPow2(sourceHeight));
 
     if (m_texture && m_width == width && m_height == height)
         return false;
@@ -70,9 +60,7 @@ bool DepthPyramid::Resize(uint32_t sourceWidth, uint32_t sourceHeight)
     m_height   = height;
     m_mipCount = ComputeMipCount(width, height);
 
-    // R32_FLOAT storage+sampled with a full mip chain. SamplerReductionMode::Max
-    // makes textureLod() do a 2x2 max in hardware, which DepthReduce.comp relies
-    // on for parent->child reduction.
+    // R32_FLOAT storage+sampled with a full mip chain
     TextureDesc desc{};
     desc.Width      = width;
     desc.Height     = height;
@@ -90,15 +78,25 @@ bool DepthPyramid::Resize(uint32_t sourceWidth, uint32_t sourceHeight)
         m_mipSizes.emplace_back(MathUtils::Max(1u, width >> mip), MathUtils::Max(1u, height >> mip));
     }
 
+    // One single-mip view per mip level; one full-pyramid view spanning all mips
+    m_mipViews.clear();
+    m_mipViews.reserve(m_mipCount);
+    for (uint32_t mip = 0; mip < m_mipCount; ++mip)
+    {
+        m_mipViews.push_back(
+            ITextureView::Create(m_texture, TextureViewDesc{ /*BaseMipLevel*/ mip, /*MipLevelCount*/ 1 }));
+    }
+    m_textureView = ITextureView::Create(m_texture);
+
     // One descriptor set per mip. Binding 1 (write target) is fixed for the lifetime
     // of the pyramid; binding 0 (sampled source) is wired in Build() because mip 0
-    // reads the scene depth texture, not the pyramid itself.
+    // reads the scene depth view, not the pyramid itself.
     m_mipBindings.clear();
     m_mipBindings.reserve(m_mipCount);
     for (uint32_t mip = 0; mip < m_mipCount; ++mip)
     {
         Owner<IShaderResourceBinding> binding = CreateReduceBindingLayout();
-        binding->BindTexture(m_texture.Get(), 1, 0, mip);
+        binding->BindTextureView(m_mipViews[mip].Get(), 1, 0);
         m_mipBindings.push_back(std::move(binding));
     }
 
@@ -110,6 +108,8 @@ bool DepthPyramid::Resize(uint32_t sourceWidth, uint32_t sourceHeight)
 void DepthPyramid::Reset()
 {
     m_mipBindings.clear();
+    m_mipViews.clear();
+    m_textureView = nullptr;
     m_mipSizes.clear();
     m_texture                   = nullptr;
     m_mipCount                  = 0;
@@ -125,18 +125,16 @@ void DepthPyramid::EnsureInitialLayout(ICommandBuffer* commandBuffer)
         return;
 
     commandBuffer->Barrier(BarrierDesc{
-        .Texture      = m_texture.Get(),
-        .BeforeState  = ResourceState::None,
-        .AfterState   = ResourceState::UnorderedAccess,
-        .BaseMipLevel = 0,
-        .LevelCount   = m_mipCount,
+        .TextureView = m_textureView.Get(),
+        .BeforeState = ResourceState::None,
+        .AfterState  = ResourceState::UnorderedAccess,
     });
     m_initialLayoutTransitioned = true;
 }
 
-void DepthPyramid::Build(ICommandBuffer* commandBuffer, const IPipeline* reducePipeline, const ITexture* sourceDepth)
+void DepthPyramid::Build(ICommandBuffer* commandBuffer, const IPipeline* reducePipeline, const ITextureView* sourceView)
 {
-    if (!m_texture || !reducePipeline || !sourceDepth)
+    if (!m_texture || !reducePipeline || !sourceView)
         return;
 
     ICommandBuffer* cmd = commandBuffer;
@@ -144,15 +142,15 @@ void DepthPyramid::Build(ICommandBuffer* commandBuffer, const IPipeline* reduceP
     // One-time Undefined -> General; the pyramid stays in General for its lifetime.
     EnsureInitialLayout(cmd);
 
-    // Rebind only when the underlying depth texture identity changes.
-    if (sourceDepth != m_lastBoundDepth)
+    // Rebind only when the underlying source view changes.
+    if (sourceView != m_lastBoundDepth)
     {
-        m_mipBindings[0]->BindTexture(sourceDepth, 0, 0, 0);
+        m_mipBindings[0]->BindTextureView(sourceView, 0, 0);
         for (uint32_t mip = 1; mip < m_mipCount; ++mip)
         {
-            m_mipBindings[mip]->BindTexture(m_texture.Get(), 0, 0, mip - 1);
+            m_mipBindings[mip]->BindTextureView(m_mipViews[mip - 1].Get(), 0, 0);
         }
-        m_lastBoundDepth = sourceDepth;
+        m_lastBoundDepth = sourceView;
     }
 
     cmd->SetPipeline(reducePipeline);
@@ -175,18 +173,12 @@ void DepthPyramid::Build(ICommandBuffer* commandBuffer, const IPipeline* reduceP
         uint32_t           gy     = (dstHeight + kGroup - 1) / kGroup;
         cmd->Dispatch(gx, gy, 1);
 
-        // Make mip N's writes visible as a sampled read for mip N+1. Layout stays
-        // GENERAL (matches the StorageImage descriptor's recorded layout); switching
-        // to SHADER_READ_ONLY_OPTIMAL here would trip VUID-vkCmdDraw-None-09600 next
-        // frame.
         if (mip + 1 < m_mipCount)
         {
             cmd->Barrier(BarrierDesc{
-                .Texture      = m_texture.Get(),
-                .BeforeState  = ResourceState::UnorderedAccess,
-                .AfterState   = ResourceState::UnorderedAccess,
-                .BaseMipLevel = mip,
-                .LevelCount   = 1,
+                .TextureView = m_mipViews[mip].Get(),
+                .BeforeState = ResourceState::UnorderedAccess,
+                .AfterState  = ResourceState::UnorderedAccess,
             });
         }
     }

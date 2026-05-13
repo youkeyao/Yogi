@@ -55,10 +55,9 @@ void VulkanRenderPass::CreateVkRenderPass()
         // layout the pass exits in -- the caller is responsible for making sure that
         // invariant holds frame-to-frame (or across a chained pass pair). LoadOp::Clear /
         // DontCare discard prior contents and accept UNDEFINED, which is the cheaper path.
-        colorAttachment.initialLayout =
-            attachment.LoadAction == LoadOp::Load
-                ? YgResourceState2VkImageLayout(attachment.FinalState, ITexture::Usage::RenderTarget)
-                : VK_IMAGE_LAYOUT_UNDEFINED;
+        colorAttachment.initialLayout = attachment.LoadAction == LoadOp::Load ?
+            YgResourceState2VkImageLayout(attachment.FinalState, ITexture::Usage::RenderTarget) :
+            VK_IMAGE_LAYOUT_UNDEFINED;
         colorAttachment.finalLayout =
             YgResourceState2VkImageLayout(attachment.FinalState, ITexture::Usage::RenderTarget);
 
@@ -99,10 +98,9 @@ void VulkanRenderPass::CreateVkRenderPass()
         depthAttachment.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
         // Same LoadOp::Load-preserves-layout rule as the color path above.
-        depthAttachment.initialLayout =
-            m_desc.DepthAttachment.LoadAction == LoadOp::Load
-                ? YgResourceState2VkImageLayout(m_desc.DepthAttachment.FinalState, ITexture::Usage::DepthStencil)
-                : VK_IMAGE_LAYOUT_UNDEFINED;
+        depthAttachment.initialLayout = m_desc.DepthAttachment.LoadAction == LoadOp::Load ?
+            YgResourceState2VkImageLayout(m_desc.DepthAttachment.FinalState, ITexture::Usage::DepthStencil) :
+            VK_IMAGE_LAYOUT_UNDEFINED;
         depthAttachment.finalLayout =
             YgResourceState2VkImageLayout(m_desc.DepthAttachment.FinalState, ITexture::Usage::DepthStencil);
         depthAttachmentRef.attachment   = static_cast<uint32_t>(allAttachments.size());

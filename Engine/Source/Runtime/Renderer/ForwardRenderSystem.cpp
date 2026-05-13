@@ -28,7 +28,7 @@ ForwardRenderSystem::ForwardRenderSystem()
         BufferDesc{ MAX_VISIBLE_DRAW_INDEX_SIZE, BufferUsage::Storage, BufferAccess::Dynamic });
     m_meshTaskIndirectCountBuffer = ResourceManager::AcquireSharedResource<IBuffer>(BufferDesc{
         MAX_INDIRECT_DRAW_COUNT_SIZE, BufferUsage::Storage | BufferUsage::Indirect, BufferAccess::Dynamic });
-    m_visibilityBuffer = ResourceManager::AcquireSharedResource<IBuffer>(
+    m_visibilityBuffer            = ResourceManager::AcquireSharedResource<IBuffer>(
         BufferDesc{ MAX_VISIBILITY_SIZE, BufferUsage::Storage, BufferAccess::Dynamic });
     // Zero-init: first frame's EARLY skips everything (USE_PREV_VIS gate fails for all),
     // LATE then sees an empty pyramid (all depth = 1.0) and emits every visible draw.
@@ -129,6 +129,7 @@ ForwardRenderSystem::~ForwardRenderSystem()
     m_cullPipeline                = nullptr;
     m_depthReducePipeline         = nullptr;
     m_depthPyramid.Reset();
+    m_depthView    = nullptr;
     m_depthTexture = nullptr;
 }
 
@@ -150,9 +151,10 @@ void ForwardRenderSystem::OnEvent(Event& e, World& world)
 bool ForwardRenderSystem::OnWindowResize(WindowResizeEvent& e, World& world)
 {
     auto swapChain = Application::GetInstance().GetSwapChain();
-    swapChain->GetCurrentCommandBuffer()->Wait();
+    swapChain->AcquireCurrentCommandBuffer()->Wait();
     // Frame buffers reference the depth texture; drop them first to avoid dangling views.
     m_frameBuffers.clear();
+    m_depthView    = nullptr;
     m_depthTexture = nullptr;
     // Depth Pyramid is tied to the (old) depth resolution, so force a rebuild on next frame.
     m_depthPyramid.Reset();
@@ -172,18 +174,17 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
     YG_PROFILE_FUNCTION();
 
     auto            swapChain     = Application::GetInstance().GetSwapChain();
-    ICommandBuffer* commandBuffer = swapChain->GetCurrentCommandBuffer();
-    ITexture*       currentTarget = swapChain->GetCurrentTarget();
+    ICommandBuffer* commandBuffer = swapChain->AcquireCurrentCommandBuffer().Get();
+    ITextureView*   currentTarget = swapChain->AcquireCurrentTarget().Get();
     if (camera.Target)
     {
         currentTarget = camera.Target.Get();
     }
-    EnsureDepthTexture(currentTarget->GetWidth(), currentTarget->GetHeight());
-    FrameBufferDesc desc{ currentTarget->GetWidth(),
-                          currentTarget->GetHeight(),
-                          m_renderPasses[0].Get(),
-                          { currentTarget },
-                          m_depthTexture.Get() };
+    const ITexture* targetTex = currentTarget->GetTexture();
+    EnsureDepthTexture(targetTex->GetWidth(), targetTex->GetHeight());
+    FrameBufferDesc desc{
+        targetTex->GetWidth(), targetTex->GetHeight(), m_renderPasses[0].Get(), { currentTarget }, m_depthView.Get()
+    };
 
     uint64_t key = HashArgs(desc);
     auto     it  = m_frameBuffers.find(key);
@@ -196,7 +197,7 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
     // update scene data
     Matrix4 viewMatrix = MathUtils::Inverse(transform.Transform);
     Matrix4 projectionMatrix;
-    float   aspectRatio = (float)currentTarget->GetWidth() / (float)currentTarget->GetHeight();
+    float   aspectRatio = (float)targetTex->GetWidth() / (float)targetTex->GetHeight();
     if (camera.IsOrtho)
     {
         projectionMatrix = MathUtils::Orthographic(-aspectRatio * camera.ZoomLevel,
@@ -218,33 +219,33 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
     m_sceneData._Pad2                = 0;
 
     CullData cullData{};
-    cullData.View      = viewMatrix;
+    cullData.View = viewMatrix;
 
     // niagara-style symmetric frustum. Extract left/top planes from the projection
     // matrix in view space (P^T row 3 +/- row 0/1), normalize, and store only the
     // (x, z) of left and (y, z) of top -- right/bottom are mirror images about x=0
     // / y=0 in view space and reconstructed in the cull shader via abs(). Note we
     // use the projection matrix alone (not P*V) so the planes are in view space.
-    auto     PT       = projectionMatrix.Transpose();
-    Vector4  leftRaw  = PT[3] + PT[0];
-    Vector4  topRaw   = PT[3] + PT[1];
-    Vector3  leftN    = Vector3(leftRaw.x, leftRaw.y, leftRaw.z);
-    Vector3  topN     = Vector3(topRaw.x,  topRaw.y,  topRaw.z);
-    float    leftLen  = leftN.Length();
-    float    topLen   = topN.Length();
-    Vector4  left     = leftLen > 0.0f ? leftRaw / leftLen : leftRaw;
-    Vector4  top      = topLen  > 0.0f ? topRaw  / topLen  : topRaw;
+    auto    PT      = projectionMatrix.Transpose();
+    Vector4 leftRaw = PT[3] + PT[0];
+    Vector4 topRaw  = PT[3] + PT[1];
+    Vector3 leftN   = Vector3(leftRaw.x, leftRaw.y, leftRaw.z);
+    Vector3 topN    = Vector3(topRaw.x, topRaw.y, topRaw.z);
+    float   leftLen = leftN.Length();
+    float   topLen  = topN.Length();
+    Vector4 left    = leftLen > 0.0f ? leftRaw / leftLen : leftRaw;
+    Vector4 top     = topLen > 0.0f ? topRaw / topLen : topRaw;
     // GLM view space has -Z forward, but the cull shader negates viewPos.z so it
     // works in niagara's +Z-forward space. Negate the plane's z component to match.
-    cullData.Frustum  = Vector4(left.x, -left.z, top.y, -top.z);
+    cullData.Frustum = Vector4(left.x, -left.z, top.y, -top.z);
 
     // P00, P11: projection diagonal entries (1/tan(fovY/2)/aspect, 1/tan(fovY/2)).
     // Read directly out of the matrix so the orthographic path stays well-defined.
-    cullData.P00       = projectionMatrix[0][0];
-    cullData.P11       = projectionMatrix[1][1];
-    cullData.ZNear     = k_zNear;
-    cullData.ZFar      = k_zFar;
-    cullData.IsLate    = 0u;
+    cullData.P00    = projectionMatrix[0][0];
+    cullData.P11    = projectionMatrix[1][1];
+    cullData.ZNear  = k_zNear;
+    cullData.ZFar   = k_zFar;
+    cullData.IsLate = 0u;
 
     std::vector<RenderBatch>          renderBatches;
     std::unordered_map<uint64_t, int> renderBatchLookup;
@@ -361,7 +362,7 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
 
 void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandBuffer,
                                      const IFrameBuffer*                frameBuffer,
-                                     ITexture*                          blitTarget,
+                                     ITextureView*                      blitTarget,
                                      CullData&                          cullData,
                                      std::vector<RenderBatch>&          renderBatches,
                                      std::unordered_map<uint64_t, int>& renderBatchLookup)
@@ -406,7 +407,7 @@ void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandB
     // window resize), which is exactly when descriptor 5 needs to be rewritten.
     if (m_depthPyramid.Resize(m_depthTexture->GetWidth(), m_depthTexture->GetHeight()))
     {
-        m_cullShaderResourceBinding->BindTexture(m_depthPyramid.GetTexture(), 5, 0, UINT32_MAX);
+        m_cullShaderResourceBinding->BindTextureView(m_depthPyramid.GetTextureView(), 5, 0);
     }
     const bool pyramidValid = m_depthPyramid.IsValid();
 
@@ -445,8 +446,8 @@ void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandB
 
         cullData.DrawBase   = batch.DrawBase;
         cullData.DrawCount  = batch.DrawCount;
-        cullData.OutputBase = batch.DrawBase;                       // EARLY region
-        cullData.CountIndex = static_cast<uint32_t>(batchIndex);    // EARLY count slot
+        cullData.OutputBase = batch.DrawBase;                    // EARLY region
+        cullData.CountIndex = static_cast<uint32_t>(batchIndex); // EARLY count slot
         cullData.IsLate     = 0u;
 
         commandBuffer->SetPushConstants(
@@ -507,37 +508,19 @@ void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandB
     {
         // Same dance as before: DepthRead (render pass finalLayout) -> ComputeShaderResource
         // for sampling in DepthReduce.comp, then back to DepthRead.
-        commandBuffer->Barrier(BarrierDesc{ m_depthTexture.Get(),
-                                            nullptr,
-                                            ResourceState::DepthRead,
-                                            ResourceState::ComputeShaderResource,
-                                            0,
-                                            0,
-                                            0,
-                                            1 });
+        commandBuffer->Barrier(BarrierDesc{
+            .TextureView = m_depthView.Get(),
+            .BeforeState = ResourceState::DepthRead,
+            .AfterState  = ResourceState::ComputeShaderResource,
+        });
 
-        m_depthPyramid.Build(commandBuffer, m_depthReducePipeline.Get(), m_depthTexture.Get());
+        m_depthPyramid.Build(commandBuffer, m_depthReducePipeline.Get(), m_depthView.Get());
 
-        // Make ALL mip levels of the pyramid visible to the subsequent LATE cull dispatch.
-        // Build() only barriers between consecutive mips; we need a full barrier so the
-        // compute shader can safely read any mip level. Stays in GENERAL layout (matches
-        // the descriptor's imageLayout = GENERAL for Storage-usage textures).
-        commandBuffer->Barrier(BarrierDesc{ m_depthPyramid.GetTexture(),
-                                            nullptr,
-                                            ResourceState::UnorderedAccess,
-                                            ResourceState::UnorderedAccess,
-                                            0,
-                                            0,
-                                            0,
-                                            m_depthPyramid.GetMipCount() });
-        commandBuffer->Barrier(BarrierDesc{ m_depthTexture.Get(),
-                                            nullptr,
-                                            ResourceState::ComputeShaderResource,
-                                            ResourceState::DepthRead,
-                                            0,
-                                            0,
-                                            0,
-                                            1 });
+        commandBuffer->Barrier(BarrierDesc{
+            .TextureView = m_depthView.Get(),
+            .BeforeState = ResourceState::ComputeShaderResource,
+            .AfterState  = ResourceState::DepthRead,
+        });
     }
 
     // ================ LATE cull dispatch ================
@@ -550,11 +533,11 @@ void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandB
         // Make EARLY's visibility[] writes visible to LATE's reads. Both map to the
         // same VkBuffer; a compute->compute memory barrier is what makes the single-
         // buffered aliasing of bindings 6 and 7 safe.
-        BarrierDesc visBarrier{};
-        visBarrier.Buffer      = m_visibilityBuffer.Get();
-        visBarrier.BeforeState = ResourceState::UnorderedAccess;
-        visBarrier.AfterState  = ResourceState::UnorderedAccess;
-        commandBuffer->Barrier(visBarrier);
+        commandBuffer->Barrier(BarrierDesc{
+            .Buffer      = m_visibilityBuffer.Get(),
+            .BeforeState = ResourceState::UnorderedAccess,
+            .AfterState  = ResourceState::UnorderedAccess,
+        });
 
         commandBuffer->SetPipeline(m_cullPipeline.Get());
         commandBuffer->SetShaderResourceBinding(m_cullShaderResourceBinding.Get());
@@ -567,7 +550,7 @@ void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandB
 
             cullData.DrawBase   = batch.DrawBase;
             cullData.DrawCount  = batch.DrawCount;
-            cullData.OutputBase = kLateRegionBase + batch.DrawBase;           // LATE region
+            cullData.OutputBase = kLateRegionBase + batch.DrawBase;                    // LATE region
             cullData.CountIndex = totalBatchCount + static_cast<uint32_t>(batchIndex); // LATE count slot
             cullData.IsLate     = 1u;
 
@@ -579,12 +562,12 @@ void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandB
         }
 
         // LATE indirect region visible to next draw pass.
-        BarrierDesc barrierDesc{};
-        barrierDesc.Buffer      = m_meshTaskIndirectBuffer.Get();
-        barrierDesc.BeforeState = ResourceState::UnorderedAccess;
-        barrierDesc.AfterState =
-            ResourceState::IndirectArg | ResourceState::TaskShaderResource | ResourceState::MeshShaderResource;
-        commandBuffer->Barrier(barrierDesc);
+        commandBuffer->Barrier(BarrierDesc{
+            .Buffer      = m_meshTaskIndirectBuffer.Get(),
+            .BeforeState = ResourceState::UnorderedAccess,
+            .AfterState =
+                ResourceState::IndirectArg | ResourceState::TaskShaderResource | ResourceState::MeshShaderResource,
+        });
 
         // ================ LATE render pass ================
         // LoadOp::Load preserves both color (from EARLY) and depth (from EARLY + pyramid
@@ -618,8 +601,7 @@ void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandB
 
             const uint32_t lateIndirectOffset =
                 static_cast<uint32_t>(kLateRegionBase + batch.DrawBase) * sizeof(uint32_t) * 3;
-            const uint32_t lateCountOffset =
-                static_cast<uint32_t>((totalBatchCount + batchIndex) * sizeof(uint32_t));
+            const uint32_t lateCountOffset = static_cast<uint32_t>((totalBatchCount + batchIndex) * sizeof(uint32_t));
 
             commandBuffer->DrawMeshTasksIndirectCount(m_meshTaskIndirectBuffer.Get(),
                                                       lateIndirectOffset,
@@ -667,6 +649,7 @@ void ForwardRenderSystem::EnsureDepthTexture(uint32_t width, uint32_t height)
     desc.NumSamples = SampleCountFlagBits::Count1;
     desc.Reduction  = ITexture::SamplerReductionMode::Max;
     m_depthTexture  = ResourceManager::CreateResource<ITexture>(desc);
+    m_depthView     = ResourceManager::CreateResource<ITextureView>(m_depthTexture);
 }
 
 } // namespace Yogi

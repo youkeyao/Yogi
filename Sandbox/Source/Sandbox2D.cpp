@@ -27,8 +27,8 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
 
     Yogi::AssetManager::PushAssetSource<Yogi::FileSystemSource>(".");
 
-    auto swapChain   = Yogi::Application::GetInstance().GetSwapChain();
-    auto renderPass  = Yogi::ResourceManager::AcquireSharedResource<Yogi::IRenderPass>(Yogi::RenderPassDesc{
+    auto swapChain  = Yogi::Application::GetInstance().GetSwapChain();
+    auto renderPass = Yogi::ResourceManager::AcquireSharedResource<Yogi::IRenderPass>(Yogi::RenderPassDesc{
         { Yogi::AttachmentDesc{ swapChain->GetColorFormat(), Yogi::ResourceState::Present } },
         Yogi::AttachmentDesc{ Yogi::ITexture::Format::D32_FLOAT, Yogi::ResourceState::DepthRead } });
 
@@ -56,13 +56,8 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
         Yogi::AssetManager::AcquireAsset<Yogi::ShaderDesc>("EngineAssets/Shaders/Test.mesh");
     std::vector<const Yogi::ShaderDesc*> shaders = { taskShader.Get(), meshShader.Get(), fragmentShader.Get() };
 
-    auto pipeline = Yogi::ResourceManager::AcquireSharedResource<Yogi::IPipeline>(
-        Yogi::PipelineDesc{ shaders,
-                            {},
-                            shaderResourceBinding.Get(),
-                            renderPass.Get(),
-                            0,
-                            Yogi::PrimitiveTopology::TriangleList });
+    auto pipeline = Yogi::ResourceManager::AcquireSharedResource<Yogi::IPipeline>(Yogi::PipelineDesc{
+        shaders, {}, shaderResourceBinding.Get(), renderPass.Get(), 0, Yogi::PrimitiveTopology::TriangleList });
 
     m_world = Yogi::Owner<Yogi::World>::Create();
     m_world->AddSystem<Yogi::ForwardRenderSystem>();

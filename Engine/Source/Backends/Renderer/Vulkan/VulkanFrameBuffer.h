@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Renderer/RHI/IFrameBuffer.h"
+#include "Renderer/RHI/ITextureView.h"
 #include "VulkanRenderPass.h"
 #include "VulkanTexture.h"
 
@@ -27,7 +28,8 @@ private:
 private:
     VkFramebuffer m_frameBuffer = VK_NULL_HANDLE;
 
-    std::vector<Owner<VulkanTexture>> m_msaaTextures;
+    std::vector<Owner<ITexture>>     m_msaaTextures;
+    std::vector<Owner<ITextureView>> m_msaaViews;
 
     uint32_t m_width;
     uint32_t m_height;

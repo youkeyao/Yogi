@@ -1,6 +1,7 @@
 #include "VulkanShaderResourceBinding.h"
 #include "VulkanBuffer.h"
 #include "VulkanTexture.h"
+#include "VulkanTextureView.h"
 #include "VulkanUtils.h"
 
 #include <volk.h>
@@ -128,8 +129,10 @@ void VulkanShaderResourceBinding::BindBuffer(const IBuffer* buffer, int binding,
     vkUpdateDescriptorSets(context->GetVkDevice(), 1, &descriptorWrite, 0, nullptr);
 }
 
-void VulkanShaderResourceBinding::BindTexture(const ITexture* texture, int binding, int slot, uint32_t mipLevel)
+void VulkanShaderResourceBinding::BindTextureView(const ITextureView* view, int binding, int slot)
 {
+    YG_CORE_ASSERT(view, "Vulkan: BindTextureView called with null view");
+
     const ShaderResourceAttribute* bindingAttr = nullptr;
     for (const auto& attr : m_layout)
     {
@@ -146,23 +149,24 @@ void VulkanShaderResourceBinding::BindTexture(const ITexture* texture, int bindi
         return;
     }
 
-    const VulkanTexture&  vkTexture = *static_cast<const VulkanTexture*>(texture);
+    const ITexture* tex = view->GetTexture();
+    YG_CORE_ASSERT(tex, "Vulkan: BindTextureView called with view whose source texture has been destroyed");
+
+    const VulkanTextureView* vkView = static_cast<const VulkanTextureView*>(view);
+    const VulkanTexture*     vkTex  = static_cast<const VulkanTexture*>(tex);
+
     VkDescriptorImageInfo imageInfo{};
-    // mipLevel == UINT32_MAX means "bind a view covering all mip levels" (for Hi-Z
-    // sampling shaders that need textureLod with arbitrary lod). Otherwise bind the
-    // single-mip view at the requested level.
-    imageInfo.imageView = (mipLevel == UINT32_MAX) ? vkTexture.GetVkImageViewAllMips()
-                                                    : vkTexture.GetVkImageView(mipLevel);
+    imageInfo.imageView = vkView->GetVkImageView();
 
     VkDescriptorType descriptorType = VK_DESCRIPTOR_TYPE_MAX_ENUM;
     switch (bindingAttr->Type)
     {
         case ShaderResourceType::Texture:
             descriptorType    = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            imageInfo.sampler = vkTexture.GetVkSampler();
-            if (texture->GetUsage() == ITexture::Usage::Storage)
+            imageInfo.sampler = vkTex->GetVkSampler();
+            if (tex->GetUsage() == ITexture::Usage::Storage)
                 imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-            else if (texture->GetUsage() == ITexture::Usage::DepthStencil)
+            else if (tex->GetUsage() == ITexture::Usage::DepthStencil)
                 imageInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
             else
                 imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;

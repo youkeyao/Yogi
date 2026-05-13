@@ -2,9 +2,6 @@
 
 // Hi-Z pyramid downsample. Each dst texel samples the source at its center UV
 // with a LINEAR + MAX-reduction sampler, so the GPU does the 2x2 max in hardware.
-// Works for any dst:src size ratio -- no row/column is dropped on odd-sized mips,
-// and pyramid mip 0 can be smaller than ceil(src/2) (we use previousPow2(src) so
-// every later reduction is a clean power-of-2 divide).
 
 layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 

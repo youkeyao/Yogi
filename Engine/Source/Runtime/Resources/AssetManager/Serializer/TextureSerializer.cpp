@@ -1,4 +1,5 @@
 #include "Resources/AssetManager/Serializer/TextureSerializer.h"
+#include "Renderer/RHI/ITextureView.h"
 
 #include <stb_image.h>
 #include <zpp_bits.h>
@@ -29,7 +30,9 @@ Owner<ITexture> TextureSerializer::Deserialize(const std::vector<uint8_t>& binar
             SampleCountFlagBits::Count1,
         });
 
-        texture->SetData(data, width * height * channels);
+        // Transient view for the upload — texture survives, view dies at scope exit.
+        Owner<ITextureView> uploadView = ITextureView::Create(WRef<ITexture>::Create(texture));
+        uploadView->SetData(data, width * height * channels);
 
         stbi_image_free(data);
 

@@ -17,7 +17,7 @@
 #    define IMGUI_IMPL_VULKAN_NO_PROTOTYPES
 #    include <backends/imgui_impl_vulkan.h>
 
-inline void ImGuiImage(const Yogi::ITexture&               texture,
+inline void ImGuiImage(const Yogi::ITextureView&           view,
                        const Yogi::IShaderResourceBinding& shaderResourceBinding,
                        const ImVec2&                       size,
                        const ImVec2&                       uv0 = { 0, 0 },
@@ -26,7 +26,7 @@ inline void ImGuiImage(const Yogi::ITexture&               texture,
     Yogi::Owner<Yogi::ICommandBuffer> commandBuffer = Yogi::Owner<Yogi::ICommandBuffer>::Create(
         Yogi::CommandBufferDesc{ Yogi::CommandBufferUsage::OneTimeSubmit, Yogi::SubmitQueue::Graphics });
     commandBuffer->Begin();
-    commandBuffer->Blit(&texture, &texture);
+    commandBuffer->Blit(&view, &view);
     commandBuffer->End();
     commandBuffer->Submit();
 

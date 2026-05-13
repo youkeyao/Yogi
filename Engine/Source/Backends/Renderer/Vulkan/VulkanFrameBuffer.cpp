@@ -1,5 +1,6 @@
 #include "VulkanFrameBuffer.h"
 #include "VulkanTexture.h"
+#include "VulkanTextureView.h"
 
 #include <volk.h>
 
@@ -34,6 +35,7 @@ void VulkanFrameBuffer::Cleanup()
         vkDestroyFramebuffer(context->GetVkDevice(), m_frameBuffer, nullptr);
         m_frameBuffer = VK_NULL_HANDLE;
     }
+    m_msaaViews.clear();
     m_msaaTextures.clear();
 }
 
@@ -46,25 +48,36 @@ void VulkanFrameBuffer::CreateVkFrameBuffer(const FrameBufferDesc& desc)
     std::vector<VkImageView> attachments;
     for (int i = 0; i < desc.ColorAttachments.size(); ++i)
     {
-        const VulkanTexture* texture = static_cast<const VulkanTexture*>(desc.ColorAttachments[i]);
+        const ITextureView*      view   = desc.ColorAttachments[i];
+        const VulkanTextureView* vkView = static_cast<const VulkanTextureView*>(view);
+        const ITexture*          tex    = view->GetTexture();
+        YG_CORE_ASSERT(tex, "VulkanFrameBuffer: color attachment view's texture is destroyed");
+
         if (numSamples > SampleCountFlagBits::Count1)
         {
             TextureDesc msaaDesc{};
-            msaaDesc.Width      = texture->GetWidth();
-            msaaDesc.Height     = texture->GetHeight();
-            msaaDesc.Format     = texture->GetFormat();
+            msaaDesc.Width      = tex->GetWidth();
+            msaaDesc.Height     = tex->GetHeight();
+            msaaDesc.Format     = tex->GetFormat();
             msaaDesc.Usage      = ITexture::Usage::RenderTarget;
             msaaDesc.NumSamples = numSamples;
 
-            m_msaaTextures.push_back(Owner<VulkanTexture>::Create(msaaDesc));
-            attachments.push_back(m_msaaTextures.back()->GetVkImageView());
+            Owner<ITexture>     msaaTex  = ITexture::Create(msaaDesc);
+            Owner<ITextureView> msaaView = ITextureView::Create(WRef<ITexture>::Create(msaaTex), {});
+
+            const VulkanTextureView* vkMsaaView = static_cast<const VulkanTextureView*>(msaaView.Get());
+            attachments.push_back(vkMsaaView->GetVkImageView());
+
+            m_msaaTextures.push_back(std::move(msaaTex));
+            m_msaaViews.push_back(std::move(msaaView));
         }
-        attachments.push_back(texture->GetVkImageView());
+        attachments.push_back(vkView->GetVkImageView());
     }
 
     if (desc.DepthAttachment)
     {
-        attachments.push_back(static_cast<const VulkanTexture*>(desc.DepthAttachment)->GetVkImageView());
+        const VulkanTextureView* vkDepthView = static_cast<const VulkanTextureView*>(desc.DepthAttachment);
+        attachments.push_back(vkDepthView->GetVkImageView());
     }
 
     VkFramebufferCreateInfo framebufferInfo{};

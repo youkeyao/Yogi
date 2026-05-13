@@ -17,7 +17,7 @@ public:
     virtual ~VulkanShaderResourceBinding();
 
     void BindBuffer(const IBuffer* buffer, int binding, int slot = 0) override;
-    void BindTexture(const ITexture* texture, int binding, int slot = 0, uint32_t mipLevel = 0) override;
+    void BindTextureView(const ITextureView* view, int binding, int slot = 0) override;
 
     inline VkDescriptorSet       GetVkDescriptorSet() const { return m_descriptorSet; }
     inline VkDescriptorSetLayout GetVkDescriptorSetLayout() const { return m_descriptorSetLayout; }

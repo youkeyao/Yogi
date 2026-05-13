@@ -1,17 +1,18 @@
 #pragma once
 
 #include "Renderer/RHI/IRenderPass.h"
+#include "Renderer/RHI/ITextureView.h"
 
 namespace Yogi
 {
 
 struct FrameBufferDesc
 {
-    uint32_t                     Width;
-    uint32_t                     Height;
-    const IRenderPass*           RenderPass = nullptr;
-    std::vector<const ITexture*> ColorAttachments;
-    const ITexture*              DepthAttachment = nullptr;
+    uint32_t                         Width;
+    uint32_t                         Height;
+    const IRenderPass*               RenderPass = nullptr;
+    std::vector<const ITextureView*> ColorAttachments;
+    const ITextureView*              DepthAttachment = nullptr;
 };
 
 class YG_API IFrameBuffer

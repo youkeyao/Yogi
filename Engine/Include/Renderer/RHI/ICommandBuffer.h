@@ -3,7 +3,7 @@
 #include "Renderer/RHI/IFrameBuffer.h"
 #include "Renderer/RHI/IPipeline.h"
 #include "Renderer/RHI/IBuffer.h"
-#include "Renderer/RHI/ITexture.h"
+#include "Renderer/RHI/ITextureView.h"
 #include "Renderer/RHI/IShaderResourceBinding.h"
 
 namespace Yogi
@@ -52,14 +52,12 @@ struct CommandBufferDesc
 
 struct BarrierDesc
 {
-    const ITexture* Texture      = nullptr;
-    const IBuffer*  Buffer       = nullptr;
-    ResourceState   BeforeState  = ResourceState::None;
-    ResourceState   AfterState   = ResourceState::None;
-    uint64_t        BufferOffset = 0;
-    uint64_t        BufferSize   = 0;
-    uint32_t        BaseMipLevel = 0;
-    uint32_t        LevelCount   = 1;
+    const ITextureView* TextureView  = nullptr;
+    const IBuffer*      Buffer       = nullptr;
+    ResourceState       BeforeState  = ResourceState::None;
+    ResourceState       AfterState   = ResourceState::None;
+    uint64_t            BufferOffset = 0;
+    uint64_t            BufferSize   = 0;
 };
 
 enum class BlitFilter : uint8_t
@@ -70,16 +68,11 @@ enum class BlitFilter : uint8_t
 
 struct BlitDesc
 {
-    uint32_t   SrcMipLevel       = 0;
-    uint32_t   DstMipLevel       = 0;
-    uint32_t   SrcBaseArrayLayer = 0;
-    uint32_t   DstBaseArrayLayer = 0;
-    uint32_t   LayerCount        = 1;
-    uint32_t   SrcWidth          = 0;
-    uint32_t   SrcHeight         = 0;
-    uint32_t   DstWidth          = 0;
-    uint32_t   DstHeight         = 0;
-    BlitFilter Filter            = BlitFilter::Linear;
+    uint32_t   SrcWidth  = 0;
+    uint32_t   SrcHeight = 0;
+    uint32_t   DstWidth  = 0;
+    uint32_t   DstHeight = 0;
+    BlitFilter Filter    = BlitFilter::Linear;
 };
 
 class YG_API ICommandBuffer
@@ -139,7 +132,7 @@ public:
 
     virtual void Barrier(const BarrierDesc& barrierDesc) = 0;
 
-    virtual void Blit(const ITexture* src, const ITexture* dst, const BlitDesc& blitDesc = {}) = 0;
+    virtual void Blit(const ITextureView* src, const ITextureView* dst, const BlitDesc& blitDesc = {}) = 0;
 
     static Owner<ICommandBuffer> Create(const CommandBufferDesc& desc);
 };
