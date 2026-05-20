@@ -213,10 +213,10 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
     }
     m_sceneData.ProjectionViewMatrix = projectionMatrix * viewMatrix;
     m_sceneData.ViewMatrix           = viewMatrix;
+    m_sceneData.ScreenSize           = { static_cast<float>(targetTex->GetWidth()),
+                                         static_cast<float>(targetTex->GetHeight()) };
     m_sceneData.DrawBase             = 0;
     m_sceneData._Pad0                = 0;
-    m_sceneData._Pad1                = 0;
-    m_sceneData._Pad2                = 0;
 
     CullData cullData{};
     cullData.View = viewMatrix;

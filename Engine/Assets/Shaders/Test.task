@@ -38,7 +38,7 @@ layout(push_constant) uniform SceneDataBlock
     SceneData sceneData;
 };
 
-#if CULL
+#if TASK_CULL
 shared uint s_survivorCount;
 #endif
 
@@ -56,7 +56,7 @@ void main()
     uint ti = gl_LocalInvocationIndex;
     uint miLocal = gl_WorkGroupID.x * TASK_WGSIZE + ti;
 
-#if CULL
+#if TASK_CULL
     if (ti == 0)
         s_survivorCount = 0;
     barrier();

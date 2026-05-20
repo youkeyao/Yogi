@@ -57,13 +57,17 @@ vec3 hashToColor(uint id)
     hash = hash ^ (hash >> 4u);
     hash = hash * 0x27d4eb2du;
     hash = hash ^ (hash >> 15u);
-    
+
     float r = float((hash >> 16u) & 0xFFu) / 255.0;
     float g = float((hash >> 8u)  & 0xFFu) / 255.0;
     float b = float(hash & 0xFFu) / 255.0;
-    
+
     return vec3(r, g, b);
 }
+
+#if TRIANGLE_CULL
+shared vec4 s_clipPos[MESHLET_MAX_VERTICES];
+#endif
 
 void main()
 {
@@ -85,15 +89,59 @@ void main()
         vec3 localPosition = vec3(v.vx, v.vy, v.vz) * draw.Scale;
         vec3 position = RotateByQuaternion(localPosition, draw.Orientation) + draw.Position;
         vec3 normal   = vec3(v.nx, v.ny, v.nz) / 127.0;
-        gl_MeshVerticesEXT[i].gl_Position = sceneData.ProjectionViewMatrix * vec4(position, 1.0);
+        vec4 clipPos  = sceneData.ProjectionViewMatrix * vec4(position, 1.0);
+        gl_MeshVerticesEXT[i].gl_Position = clipPos;
         v_Color[i] = vec4(normal * 0.5 + 0.5, 1.0);
         // v_Color[i] = vec4(hashToColor(mi), 1);
+#if TRIANGLE_CULL
+        s_clipPos[i] = clipPos;
+#endif
     }
+
+#if TRIANGLE_CULL
+    barrier(); // ensure s_clipPos is fully populated before triangle pass reads it
+#endif
 
     for (uint i = ti; i < triangleCount; i += MESH_WGSIZE)
     {
         uint offset = (dataOffset + vertexCount) * 4 + i * 3;
 		uint a = uint(meshletData8[offset]), b = uint(meshletData8[offset + 1]), c = uint(meshletData8[offset + 2]);
         gl_PrimitiveTriangleIndicesEXT[i] = uvec3(a, b, c);
+
+#if TRIANGLE_CULL
+        // Cull only when all three vertices are in front of the near plane; otherwise
+        // any w<=0 makes the perspective divide flip signs and produces false positives.
+        vec4 va = s_clipPos[a];
+        vec4 vb = s_clipPos[b];
+        vec4 vc = s_clipPos[c];
+        bool culled = false;
+        if (va.w > 0.0 && vb.w > 0.0 && vc.w > 0.0)
+        {
+            vec2 pa = va.xy / va.w;
+            vec2 pb = vb.xy / vb.w;
+            vec2 pc = vc.xy / vc.w;
+
+            // Backface in NDC: glm::perspective doesn't flip Y in clip space (the
+            // negative-height viewport handles framebuffer Y-flip later, but that
+            // doesn't change NDC values). A CCW model triangle stays CCW in NDC, so
+            // its 2D cross product is positive -- cull when cross is non-positive.
+            vec2 eb = pb - pa;
+            vec2 ec = pc - pa;
+            culled = culled || (eb.x * ec.y <= eb.y * ec.x);
+
+            // Sub-pixel: convert NDC to pixel coords and check whether the bbox
+            // collapses onto a single row/column under round-to-nearest. 1/256 fudge
+            // matches niagara's tolerance for the rasterizer top-left rule.
+            vec2 ssa = (pa * 0.5 + 0.5) * sceneData.ScreenSize;
+            vec2 ssb = (pb * 0.5 + 0.5) * sceneData.ScreenSize;
+            vec2 ssc = (pc * 0.5 + 0.5) * sceneData.ScreenSize;
+            vec2 bmin = min(ssa, min(ssb, ssc));
+            vec2 bmax = max(ssa, max(ssb, ssc));
+            const float sbprec = 1.0 / 256.0;
+            culled = culled || (round(bmin.x - sbprec) == round(bmax.x))
+                            || (round(bmin.y - sbprec) == round(bmax.y));
+        }
+        gl_MeshPrimitivesEXT[i].gl_CullPrimitiveEXT = culled;
+#endif
     }
 }

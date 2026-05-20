@@ -4,12 +4,14 @@
 #    include "Math/Matrix.h"
 #    define uint      uint32_t
 #    define float16_t uint16_t
+#    define vec2      Yogi::Vector2
 #    define vec3      Yogi::Vector3
 #    define vec4      Yogi::Vector4
 #    define mat4      Yogi::Matrix4
 #else
-#    define CULL        1
-#    define MESH_WGSIZE 32
+#    define TASK_CULL     1
+#    define TRIANGLE_CULL 1
+#    define MESH_WGSIZE   32
 #endif
 
 #define TASK_WGSIZE           32
@@ -50,10 +52,9 @@ struct SceneData
 {
     mat4 ProjectionViewMatrix;
     mat4 ViewMatrix;
+    vec2 ScreenSize; // pixel dimensions of the render target; used by triangle sub-pixel culling
     uint DrawBase;
     uint _Pad0;
-    uint _Pad1;
-    uint _Pad2;
 };
 
 struct CullData
@@ -97,6 +98,7 @@ struct MeshDraw
 #ifdef __cplusplus
 #    undef uint
 #    undef float16_t
+#    undef vec2
 #    undef vec3
 #    undef vec4
 #    undef mat4

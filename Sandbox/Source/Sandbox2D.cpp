@@ -72,7 +72,7 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
     material->AddPass(Yogi::Material::MaterialPass{ {}, pipeline, {} });
 
     srand(41);
-    for (int i = 0; i < 1000; i++)
+    for (int i = 0; i < 10000; i++)
     {
         float x = float(rand()) / RAND_MAX * 4.0f - 2.0f;
         float y = float(rand()) / RAND_MAX * 4.0f - 2.0f;
