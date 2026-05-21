@@ -18,6 +18,8 @@ public:
     inline uint32_t            GetHeight() const override { return m_height; }
     inline ITexture::Format    GetColorFormat() const override { return m_colorFormat; }
     inline SampleCountFlagBits GetNumSamples() const override { return m_numSamples; }
+    inline uint32_t            GetImageCount() const override { return static_cast<uint32_t>(m_colorTextures.size()); }
+    inline uint32_t            GetCurrentFrameIndex() const override { return m_currentFrame; }
 
     WRef<ITextureView> AcquireCurrentTarget() const override
     {
@@ -31,8 +33,6 @@ public:
     void AcquireNextImage() override;
     void Present() override;
     void Resize(uint32_t width, uint32_t height) override;
-
-    inline uint32_t GetImageCount() const { return m_colorTextures.size(); }
 
 private:
     void CleanupSwapChain();

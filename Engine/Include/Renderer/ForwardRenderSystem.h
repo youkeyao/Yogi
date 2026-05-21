@@ -5,6 +5,7 @@
 #include "Renderer/MeshGPUUploadCache.h"
 #include "Renderer/RenderComponents.h"
 #include "Renderer/DepthPyramid.h"
+#include "Renderer/FrameUploadArena.h"
 #include "Renderer/RHI/ICommandBuffer.h"
 #include "Renderer/RHI/IFrameBuffer.h"
 
@@ -41,7 +42,8 @@ private:
     void FlushBatch(ICommandBuffer*                    commandBuffer,
                     const IFrameBuffer*                frameBuffer,
                     ITextureView*                      blitTarget,
-                    CullData&                          cullData,
+                    SceneFrame&                        sceneFrame,
+                    CullFrame&                         cullFrame,
                     std::vector<RenderBatch>&          renderBatches,
                     std::unordered_map<uint64_t, int>& renderBatchLookup);
 
@@ -69,8 +71,6 @@ private:
     // niagara semantics of "unseen = hasn't been visible yet = go through LATE pass").
     static const uint64_t MAX_VISIBILITY_SIZE = MAX_MESH_DRAWS * sizeof(uint32_t);
 
-    SceneData m_sceneData;
-
     WRef<IBuffer> m_vertexStorageBuffer         = nullptr;
     WRef<IBuffer> m_meshletBuffer               = nullptr;
     WRef<IBuffer> m_meshletDataBuffer           = nullptr;
@@ -84,6 +84,14 @@ private:
     // compute barrier between EARLY and LATE dispatches is what makes the single-buffer
     // scheme correct.
     WRef<IBuffer> m_visibilityBuffer = nullptr;
+    // Per-frame static data (matrices + buffer pointers) for both the mesh/task
+    // and cull shaders. Push constants only carry the BDA returned by the arena
+    // plus per-batch state. The arena is a single host-visible buffer carved into
+    // GetImageCount() segments, so frame N's host writes never race frame N-1's
+    // GPU reads -- equivalent to the previous "one IBuffer per slot per struct"
+    // scheme but with one VkBuffer instead of (2 * imageCount) of them, and with
+    // room to grow for any future per-frame structs at zero extra allocation.
+    FrameUploadArena m_frameArena;
 
     MeshGPUUploadCache m_meshUploadCache;
     uint32_t           m_cachedVertexCount     = 0;

@@ -10,25 +10,29 @@ namespace Yogi
 class FileIncluder : public glslang::TShader::Includer
 {
 public:
-    FileIncluder(const std::string& shaderDir) : m_shaderDir(shaderDir) {}
+    FileIncluder(std::vector<std::filesystem::path> searchDirs) : m_searchDirs(std::move(searchDirs)) {}
 
     IncludeResult* includeLocal(const char* headerName,
                                 const char* /*includerName*/,
                                 size_t /*inclusionDepth*/) override
     {
-        std::filesystem::path fullPath = m_shaderDir / std::filesystem::path(headerName);
-        std::ifstream         file(fullPath, std::ios::binary);
-        if (!file)
-            return nullptr;
+        for (const auto& dir : m_searchDirs)
+        {
+            std::filesystem::path fullPath = dir / std::filesystem::path(headerName);
+            std::ifstream         file(fullPath, std::ios::binary);
+            if (!file)
+                continue;
 
-        file.seekg(0, std::ios::end);
-        size_t length = file.tellg();
-        file.seekg(0, std::ios::beg);
+            file.seekg(0, std::ios::end);
+            size_t length = file.tellg();
+            file.seekg(0, std::ios::beg);
 
-        char* data = new char[length];
-        file.read(data, length);
+            char* data = new char[length];
+            file.read(data, length);
 
-        return new IncludeResult(fullPath.string(), data, length, data);
+            return new IncludeResult(fullPath.string(), data, length, data);
+        }
+        return nullptr;
     }
 
     void releaseInclude(IncludeResult* result) override
@@ -41,7 +45,7 @@ public:
     }
 
 private:
-    std::filesystem::path m_shaderDir;
+    std::vector<std::filesystem::path> m_searchDirs;
 };
 
 std::vector<uint8_t> CompileGlslToSpirv(const std::vector<uint8_t>& glslBinary,
@@ -61,7 +65,8 @@ std::vector<uint8_t> CompileGlslToSpirv(const std::vector<uint8_t>& glslBinary,
     int         clientInputSemanticsVersion = 100;
     EShMessages messages                    = (EShMessages)(EShMsgSpvRules | EShMsgVulkanRules);
 
-    FileIncluder includer("EngineInclude");
+    std::filesystem::path shaderDir = std::filesystem::path(key).parent_path();
+    FileIncluder          includer({ shaderDir, "EngineInclude" });
 
     if (!shader.parse(GetDefaultResources(), 460, false, messages, includer))
     {

@@ -40,6 +40,8 @@ public:
     virtual BufferUsage  GetUsage() const  = 0;
     virtual BufferAccess GetAccess() const = 0;
 
+    virtual uint64_t GetDeviceAddress() const = 0;
+
     // Buffer operations
     virtual void UpdateData(const void* data, uint64_t size, uint64_t offset = 0) = 0;
 

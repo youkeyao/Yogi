@@ -8,46 +8,23 @@
 #extension GL_GOOGLE_include_directive: require
 
 #include "Renderer/ShaderData.h"
+#include "BufferRefs.glsl"
 
 layout(local_size_x = CULL_WORKGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
-layout(binding = 0) readonly buffer MeshDataBuffer
+layout(binding = 0) uniform sampler2D u_depthPyramid;
+
+layout(push_constant) uniform CullPushBlock
 {
-    MeshData meshData[];
-};
-layout(binding = 1) readonly buffer MeshDrawBuffer
-{
-    MeshDraw meshDraws[];
-};
-layout(binding = 2) writeonly buffer IndirectCommandBuffer
-{
-    uint commands[];
-};
-layout(binding = 3) writeonly buffer VisibleDrawIndexBuffer
-{
-    uint visibleDrawIndices[];
-};
-layout(binding = 4) buffer IndirectCountBuffer
-{
-    uint drawCounts[];
-};
-layout(binding = 5) uniform sampler2D u_depthPyramid;
-layout(binding = 6) buffer VisibilityBuffer
-{
-    uint visibility[];
+    CullPush pcCull;
 };
 
-layout(push_constant) uniform CullDataBlock
-{
-    CullData cullData;
-};
-
-bool sphereInsideFrustum(vec3 c, float r)
+bool sphereInsideFrustum(vec3 c, float r, vec4 frustum, float zNear, float zFar)
 {
     bool visible = true;
-    visible = visible && c.z * cullData.Frustum.y - abs(c.x) * cullData.Frustum.x > -r;
-    visible = visible && c.z * cullData.Frustum.w - abs(c.y) * cullData.Frustum.z > -r;
-    visible = visible && c.z + r > cullData.ZNear && c.z - r < cullData.ZFar;
+    visible = visible && c.z * frustum.y - abs(c.x) * frustum.x > -r;
+    visible = visible && c.z * frustum.w - abs(c.y) * frustum.z > -r;
+    visible = visible && c.z + r > zNear && c.z - r < zFar;
     return visible;
 }
 
@@ -75,19 +52,28 @@ bool projectSphere(vec3 c, float r, float znear, float P00, float P11, out vec4 
 void main()
 {
     uint drawIndex = gl_GlobalInvocationID.x;
-    if (drawIndex >= cullData.DrawCount)
+    if (drawIndex >= pcCull.DrawCount)
         return;
 
-    uint meshDrawIndex = cullData.DrawBase + drawIndex;
-    bool isLate        = cullData.IsLate != 0u;
+    uint meshDrawIndex = pcCull.DrawBase + drawIndex;
+    bool isLate        = pcCull.IsLate != 0u;
+
+    CullFrame cf = CullFrameRef(pcCull.CullFrameAddr).fd;
+
+    VisibilityBufRef     visBuf    = VisibilityBufRef(cf.VisibilityBuffer);
+    MeshDrawBufferRef    mdBuf     = MeshDrawBufferRef(cf.MeshDrawBuffer);
+    MeshDataBufferRef    mDBuf     = MeshDataBufferRef(cf.MeshDataBuffer);
+    IndirectCmdBufRef    icBuf     = IndirectCmdBufRef(cf.IndirectCommandBuffer);
+    VisibleDrawIdxBufRef vdiBuf    = VisibleDrawIdxBufRef(cf.VisibleDrawIndexBuffer);
+    IndirectCountBufRef  icountBuf = IndirectCountBufRef(cf.IndirectCountBuffer);
 
     // EARLY: skip objects invisible last frame (LATE will catch them).
-    if (!isLate && visibility[meshDrawIndex] == 0u)
+    if (!isLate && visBuf.v[meshDrawIndex] == 0u)
         return;
 
-    uint prevVisibility = visibility[meshDrawIndex];
-    MeshDraw draw = meshDraws[meshDrawIndex];
-    MeshData mesh = meshData[draw.MeshIndex];
+    uint prevVisibility = visBuf.v[meshDrawIndex];
+    MeshDraw draw = mdBuf.m[meshDrawIndex];
+    MeshData mesh = mDBuf.m[draw.MeshIndex];
 
     // World-space sphere center: matches the vertex shader's TRS (rotate(localPos * S) + T).
     vec3 center = RotateByQuaternion(mesh.BoundingCenter * draw.Scale, draw.Orientation) + draw.Position;
@@ -95,17 +81,17 @@ void main()
     float radius = mesh.BoundingRadius * maxScale;
 
     // GLM (-Z forward) -> niagara view-space (+Z forward).
-    vec3 viewPos = (cullData.View * vec4(center, 1.0)).xyz;
+    vec3 viewPos = (cf.View * vec4(center, 1.0)).xyz;
     viewPos.z = -viewPos.z;
 
-    bool visible = sphereInsideFrustum(viewPos, radius);
+    bool visible = sphereInsideFrustum(viewPos, radius, cf.Frustum, cf.ZNear, cf.ZFar);
 
     // Hi-Z is only run by LATE -- EARLY trusts the previous frame's visibility[] verdict
     // and skips occlusion testing entirely (avoids stale-pyramid feedback loops).
     if (visible && isLate)
     {
         vec4 aabb;
-        if (projectSphere(viewPos, radius, cullData.ZNear, cullData.P00, cullData.P11, aabb))
+        if (projectSphere(viewPos, radius, cf.ZNear, cf.P00, cf.P11, aabb))
         {
             float w     = aabb.z - aabb.x;
             float h     = aabb.w - aabb.y;
@@ -114,27 +100,26 @@ void main()
             float depth = textureLod(u_depthPyramid, (aabb.xy + aabb.zw) * 0.5, level).r;
 
             // Sphere closest-point NDC depth (perspectiveRH_ZO finite-far):
-            //   z = far * (d - near) / (d * (far - near))
             float closestZ    = viewPos.z - radius;
-            float depthSphere = cullData.ZFar * (closestZ - cullData.ZNear)
-                              / (closestZ * (cullData.ZFar - cullData.ZNear));
+            float depthSphere = cf.ZFar * (closestZ - cf.ZNear)
+                              / (closestZ * (cf.ZFar - cf.ZNear));
             visible           = depthSphere <= depth;
         }
     }
 
     // LATE writes the canonical visibility for next frame's EARLY gating.
     if (isLate)
-        visibility[meshDrawIndex] = visible ? 1u : 0u;
+        visBuf.v[meshDrawIndex] = visible ? 1u : 0u;
 
     // EARLY emits all that pass; LATE only emits the "newly-visible" set
     // (prevVisibility == 0) to avoid duplicates with EARLY's draws.
     if (visible && (!isLate || prevVisibility == 0u))
     {
-        uint compactIndex           = atomicAdd(drawCounts[cullData.CountIndex], 1);
-        uint commandOffset          = (cullData.OutputBase + compactIndex) * 3;
-        commands[commandOffset + 0] = (mesh.MeshletCount + TASK_WGSIZE - 1) / TASK_WGSIZE;
-        commands[commandOffset + 1] = 1;
-        commands[commandOffset + 2] = 1;
-        visibleDrawIndices[cullData.OutputBase + compactIndex] = meshDrawIndex;
+        uint compactIndex          = atomicAdd(icountBuf.n[pcCull.CountIndex], 1);
+        uint commandOffset         = (pcCull.OutputBase + compactIndex) * 3;
+        icBuf.c[commandOffset + 0] = (mesh.MeshletCount + TASK_WGSIZE - 1) / TASK_WGSIZE;
+        icBuf.c[commandOffset + 1] = 1;
+        icBuf.c[commandOffset + 2] = 1;
+        vdiBuf.i[pcCull.OutputBase + compactIndex] = meshDrawIndex;
     }
 }

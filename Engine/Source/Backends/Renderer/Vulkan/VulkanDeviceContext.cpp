@@ -205,6 +205,7 @@ void VulkanDeviceContext::CreateLogicalDevice()
     VkPhysicalDeviceFeatures deviceFeatures{};
     deviceFeatures.independentBlend  = VK_TRUE;
     deviceFeatures.multiDrawIndirect = VK_TRUE;
+    deviceFeatures.shaderInt64       = VK_TRUE;
 
     VkPhysicalDeviceFeatures2 deviceFeatures2{};
     deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
@@ -220,6 +221,7 @@ void VulkanDeviceContext::CreateLogicalDevice()
     vulkan12Features.shaderInt8              = VK_TRUE;
     vulkan12Features.drawIndirectCount       = VK_TRUE;
     vulkan12Features.samplerFilterMinmax     = VK_TRUE;
+    vulkan12Features.bufferDeviceAddress     = VK_TRUE; // BDA: pointer-based push constants
     vulkan11Features.pNext                   = &vulkan12Features;
     VkPhysicalDeviceExtendedDynamicStateFeaturesEXT extendedFeature{};
     extendedFeature.sType                = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT;

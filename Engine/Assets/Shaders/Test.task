@@ -8,34 +8,15 @@
 #extension GL_GOOGLE_include_directive: require
 
 #include "Renderer/ShaderData.h"
+#include "BufferRefs.glsl"
 
 layout(local_size_x = TASK_WGSIZE, local_size_y = 1, local_size_z = 1) in;
 
-layout(binding = 1) readonly buffer MeshletBuffer
-{
-    MeshletData meshlets[];
-};
-
-layout(binding = 3) readonly buffer MeshDataBuffer
-{
-    MeshData meshData[];
-};
-
-layout(binding = 4) readonly buffer MeshDrawBuffer
-{
-    MeshDraw meshDraws[];
-};
-
-layout(binding = 5) readonly buffer VisibleDrawIndexBuffer
-{
-    uint visibleDrawIndices[];
-};
-
 taskPayloadSharedEXT TaskPayload payload;
 
-layout(push_constant) uniform SceneDataBlock
+layout(push_constant) uniform ScenePushBlock
 {
-    SceneData sceneData;
+    ScenePush pcScene;
 };
 
 #if TASK_CULL
@@ -49,10 +30,17 @@ bool coneCull(vec3 center, float radius, vec3 coneAxis, float coneCutoff, vec3 c
 
 void main()
 {
-    uint drawIndex = visibleDrawIndices[uint(gl_DrawID) + sceneData.DrawBase];
+    SceneFrame sf = SceneFrameRef(pcScene.SceneFrameAddr).fd;
+
+    VisibleDrawIdxBufRef vdiBuf = VisibleDrawIdxBufRef(sf.VisibleDrawIndexBuffer);
+    MeshDrawBufferRef    mdBuf  = MeshDrawBufferRef(sf.MeshDrawBuffer);
+    MeshDataBufferRef    mDBuf  = MeshDataBufferRef(sf.MeshDataBuffer);
+    MeshletBufferRef     mlBuf  = MeshletBufferRef(sf.MeshletBuffer);
+
+    uint drawIndex = vdiBuf.i[uint(gl_DrawID) + pcScene.DrawBase];
     payload.drawIndex = drawIndex;
-    MeshDraw draw = meshDraws[drawIndex];
-    MeshData mesh = meshData[draw.MeshIndex];
+    MeshDraw draw = mdBuf.m[drawIndex];
+    MeshData mesh = mDBuf.m[draw.MeshIndex];
     uint ti = gl_LocalInvocationIndex;
     uint miLocal = gl_WorkGroupID.x * TASK_WGSIZE + ti;
 
@@ -64,12 +52,13 @@ void main()
     if (miLocal < mesh.MeshletCount)
     {
         uint mi = mesh.MeshletOffset + miLocal;
-        vec3 center = vec3(meshlets[mi].Center[0], meshlets[mi].Center[1], meshlets[mi].Center[2]);
+        MeshletData meshlet = mlBuf.m[mi];
+        vec3 center = vec3(meshlet.Center[0], meshlet.Center[1], meshlet.Center[2]);
         center = RotateByQuaternion(center * draw.Scale, draw.Orientation) + draw.Position;
-        center = (sceneData.ViewMatrix * vec4(center, 1)).xyz;
-        vec3 coneAxis = vec3(meshlets[mi].ConeAxis[0], meshlets[mi].ConeAxis[1], meshlets[mi].ConeAxis[2]) / 127.0;
-        coneAxis = mat3(sceneData.ViewMatrix) * RotateByQuaternion(coneAxis, draw.Orientation);
-        bool visible = !coneCull(center, meshlets[mi].Radius, coneAxis, meshlets[mi].ConeCutOff / 127.0, vec3(0, 0, 0));
+        center = (sf.ViewMatrix * vec4(center, 1)).xyz;
+        vec3 coneAxis = vec3(meshlet.ConeAxis[0], meshlet.ConeAxis[1], meshlet.ConeAxis[2]) / 127.0;
+        coneAxis = mat3(sf.ViewMatrix) * RotateByQuaternion(coneAxis, draw.Orientation);
+        bool visible = !coneCull(center, meshlet.Radius, coneAxis, meshlet.ConeCutOff / 127.0, vec3(0, 0, 0));
         if (visible)
         {
             uint idx = atomicAdd(s_survivorCount, 1);

@@ -1,3 +1,6 @@
+#ifndef YG_SHADER_DATA_H
+#define YG_SHADER_DATA_H
+
 #ifdef __cplusplus
 #    pragma once
 #    include <cstdint>
@@ -48,44 +51,6 @@ struct MeshData
     uint  MeshletCount;
 };
 
-struct SceneData
-{
-    mat4 ProjectionViewMatrix;
-    mat4 ViewMatrix;
-    vec2 ScreenSize; // pixel dimensions of the render target; used by triangle sub-pixel culling
-    uint DrawBase;
-    uint _Pad0;
-};
-
-struct CullData
-{
-    mat4 View; // world -> view (GLM convention, -Z forward)
-
-    // niagara-style symmetric frustum: (Lx, Lz, Ty, Tz) of normalized L/T plane normals
-    // expressed in view space. Right/Bottom planes are mirrored via abs() in the cull
-    // shader. 4 floats replace 6 frustum planes (saves 80 bytes of push constant).
-    vec4 Frustum;
-
-    // P00, P11: projection diagonal entries (tan-half-fov reciprocals).
-    // ZNear, ZFar: positive view-space distances. Used for the perspectiveRH_ZO depth
-    //   formula z_ndc = far * (d - near) / (d * (far - near)).
-    float P00;
-    float P11;
-    float ZNear;
-    float ZFar;
-
-    uint DrawBase;
-    uint DrawCount;
-    uint OutputBase;
-    uint CountIndex;
-    uint IsLate; // 0 = EARLY pass (gate on prev visibility), 1 = LATE pass (Hi-Z + write visibility)
-
-    // Pad to 128 bytes (Vulkan-guaranteed minimum maxPushConstantsSize).
-    uint _Pad0;
-    uint _Pad1;
-    uint _Pad2;
-};
-
 struct MeshDraw
 {
     vec3 Position;
@@ -94,6 +59,76 @@ struct MeshDraw
     vec3 Scale;
     uint _Pad0;
 };
+
+// ---------------------------------------------------------------------------
+// SceneFrame / CullFrame: per-frame static data, uploaded once per frame to a
+// Storage buffer and dereferenced via buffer_reference (BDA). Keeps the push
+// constants small (16 B / 32 B) so we fit the Vulkan-guaranteed 128 B max.
+// ---------------------------------------------------------------------------
+
+struct SceneFrame
+{
+    mat4 ProjectionViewMatrix; // off   0, size 64
+    mat4 ViewMatrix;           // off  64, size 64
+    vec2 ScreenSize;           // off 128, size  8 — used by triangle sub-pixel cull
+    uint _Pad0;                // off 136
+    uint _Pad1;                // off 140 — 8-byte align for u64 block
+
+    uint64_t VertexBuffer;           // off 144
+    uint64_t MeshletBuffer;          // off 152
+    uint64_t MeshletDataBuffer;      // off 160 (uint8 view via cast in shader)
+    uint64_t MeshDataBuffer;         // off 168
+    uint64_t MeshDrawBuffer;         // off 176
+    uint64_t VisibleDrawIndexBuffer; // off 184
+}; // total 192
+
+// Push constant for mesh/task shaders. Carries only the SceneFrame buffer
+// address + per-batch DrawBase; matrices/buffer pointers come via SceneFrame.
+struct ScenePush
+{
+    uint64_t SceneFrameAddr; // off  0, 8
+    uint     DrawBase;       // off  8, 4
+    uint     _Pad0;          // off 12, 4
+}; // total 16
+
+struct CullFrame
+{
+    mat4 View; // world -> view (GLM convention, -Z forward)               // off  0, 64
+
+    // niagara-style symmetric frustum: (Lx, Lz, Ty, Tz) of normalized L/T plane normals
+    // expressed in view space. Right/Bottom planes are mirrored via abs() in the cull
+    // shader. 4 floats replace 6 frustum planes (saves 80 bytes vs full 6-plane form).
+    vec4 Frustum; // off 64, 16
+
+    // P00, P11: projection diagonal entries (1/tan(fovY/2)/aspect, 1/tan(fovY/2)).
+    // ZNear, ZFar: positive view-space distances. Used for the perspectiveRH_ZO depth
+    //   formula z_ndc = far * (d - near) / (d * (far - near)).
+    float P00;   // off 80
+    float P11;   // off 84
+    float ZNear; // off 88
+    float ZFar;  // off 92
+
+    uint64_t MeshDataBuffer;         // off 96
+    uint64_t MeshDrawBuffer;         // off 104
+    uint64_t IndirectCommandBuffer;  // off 112
+    uint64_t VisibleDrawIndexBuffer; // off 120
+    uint64_t IndirectCountBuffer;    // off 128
+    uint64_t VisibilityBuffer;       // off 136
+}; // total 144
+
+// Push constant for ObjectCull.comp. Carries the CullFrame buffer address +
+// per-dispatch state (which batch we're processing, EARLY vs LATE).
+struct CullPush
+{
+    uint64_t CullFrameAddr; // off  0, 8
+    uint     DrawBase;      // off  8, 4
+    uint     DrawCount;     // off 12, 4
+    uint     OutputBase;    // off 16, 4
+    uint     CountIndex;    // off 20, 4
+    uint     IsLate;        // 0 = EARLY (gate on prev visibility); 1 = LATE (Hi-Z + write visibility)
+                            // off 24, 4
+    uint _Pad0;             // off 28, 4
+}; // total 32
 
 #ifdef __cplusplus
 #    undef uint
@@ -114,4 +149,6 @@ vec3 RotateByQuaternion(vec3 v, vec4 q)
     vec3 t = 2.0 * cross(q.xyz, v);
     return v + q.w * t + cross(q.xyz, t);
 }
+#endif
+
 #endif

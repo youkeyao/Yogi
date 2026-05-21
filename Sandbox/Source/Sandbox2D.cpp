@@ -33,18 +33,9 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
         Yogi::AttachmentDesc{ Yogi::ITexture::Format::D32_FLOAT, Yogi::ResourceState::DepthRead } });
 
     auto shaderResourceBinding = Yogi::ResourceManager::CreateResource<Yogi::IShaderResourceBinding>(
-        std::vector<Yogi::ShaderResourceAttribute>{
-            Yogi::ShaderResourceAttribute{ 0, 1, Yogi::ShaderResourceType::StorageBuffer, Yogi::ShaderStage::Mesh },
-            Yogi::ShaderResourceAttribute{
-                1, 1, Yogi::ShaderResourceType::StorageBuffer, Yogi::ShaderStage::Task | Yogi::ShaderStage::Mesh },
-            Yogi::ShaderResourceAttribute{ 2, 1, Yogi::ShaderResourceType::StorageBuffer, Yogi::ShaderStage::Mesh },
-            Yogi::ShaderResourceAttribute{
-                3, 1, Yogi::ShaderResourceType::StorageBuffer, Yogi::ShaderStage::Task | Yogi::ShaderStage::Mesh },
-            Yogi::ShaderResourceAttribute{
-                4, 1, Yogi::ShaderResourceType::StorageBuffer, Yogi::ShaderStage::Task | Yogi::ShaderStage::Mesh },
-            Yogi::ShaderResourceAttribute{ 5, 1, Yogi::ShaderResourceType::StorageBuffer, Yogi::ShaderStage::Task } },
+        std::vector<Yogi::ShaderResourceAttribute>{},
         std::vector<Yogi::PushConstantRange>{ Yogi::PushConstantRange{
-            Yogi::ShaderStage::Task | Yogi::ShaderStage::Mesh, 0, static_cast<uint32_t>(sizeof(SceneData)) } });
+            Yogi::ShaderStage::Task | Yogi::ShaderStage::Mesh, 0, static_cast<uint32_t>(sizeof(ScenePush)) } });
 
     // Yogi::WRef<Yogi::ShaderDesc> vertexShader =
     //     Yogi::AssetManager::AcquireAsset<Yogi::ShaderDesc>("EngineAssets/Shaders/Test.vert");
