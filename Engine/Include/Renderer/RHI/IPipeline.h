@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Renderer/RHI/ITexture.h"
-#include "Renderer/RHI/IRenderPass.h"
 #include "Renderer/RHI/IShaderResourceBinding.h"
 
 namespace Yogi
@@ -56,10 +55,11 @@ struct PipelineDesc
     std::vector<const ShaderDesc*> Shaders;
     std::vector<VertexAttribute>   VertexLayout;
     const IShaderResourceBinding*  ShaderResourceBinding = nullptr;
-    const IRenderPass*             RenderPass            = nullptr;
-    int                            SubPassIndex          = 0;
-    PrimitiveTopology              Topology              = PrimitiveTopology::TriangleList;
-    PipelineType                   Type                  = PipelineType::Graphics;
+    std::vector<ITexture::Format>  ColorFormats;
+    ITexture::Format               DepthFormat = ITexture::Format::NONE;
+    SampleCountFlagBits            Samples     = SampleCountFlagBits::Count1;
+    PrimitiveTopology              Topology    = PrimitiveTopology::TriangleList;
+    PipelineType                   Type        = PipelineType::Graphics;
 };
 
 class YG_API IPipeline

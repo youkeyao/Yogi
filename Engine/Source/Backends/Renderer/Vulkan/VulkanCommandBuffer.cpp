@@ -84,39 +84,51 @@ void VulkanCommandBuffer::Submit()
 {
     YG_PROFILE_FUNCTION();
 
-    VulkanDeviceContext* context   = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
-    VulkanSwapChain*     swapChain = static_cast<VulkanSwapChain*>(Application::GetInstance().GetSwapChain());
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
 
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers    = &m_commandBuffer;
+    VkCommandBufferSubmitInfo cmdSubmitInfo{};
+    cmdSubmitInfo.sType         = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
+    cmdSubmitInfo.commandBuffer = m_commandBuffer;
+    cmdSubmitInfo.deviceMask    = 0;
 
-    VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    VkSemaphoreSubmitInfo waitSemInfo{};
     if (m_waitSemaphore != VK_NULL_HANDLE)
     {
-        submitInfo.waitSemaphoreCount = 1;
-        submitInfo.pWaitSemaphores    = &m_waitSemaphore;
-        submitInfo.pWaitDstStageMask  = &waitStage;
+        waitSemInfo.sType     = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+        waitSemInfo.semaphore = m_waitSemaphore;
+        waitSemInfo.stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+        waitSemInfo.value     = 0;
     }
+    VkSemaphoreSubmitInfo signalSemInfo{};
     if (m_signalSemaphore != VK_NULL_HANDLE)
     {
-        submitInfo.signalSemaphoreCount = 1;
-        submitInfo.pSignalSemaphores    = &m_signalSemaphore;
+        signalSemInfo.sType     = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+        signalSemInfo.semaphore = m_signalSemaphore;
+        signalSemInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+        signalSemInfo.value     = 0;
     }
+
+    VkSubmitInfo2 submitInfo{};
+    submitInfo.sType                    = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
+    submitInfo.waitSemaphoreInfoCount   = m_waitSemaphore != VK_NULL_HANDLE ? 1u : 0u;
+    submitInfo.pWaitSemaphoreInfos      = m_waitSemaphore != VK_NULL_HANDLE ? &waitSemInfo : nullptr;
+    submitInfo.commandBufferInfoCount   = 1;
+    submitInfo.pCommandBufferInfos      = &cmdSubmitInfo;
+    submitInfo.signalSemaphoreInfoCount = m_signalSemaphore != VK_NULL_HANDLE ? 1u : 0u;
+    submitInfo.pSignalSemaphoreInfos    = m_signalSemaphore != VK_NULL_HANDLE ? &signalSemInfo : nullptr;
 
     VkResult result = VK_NOT_READY;
     switch (m_queue)
     {
         case SubmitQueue::Graphics:
-            result = vkQueueSubmit(context->GetGraphicsQueue(), 1, &submitInfo, m_commandFence);
+            result = vkQueueSubmit2(context->GetGraphicsQueue(), 1, &submitInfo, m_commandFence);
             break;
         case SubmitQueue::Compute:
             // Todo: To be implemented
             YG_CORE_ASSERT(false, "Compute queue submission not implemented yet!");
             break;
         case SubmitQueue::Transfer:
-            result = vkQueueSubmit(context->GetTransferQueue(), 1, &submitInfo, m_commandFence);
+            result = vkQueueSubmit2(context->GetTransferQueue(), 1, &submitInfo, m_commandFence);
             break;
         default:
             YG_CORE_ASSERT(false, "Invalid SubmitQueue type!");
@@ -138,46 +150,112 @@ void VulkanCommandBuffer::Wait()
     }
 }
 
-void VulkanCommandBuffer::BeginRenderPass(const IRenderPass*             renderPass,
-                                          const IFrameBuffer*            frameBuffer,
-                                          const std::vector<ClearValue>& colorClearValues,
-                                          const ClearValue&              depthClearValue)
+// ---------- Helpers for BeginRendering / EndRendering ----------------------
+
+namespace
 {
-    const VulkanFrameBuffer& vkFrameBuffer = *static_cast<const VulkanFrameBuffer*>(frameBuffer);
-    const VulkanRenderPass&  vkRenderPass  = *static_cast<const VulkanRenderPass*>(renderPass);
-    SampleCountFlagBits      numSamples    = vkRenderPass.GetDesc().NumSamples;
-    VkRenderPassBeginInfo    renderPassInfo{};
-    renderPassInfo.sType             = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    renderPassInfo.renderPass        = vkRenderPass.GetVkRenderPass();
-    renderPassInfo.framebuffer       = vkFrameBuffer.GetVkFrameBuffer();
-    renderPassInfo.renderArea.offset = { 0, 0 };
-    renderPassInfo.renderArea.extent = { vkFrameBuffer.GetWidth(), vkFrameBuffer.GetHeight() };
-    std::vector<VkClearValue> vkClearValues;
-    for (size_t i = 0; i < colorClearValues.size(); ++i)
+
+VkAttachmentLoadOp ToVkLoadOp(LoadOp op)
+{
+    switch (op)
     {
-        VkClearValue vkClearValue{ colorClearValues[i].Color[0],
-                                   colorClearValues[i].Color[1],
-                                   colorClearValues[i].Color[2],
-                                   colorClearValues[i].Color[3] };
-        vkClearValues.push_back(vkClearValue);
-        if (numSamples > SampleCountFlagBits::Count1)
-        {
-            vkClearValues.push_back(vkClearValue);
-        }
+        case LoadOp::Load:
+            return VK_ATTACHMENT_LOAD_OP_LOAD;
+        case LoadOp::Clear:
+            return VK_ATTACHMENT_LOAD_OP_CLEAR;
+        case LoadOp::DontCare:
+            return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     }
-    if (vkFrameBuffer.HasDepthAttachment())
-    {
-        vkClearValues.push_back(VkClearValue{
-            depthClearValue.Color[0], depthClearValue.Color[1], depthClearValue.Color[2], depthClearValue.Color[3] });
-    }
-    renderPassInfo.clearValueCount = static_cast<uint32_t>(vkClearValues.size());
-    renderPassInfo.pClearValues    = vkClearValues.data();
-    vkCmdBeginRenderPass(m_commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 }
 
-void VulkanCommandBuffer::EndRenderPass()
+VkAttachmentStoreOp ToVkStoreOp(StoreOp op)
 {
-    vkCmdEndRenderPass(m_commandBuffer);
+    switch (op)
+    {
+        case StoreOp::Store:
+            return VK_ATTACHMENT_STORE_OP_STORE;
+        case StoreOp::DontCare:
+            return VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    }
+    return VK_ATTACHMENT_STORE_OP_DONT_CARE;
+}
+
+} // anonymous namespace
+
+void VulkanCommandBuffer::BeginRendering(const RenderingDesc& desc)
+{
+    std::vector<VkRenderingAttachmentInfo> colorInfos;
+    colorInfos.reserve(desc.ColorAttachments.size());
+    for (const auto& color : desc.ColorAttachments)
+    {
+        YG_CORE_ASSERT(color.View, "Vulkan: BeginRendering color attachment view is null");
+        const VulkanTextureView* vkView = static_cast<const VulkanTextureView*>(color.View);
+        YG_CORE_ASSERT(static_cast<const VulkanTexture*>(vkView->GetTexture())->GetCurrentLayout() ==
+                           VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                       "Vulkan: color attachment must be in COLOR_ATTACHMENT_OPTIMAL "
+                       "before BeginRendering -- caller missed a Barrier()");
+
+        VkRenderingAttachmentInfo info{};
+        info.sType            = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+        info.imageView        = vkView->GetVkImageView();
+        info.imageLayout      = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        info.loadOp           = ToVkLoadOp(color.LoadAction);
+        info.storeOp          = ToVkStoreOp(color.StoreAction);
+        info.clearValue.color = {
+            { color.ClearVal.Color[0], color.ClearVal.Color[1], color.ClearVal.Color[2], color.ClearVal.Color[3] }
+        };
+
+        if (color.ResolveView && desc.Samples > SampleCountFlagBits::Count1)
+        {
+            const VulkanTextureView* vkResolveView = static_cast<const VulkanTextureView*>(color.ResolveView);
+            YG_CORE_ASSERT(
+                static_cast<const VulkanTexture*>(vkResolveView->GetTexture())->GetCurrentLayout() ==
+                    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                "Vulkan: resolve attachment must be in COLOR_ATTACHMENT_OPTIMAL before BeginRendering");
+            info.resolveMode        = VK_RESOLVE_MODE_AVERAGE_BIT;
+            info.resolveImageView   = vkResolveView->GetVkImageView();
+            info.resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        }
+        colorInfos.push_back(info);
+    }
+
+    VkRenderingAttachmentInfo depthInfo{};
+    bool                      hasDepth = false;
+    if (desc.DepthAttachment.View)
+    {
+        const VulkanTextureView* vkView = static_cast<const VulkanTextureView*>(desc.DepthAttachment.View);
+        YG_CORE_ASSERT(static_cast<const VulkanTexture*>(vkView->GetTexture())->GetCurrentLayout() ==
+                           VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                       "Vulkan: depth attachment must be in DEPTH_STENCIL_ATTACHMENT_OPTIMAL "
+                       "before BeginRendering -- caller missed a Barrier()");
+        depthInfo.sType                           = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+        depthInfo.imageView                       = vkView->GetVkImageView();
+        depthInfo.imageLayout                     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        depthInfo.loadOp                          = ToVkLoadOp(desc.DepthAttachment.LoadAction);
+        depthInfo.storeOp                         = ToVkStoreOp(desc.DepthAttachment.StoreAction);
+        depthInfo.clearValue.depthStencil.depth   = desc.DepthAttachment.ClearVal.DepthStencil.Depth;
+        depthInfo.clearValue.depthStencil.stencil = desc.DepthAttachment.ClearVal.DepthStencil.Stencil;
+        hasDepth                                  = true;
+    }
+
+    VkRenderingInfo renderingInfo{};
+    renderingInfo.sType                = VK_STRUCTURE_TYPE_RENDERING_INFO;
+    renderingInfo.renderArea.offset    = { 0, 0 };
+    renderingInfo.renderArea.extent    = { desc.Width, desc.Height };
+    renderingInfo.layerCount           = 1;
+    renderingInfo.viewMask             = 0;
+    renderingInfo.colorAttachmentCount = static_cast<uint32_t>(colorInfos.size());
+    renderingInfo.pColorAttachments    = colorInfos.empty() ? nullptr : colorInfos.data();
+    renderingInfo.pDepthAttachment     = hasDepth ? &depthInfo : nullptr;
+    renderingInfo.pStencilAttachment   = nullptr;
+
+    vkCmdBeginRendering(m_commandBuffer, &renderingInfo);
+}
+
+void VulkanCommandBuffer::EndRendering()
+{
+    vkCmdEndRendering(m_commandBuffer);
 }
 
 void VulkanCommandBuffer::SetPipeline(const IPipeline* pipeline)
@@ -305,59 +383,70 @@ void VulkanCommandBuffer::Barrier(const BarrierDesc& barrierDesc)
         YG_CORE_ASSERT(tex, "Vulkan: Barrier called on a view whose texture is destroyed");
         const VulkanTexture* vkTex = static_cast<const VulkanTexture*>(tex);
 
-        VkImageLayout oldLayout = YgResourceState2VkImageLayout(barrierDesc.BeforeState, tex->GetUsage());
+        VkImageLayout oldLayout = (barrierDesc.BeforeState & ResourceState::Undefined)
+                                      ? VK_IMAGE_LAYOUT_UNDEFINED
+                                      : vkTex->GetCurrentLayout();
         VkImageLayout newLayout = YgResourceState2VkImageLayout(barrierDesc.AfterState, tex->GetUsage());
 
-        VkImageMemoryBarrier barrier{};
-        barrier.sType               = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-        barrier.oldLayout           = oldLayout;
-        barrier.newLayout           = newLayout;
-        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barrier.image               = vkTex->GetVkImage();
-        barrier.srcAccessMask       = YgResourceState2VkAccess(barrierDesc.BeforeState);
-        barrier.dstAccessMask       = YgResourceState2VkAccess(barrierDesc.AfterState);
-        barrier.subresourceRange    = vkView->GetVkSubresourceRange();
+        VkImageMemoryBarrier2 b{};
+        b.sType               = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+        b.srcStageMask        = YgResourceState2VkPipelineStage2(barrierDesc.BeforeState);
+        b.srcAccessMask       = YgResourceState2VkAccess2(barrierDesc.BeforeState);
+        b.dstStageMask        = YgResourceState2VkPipelineStage2(barrierDesc.AfterState);
+        b.dstAccessMask       = YgResourceState2VkAccess2(barrierDesc.AfterState);
+        b.oldLayout           = oldLayout;
+        b.newLayout           = newLayout;
+        b.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        b.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        b.image               = vkTex->GetVkImage();
+        b.subresourceRange    = vkView->GetVkSubresourceRange();
 
-        VkPipelineStageFlags sourceStage      = YgResourceState2VkPipelineStage(barrierDesc.BeforeState);
-        VkPipelineStageFlags destinationStage = YgResourceState2VkPipelineStage(barrierDesc.AfterState);
+        VkDependencyInfo dep{};
+        dep.sType                   = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+        dep.imageMemoryBarrierCount = 1;
+        dep.pImageMemoryBarriers    = &b;
+        vkCmdPipelineBarrier2(m_commandBuffer, &dep);
 
-        vkCmdPipelineBarrier(m_commandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+        vkTex->SetCurrentLayout(newLayout);
         return;
     }
-
     else if (barrierDesc.Buffer)
     {
         const VulkanBuffer* vkBuffer = static_cast<const VulkanBuffer*>(barrierDesc.Buffer);
 
-        VkBufferMemoryBarrier barrier{};
-        barrier.sType               = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barrier.buffer              = vkBuffer->GetVkBuffer();
-        barrier.offset              = barrierDesc.BufferOffset;
-        barrier.size = barrierDesc.BufferSize == 0 ? VK_WHOLE_SIZE : static_cast<VkDeviceSize>(barrierDesc.BufferSize);
-        barrier.srcAccessMask = YgResourceState2VkAccess(barrierDesc.BeforeState);
-        barrier.dstAccessMask = YgResourceState2VkAccess(barrierDesc.AfterState);
+        VkBufferMemoryBarrier2 b{};
+        b.sType               = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
+        b.srcStageMask        = YgResourceState2VkPipelineStage2(barrierDesc.BeforeState);
+        b.srcAccessMask       = YgResourceState2VkAccess2(barrierDesc.BeforeState);
+        b.dstStageMask        = YgResourceState2VkPipelineStage2(barrierDesc.AfterState);
+        b.dstAccessMask       = YgResourceState2VkAccess2(barrierDesc.AfterState);
+        b.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        b.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        b.buffer              = vkBuffer->GetVkBuffer();
+        b.offset              = barrierDesc.BufferOffset;
+        b.size                = barrierDesc.BufferSize == 0 ? VK_WHOLE_SIZE : (VkDeviceSize)barrierDesc.BufferSize;
 
-        VkPipelineStageFlags sourceStage      = YgResourceState2VkPipelineStage(barrierDesc.BeforeState);
-        VkPipelineStageFlags destinationStage = YgResourceState2VkPipelineStage(barrierDesc.AfterState);
-
-        vkCmdPipelineBarrier(m_commandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 1, &barrier, 0, nullptr);
+        VkDependencyInfo dep{};
+        dep.sType                    = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+        dep.bufferMemoryBarrierCount = 1;
+        dep.pBufferMemoryBarriers    = &b;
+        vkCmdPipelineBarrier2(m_commandBuffer, &dep);
         return;
     }
-
     else
     {
-        VkMemoryBarrier barrier{};
-        barrier.sType         = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-        barrier.srcAccessMask = YgResourceState2VkAccess(barrierDesc.BeforeState);
-        barrier.dstAccessMask = YgResourceState2VkAccess(barrierDesc.AfterState);
+        VkMemoryBarrier2 b{};
+        b.sType         = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2;
+        b.srcStageMask  = YgResourceState2VkPipelineStage2(barrierDesc.BeforeState);
+        b.srcAccessMask = YgResourceState2VkAccess2(barrierDesc.BeforeState);
+        b.dstStageMask  = YgResourceState2VkPipelineStage2(barrierDesc.AfterState);
+        b.dstAccessMask = YgResourceState2VkAccess2(barrierDesc.AfterState);
 
-        VkPipelineStageFlags sourceStage      = YgResourceState2VkPipelineStage(barrierDesc.BeforeState);
-        VkPipelineStageFlags destinationStage = YgResourceState2VkPipelineStage(barrierDesc.AfterState);
-
-        vkCmdPipelineBarrier(m_commandBuffer, sourceStage, destinationStage, 0, 1, &barrier, 0, nullptr, 0, nullptr);
+        VkDependencyInfo dep{};
+        dep.sType              = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+        dep.memoryBarrierCount = 1;
+        dep.pMemoryBarriers    = &b;
+        vkCmdPipelineBarrier2(m_commandBuffer, &dep);
         return;
     }
 }
@@ -406,7 +495,7 @@ void VulkanCommandBuffer::Blit(const ITextureView* src, const ITextureView* dst,
         if (texture.GetUsage() == ITexture::Usage::DepthStencil)
             return ResourceState::DepthWrite;
         if (texture.GetUsage() == ITexture::Usage::RenderTarget)
-            return ResourceState::Present;
+            return ResourceState::ColorAttachment;
         if (texture.GetUsage() == ITexture::Usage::Storage)
             return ResourceState::UnorderedAccess;
         return ResourceState::FragmentShaderResource;
@@ -425,10 +514,9 @@ void VulkanCommandBuffer::Blit(const ITextureView* src, const ITextureView* dst,
             .BeforeState = srcStableState,
             .AfterState  = ResourceState::CopySource,
         });
-        // Destination is fully overwritten by the blit, so transitioning from UNDEFINED is valid.
         Barrier(BarrierDesc{
             .TextureView = dst,
-            .BeforeState = ResourceState::None,
+            .BeforeState = ResourceState::Undefined,
             .AfterState  = ResourceState::CopyDestination,
         });
 

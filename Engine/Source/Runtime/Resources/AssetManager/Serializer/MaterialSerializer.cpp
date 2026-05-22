@@ -79,9 +79,9 @@ Owner<Material> MaterialSerializer::Deserialize(const std::vector<uint8_t>& bina
         WRef<IShaderResourceBinding> srb = ResourceManager::CreateResource<IShaderResourceBinding>(
             pipelineData.ShaderResourceLayout, pipelineData.PushConstantRanges);
         pipelineDesc.ShaderResourceBinding = srb.Get();
-        WRef<IRenderPass> renderPass       = AssetManager::AcquireAsset<IRenderPass>(pipelineData.RenderPassKey);
-        pipelineDesc.RenderPass            = renderPass.Get();
-        pipelineDesc.SubPassIndex          = pipelineData.SubPassIndex;
+        pipelineDesc.ColorFormats          = pipelineData.ColorFormats;
+        pipelineDesc.DepthFormat           = pipelineData.DepthFormat;
+        pipelineDesc.Samples               = pipelineData.Samples;
         pipelineDesc.Topology              = pipelineData.Topology;
 
         auto passPipeline = ResourceManager::AcquireSharedResource<IPipeline>(pipelineDesc);

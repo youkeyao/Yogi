@@ -8,15 +8,20 @@ namespace Yogi
 
 // Serialization-friendly description of how a pipeline was built. Stored on the material so the
 // serializer can round-trip a material without reflecting back through the opaque IPipeline.
+//
+// Pipeline rendering state used to live in a referenced IRenderPass asset; with
+// dynamic rendering it's flattened into the pipeline itself: the attachment
+// formats + sample count are all the GPU needs at PSO compile time.
 struct PipelineData
 {
     std::vector<std::string>             ShaderKeys;
     std::vector<VertexAttribute>         VertexLayout;
     std::vector<ShaderResourceAttribute> ShaderResourceLayout;
     std::vector<PushConstantRange>       PushConstantRanges;
-    std::string                          RenderPassKey;
-    int                                  SubPassIndex = 0;
-    PrimitiveTopology                    Topology     = PrimitiveTopology::TriangleList;
+    std::vector<ITexture::Format>        ColorFormats;
+    ITexture::Format                     DepthFormat = ITexture::Format::NONE;
+    SampleCountFlagBits                  Samples     = SampleCountFlagBits::Count1;
+    PrimitiveTopology                    Topology    = PrimitiveTopology::TriangleList;
 };
 
 class YG_API Material

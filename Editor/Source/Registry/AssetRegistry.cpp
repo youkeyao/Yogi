@@ -51,13 +51,6 @@ void RegisterShaders(const std::filesystem::path& path, std::unordered_map<uint3
         keyMaps[GetTypeHash<ShaderDesc>()].push_back(path.lexically_normal().generic_string());
     }
 }
-void RegisterRenderPasses(const std::filesystem::path& path, std::unordered_map<uint32_t, std::vector<std::string>>& keyMaps)
-{
-    if (path.extension().string() == ".rp")
-    {
-        keyMaps[GetTypeHash<IRenderPass>()].push_back(path.lexically_normal().generic_string());
-    }
-}
 void RegisterTextures(const std::filesystem::path& path, std::unordered_map<uint32_t, std::vector<std::string>>& keyMaps)
 {
     if (path.extension().string() == ".rt" || path.extension().string() == ".png" || path.extension().string() == ".jpg")
@@ -76,7 +69,6 @@ void AssetRegistry::Init()
     Register(&RegisterMeshes);
     Register(&RegisterMaterials);
     Register(&RegisterShaders);
-    Register(&RegisterRenderPasses);
     Register(&RegisterTextures);
 }
 

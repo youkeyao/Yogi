@@ -51,7 +51,6 @@ private:
     Vector2 m_viewportSize    = { 1, 1 };
     Vector2 m_viewportBounds[2];
 
-    WRef<IRenderPass>            m_entityIDRenderPass  = nullptr;
     WRef<ITexture>               m_frameTexture        = nullptr;
     WRef<ITextureView>           m_frameView           = nullptr;
     WRef<IShaderResourceBinding> m_frameTextureBinding = nullptr;

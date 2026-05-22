@@ -42,6 +42,7 @@ VulkanTexture::VulkanTexture(uint32_t         width,
                              VkImage          image) :
     m_image(image),
     m_sampler(VK_NULL_HANDLE),
+    m_ownsImage(false),
     m_width(width),
     m_height(height),
     m_mipLevels(1),
@@ -57,8 +58,11 @@ VulkanTexture::~VulkanTexture()
 
     if (m_sampler != VK_NULL_HANDLE)
     {
-        vkDestroyImage(device, m_image, nullptr);
         vkDestroySampler(device, m_sampler, nullptr);
+    }
+    if (m_ownsImage && m_image != VK_NULL_HANDLE)
+    {
+        vkDestroyImage(device, m_image, nullptr);
     }
     if (m_imageMemory != VK_NULL_HANDLE)
     {

@@ -253,6 +253,8 @@ VkFormat YgShaderElementType2VkFormat(ShaderElementType type)
 
 VkImageLayout YgResourceState2VkImageLayout(ResourceState state, ITexture::Usage usage)
 {
+    if (state & ResourceState::Undefined)
+        return VK_IMAGE_LAYOUT_UNDEFINED;
     if (state & ResourceState::Present)
         return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
     if (state & ResourceState::UnorderedAccess)
@@ -278,176 +280,76 @@ VkImageLayout YgResourceState2VkImageLayout(ResourceState state, ITexture::Usage
     return VK_IMAGE_LAYOUT_UNDEFINED;
 }
 
-VkAccessFlags AccessMaskFromImageLayout(VkImageLayout Layout, bool IsDstMask)
+VkAccessFlags2 YgResourceState2VkAccess2(ResourceState state)
 {
-    VkAccessFlags AccessMask = 0;
-    switch (Layout)
-    {
-        // does not support device access. This layout must only be used as the initialLayout member
-        // of VkImageCreateInfo or VkAttachmentDescription, or as the oldLayout in an image transition.
-        // When transitioning out of this layout, the contents of the memory are not guaranteed to be preserved
-        case VK_IMAGE_LAYOUT_UNDEFINED:
-            break;
+    VkAccessFlags2 flags = 0;
 
-        // supports all types of device access
-        case VK_IMAGE_LAYOUT_GENERAL:
-            // VK_IMAGE_LAYOUT_GENERAL must be used for image load/store operations
-            AccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-            break;
+    if (state & ResourceState::VertexShaderResource || state & ResourceState::FragmentShaderResource ||
+        state & ResourceState::ComputeShaderResource || state & ResourceState::TaskShaderResource ||
+        state & ResourceState::MeshShaderResource)
+        flags |= VK_ACCESS_2_SHADER_READ_BIT;
+    if (state & ResourceState::UnorderedAccess)
+        flags |= VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT;
+    if (state & ResourceState::UniformBuffer)
+        flags |= VK_ACCESS_2_UNIFORM_READ_BIT;
+    if (state & ResourceState::IndirectArg)
+        flags |= VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
+    if (state & ResourceState::CopySource)
+        flags |= VK_ACCESS_2_TRANSFER_READ_BIT;
+    if (state & ResourceState::CopyDestination)
+        flags |= VK_ACCESS_2_TRANSFER_WRITE_BIT;
+    if (state & ResourceState::ColorAttachment)
+        flags |= VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
+    if (state & ResourceState::DepthRead)
+        flags |= VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+    if (state & ResourceState::DepthWrite)
+        flags |= VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    if (state & ResourceState::VertexBuffer)
+        flags |= VK_ACCESS_2_VERTEX_ATTRIBUTE_READ_BIT;
+    if (state & ResourceState::IndexBuffer)
+        flags |= VK_ACCESS_2_INDEX_READ_BIT;
 
-        // must only be used as a color or resolve attachment in a VkFramebuffer
-        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-            AccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-            break;
-
-        // must only be used as a depth/stencil attachment in a VkFramebuffer
-        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-            AccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-            break;
-
-        // must only be used as a read-only depth/stencil attachment in a VkFramebuffer and/or as a read-only image in a shader
-        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
-            AccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
-            break;
-
-        // must only be used as a read-only image in a shader (which can be read as a sampled image,
-        // combined image/sampler and/or input attachment)
-        case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-            AccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
-            break;
-
-        //  must only be used as a source image of a transfer command
-        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-            AccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-            break;
-
-        // must only be used as a destination image of a transfer command
-        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-            AccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-            break;
-
-        // does not support device access. This layout must only be used as the initialLayout member
-        // of VkImageCreateInfo or VkAttachmentDescription, or as the oldLayout in an image transition.
-        // When transitioning out of this layout, the contents of the memory are preserved.
-        case VK_IMAGE_LAYOUT_PREINITIALIZED:
-            if (!IsDstMask)
-            {
-                AccessMask = VK_ACCESS_HOST_WRITE_BIT;
-            }
-            break;
-
-        case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL:
-            AccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
-            break;
-
-        case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL:
-            AccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
-            break;
-
-        // When transitioning the image to VK_IMAGE_LAYOUT_SHARED_PRESENT_KHR or VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-        // there is no need to delay subsequent processing, or perform any visibility operations (as vkQueuePresentKHR
-        // performs automatic visibility operations). To achieve this, the dstAccessMask member of the VkImageMemoryBarrier
-        // should be set to 0, and the dstStageMask parameter should be set to VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT.
-        case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
-            AccessMask = 0;
-            break;
-
-        case VK_IMAGE_LAYOUT_FRAGMENT_SHADING_RATE_ATTACHMENT_OPTIMAL_KHR:
-            AccessMask = VK_ACCESS_FRAGMENT_SHADING_RATE_ATTACHMENT_READ_BIT_KHR;
-            break;
-
-        case VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT:
-            AccessMask = VK_ACCESS_FRAGMENT_DENSITY_MAP_READ_BIT_EXT;
-            break;
-
-        default:
-            YG_CORE_ERROR("Vulkan: Unexpected image layout to access mask mapping");
-            break;
-    }
-
-    return AccessMask;
+    return flags;
 }
 
-VkPipelineStageFlags PipelineStageFromImageLayout(VkImageLayout Layout, bool IsDstStage)
+VkPipelineStageFlags2 YgResourceState2VkPipelineStage2(ResourceState state)
 {
-    VkPipelineStageFlags StageMask = 0;
-    switch (Layout)
+    VkPipelineStageFlags2 flags = 0;
+
+    if (state & ResourceState::IndirectArg)
+        flags |= VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
+    if (state & ResourceState::VertexBuffer || state & ResourceState::IndexBuffer)
+        flags |= VK_PIPELINE_STAGE_2_VERTEX_INPUT_BIT;
+    if (state & ResourceState::VertexShaderResource)
+        flags |= VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT;
+    if (state & ResourceState::FragmentShaderResource)
+        flags |= VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+    if (state & ResourceState::ComputeShaderResource)
+        flags |= VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+    if (state & ResourceState::TaskShaderResource)
+        flags |= VK_PIPELINE_STAGE_2_TASK_SHADER_BIT_EXT;
+    if (state & ResourceState::MeshShaderResource)
+        flags |= VK_PIPELINE_STAGE_2_MESH_SHADER_BIT_EXT;
+    if (state & ResourceState::UnorderedAccess)
     {
-        case VK_IMAGE_LAYOUT_UNDEFINED:
-            if (!IsDstStage)
-            {
-                StageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-            }
-            break;
-
-        case VK_IMAGE_LAYOUT_GENERAL:
-            StageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
-            break;
-
-        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-            StageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-            break;
-
-        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-            StageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-            break;
-
-        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
-            StageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT |
-                VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-            break;
-
-        case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-            StageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-            break;
-
-        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-            StageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
-            break;
-
-        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-            StageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
-            break;
-
-        case VK_IMAGE_LAYOUT_PREINITIALIZED:
-            if (!IsDstStage)
-            {
-                StageMask = VK_PIPELINE_STAGE_HOST_BIT;
-            }
-            break;
-
-        case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL:
-            StageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT |
-                VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-            break;
-
-        case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL:
-            StageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT |
-                VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-            break;
-
-        case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
-            StageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-            break;
-
-        case VK_IMAGE_LAYOUT_SHARED_PRESENT_KHR:
-            StageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-            break;
-
-        case VK_IMAGE_LAYOUT_FRAGMENT_SHADING_RATE_ATTACHMENT_OPTIMAL_KHR:
-            StageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR;
-            break;
-
-        case VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT:
-            StageMask = VK_PIPELINE_STAGE_FRAGMENT_DENSITY_PROCESS_BIT_EXT;
-            break;
-
-        default:
-            YG_CORE_ERROR("Vulkan: Unexpected image layout to pipeline stage mapping");
-            break;
+        flags |= VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT |
+            VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_TASK_SHADER_BIT_EXT |
+            VK_PIPELINE_STAGE_2_MESH_SHADER_BIT_EXT;
     }
+    if (state & ResourceState::UniformBuffer)
+    {
+        flags |= VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT |
+            VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_TASK_SHADER_BIT_EXT |
+            VK_PIPELINE_STAGE_2_MESH_SHADER_BIT_EXT;
+    }
+    if (state & ResourceState::CopySource || state & ResourceState::CopyDestination)
+        flags |= VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT;
+    if (state & ResourceState::ColorAttachment)
+        flags |= VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+    if (state & ResourceState::DepthRead || state & ResourceState::DepthWrite)
+        flags |= VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
 
-    return StageMask;
+    return flags == 0 ? VK_PIPELINE_STAGE_2_NONE : flags;
 }
 
 VkShaderStageFlags YgShaderStage2VkShaderStage(ShaderStage stage)
@@ -484,80 +386,6 @@ VkPrimitiveTopology YgPrimitiveTopology2VkPrimitiveTopology(PrimitiveTopology to
             YG_CORE_ERROR("Vulkan: Unsupported primitive topology!");
             return VK_PRIMITIVE_TOPOLOGY_MAX_ENUM;
     }
-}
-
-VkPipelineStageFlags YgResourceState2VkPipelineStage(ResourceState state)
-{
-    VkPipelineStageFlags flags = 0;
-
-    if (state & ResourceState::IndirectArg)
-        flags |= VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT;
-    if (state & ResourceState::VertexBuffer || state & ResourceState::IndexBuffer)
-        flags |= VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
-    if (state & ResourceState::VertexShaderResource)
-        flags |= VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
-    if (state & ResourceState::FragmentShaderResource)
-        flags |= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-    if (state & ResourceState::ComputeShaderResource)
-        flags |= VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-    if (state & ResourceState::TaskShaderResource)
-        flags |= VK_PIPELINE_STAGE_TASK_SHADER_BIT_EXT;
-    if (state & ResourceState::MeshShaderResource)
-        flags |= VK_PIPELINE_STAGE_MESH_SHADER_BIT_EXT;
-    if (state & ResourceState::UnorderedAccess)
-    {
-        flags |= VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
-            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TASK_SHADER_BIT_EXT |
-            VK_PIPELINE_STAGE_MESH_SHADER_BIT_EXT;
-    }
-    if (state & ResourceState::UniformBuffer)
-    {
-        flags |= VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
-            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TASK_SHADER_BIT_EXT |
-            VK_PIPELINE_STAGE_MESH_SHADER_BIT_EXT;
-    }
-    if (state & ResourceState::CopySource || state & ResourceState::CopyDestination)
-        flags |= VK_PIPELINE_STAGE_TRANSFER_BIT;
-    if (state & ResourceState::ColorAttachment)
-        flags |= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    if (state & ResourceState::DepthRead || state & ResourceState::DepthWrite)
-        flags |= VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-    if (state & ResourceState::Present)
-        flags |= VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-
-    return flags == 0 ? VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT : flags;
-}
-
-VkAccessFlags YgResourceState2VkAccess(ResourceState state)
-{
-    VkAccessFlags flags = 0;
-
-    if (state & ResourceState::VertexShaderResource || state & ResourceState::FragmentShaderResource ||
-        state & ResourceState::ComputeShaderResource || state & ResourceState::TaskShaderResource ||
-        state & ResourceState::MeshShaderResource)
-        flags |= VK_ACCESS_SHADER_READ_BIT;
-    if (state & ResourceState::UnorderedAccess)
-        flags |= VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-    if (state & ResourceState::UniformBuffer)
-        flags |= VK_ACCESS_UNIFORM_READ_BIT;
-    if (state & ResourceState::IndirectArg)
-        flags |= VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
-    if (state & ResourceState::CopySource)
-        flags |= VK_ACCESS_TRANSFER_READ_BIT;
-    if (state & ResourceState::CopyDestination)
-        flags |= VK_ACCESS_TRANSFER_WRITE_BIT;
-    if (state & ResourceState::ColorAttachment)
-        flags |= VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    if (state & ResourceState::DepthRead)
-        flags |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
-    if (state & ResourceState::DepthWrite)
-        flags |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-    if (state & ResourceState::VertexBuffer)
-        flags |= VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
-    if (state & ResourceState::IndexBuffer)
-        flags |= VK_ACCESS_INDEX_READ_BIT;
-
-    return flags;
 }
 
 PFN_vkVoidFunction VkLoadFunction(const char* funcName, void* instance)

@@ -27,10 +27,7 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
 
     Yogi::AssetManager::PushAssetSource<Yogi::FileSystemSource>(".");
 
-    auto swapChain  = Yogi::Application::GetInstance().GetSwapChain();
-    auto renderPass = Yogi::ResourceManager::AcquireSharedResource<Yogi::IRenderPass>(Yogi::RenderPassDesc{
-        { Yogi::AttachmentDesc{ swapChain->GetColorFormat(), Yogi::ResourceState::Present } },
-        Yogi::AttachmentDesc{ Yogi::ITexture::Format::D32_FLOAT, Yogi::ResourceState::DepthRead } });
+    auto swapChain = Yogi::Application::GetInstance().GetSwapChain();
 
     auto shaderResourceBinding = Yogi::ResourceManager::CreateResource<Yogi::IShaderResourceBinding>(
         std::vector<Yogi::ShaderResourceAttribute>{},
@@ -47,8 +44,16 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
         Yogi::AssetManager::AcquireAsset<Yogi::ShaderDesc>("EngineAssets/Shaders/Test.mesh");
     std::vector<const Yogi::ShaderDesc*> shaders = { taskShader.Get(), meshShader.Get(), fragmentShader.Get() };
 
-    auto pipeline = Yogi::ResourceManager::AcquireSharedResource<Yogi::IPipeline>(Yogi::PipelineDesc{
-        shaders, {}, shaderResourceBinding.Get(), renderPass.Get(), 0, Yogi::PrimitiveTopology::TriangleList });
+    // dynamic rendering: pipeline carries attachment formats directly. Must match
+    // ForwardRenderSystem's swapchain color format + D32_FLOAT depth.
+    Yogi::PipelineDesc pipelineDesc{};
+    pipelineDesc.Shaders               = shaders;
+    pipelineDesc.ShaderResourceBinding = shaderResourceBinding.Get();
+    pipelineDesc.ColorFormats          = { swapChain->GetColorFormat() };
+    pipelineDesc.DepthFormat           = Yogi::ITexture::Format::D32_FLOAT;
+    pipelineDesc.Samples               = Yogi::SampleCountFlagBits::Count1;
+    pipelineDesc.Topology              = Yogi::PrimitiveTopology::TriangleList;
+    auto pipeline = Yogi::ResourceManager::AcquireSharedResource<Yogi::IPipeline>(pipelineDesc);
 
     m_world = Yogi::Owner<Yogi::World>::Create();
     m_world->AddSystem<Yogi::ForwardRenderSystem>();

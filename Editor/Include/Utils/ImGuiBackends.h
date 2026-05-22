@@ -10,8 +10,6 @@
 #    include "Backends/Renderer/Vulkan/VulkanDeviceContext.h"
 #    include "Backends/Renderer/Vulkan/VulkanSwapChain.h"
 #    include "Backends/Renderer/Vulkan/VulkanCommandBuffer.h"
-#    include "Backends/Renderer/Vulkan/VulkanRenderPass.h"
-#    include "Backends/Renderer/Vulkan/VulkanFrameBuffer.h"
 #    include "Backends/Renderer/Vulkan/VulkanShaderResourceBinding.h"
 
 #    define IMGUI_IMPL_VULKAN_NO_PROTOTYPES

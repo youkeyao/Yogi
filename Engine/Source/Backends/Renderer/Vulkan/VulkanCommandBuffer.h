@@ -1,8 +1,7 @@
 #pragma once
 
 #include "Renderer/RHI/ICommandBuffer.h"
-#include "VulkanFrameBuffer.h"
-#include "VulkanRenderPass.h"
+#include "VulkanUtils.h"
 
 namespace Yogi
 {
@@ -18,11 +17,8 @@ public:
     void Submit() override;
     void Wait() override;
 
-    void BeginRenderPass(const IRenderPass*             renderPass,
-                         const IFrameBuffer*            frameBuffer,
-                         const std::vector<ClearValue>& colorClearValues,
-                         const ClearValue&              depthClearValue) override;
-    void EndRenderPass() override;
+    void BeginRendering(const RenderingDesc& desc) override;
+    void EndRendering() override;
 
     void SetPipeline(const IPipeline* pipeline) override;
     void SetVertexBuffer(const IBuffer* buffer, uint32_t offset = 0) override;

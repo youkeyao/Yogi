@@ -7,7 +7,6 @@
 #include "Renderer/DepthPyramid.h"
 #include "Renderer/FrameUploadArena.h"
 #include "Renderer/RHI/ICommandBuffer.h"
-#include "Renderer/RHI/IFrameBuffer.h"
 
 namespace Yogi
 {
@@ -35,13 +34,11 @@ private:
     };
 
     bool OnWindowResize(WindowResizeEvent& e, World& world);
-    void BeginRender(ICommandBuffer* commandBuffer, const IFrameBuffer* frameBuffer);
-    void EndRender(ICommandBuffer* commandBuffer);
     void ResetMeshUploadCache();
     void EnsureDepthTexture(uint32_t width, uint32_t height);
     void FlushBatch(ICommandBuffer*                    commandBuffer,
-                    const IFrameBuffer*                frameBuffer,
-                    ITextureView*                      blitTarget,
+                    ITextureView*                      colorView,
+                    bool                               transitionToPresent,
                     SceneFrame&                        sceneFrame,
                     CullFrame&                         cullFrame,
                     std::vector<RenderBatch>&          renderBatches,
@@ -99,12 +96,11 @@ private:
     uint32_t           m_cachedMeshletDataSize = 0;
     uint32_t           m_cachedMeshCount       = 0;
 
-    std::vector<WRef<IRenderPass>> m_renderPasses;
-    WRef<IShaderResourceBinding>   m_shaderResourceBinding     = nullptr;
-    WRef<IShaderResourceBinding>   m_cullShaderResourceBinding = nullptr;
-    WRef<IPipeline>                m_cullPipeline              = nullptr;
-    WRef<IPipeline>                m_depthReducePipeline       = nullptr;
-    DepthPyramid                   m_depthPyramid;
+    WRef<IShaderResourceBinding> m_shaderResourceBinding     = nullptr;
+    WRef<IShaderResourceBinding> m_cullShaderResourceBinding = nullptr;
+    WRef<IPipeline>              m_cullPipeline              = nullptr;
+    WRef<IPipeline>              m_depthReducePipeline       = nullptr;
+    DepthPyramid                 m_depthPyramid;
 
     // Scene znear/zfar match MathUtils::Perspective(..., 0.1f, 100.0f) in RenderCamera().
     static constexpr float k_zNear = 0.1f;
@@ -113,8 +109,6 @@ private:
     WRef<ITexture>     m_depthTexture = nullptr;
     WRef<ITextureView> m_depthView    = nullptr;
     ITexture::Format   m_depthFormat  = ITexture::Format::D32_FLOAT;
-
-    std::unordered_map<uint64_t, WRef<IFrameBuffer>> m_frameBuffers;
 };
 
 } // namespace Yogi

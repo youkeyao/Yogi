@@ -34,49 +34,6 @@ void ContentBrowserLayer::OnUpdate(Timestep ts)
             AssetManager::SaveAsset(WRef<Material>::Create(material),
                                     (m_relativeDirectory / (name + ".mat")).lexically_normal().generic_string());
         }
-        if (ImGui::MenuItem("Create Render Pass"))
-        {
-            auto               swapChain  = Application::GetInstance().GetSwapChain();
-            Owner<IRenderPass> renderPass = Owner<IRenderPass>::Create(RenderPassDesc{
-                { AttachmentDesc{ swapChain->GetColorFormat(), ResourceState::Present } },
-                AttachmentDesc{
-                    swapChain->GetDepthFormat(), ResourceState::DepthRead, LoadOp::Clear, StoreOp::DontCare },
-                swapChain->GetNumSamples() });
-            std::string        name       = "NewRenderPass";
-            while (std::filesystem::exists(m_baseDirectory / m_relativeDirectory / (name + ".rp")))
-            {
-                name = "_" + name;
-            }
-            AssetManager::SaveAsset(WRef<IRenderPass>::Create(renderPass),
-                                    (m_relativeDirectory / (name + ".rp")).lexically_normal().generic_string());
-        }
-        if (ImGui::MenuItem("Create Pipeline"))
-        {
-            auto shaderResourceBinding = Yogi::ResourceManager::CreateResource<Yogi::IShaderResourceBinding>(
-                std::vector<Yogi::ShaderResourceAttribute>{ Yogi::ShaderResourceAttribute{
-                    0, 1, Yogi::ShaderResourceType::Buffer, Yogi::ShaderStage::Vertex } });
-            Yogi::WRef<Yogi::ShaderDesc> vertShader =
-                AssetManager::AcquireAsset<ShaderDesc>("EngineAssets/Shaders/Test.vert");
-            Yogi::WRef<Yogi::ShaderDesc> fragShader =
-                AssetManager::AcquireAsset<ShaderDesc>("EngineAssets/Shaders/Test.frag");
-            Yogi::WRef<Yogi::IRenderPass> renderPass =
-                AssetManager::AcquireAsset<IRenderPass>("EngineAssets/RenderPasses/Default.rp");
-            Owner<IPipeline> pipeline = Owner<IPipeline>::Create(
-                PipelineDesc{ { vertShader.Get(), fragShader.Get() },
-                              { Yogi::VertexAttribute{ "a_Position", 0, 12, Yogi::ShaderElementType::Float3 },
-                                Yogi::VertexAttribute{ "a_TexCoord", 12, 8, Yogi::ShaderElementType::Float2 } },
-                              shaderResourceBinding.Get(),
-                              renderPass.Get(),
-                              0,
-                              PrimitiveTopology::TriangleList });
-            std::string name = "NewPipeline";
-            while (std::filesystem::exists(m_baseDirectory / m_relativeDirectory / (name + ".pipeline")))
-            {
-                name = "_" + name;
-            }
-            AssetManager::SaveAsset(WRef<IPipeline>::Create(pipeline),
-                                    (m_relativeDirectory / (name + ".pipeline")).lexically_normal().generic_string());
-        }
         if (ImGui::MenuItem("Create Render Texture"))
         {
             Owner<ITexture> renderTexture = Owner<ITexture>::Create(TextureDesc{

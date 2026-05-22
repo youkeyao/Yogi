@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Renderer/RHI/IFrameBuffer.h"
 #include "Renderer/RHI/IPipeline.h"
 #include "Renderer/RHI/IBuffer.h"
 #include "Renderer/RHI/ITextureView.h"
@@ -50,6 +49,61 @@ struct CommandBufferDesc
     SubmitQueue        Queue;
 };
 
+enum class LoadOp : uint8_t
+{
+    Load,
+    Clear,
+    DontCare
+};
+
+enum class StoreOp : uint8_t
+{
+    Store,
+    DontCare
+};
+
+enum class ResourceState : uint32_t
+{
+    None                   = 0,
+    Common                 = 1 << 0,
+    VertexShaderResource   = 1 << 1,
+    FragmentShaderResource = 1 << 2,
+    ComputeShaderResource  = 1 << 3,
+    TaskShaderResource     = 1 << 4,
+    MeshShaderResource     = 1 << 5,
+    UnorderedAccess        = 1 << 6,
+    CopySource             = 1 << 7,
+    CopyDestination        = 1 << 8,
+    ColorAttachment        = 1 << 9,
+    DepthRead              = 1 << 10,
+    DepthWrite             = 1 << 11,
+    IndirectArg            = 1 << 12,
+    VertexBuffer           = 1 << 13,
+    IndexBuffer            = 1 << 14,
+    UniformBuffer          = 1 << 15,
+    Undefined              = 1 << 16,
+    Present                = 1 << 17,
+};
+YG_ENABLE_ENUM_FLAGS(ResourceState);
+
+struct RenderingAttachment
+{
+    const ITextureView* View        = nullptr;
+    LoadOp              LoadAction  = LoadOp::Clear;
+    StoreOp             StoreAction = StoreOp::Store;
+    ClearValue          ClearVal    = {};
+    const ITextureView* ResolveView = nullptr;
+};
+
+struct RenderingDesc
+{
+    uint32_t                         Width  = 0;
+    uint32_t                         Height = 0;
+    std::vector<RenderingAttachment> ColorAttachments;
+    RenderingAttachment              DepthAttachment;
+    SampleCountFlagBits              Samples = SampleCountFlagBits::Count1;
+};
+
 struct BarrierDesc
 {
     const ITextureView* TextureView  = nullptr;
@@ -85,11 +139,8 @@ public:
     virtual void Submit() = 0;
     virtual void Wait()   = 0;
 
-    virtual void BeginRenderPass(const IRenderPass*             renderPass,
-                                 const IFrameBuffer*            frameBuffer,
-                                 const std::vector<ClearValue>& colorClearValues,
-                                 const ClearValue&              depthClearValue) = 0;
-    virtual void EndRenderPass()                                                 = 0;
+    virtual void BeginRendering(const RenderingDesc& desc) = 0;
+    virtual void EndRendering()                            = 0;
 
     virtual void SetPipeline(const IPipeline* pipeline)                          = 0;
     virtual void SetVertexBuffer(const IBuffer* buffer, uint32_t offset = 0)     = 0;

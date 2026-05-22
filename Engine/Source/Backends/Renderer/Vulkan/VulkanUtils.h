@@ -2,7 +2,6 @@
 
 #include "Core/Window.h"
 #include "Renderer/RHI/ITexture.h"
-#include "Renderer/RHI/IRenderPass.h"
 #include "Renderer/RHI/IPipeline.h"
 #include "Renderer/RHI/ICommandBuffer.h"
 
@@ -42,16 +41,15 @@ VkExtent2D              ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabil
 
 uint32_t FindMemoryType(uint32_t typeFilter, VkPhysicalDevice physicalDevice, VkMemoryPropertyFlags properties);
 
-VkFormat             YgTextureFormat2VkFormat(ITexture::Format format);
-ITexture::Format     VkFormat2YgTextureFormat(VkFormat format);
-VkFormat             YgShaderElementType2VkFormat(ShaderElementType type);
-VkImageLayout        YgResourceState2VkImageLayout(ResourceState state, ITexture::Usage usage);
-VkAccessFlags        AccessMaskFromImageLayout(VkImageLayout Layout, bool IsDstMask);
-VkPipelineStageFlags PipelineStageFromImageLayout(VkImageLayout Layout, bool IsDstStage);
-VkShaderStageFlags   YgShaderStage2VkShaderStage(ShaderStage stage);
-VkPrimitiveTopology  YgPrimitiveTopology2VkPrimitiveTopology(PrimitiveTopology topology);
-VkPipelineStageFlags YgResourceState2VkPipelineStage(ResourceState state);
-VkAccessFlags        YgResourceState2VkAccess(ResourceState state);
+VkFormat            YgTextureFormat2VkFormat(ITexture::Format format);
+ITexture::Format    VkFormat2YgTextureFormat(VkFormat format);
+VkFormat            YgShaderElementType2VkFormat(ShaderElementType type);
+VkImageLayout       YgResourceState2VkImageLayout(ResourceState state, ITexture::Usage usage);
+VkShaderStageFlags  YgShaderStage2VkShaderStage(ShaderStage stage);
+VkPrimitiveTopology YgPrimitiveTopology2VkPrimitiveTopology(PrimitiveTopology topology);
+
+VkPipelineStageFlags2 YgResourceState2VkPipelineStage2(ResourceState state);
+VkAccessFlags2        YgResourceState2VkAccess2(ResourceState state);
 
 YG_API PFN_vkVoidFunction VkLoadFunction(const char* funcName, void* instance);
 

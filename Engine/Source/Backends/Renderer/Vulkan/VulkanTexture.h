@@ -22,6 +22,9 @@ public:
     inline VkImage   GetVkImage() const { return m_image; }
     inline VkSampler GetVkSampler() const { return m_sampler; }
 
+    VkImageLayout GetCurrentLayout() const { return m_currentLayout; }
+    void          SetCurrentLayout(VkImageLayout layout) const { m_currentLayout = layout; }
+
 private:
     void CreateVkImage(uint32_t              width,
                        uint32_t              height,
@@ -37,9 +40,12 @@ private:
                          ITexture::SamplerReductionMode reduction);
 
 private:
+    bool           m_ownsImage   = true;
     VkImage        m_image       = VK_NULL_HANDLE;
     VkDeviceMemory m_imageMemory = VK_NULL_HANDLE;
     VkSampler      m_sampler     = VK_NULL_HANDLE;
+
+    mutable VkImageLayout m_currentLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
     uint32_t            m_width;
     uint32_t            m_height;

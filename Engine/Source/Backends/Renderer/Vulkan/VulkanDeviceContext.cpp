@@ -208,7 +208,8 @@ void VulkanDeviceContext::CreateLogicalDevice()
     deviceFeatures.shaderInt64       = VK_TRUE;
 
     VkPhysicalDeviceFeatures2 deviceFeatures2{};
-    deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    deviceFeatures2.sType    = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    deviceFeatures2.features = deviceFeatures;
     VkPhysicalDeviceVulkan11Features vulkan11Features{};
     vulkan11Features.sType                    = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
     vulkan11Features.shaderDrawParameters     = VK_TRUE;
@@ -223,10 +224,15 @@ void VulkanDeviceContext::CreateLogicalDevice()
     vulkan12Features.samplerFilterMinmax     = VK_TRUE;
     vulkan12Features.bufferDeviceAddress     = VK_TRUE; // BDA: pointer-based push constants
     vulkan11Features.pNext                   = &vulkan12Features;
+    VkPhysicalDeviceVulkan13Features vulkan13Features{};
+    vulkan13Features.sType            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+    vulkan13Features.dynamicRendering = VK_TRUE;
+    vulkan13Features.synchronization2 = VK_TRUE;
+    vulkan12Features.pNext            = &vulkan13Features;
     VkPhysicalDeviceExtendedDynamicStateFeaturesEXT extendedFeature{};
     extendedFeature.sType                = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT;
     extendedFeature.extendedDynamicState = true;
-    vulkan12Features.pNext               = &extendedFeature;
+    vulkan13Features.pNext               = &extendedFeature;
     VkPhysicalDeviceMeshShaderFeaturesEXT meshFeature{};
     meshFeature.sType      = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT;
     meshFeature.taskShader = VK_TRUE;
@@ -236,8 +242,8 @@ void VulkanDeviceContext::CreateLogicalDevice()
     createInfo.sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     createInfo.queueCreateInfoCount    = static_cast<uint32_t>(queueCreateInfos.size());
     createInfo.pQueueCreateInfos       = queueCreateInfos.data();
-    createInfo.pEnabledFeatures        = &deviceFeatures;
-    createInfo.pNext                   = &vulkan11Features;
+    createInfo.pEnabledFeatures        = nullptr;
+    createInfo.pNext                   = &deviceFeatures2;
     createInfo.enabledExtensionCount   = static_cast<uint32_t>(DeviceExtensions.size());
     createInfo.ppEnabledExtensionNames = DeviceExtensions.data();
 

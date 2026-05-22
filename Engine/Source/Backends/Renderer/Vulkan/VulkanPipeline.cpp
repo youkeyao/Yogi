@@ -1,5 +1,4 @@
 #include "VulkanPipeline.h"
-#include "VulkanRenderPass.h"
 #include "VulkanShaderResourceBinding.h"
 #include "VulkanUtils.h"
 
@@ -153,25 +152,28 @@ void VulkanPipeline::CreateVkPipeline(const PipelineDesc& desc)
     VkPipelineMultisampleStateCreateInfo multisampling{};
     multisampling.sType                = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     multisampling.sampleShadingEnable  = VK_FALSE;
-    multisampling.rasterizationSamples = (VkSampleCountFlagBits)(desc.RenderPass->GetDesc().NumSamples);
+    multisampling.rasterizationSamples = (VkSampleCountFlagBits)desc.Samples;
 
     // --- Color blend ---
-    VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-    colorBlendAttachment.colorWriteMask =
+    VkPipelineColorBlendAttachmentState defaultBlendAttachment{};
+    defaultBlendAttachment.colorWriteMask =
         VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    colorBlendAttachment.blendEnable         = VK_TRUE;
-    colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-    colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    colorBlendAttachment.colorBlendOp        = VK_BLEND_OP_ADD;
-    colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-    colorBlendAttachment.alphaBlendOp        = VK_BLEND_OP_MAX;
+    defaultBlendAttachment.blendEnable         = VK_TRUE;
+    defaultBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    defaultBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    defaultBlendAttachment.colorBlendOp        = VK_BLEND_OP_ADD;
+    defaultBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    defaultBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    defaultBlendAttachment.alphaBlendOp        = VK_BLEND_OP_MAX;
+
+    const uint32_t colorAttachmentCount = static_cast<uint32_t>(desc.ColorFormats.size());
+    std::vector<VkPipelineColorBlendAttachmentState> blendAttachments(colorAttachmentCount, defaultBlendAttachment);
 
     VkPipelineColorBlendStateCreateInfo colorBlending{};
     colorBlending.sType           = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
     colorBlending.logicOpEnable   = VK_FALSE;
-    colorBlending.attachmentCount = 1;
-    colorBlending.pAttachments    = &colorBlendAttachment;
+    colorBlending.attachmentCount = colorAttachmentCount;
+    colorBlending.pAttachments    = blendAttachments.empty() ? nullptr : blendAttachments.data();
 
     // --- Depth Stencil ---
     VkPipelineDepthStencilStateCreateInfo depthStencil{};
@@ -184,9 +186,27 @@ void VulkanPipeline::CreateVkPipeline(const PipelineDesc& desc)
     depthStencil.maxDepthBounds        = 1.0f;
     depthStencil.stencilTestEnable     = VK_FALSE;
 
+    // --- Dynamic rendering ---
+    std::vector<VkFormat> colorFormats;
+    colorFormats.reserve(desc.ColorFormats.size());
+    for (auto fmt : desc.ColorFormats)
+    {
+        colorFormats.push_back(YgTextureFormat2VkFormat(fmt));
+    }
+
+    VkPipelineRenderingCreateInfo renderingCreateInfo{};
+    renderingCreateInfo.sType                   = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+    renderingCreateInfo.viewMask                = 0;
+    renderingCreateInfo.colorAttachmentCount    = static_cast<uint32_t>(colorFormats.size());
+    renderingCreateInfo.pColorAttachmentFormats = colorFormats.empty() ? nullptr : colorFormats.data();
+    renderingCreateInfo.depthAttachmentFormat =
+        desc.DepthFormat == ITexture::Format::NONE ? VK_FORMAT_UNDEFINED : YgTextureFormat2VkFormat(desc.DepthFormat);
+    renderingCreateInfo.stencilAttachmentFormat = VK_FORMAT_UNDEFINED;
+
     // --- Graphics pipeline ---
     VkGraphicsPipelineCreateInfo pipelineInfo{};
     pipelineInfo.sType               = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineInfo.pNext               = &renderingCreateInfo;
     pipelineInfo.stageCount          = static_cast<uint32_t>(shaderStages.size());
     pipelineInfo.pStages             = shaderStages.data();
     pipelineInfo.pVertexInputState   = isMeshShading ? nullptr : &vertexInputInfo;
@@ -197,9 +217,9 @@ void VulkanPipeline::CreateVkPipeline(const PipelineDesc& desc)
     pipelineInfo.pColorBlendState    = &colorBlending;
     pipelineInfo.pDynamicState       = &dynamicState;
     pipelineInfo.layout              = vkSRB->GetVkPipelineLayout();
-    pipelineInfo.renderPass          = static_cast<const VulkanRenderPass*>(desc.RenderPass)->GetVkRenderPass();
+    pipelineInfo.renderPass          = VK_NULL_HANDLE;
     pipelineInfo.subpass             = 0;
-    pipelineInfo.pDepthStencilState  = &depthStencil;
+    pipelineInfo.pDepthStencilState  = desc.DepthFormat == ITexture::Format::NONE ? nullptr : &depthStencil;
 
     VkResult result = vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_pipeline);
     YG_CORE_ASSERT(result == VK_SUCCESS, "Vulkan: Failed to create graphics pipeline");

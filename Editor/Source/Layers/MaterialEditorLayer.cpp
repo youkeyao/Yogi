@@ -37,23 +37,10 @@ void MaterialEditorLayer::OnUpdate(Timestep ts)
             }
             if (isOpened)
             {
-                std::string renderPassKey = AssetManager::GetAssetKey(pass.RenderPass);
-                if (ImGui::BeginCombo("Render Pass", renderPassKey.c_str()))
-                {
-                    for (auto& key : AssetRegistry::GetKeys<IRenderPass>())
-                    {
-                        if (ImGui::Selectable(key.c_str(), key == renderPassKey))
-                        {
-                            pass.RenderPass = AssetManager::AcquireAsset<IRenderPass>(key);
-                            changed |= true;
-                        }
-                    }
-                    ImGui::EndCombo();
-                }
                 if (ImGui::TreeNodeEx("Shaders", treeNodeFlags))
                 {
-                    std::vector<std::string>::iterator removeIt = pass.ShaderKeys.end();
-                    for (auto it = pass.ShaderKeys.begin(); it != pass.ShaderKeys.end(); ++it)
+                    std::vector<std::string>::iterator removeIt = pass.PipelineInfo.ShaderKeys.end();
+                    for (auto it = pass.PipelineInfo.ShaderKeys.begin(); it != pass.PipelineInfo.ShaderKeys.end(); ++it)
                     {
                         auto& shaderKey = *it;
                         ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x);
@@ -80,18 +67,17 @@ void MaterialEditorLayer::OnUpdate(Timestep ts)
                             ImGui::EndPopup();
                         }
                     }
-                    if (removeIt != pass.ShaderKeys.end())
+                    if (removeIt != pass.PipelineInfo.ShaderKeys.end())
                     {
-                        pass.ShaderKeys.erase(removeIt);
+                        pass.PipelineInfo.ShaderKeys.erase(removeIt);
                     }
                     if (ImGui::Button("+", { ImGui::GetContentRegionAvail().x, 0.0f }))
                     {
-                        pass.ShaderKeys.push_back("");
+                        pass.PipelineInfo.ShaderKeys.push_back("");
                         changed |= true;
                     }
                     ImGui::TreePop();
                 }
-                changed |= ImGuiMaterialData(pass.ShaderKeys, pass.PassData);
 
                 m_material->SetPass(i, pass);
                 ImGui::TreePop();

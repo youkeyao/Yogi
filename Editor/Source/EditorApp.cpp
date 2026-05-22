@@ -13,7 +13,6 @@
 #include "Layers/HierarchyLayer.h"
 #include "Layers/MaterialEditorLayer.h"
 #include "Layers/ContentBrowserLayer.h"
-#include "Layers/RenderPassEditorLayer.h"
 
 namespace Yogi
 {
@@ -35,7 +34,6 @@ public:
         PushLayer(Owner<HierarchyLayer>::Create());
         PushLayer(Owner<ContentBrowserLayer>::Create());
         PushLayer(Owner<MaterialEditorLayer>::Create());
-        PushLayer(Owner<RenderPassEditorLayer>::Create());
         PushLayer(Owner<ImGuiEndLayer>::Create());
     }
 
