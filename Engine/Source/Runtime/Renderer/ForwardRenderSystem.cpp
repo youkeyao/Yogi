@@ -28,10 +28,15 @@ ForwardRenderSystem::ForwardRenderSystem()
         BufferDesc{ MAX_VISIBLE_DRAW_INDEX_SIZE, BufferUsage::Storage, BufferAccess::Dynamic });
     m_meshTaskIndirectCountBuffer = ResourceManager::AcquireSharedResource<IBuffer>(BufferDesc{
         MAX_INDIRECT_DRAW_COUNT_SIZE, BufferUsage::Storage | BufferUsage::Indirect, BufferAccess::Dynamic });
-    m_visibilityBuffer            = ResourceManager::AcquireSharedResource<IBuffer>(
-        BufferDesc{ MAX_VISIBILITY_SIZE, BufferUsage::Storage, BufferAccess::Dynamic });
-    // Per-frame static data (SceneFrame, CullFrame, ...) accessed via BDA — sub-
-    // allocated each frame from a single arena buffer.
+    m_objectVisBuffer            = ResourceManager::AcquireSharedResource<IBuffer>(
+        BufferDesc{ MAX_OBJECT_VIS_SIZE, BufferUsage::Storage, BufferAccess::Dynamic });
+    // Per-instance per-meshlet visibility -- one uint per (drawIndex, miLocal) slot.
+    // Persistent across frames; LATE meshlet task is the sole writer.
+    m_meshletVisBuffer = ResourceManager::AcquireSharedResource<IBuffer>(
+        BufferDesc{ MAX_MESHLET_VIS_SIZE, BufferUsage::Storage, BufferAccess::Dynamic });
+    // Per-frame static data (SceneFrame) accessed via BDA — sub-allocated each
+    // frame from a single arena buffer so frame N's host writes don't race
+    // frame N-1's GPU reads.
     {
         auto           swapChain  = Application::GetInstance().GetSwapChain();
         const uint32_t imageCount = swapChain->GetImageCount();
@@ -42,30 +47,55 @@ ForwardRenderSystem::ForwardRenderSystem()
     // LATE then sees an empty pyramid (all depth = 1.0) and emits every visible draw.
     {
         std::vector<uint32_t> zeros(MAX_MESH_DRAWS, 0u);
-        m_visibilityBuffer->UpdateData(zeros.data(), static_cast<uint32_t>(MAX_VISIBILITY_SIZE), 0);
+        m_objectVisBuffer->UpdateData(zeros.data(), static_cast<uint32_t>(MAX_OBJECT_VIS_SIZE), 0);
+    }
+    // Same zero-init semantics for per-meshlet visibility: first frame, EARLY task
+    // sees prev_meshlet_vis==0 for everything -> emits nothing, LATE task does the
+    // full cone+frustum+Hi-Z and writes the canonical state. From frame 2 onward
+    // EARLY emits whatever was visible last frame, LATE only re-tests the rest.
+    //
+    // 32M uints = 128 MB upload via UpdateData: this only runs at boot. UpdateData
+    // is a staging-buffer copy; it does NOT block the render loop.
+    {
+        std::vector<uint32_t> zeros(MAX_MESHLET_VIS_COUNT, 0u);
+        m_meshletVisBuffer->UpdateData(
+            zeros.data(), static_cast<uint32_t>(MAX_MESHLET_VIS_SIZE), 0);
     }
 
     // Mesh/task SRB: SSBOs live in a SceneFrame buffer accessed via BDA; only the
-    // address + per-batch DrawBase travels through push constants (16 B).
+    // address + per-batch DrawBase travels through push constants (16 B). The
+    // descriptor at binding=0 is the Hi-Z pyramid sampler used by the LATE task
+    // shader variant for meshlet occlusion. The EARLY variant doesn't reference
+    // it -- a Vulkan layout that's a superset of what the SPIR-V uses is legal,
+    // and lets both pipelines share one IShaderResourceBinding.
     m_shaderResourceBinding = ResourceManager::AcquireSharedResource<IShaderResourceBinding>(
-        std::vector<ShaderResourceAttribute>{},
+        std::vector<ShaderResourceAttribute>{
+            ShaderResourceAttribute{ 0, 1, ShaderResourceType::Texture, ShaderStage::Task | ShaderStage::Mesh } },
         std::vector<PushConstantRange>{
             PushConstantRange{ ShaderStage::Task | ShaderStage::Mesh, 0, static_cast<uint32_t>(sizeof(ScenePush)) } });
 
-    // Cull SRB: SSBOs live in a CullFrame buffer accessed via BDA. The remaining
-    // descriptor is the Hi-Z pyramid sampler at binding=0. Push constant is 32 B.
+    // Cull SRB: shares the SceneFrame BDA via push constants; only descriptor is
+    // the Hi-Z pyramid sampler at binding=0. Push constant is 32 B.
     m_cullShaderResourceBinding = ResourceManager::AcquireSharedResource<IShaderResourceBinding>(
         std::vector<ShaderResourceAttribute>{
             ShaderResourceAttribute{ 0, 1, ShaderResourceType::Texture, ShaderStage::Compute } },
         std::vector<PushConstantRange>{
             PushConstantRange{ ShaderStage::Compute, 0, static_cast<uint32_t>(sizeof(CullPush)) } });
 
-    WRef<ShaderDesc> cullShader = AssetManager::AcquireAsset<ShaderDesc>("EngineAssets/Shaders/ObjectCull.comp");
-    PipelineDesc     cullPipelineDesc{};
+    WRef<ShaderDesc> cullShaderEarly =
+        AssetManager::AcquireAsset<ShaderDesc>("EngineAssets/Shaders/ObjectCull.comp");
+    WRef<ShaderDesc> cullShaderLate =
+        AssetManager::AcquireAsset<ShaderDesc>("EngineAssets/Shaders/ObjectCull.comp::LATE=1");
+
+    PipelineDesc cullPipelineDesc{};
     cullPipelineDesc.Type                  = PipelineType::Compute;
-    cullPipelineDesc.Shaders               = { cullShader.Get() };
     cullPipelineDesc.ShaderResourceBinding = m_cullShaderResourceBinding.Get();
-    m_cullPipeline                         = ResourceManager::AcquireSharedResource<IPipeline>(cullPipelineDesc);
+
+    cullPipelineDesc.Shaders = { cullShaderEarly.Get() };
+    m_cullPipelineEarly      = ResourceManager::AcquireSharedResource<IPipeline>(cullPipelineDesc);
+
+    cullPipelineDesc.Shaders = { cullShaderLate.Get() };
+    m_cullPipelineLate       = ResourceManager::AcquireSharedResource<IPipeline>(cullPipelineDesc);
 
     // Depth Pyramid (Hi-Z) compute pipeline.
     WRef<IShaderResourceBinding> depthReduceBindingTemplate =
@@ -90,11 +120,13 @@ ForwardRenderSystem::~ForwardRenderSystem()
     m_meshTaskIndirectBuffer      = nullptr;
     m_visibleDrawIndexBuffer      = nullptr;
     m_meshTaskIndirectCountBuffer = nullptr;
-    m_visibilityBuffer            = nullptr;
+    m_objectVisBuffer             = nullptr;
+    m_meshletVisBuffer            = nullptr;
     m_frameArena.Shutdown();
     m_shaderResourceBinding     = nullptr;
     m_cullShaderResourceBinding = nullptr;
-    m_cullPipeline              = nullptr;
+    m_cullPipelineEarly         = nullptr;
+    m_cullPipelineLate          = nullptr;
     m_depthReducePipeline       = nullptr;
     m_depthPyramid.Reset();
     m_depthView    = nullptr;
@@ -133,6 +165,11 @@ void ForwardRenderSystem::ResetMeshUploadCache()
     m_cachedVertexCount     = 0;
     m_cachedMeshletCount    = 0;
     m_cachedMeshletDataSize = 0;
+    // Do NOT clear m_cachedMeshMeshletCounts: it's indexed by meshIndex
+    // (m_cachedMeshCount), which keeps growing across mid-frame flushes -- old
+    // entries are stale but not in the way; FlushBatch only reads positions
+    // [meshIndex] for live MeshDraws, all of which have valid entries appended
+    // when the upload cache misses re-allocate them.
 }
 
 void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const TransformComponent& transform, World& world)
@@ -177,19 +214,10 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
     sceneFrame.ProjectionViewMatrix = projectionMatrix * viewMatrix;
     sceneFrame.ViewMatrix           = viewMatrix;
     sceneFrame.ScreenSize = { static_cast<float>(targetTex->GetWidth()), static_cast<float>(targetTex->GetHeight()) };
-    sceneFrame._Pad0      = 0;
-    sceneFrame._Pad1      = 0;
 
-    sceneFrame.VertexBuffer           = m_vertexStorageBuffer->GetDeviceAddress();
-    sceneFrame.MeshletBuffer          = m_meshletBuffer->GetDeviceAddress();
-    sceneFrame.MeshletDataBuffer      = m_meshletDataBuffer->GetDeviceAddress();
-    sceneFrame.MeshDataBuffer         = m_meshBuffer->GetDeviceAddress();
-    sceneFrame.MeshDrawBuffer         = m_meshDrawBuffer->GetDeviceAddress();
-    sceneFrame.VisibleDrawIndexBuffer = m_visibleDrawIndexBuffer->GetDeviceAddress();
-
-    CullFrame cullFrame{};
-    cullFrame.View = viewMatrix;
-
+    // niagara-style symmetric frustum: derive (Lx, Lz, Ty, Tz) from the projection
+    // matrix's left and top planes (rows 3+0 and 3+1 of the transpose). Right/Bottom
+    // are mirrored via abs() in the cull/task shaders.
     auto    PT      = projectionMatrix.Transpose();
     Vector4 leftRaw = PT[3] + PT[0];
     Vector4 topRaw  = PT[3] + PT[1];
@@ -199,19 +227,23 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
     float   topLen  = topN.Length();
     Vector4 left    = leftLen > 0.0f ? leftRaw / leftLen : leftRaw;
     Vector4 top     = topLen > 0.0f ? topRaw / topLen : topRaw;
-    cullFrame.Frustum = Vector4(left.x, -left.z, top.y, -top.z);
+    sceneFrame.Frustum = Vector4(left.x, -left.z, top.y, -top.z);
 
-    cullFrame.P00   = projectionMatrix[0][0];
-    cullFrame.P11   = projectionMatrix[1][1];
-    cullFrame.ZNear = k_zNear;
-    cullFrame.ZFar  = k_zFar;
+    sceneFrame.P00   = projectionMatrix[0][0];
+    sceneFrame.P11   = projectionMatrix[1][1];
+    sceneFrame.ZNear = k_zNear;
+    sceneFrame.ZFar  = k_zFar;
 
-    cullFrame.MeshDataBuffer         = m_meshBuffer->GetDeviceAddress();
-    cullFrame.MeshDrawBuffer         = m_meshDrawBuffer->GetDeviceAddress();
-    cullFrame.IndirectCommandBuffer  = m_meshTaskIndirectBuffer->GetDeviceAddress();
-    cullFrame.VisibleDrawIndexBuffer = m_visibleDrawIndexBuffer->GetDeviceAddress();
-    cullFrame.IndirectCountBuffer    = m_meshTaskIndirectCountBuffer->GetDeviceAddress();
-    cullFrame.VisibilityBuffer       = m_visibilityBuffer->GetDeviceAddress();
+    sceneFrame.VertexBuffer            = m_vertexStorageBuffer->GetDeviceAddress();
+    sceneFrame.MeshletBuffer           = m_meshletBuffer->GetDeviceAddress();
+    sceneFrame.MeshletDataBuffer       = m_meshletDataBuffer->GetDeviceAddress();
+    sceneFrame.MeshDataBuffer          = m_meshBuffer->GetDeviceAddress();
+    sceneFrame.MeshDrawBuffer          = m_meshDrawBuffer->GetDeviceAddress();
+    sceneFrame.VisibleDrawIndexBuffer  = m_visibleDrawIndexBuffer->GetDeviceAddress();
+    sceneFrame.IndirectCommandBuffer   = m_meshTaskIndirectBuffer->GetDeviceAddress();
+    sceneFrame.IndirectCountBuffer     = m_meshTaskIndirectCountBuffer->GetDeviceAddress();
+    sceneFrame.ObjectVisBuffer         = m_objectVisBuffer->GetDeviceAddress();
+    sceneFrame.MeshletVisBuffer        = m_meshletVisBuffer->GetDeviceAddress();
 
     std::vector<RenderBatch>          renderBatches;
     std::unordered_map<uint64_t, int> renderBatchLookup;
@@ -239,7 +271,7 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
         {
             // Mid-frame flush -- still more draws coming, don't transition to present yet.
             FlushBatch(commandBuffer, currentTarget, /*transitionToPresent=*/false,
-                       sceneFrame, cullFrame, renderBatches, renderBatchLookup);
+                       sceneFrame, renderBatches, renderBatchLookup);
         }
 
         std::string assetKey = AssetManager::GetAssetKey(mesh);
@@ -256,7 +288,7 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
             {
                 // Mid-frame flush due to upload cache pressure; not the final pass.
                 FlushBatch(commandBuffer, currentTarget, /*transitionToPresent=*/false,
-                           sceneFrame, cullFrame, renderBatches, renderBatchLookup);
+                           sceneFrame, renderBatches, renderBatchLookup);
                 ResetMeshUploadCache();
             }
 
@@ -292,23 +324,39 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
             m_cachedMeshletDataSize += meshletDataSize;
             m_cachedMeshCount += 1;
 
+            // Parallel array indexed by meshIndex -- needed by FlushBatch's
+            // MeshletVisOffset prefix sum. Every newly-allocated meshIndex
+            // here gets the matching MeshletCount appended; old indices stay valid
+            // (their MeshData is still resident in m_meshBuffer until the next
+            // ResetMeshUploadCache, which only nukes the upload cache, not the
+            // GPU-side MeshData slot).
+            if (m_cachedMeshMeshletCounts.size() <= meshIndex)
+            {
+                m_cachedMeshMeshletCounts.resize(meshIndex + 1, 0u);
+            }
+            m_cachedMeshMeshletCounts[meshIndex] = meshMeshletCount;
+
             m_meshUploadCache.Upsert(meshKey, meshIndex);
         }
 
         for (auto& materialPass : material->GetPasses())
         {
-            WRef<IPipeline> pipeline = materialPass.Pipeline;
+            WRef<IPipeline> pipeline     = materialPass.Pipeline;
+            WRef<IPipeline> latePipeline = materialPass.LatePipeline;
             if (!pipeline)
                 continue;
 
-            uint64_t passKey  = HashArgs(pipeline);
+            // Hash both pipelines so an EARLY/LATE pair distinct from another
+            // pair (or the absence of a LATE variant) lands in its own batch.
+            uint64_t passKey  = HashArgs(pipeline, latePipeline);
             auto     lookupIt = renderBatchLookup.find(passKey);
             if (lookupIt == renderBatchLookup.end())
             {
                 renderBatchLookup[passKey] = static_cast<int>(renderBatches.size());
                 RenderBatch newBatch{};
-                newBatch.PipelineKey = passKey;
-                newBatch.Pipeline    = pipeline;
+                newBatch.PipelineKey  = passKey;
+                newBatch.Pipeline     = pipeline;
+                newBatch.LatePipeline = latePipeline;
                 renderBatches.push_back(std::move(newBatch));
                 lookupIt = renderBatchLookup.find(passKey);
             }
@@ -328,14 +376,13 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
     });
 
     FlushBatch(commandBuffer, currentTarget, transitionToPresent,
-               sceneFrame, cullFrame, renderBatches, renderBatchLookup);
+               sceneFrame, renderBatches, renderBatchLookup);
 }
 
 void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandBuffer,
                                      ITextureView*                      colorView,
                                      bool                               transitionToPresent,
                                      SceneFrame&                        sceneFrame,
-                                     CullFrame&                         cullFrame,
                                      std::vector<RenderBatch>&          renderBatches,
                                      std::unordered_map<uint64_t, int>& renderBatchLookup)
 {
@@ -348,7 +395,6 @@ void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandB
     m_frameArena.BeginFrame(frameSlot);
 
     const uint64_t sceneFrameAddr = m_frameArena.Push(&sceneFrame, sizeof(SceneFrame));
-    const uint64_t cullFrameAddr  = m_frameArena.Push(&cullFrame, sizeof(CullFrame));
 
     std::vector<MeshDraw> uploadMeshDraws;
 
@@ -368,6 +414,35 @@ void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandB
         uploadMeshDraws.insert(uploadMeshDraws.end(), batch.MeshDraws.begin(), batch.MeshDraws.end());
     }
 
+    // Prefix sum: each MeshDraw's MeshletVisOffset is the cumulative
+    // MeshletCount of all preceding draws. globalMeshletId in the task shader is
+    // (draw.MeshletVisOffset + miLocal), so two instances of the same Cube
+    // get distinct visibility slots. Capped at MAX_MESHLET_VIS_COUNT --
+    // overflow ABORTS the frame: the task shader writes mvBuf via BDA which has
+    // no descriptor bounds check, so an out-of-range visIdx would corrupt
+    // adjacent device memory (fence/semaphore state of other queues, in the
+    // worst case) and we've seen that take down the whole Vulkan device.
+    {
+        uint32_t cumMeshletCount = 0;
+        for (auto& draw : uploadMeshDraws)
+        {
+            const uint32_t meshletCount = draw.MeshIndex < m_cachedMeshMeshletCounts.size()
+                ? m_cachedMeshMeshletCounts[draw.MeshIndex]
+                : 0u;
+            draw.MeshletVisOffset = cumMeshletCount;
+            cumMeshletCount += meshletCount;
+        }
+        if (cumMeshletCount > MAX_MESHLET_VIS_COUNT)
+        {
+            YG_CORE_ERROR("MeshletVis cap exceeded: needed {0}, cap {1}. Skipping frame to "
+                          "avoid out-of-bounds BDA writes from the task shader.",
+                          cumMeshletCount, MAX_MESHLET_VIS_COUNT);
+            renderBatches.clear();
+            renderBatchLookup.clear();
+            return;
+        }
+    }
+
     m_meshDrawBuffer->UpdateData(
         uploadMeshDraws.data(), static_cast<uint32_t>(uploadMeshDraws.size() * sizeof(MeshDraw)), 0);
 
@@ -381,10 +456,15 @@ void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandB
 
     commandBuffer->Begin();
 
-    // Resize + (re)bind the pyramid texture for the cull shader.
+    // Resize + (re)bind the pyramid texture for the cull shader and the
+    // mesh/task shader (LATE variant samples it for meshlet Hi-Z).
     if (m_depthPyramid.Resize(m_depthTexture->GetWidth(), m_depthTexture->GetHeight()))
     {
         m_cullShaderResourceBinding->BindTextureView(m_depthPyramid.GetTextureView(), 0, 0);
+        // Same pyramid view also feeds the LATE meshlet task variant. The
+        // EARLY variant's SPIR-V doesn't reference this binding, but Vulkan
+        // permits a layout broader than the SPIR-V uses -- one SRB serves both.
+        m_shaderResourceBinding->BindTextureView(m_depthPyramid.GetTextureView(), 0, 0);
     }
     const bool pyramidValid = m_depthPyramid.IsValid();
 
@@ -401,12 +481,11 @@ void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandB
     }
 
     // ================ EARLY cull dispatch ================
-    commandBuffer->SetPipeline(m_cullPipeline.Get());
+    commandBuffer->SetPipeline(m_cullPipelineEarly.Get());
     commandBuffer->SetShaderResourceBinding(m_cullShaderResourceBinding.Get());
 
     CullPush pcCull{};
-    pcCull.CullFrameAddr = cullFrameAddr;
-    pcCull._Pad0         = 0u;
+    pcCull.SceneFrameAddr = sceneFrameAddr;
 
     for (size_t batchIndex = 0; batchIndex < renderBatches.size(); ++batchIndex)
     {
@@ -418,7 +497,6 @@ void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandB
         pcCull.DrawCount  = batch.DrawCount;
         pcCull.OutputBase = batch.DrawBase;
         pcCull.CountIndex = static_cast<uint32_t>(batchIndex);
-        pcCull.IsLate     = 0u;
 
         commandBuffer->SetPushConstants(
             m_cullShaderResourceBinding.Get(), ShaderStage::Compute, 0, sizeof(CullPush), &pcCull);
@@ -529,12 +607,23 @@ void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandB
     if (runLatePass)
     {
         commandBuffer->Barrier(BarrierDesc{
-            .Buffer      = m_visibilityBuffer.Get(),
+            .Buffer      = m_objectVisBuffer.Get(),
             .BeforeState = ResourceState::UnorderedAccess,
             .AfterState  = ResourceState::UnorderedAccess,
         });
 
-        commandBuffer->SetPipeline(m_cullPipeline.Get());
+        // Pyramid was just written by the reduce dispatches. Both LATE cull
+        // (compute sample) and LATE meshlet task (task sample) read it; flush
+        // those writes for all three shader stages while keeping the GENERAL
+        // image layout (UnorderedAccess on both sides extends the dst stage
+        // mask to compute+task+mesh -- see VulkanUtils::YgResourceState2VkPipelineStage2).
+        commandBuffer->Barrier(BarrierDesc{
+            .TextureView = m_depthPyramid.GetTextureView(),
+            .BeforeState = ResourceState::UnorderedAccess,
+            .AfterState  = ResourceState::UnorderedAccess,
+        });
+
+        commandBuffer->SetPipeline(m_cullPipelineLate.Get());
         commandBuffer->SetShaderResourceBinding(m_cullShaderResourceBinding.Get());
 
         for (size_t batchIndex = 0; batchIndex < renderBatches.size(); ++batchIndex)
@@ -547,7 +636,6 @@ void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandB
             pcCull.DrawCount  = batch.DrawCount;
             pcCull.OutputBase = kLateRegionBase + batch.DrawBase;
             pcCull.CountIndex = totalBatchCount + static_cast<uint32_t>(batchIndex);
-            pcCull.IsLate     = 1u;
 
             commandBuffer->SetPushConstants(
                 m_cullShaderResourceBinding.Get(), ShaderStage::Compute, 0, sizeof(CullPush), &pcCull);
@@ -603,7 +691,11 @@ void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandB
             if (!batch.Pipeline || batch.DrawCount == 0)
                 continue;
 
-            commandBuffer->SetPipeline(batch.Pipeline.Get());
+            // LATE variant when the material provides one (meshlet pipelines
+            // ship a LATE-only Hi-Z shader); otherwise reuse the EARLY pipeline.
+            const IPipeline* latePipeline =
+                batch.LatePipeline ? batch.LatePipeline.Get() : batch.Pipeline.Get();
+            commandBuffer->SetPipeline(latePipeline);
             commandBuffer->SetShaderResourceBinding(m_shaderResourceBinding.Get());
 
             ScenePush pcScene{};

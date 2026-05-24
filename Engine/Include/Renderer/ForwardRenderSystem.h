@@ -26,7 +26,8 @@ private:
     struct RenderBatch
     {
         uint64_t              PipelineKey = 0;
-        WRef<IPipeline>       Pipeline;
+        WRef<IPipeline>       Pipeline;          // EARLY render (or sole pipeline if LatePipeline is null)
+        WRef<IPipeline>       LatePipeline;      // optional; LATE render swaps to this when non-null
         std::vector<MeshDraw> MeshDraws;
         uint32_t              DrawBase            = 0;
         uint32_t              DrawCount           = 0;
@@ -40,7 +41,6 @@ private:
                     ITextureView*                      colorView,
                     bool                               transitionToPresent,
                     SceneFrame&                        sceneFrame,
-                    CullFrame&                         cullFrame,
                     std::vector<RenderBatch>&          renderBatches,
                     std::unordered_map<uint64_t, int>& renderBatchLookup);
 
@@ -66,7 +66,19 @@ private:
     // One uint of "was visible last frame" per MeshDraw slot. Persistent across frames,
     // never explicitly cleared (GPU buffers zero-init on allocation, which matches the
     // niagara semantics of "unseen = hasn't been visible yet = go through LATE pass").
-    static const uint64_t MAX_VISIBILITY_SIZE = MAX_MESH_DRAWS * sizeof(uint32_t);
+    static const uint64_t MAX_OBJECT_VIS_SIZE = MAX_MESH_DRAWS * sizeof(uint32_t);
+    // Per-instance per-meshlet visibility. Sized for sum(MeshletCount) across all
+    // MeshDraws uploaded this frame. The Sandbox scene with 10K instances of
+    // Armadillo/Bunny (a few thousand meshlets each) needs ~12M entries; pad to
+    // 32M (128 MB) for headroom. Cap is checked at upload time -- overflow aborts
+    // the frame to prevent the LATE task shader from writing past the buffer end
+    // (BDA, no descriptor bounds check, would corrupt adjacent device memory and
+    // poison fences/semaphores). Each entry is one uint of "was emitted (passed
+    // full cull) last frame", same semantic as the per-object ObjectVisBuffer
+    // but indexed by globalMeshletId = draw.MeshletVisOffset + miLocal.
+    // Persistent across frames.
+    static const uint64_t MAX_MESHLET_VIS_COUNT = 32ull * 1024ull * 1024ull;
+    static const uint64_t MAX_MESHLET_VIS_SIZE  = MAX_MESHLET_VIS_COUNT * sizeof(uint32_t);
 
     WRef<IBuffer> m_vertexStorageBuffer         = nullptr;
     WRef<IBuffer> m_meshletBuffer               = nullptr;
@@ -80,7 +92,13 @@ private:
     // both "prev" (binding 6) and "curr" (binding 7) in ObjectCull.comp -- a compute-to-
     // compute barrier between EARLY and LATE dispatches is what makes the single-buffer
     // scheme correct.
-    WRef<IBuffer> m_visibilityBuffer = nullptr;
+    WRef<IBuffer> m_objectVisBuffer = nullptr;
+    // Per-instance per-meshlet visibility (Alan Wake 2 / Northlight style). EARLY task
+    // reads only ("emit if prev_meshlet_vis==1 AND cone+frustum"), LATE task reads then
+    // writes the full this-frame pass result so next frame's EARLY has up-to-date state.
+    // Object LATE cull dispatches all currently-visible objects (not just newly-visible
+    // ones), so even stable-visible objects' meshlet vis gets refreshed every frame.
+    WRef<IBuffer> m_meshletVisBuffer = nullptr;
     // Per-frame static data (matrices + buffer pointers) for both the mesh/task
     // and cull shaders. Push constants only carry the BDA returned by the arena
     // plus per-batch state. The arena is a single host-visible buffer carved into
@@ -95,10 +113,20 @@ private:
     uint32_t           m_cachedMeshletCount    = 0;
     uint32_t           m_cachedMeshletDataSize = 0;
     uint32_t           m_cachedMeshCount       = 0;
+    // Parallel to m_meshUploadCache (indexed by meshIndex). Lets FlushBatch compute
+    // the per-MeshDraw MeshletVisOffset prefix sum without reading back the
+    // GPU-side MeshDataBuffer. Reset alongside the upload cache when it spills.
+    std::vector<uint32_t> m_cachedMeshMeshletCounts;
 
     WRef<IShaderResourceBinding> m_shaderResourceBinding     = nullptr;
     WRef<IShaderResourceBinding> m_cullShaderResourceBinding = nullptr;
-    WRef<IPipeline>              m_cullPipeline              = nullptr;
+    // Two compile-time variants of ObjectCull.comp:
+    //   EARLY -- prev_obj_vis==1 gate, no Hi-Z, no vis writes.
+    //   LATE  -- full cone+frustum+Hi-Z, writes vis for next frame's EARLY.
+    // Same SRB layout (sampler at binding 0) for both; EARLY's SPIR-V doesn't
+    // reference the sampler -- Vulkan permits a layout broader than SPIR-V uses.
+    WRef<IPipeline>              m_cullPipelineEarly         = nullptr;
+    WRef<IPipeline>              m_cullPipelineLate          = nullptr;
     WRef<IPipeline>              m_depthReducePipeline       = nullptr;
     DepthPyramid                 m_depthPyramid;
 

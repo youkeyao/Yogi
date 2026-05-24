@@ -10,7 +10,7 @@ namespace Yogi
 // Replaces the "one mapped IBuffer per frame slot per per-frame struct" pattern
 // with a single host-visible IBuffer carved into N segments (N = frames-in-flight).
 // Within the current frame's segment a bump pointer hands out small allocations
-// for SceneFrame / CullFrame / etc., returning a GPU device address (BDA) that
+// for SceneFrame / etc., returning a GPU device address (BDA) that
 // callers stuff into push constants.
 //
 // Contract:

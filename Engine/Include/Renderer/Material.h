@@ -31,6 +31,12 @@ public:
     {
         PipelineData                PipelineInfo;
         WRef<IPipeline>             Pipeline;
+        // Optional alternate pipeline used by ForwardRenderSystem's LATE
+        // (post-Hi-Z-build) render. Lets meshlet pipelines ship two SPIR-V
+        // task-shader variants -- EARLY (no Hi-Z) and LATE (with Hi-Z) -- while
+        // sharing the same shader resource layout. nullptr means "no two-phase
+        // variant; LATE render reuses Pipeline" (2D / editor / non-meshlet paths).
+        WRef<IPipeline>             LatePipeline;
         std::vector<WRef<ITexture>> Textures;
     };
 

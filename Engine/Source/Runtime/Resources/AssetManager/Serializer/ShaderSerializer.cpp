@@ -48,6 +48,49 @@ private:
     std::vector<std::filesystem::path> m_searchDirs;
 };
 
+static std::string MakePreambleFromKey(const std::string& key)
+{
+    size_t sepPos = key.find("::");
+    if (sepPos == std::string::npos)
+        return {};
+
+    std::string preamble;
+    size_t      cursor = sepPos + 2;
+    while (cursor < key.size())
+    {
+        size_t comma = key.find(',', cursor);
+        size_t end   = (comma == std::string::npos) ? key.size() : comma;
+
+        size_t equals = key.find('=', cursor);
+        if (equals != std::string::npos && equals < end)
+        {
+            preamble.append("#define ");
+            preamble.append(key, cursor, equals - cursor);
+            preamble.append(" ");
+            preamble.append(key, equals + 1, end - equals - 1);
+            preamble.append("\n");
+        }
+        else
+        {
+            // Bare token with no value: define as 1
+            preamble.append("#define ");
+            preamble.append(key, cursor, end - cursor);
+            preamble.append(" 1\n");
+        }
+
+        if (comma == std::string::npos)
+            break;
+        cursor = comma + 1;
+    }
+    return preamble;
+}
+
+static std::string StripMacroSuffix(const std::string& key)
+{
+    size_t sepPos = key.find("::");
+    return (sepPos == std::string::npos) ? key : key.substr(0, sepPos);
+}
+
 std::vector<uint8_t> CompileGlslToSpirv(const std::vector<uint8_t>& glslBinary,
                                         EShLanguage                 shaderStage,
                                         const std::string&          key)
@@ -62,10 +105,14 @@ std::vector<uint8_t> CompileGlslToSpirv(const std::vector<uint8_t>& glslBinary,
     shader.setEnvTarget(glslang::EshTargetSpv, glslang::EShTargetSpv_1_4);
     shader.setStrings(shaderStrings, 1);
 
+    std::string preamble = MakePreambleFromKey(key);
+    if (!preamble.empty())
+        shader.setPreamble(preamble.c_str());
+
     int         clientInputSemanticsVersion = 100;
     EShMessages messages                    = (EShMessages)(EShMsgSpvRules | EShMsgVulkanRules);
 
-    std::filesystem::path shaderDir = std::filesystem::path(key).parent_path();
+    std::filesystem::path shaderDir = std::filesystem::path(StripMacroSuffix(key)).parent_path();
     FileIncluder          includer({ shaderDir, "EngineInclude" });
 
     if (!shader.parse(GetDefaultResources(), 460, false, messages, includer))
@@ -124,7 +171,7 @@ ShaderSerializer::~ShaderSerializer()
 
 Owner<ShaderDesc> ShaderSerializer::Deserialize(const std::vector<uint8_t>& binary, const std::string& key)
 {
-    std::filesystem::path path(key);
+    std::filesystem::path path(StripMacroSuffix(key));
     if (path.extension() == ".vert")
         return Owner<ShaderDesc>::Create(ShaderStage::Vertex, CompileGlslToSpirv(binary, EShLangVertex, key));
     else if (path.extension() == ".frag")

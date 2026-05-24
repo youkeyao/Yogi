@@ -12,42 +12,15 @@
 
 layout(local_size_x = CULL_WORKGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
+#ifdef LATE
 layout(binding = 0) uniform sampler2D u_depthPyramid;
+#endif
 
 layout(push_constant) uniform CullPushBlock
 {
     CullPush pcCull;
 };
 
-bool sphereInsideFrustum(vec3 c, float r, vec4 frustum, float zNear, float zFar)
-{
-    bool visible = true;
-    visible = visible && c.z * frustum.y - abs(c.x) * frustum.x > -r;
-    visible = visible && c.z * frustum.w - abs(c.y) * frustum.z > -r;
-    visible = visible && c.z + r > zNear && c.z - r < zFar;
-    return visible;
-}
-
-bool projectSphere(vec3 c, float r, float znear, float P00, float P11, out vec4 aabb)
-{
-    if (c.z < r + znear)
-        return false;
-
-    vec3  cr   = c * r;
-    float czr2 = c.z * c.z - r * r;
-
-    float vx   = sqrt(c.x * c.x + czr2);
-    float minx = (vx * c.x - cr.z) / (vx * c.z + cr.x);
-    float maxx = (vx * c.x + cr.z) / (vx * c.z - cr.x);
-
-    float vy   = sqrt(c.y * c.y + czr2);
-    float miny = (vy * c.y - cr.z) / (vy * c.z + cr.y);
-    float maxy = (vy * c.y + cr.z) / (vy * c.z - cr.y);
-
-    aabb = vec4(minx * P00, miny * P11, maxx * P00, maxy * P11);
-    aabb = aabb.xwzy * vec4(0.5, -0.5, 0.5, -0.5) + vec4(0.5);
-    return true;
-}
 
 void main()
 {
@@ -56,22 +29,22 @@ void main()
         return;
 
     uint meshDrawIndex = pcCull.DrawBase + drawIndex;
-    bool isLate        = pcCull.IsLate != 0u;
 
-    CullFrame cf = CullFrameRef(pcCull.CullFrameAddr).fd;
+    SceneFrame sf = SceneFrameRef(pcCull.SceneFrameAddr).fd;
 
-    VisibilityBufRef     visBuf    = VisibilityBufRef(cf.VisibilityBuffer);
-    MeshDrawBufferRef    mdBuf     = MeshDrawBufferRef(cf.MeshDrawBuffer);
-    MeshDataBufferRef    mDBuf     = MeshDataBufferRef(cf.MeshDataBuffer);
-    IndirectCmdBufRef    icBuf     = IndirectCmdBufRef(cf.IndirectCommandBuffer);
-    VisibleDrawIdxBufRef vdiBuf    = VisibleDrawIdxBufRef(cf.VisibleDrawIndexBuffer);
-    IndirectCountBufRef  icountBuf = IndirectCountBufRef(cf.IndirectCountBuffer);
+    ObjectVisBufRef      ovBuf     = ObjectVisBufRef(sf.ObjectVisBuffer);
+    MeshDrawBufferRef    mdBuf     = MeshDrawBufferRef(sf.MeshDrawBuffer);
+    MeshDataBufferRef    mDBuf     = MeshDataBufferRef(sf.MeshDataBuffer);
+    IndirectCmdBufRef    icBuf     = IndirectCmdBufRef(sf.IndirectCommandBuffer);
+    VisibleDrawIdxBufRef vdiBuf    = VisibleDrawIdxBufRef(sf.VisibleDrawIndexBuffer);
+    IndirectCountBufRef  icountBuf = IndirectCountBufRef(sf.IndirectCountBuffer);
 
+#ifndef LATE
     // EARLY: skip objects invisible last frame (LATE will catch them).
-    if (!isLate && visBuf.v[meshDrawIndex] == 0u)
+    if (ovBuf.v[meshDrawIndex] == 0u)
         return;
+#endif
 
-    uint prevVisibility = visBuf.v[meshDrawIndex];
     MeshDraw draw = mdBuf.m[meshDrawIndex];
     MeshData mesh = mDBuf.m[draw.MeshIndex];
 
@@ -81,17 +54,19 @@ void main()
     float radius = mesh.BoundingRadius * maxScale;
 
     // GLM (-Z forward) -> niagara view-space (+Z forward).
-    vec3 viewPos = (cf.View * vec4(center, 1.0)).xyz;
+    vec3 viewPos = (sf.ViewMatrix * vec4(center, 1.0)).xyz;
     viewPos.z = -viewPos.z;
 
-    bool visible = sphereInsideFrustum(viewPos, radius, cf.Frustum, cf.ZNear, cf.ZFar);
+    bool visible = sphereInsideFrustum(viewPos, radius, sf.Frustum, sf.ZNear, sf.ZFar);
 
-    // Hi-Z is only run by LATE -- EARLY trusts the previous frame's visibility[] verdict
-    // and skips occlusion testing entirely (avoids stale-pyramid feedback loops).
-    if (visible && isLate)
+#ifdef LATE
+    // Hi-Z: only the LATE variant probes the pyramid. EARLY trusts last frame's
+    // visibility[] verdict and skips occlusion testing entirely (avoids stale-
+    // pyramid feedback loops -- niagara two-phase semantics).
+    if (visible)
     {
         vec4 aabb;
-        if (projectSphere(viewPos, radius, cf.ZNear, cf.P00, cf.P11, aabb))
+        if (projectSphere(viewPos, radius, sf.ZNear, sf.P00, sf.P11, aabb))
         {
             float w     = aabb.z - aabb.x;
             float h     = aabb.w - aabb.y;
@@ -101,19 +76,17 @@ void main()
 
             // Sphere closest-point NDC depth (perspectiveRH_ZO finite-far):
             float closestZ    = viewPos.z - radius;
-            float depthSphere = cf.ZFar * (closestZ - cf.ZNear)
-                              / (closestZ * (cf.ZFar - cf.ZNear));
+            float depthSphere = sf.ZFar * (closestZ - sf.ZNear)
+                              / (closestZ * (sf.ZFar - sf.ZNear));
             visible           = depthSphere <= depth;
         }
     }
 
     // LATE writes the canonical visibility for next frame's EARLY gating.
-    if (isLate)
-        visBuf.v[meshDrawIndex] = visible ? 1u : 0u;
+    ovBuf.v[meshDrawIndex] = visible ? 1u : 0u;
+#endif
 
-    // EARLY emits all that pass; LATE only emits the "newly-visible" set
-    // (prevVisibility == 0) to avoid duplicates with EARLY's draws.
-    if (visible && (!isLate || prevVisibility == 0u))
+    if (visible)
     {
         uint compactIndex          = atomicAdd(icountBuf.n[pcCull.CountIndex], 1);
         uint commandOffset         = (pcCull.OutputBase + compactIndex) * 3;

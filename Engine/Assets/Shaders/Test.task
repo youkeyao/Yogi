@@ -19,6 +19,10 @@ layout(push_constant) uniform ScenePushBlock
     ScenePush pcScene;
 };
 
+#ifdef LATE
+layout(binding = 0) uniform sampler2D u_depthPyramid;
+#endif
+
 #if TASK_CULL
 shared uint s_survivorCount;
 #endif
@@ -36,6 +40,7 @@ void main()
     MeshDrawBufferRef    mdBuf  = MeshDrawBufferRef(sf.MeshDrawBuffer);
     MeshDataBufferRef    mDBuf  = MeshDataBufferRef(sf.MeshDataBuffer);
     MeshletBufferRef     mlBuf  = MeshletBufferRef(sf.MeshletBuffer);
+    MeshletVisBufRef     mvBuf  = MeshletVisBufRef(sf.MeshletVisBuffer);
 
     uint drawIndex = vdiBuf.i[uint(gl_DrawID) + pcScene.DrawBase];
     payload.drawIndex = drawIndex;
@@ -52,18 +57,63 @@ void main()
     if (miLocal < mesh.MeshletCount)
     {
         uint mi = mesh.MeshletOffset + miLocal;
+        uint visIdx       = draw.MeshletVisOffset + miLocal;
+        uint prevMlVisible = mvBuf.v[visIdx];
         MeshletData meshlet = mlBuf.m[mi];
+
+        // World-space sphere center, then to view (+Z forward like ObjectCull).
         vec3 center = vec3(meshlet.Center[0], meshlet.Center[1], meshlet.Center[2]);
         center = RotateByQuaternion(center * draw.Scale, draw.Orientation) + draw.Position;
-        center = (sf.ViewMatrix * vec4(center, 1)).xyz;
+        vec3 viewCenter = (sf.ViewMatrix * vec4(center, 1.0)).xyz;
+        viewCenter.z = -viewCenter.z;
+        float maxScale = max(max(abs(draw.Scale.x), abs(draw.Scale.y)), abs(draw.Scale.z));
+        float radius = float(meshlet.Radius) * maxScale;
+
+        // Cone cull (camera at origin in view space; coneAxis flipped to match Z).
         vec3 coneAxis = vec3(meshlet.ConeAxis[0], meshlet.ConeAxis[1], meshlet.ConeAxis[2]) / 127.0;
         coneAxis = mat3(sf.ViewMatrix) * RotateByQuaternion(coneAxis, draw.Orientation);
-        bool visible = !coneCull(center, meshlet.Radius, coneAxis, meshlet.ConeCutOff / 127.0, vec3(0, 0, 0));
+        coneAxis.z = -coneAxis.z;
+        bool visible = !coneCull(viewCenter, radius, coneAxis, meshlet.ConeCutOff / 127.0, vec3(0));
+
+        // Frustum cull -- runs in both EARLY and LATE since it doesn't depend
+        // on a pyramid; just static this-frame projection planes.
+        visible = visible && sphereInsideFrustum(viewCenter, radius, sf.Frustum, sf.ZNear, sf.ZFar);
+
+#ifdef LATE
+        // Hi-Z occlusion (LATE only). Pyramid was built from EARLY render so
+        // it's the precise current-frame depth coverage.
         if (visible)
+        {
+            vec4 aabb;
+            if (projectSphere(viewCenter, radius, sf.ZNear, sf.P00, sf.P11, aabb))
+            {
+                float w     = aabb.z - aabb.x;
+                float h     = aabb.w - aabb.y;
+                ivec2 p0    = textureSize(u_depthPyramid, 0);
+                float level = ceil(log2(max(w * float(p0.x), h * float(p0.y))));
+                float depth = textureLod(u_depthPyramid, (aabb.xy + aabb.zw) * 0.5, level).r;
+
+                float closestZ    = viewCenter.z - radius;
+                float depthSphere = sf.ZFar * (closestZ - sf.ZNear)
+                                  / (closestZ * (sf.ZFar - sf.ZNear));
+                visible = depthSphere <= depth;
+            }
+        }
+
+        mvBuf.v[visIdx] = visible ? 1u : 0u;
+
+        if (visible && prevMlVisible == 0u)
         {
             uint idx = atomicAdd(s_survivorCount, 1);
             payload.meshletIndices[idx] = mi;
         }
+#else
+        if (visible && prevMlVisible == 1u)
+        {
+            uint idx = atomicAdd(s_survivorCount, 1);
+            payload.meshletIndices[idx] = mi;
+        }
+#endif
     }
     barrier();
 

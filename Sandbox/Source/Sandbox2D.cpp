@@ -29,8 +29,19 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
 
     auto swapChain = Yogi::Application::GetInstance().GetSwapChain();
 
-    auto shaderResourceBinding = Yogi::ResourceManager::CreateResource<Yogi::IShaderResourceBinding>(
-        std::vector<Yogi::ShaderResourceAttribute>{},
+    // SRB layout MUST match ForwardRenderSystem::m_shaderResourceBinding so the
+    // pipeline's descriptor set layout is compatible with the SRB bound at draw
+    // time. Sampler at binding=0 is the Hi-Z pyramid used by the LATE task
+    // variant; EARLY variant doesn't reference it but Vulkan permits a layout
+    // broader than the SPIR-V uses.
+    //
+    // AcquireSharedResource (not CreateResource) so the engine system that runs
+    // later (ForwardRenderSystem) hits the cache with identical args and gets
+    // the same instance back. Two distinct-but-"compatible" SRB instances
+    // produced silent sampler-not-bound failures on some drivers.
+    auto shaderResourceBinding = Yogi::ResourceManager::AcquireSharedResource<Yogi::IShaderResourceBinding>(
+        std::vector<Yogi::ShaderResourceAttribute>{ Yogi::ShaderResourceAttribute{
+            0, 1, Yogi::ShaderResourceType::Texture, Yogi::ShaderStage::Task | Yogi::ShaderStage::Mesh } },
         std::vector<Yogi::PushConstantRange>{ Yogi::PushConstantRange{
             Yogi::ShaderStage::Task | Yogi::ShaderStage::Mesh, 0, static_cast<uint32_t>(sizeof(ScenePush)) } });
 
@@ -38,22 +49,38 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
     //     Yogi::AssetManager::AcquireAsset<Yogi::ShaderDesc>("EngineAssets/Shaders/Test.vert");
     Yogi::WRef<Yogi::ShaderDesc> fragmentShader =
         Yogi::AssetManager::AcquireAsset<Yogi::ShaderDesc>("EngineAssets/Shaders/Test.frag");
-    Yogi::WRef<Yogi::ShaderDesc> taskShader =
+    // Two compile-time variants of the meshlet task shader, niagara-style:
+    //   EARLY  (no LATE define) -- emits prev_meshlet_vis==1 meshlets after cone+frustum.
+    //   LATE   (LATE=1)         -- emits prev_meshlet_vis==0 meshlets after cone+frustum+Hi-Z;
+    //                             writes the canonical per-meshlet visibility for next frame.
+    // The "::LATE=1" key suffix is parsed by ShaderSerializer into a glslang
+    // preamble; FileSystemSource strips the suffix before file open so both
+    // variants share Test.task on disk and dedupe correctly in the asset cache.
+    Yogi::WRef<Yogi::ShaderDesc> taskShaderEarly =
         Yogi::AssetManager::AcquireAsset<Yogi::ShaderDesc>("EngineAssets/Shaders/Test.task");
+    Yogi::WRef<Yogi::ShaderDesc> taskShaderLate =
+        Yogi::AssetManager::AcquireAsset<Yogi::ShaderDesc>("EngineAssets/Shaders/Test.task::LATE=1");
     Yogi::WRef<Yogi::ShaderDesc> meshShader =
         Yogi::AssetManager::AcquireAsset<Yogi::ShaderDesc>("EngineAssets/Shaders/Test.mesh");
-    std::vector<const Yogi::ShaderDesc*> shaders = { taskShader.Get(), meshShader.Get(), fragmentShader.Get() };
+    std::vector<const Yogi::ShaderDesc*> earlyShaders = {
+        taskShaderEarly.Get(), meshShader.Get(), fragmentShader.Get() };
+    std::vector<const Yogi::ShaderDesc*> lateShaders = {
+        taskShaderLate.Get(), meshShader.Get(), fragmentShader.Get() };
 
     // dynamic rendering: pipeline carries attachment formats directly. Must match
     // ForwardRenderSystem's swapchain color format + D32_FLOAT depth.
-    Yogi::PipelineDesc pipelineDesc{};
-    pipelineDesc.Shaders               = shaders;
-    pipelineDesc.ShaderResourceBinding = shaderResourceBinding.Get();
-    pipelineDesc.ColorFormats          = { swapChain->GetColorFormat() };
-    pipelineDesc.DepthFormat           = Yogi::ITexture::Format::D32_FLOAT;
-    pipelineDesc.Samples               = Yogi::SampleCountFlagBits::Count1;
-    pipelineDesc.Topology              = Yogi::PrimitiveTopology::TriangleList;
-    auto pipeline = Yogi::ResourceManager::AcquireSharedResource<Yogi::IPipeline>(pipelineDesc);
+    Yogi::PipelineDesc earlyPipelineDesc{};
+    earlyPipelineDesc.Shaders               = earlyShaders;
+    earlyPipelineDesc.ShaderResourceBinding = shaderResourceBinding.Get();
+    earlyPipelineDesc.ColorFormats          = { swapChain->GetColorFormat() };
+    earlyPipelineDesc.DepthFormat           = Yogi::ITexture::Format::D32_FLOAT;
+    earlyPipelineDesc.Samples               = Yogi::SampleCountFlagBits::Count1;
+    earlyPipelineDesc.Topology              = Yogi::PrimitiveTopology::TriangleList;
+    auto earlyPipeline = Yogi::ResourceManager::AcquireSharedResource<Yogi::IPipeline>(earlyPipelineDesc);
+
+    Yogi::PipelineDesc latePipelineDesc            = earlyPipelineDesc;
+    latePipelineDesc.Shaders                       = lateShaders;
+    auto latePipeline = Yogi::ResourceManager::AcquireSharedResource<Yogi::IPipeline>(latePipelineDesc);
 
     m_world = Yogi::Owner<Yogi::World>::Create();
     m_world->AddSystem<Yogi::ForwardRenderSystem>();
@@ -65,7 +92,7 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
     };
 
     Yogi::WRef<Yogi::Material> material = Yogi::ResourceManager::CreateResource<Yogi::Material>();
-    material->AddPass(Yogi::Material::MaterialPass{ {}, pipeline, {} });
+    material->AddPass(Yogi::Material::MaterialPass{ {}, earlyPipeline, latePipeline, {} });
 
     srand(41);
     for (int i = 0; i < 10000; i++)
@@ -96,7 +123,7 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
 
     m_box                        = m_world->CreateEntity();
     auto& transform              = m_box.AddComponent<Yogi::TransformComponent>();
-    transform.Transform.Position = { 0, 0, 0 };
+    transform.Transform.Position = { 0, 0, 10 };
     auto& camera                 = m_box.AddComponent<Yogi::CameraComponent>();
 
     // m_box = m_world->CreateEntity();
