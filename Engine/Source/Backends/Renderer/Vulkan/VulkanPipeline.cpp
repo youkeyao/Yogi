@@ -15,16 +15,57 @@ Owner<IPipeline> IPipeline::Create(const PipelineDesc& desc)
 VulkanPipeline::VulkanPipeline(const PipelineDesc& desc)
 {
     m_type = desc.Type;
+    CreateVkPipelineLayout(desc);
     CreateVkPipeline(desc);
 }
 
 VulkanPipeline::~VulkanPipeline()
 {
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
+    VkDevice             device  = context->GetVkDevice();
     if (m_pipeline != VK_NULL_HANDLE)
     {
-        VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
-        vkDestroyPipeline(context->GetVkDevice(), m_pipeline, nullptr);
+        vkDestroyPipeline(device, m_pipeline, nullptr);
     }
+    if (m_pipelineLayout != VK_NULL_HANDLE)
+    {
+        vkDestroyPipelineLayout(device, m_pipelineLayout, nullptr);
+    }
+}
+
+void VulkanPipeline::CreateVkPipelineLayout(const PipelineDesc& desc)
+{
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
+    VkDevice             device  = context->GetVkDevice();
+
+    VkDescriptorSetLayout setLayout = VK_NULL_HANDLE;
+    if (desc.ResourceBinding)
+    {
+        const VulkanShaderResourceBinding* vkSRB =
+            static_cast<const VulkanShaderResourceBinding*>(desc.ResourceBinding);
+        setLayout = vkSRB->GetVkDescriptorSetLayout();
+    }
+
+    std::vector<VkPushConstantRange> vkPushConstantRanges;
+    vkPushConstantRanges.reserve(desc.PushConstantRanges.size());
+    for (const auto& range : desc.PushConstantRanges)
+    {
+        VkPushConstantRange vkRange{};
+        vkRange.stageFlags = YgShaderStage2VkShaderStage(range.Stage);
+        vkRange.offset     = range.Offset;
+        vkRange.size       = range.Size;
+        vkPushConstantRanges.push_back(vkRange);
+    }
+
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+    pipelineLayoutInfo.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutInfo.setLayoutCount         = setLayout != VK_NULL_HANDLE ? 1u : 0u;
+    pipelineLayoutInfo.pSetLayouts            = setLayout != VK_NULL_HANDLE ? &setLayout : nullptr;
+    pipelineLayoutInfo.pushConstantRangeCount = static_cast<uint32_t>(vkPushConstantRanges.size());
+    pipelineLayoutInfo.pPushConstantRanges    = vkPushConstantRanges.empty() ? nullptr : vkPushConstantRanges.data();
+
+    VkResult result = vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &m_pipelineLayout);
+    YG_CORE_ASSERT(result == VK_SUCCESS, "Vulkan: Failed to create pipeline layout");
 }
 
 void VulkanPipeline::CreateVkPipeline(const PipelineDesc& desc)
@@ -67,9 +108,6 @@ void VulkanPipeline::CreateVkPipeline(const PipelineDesc& desc)
         }
     }
 
-    const VulkanShaderResourceBinding* vkSRB =
-        static_cast<const VulkanShaderResourceBinding*>(desc.ShaderResourceBinding);
-
     if (desc.Type == PipelineType::Compute)
     {
         YG_CORE_ASSERT(shaderStages.size() == 1, "Vulkan: Compute pipeline requires exactly one compute shader stage");
@@ -79,7 +117,7 @@ void VulkanPipeline::CreateVkPipeline(const PipelineDesc& desc)
         VkComputePipelineCreateInfo computeInfo{};
         computeInfo.sType  = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
         computeInfo.stage  = shaderStages[0];
-        computeInfo.layout = vkSRB->GetVkPipelineLayout();
+        computeInfo.layout = m_pipelineLayout;
 
         VkResult computeResult =
             vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &computeInfo, nullptr, &m_pipeline);
@@ -216,7 +254,7 @@ void VulkanPipeline::CreateVkPipeline(const PipelineDesc& desc)
     pipelineInfo.pMultisampleState   = &multisampling;
     pipelineInfo.pColorBlendState    = &colorBlending;
     pipelineInfo.pDynamicState       = &dynamicState;
-    pipelineInfo.layout              = vkSRB->GetVkPipelineLayout();
+    pipelineInfo.layout              = m_pipelineLayout;
     pipelineInfo.renderPass          = VK_NULL_HANDLE;
     pipelineInfo.subpass             = 0;
     pipelineInfo.pDepthStencilState  = desc.DepthFormat == ITexture::Format::NONE ? nullptr : &depthStencil;

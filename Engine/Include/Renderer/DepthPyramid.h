@@ -13,8 +13,8 @@ namespace Yogi
 class YG_API DepthPyramid
 {
 public:
-    DepthPyramid()  = default;
-    ~DepthPyramid() = default;
+    DepthPyramid() = default;
+    ~DepthPyramid();
 
     DepthPyramid(const DepthPyramid&)            = delete;
     DepthPyramid& operator=(const DepthPyramid&) = delete;
@@ -39,18 +39,24 @@ public:
     uint32_t            GetMipWidth(uint32_t mip) const { return m_mipSizes[mip].x; }
     uint32_t            GetMipHeight(uint32_t mip) const { return m_mipSizes[mip].y; }
 
+    uint32_t GetPyramidSampledSlot() const { return m_pyramidSampledSlot; }
+
     static Owner<IShaderResourceBinding> CreateReduceBindingLayout();
 
+    static std::vector<PushConstantRange> GetReducePushConstantRanges();
+
 private:
-    WRef<ITexture>                             m_texture;
-    Owner<ITextureView>                        m_textureView;
-    std::vector<Owner<ITextureView>>           m_mipViews;
+    WRef<ITexture>                   m_texture;
+    Owner<ITextureView>              m_textureView;
+    std::vector<Owner<ITextureView>> m_mipViews;
+
     std::vector<Owner<IShaderResourceBinding>> m_mipBindings;
     std::vector<Vector<2, uint32_t>>           m_mipSizes;
     uint32_t                                   m_mipCount = 0;
     uint32_t                                   m_width    = 0;
     uint32_t                                   m_height   = 0;
 
+    uint32_t            m_pyramidSampledSlot        = ~0u;
     const ITextureView* m_lastBoundDepth            = nullptr;
     bool                m_initialLayoutTransitioned = false;
 };

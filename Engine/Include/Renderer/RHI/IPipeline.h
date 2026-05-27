@@ -50,11 +50,19 @@ struct VertexAttribute
     ShaderElementType Type;
 };
 
+struct PushConstantRange
+{
+    ShaderStage Stage;
+    uint32_t    Offset;
+    uint32_t    Size;
+};
+
 struct PipelineDesc
 {
     std::vector<const ShaderDesc*> Shaders;
     std::vector<VertexAttribute>   VertexLayout;
-    const IShaderResourceBinding*  ShaderResourceBinding = nullptr;
+    const IShaderResourceBinding*  ResourceBinding = nullptr;
+    std::vector<PushConstantRange> PushConstantRanges;
     std::vector<ITexture::Format>  ColorFormats;
     ITexture::Format               DepthFormat = ITexture::Format::NONE;
     SampleCountFlagBits            Samples     = SampleCountFlagBits::Count1;

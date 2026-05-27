@@ -26,11 +26,11 @@ public:
     void SetViewport(const Viewport& viewport) override;
     void SetScissor(const Scissor& scissor) override;
     void SetShaderResourceBinding(const IShaderResourceBinding* binding) override;
-    void SetPushConstants(const IShaderResourceBinding* binding,
-                          ShaderStage                   stage,
-                          uint32_t                      offset,
-                          uint32_t                      size,
-                          const void*                   data) override;
+    void SetPushConstants(const IPipeline* pipeline,
+                          ShaderStage      stage,
+                          uint32_t         offset,
+                          uint32_t         size,
+                          const void*      data) override;
 
     void Draw(uint32_t vertexCount,
               uint32_t instanceCount = 1,
@@ -70,6 +70,7 @@ private:
     VkSemaphore         m_waitSemaphore    = VK_NULL_HANDLE;
     VkSemaphore         m_signalSemaphore  = VK_NULL_HANDLE;
     VkPipelineBindPoint m_currentBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    VkPipelineLayout    m_currentLayout    = VK_NULL_HANDLE;
     bool                m_submitted        = false;
 };
 

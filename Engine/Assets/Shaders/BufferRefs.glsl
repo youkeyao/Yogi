@@ -3,6 +3,9 @@
 
 #extension GL_EXT_buffer_reference       : require
 #extension GL_EXT_buffer_reference_uvec2 : require
+#extension GL_EXT_shader_explicit_arithmetic_types : require
+#extension GL_EXT_shader_16bit_storage             : require
+#extension GL_EXT_shader_8bit_storage              : require
 
 #include "Renderer/ShaderData.h"
 
@@ -10,8 +13,9 @@ layout(buffer_reference, std430) readonly buffer VertexBufferRef       { VertexD
 layout(buffer_reference, std430) readonly buffer MeshletBufferRef      { MeshletData m[]; };
 layout(buffer_reference, std430) readonly buffer MeshletDataBufferRef  { uint        d[]; };
 layout(buffer_reference, std430) readonly buffer MeshletData8BufferRef { uint8_t     d[]; };
-layout(buffer_reference, std430) readonly buffer MeshDataBufferRef     { MeshData    m[]; };
-layout(buffer_reference, std430) readonly buffer MeshDrawBufferRef     { MeshDraw    m[]; };
+layout(buffer_reference, std430) readonly buffer MeshDataBufferRef     { MeshData     m[]; };
+layout(buffer_reference, std430) readonly buffer MeshDrawBufferRef     { MeshDraw     m[]; };
+layout(buffer_reference, std430) readonly buffer MaterialBufferRef     { MaterialData m[]; };
 layout(buffer_reference, std430)          buffer VisibleDrawIdxBufRef  { uint        i[]; };
 layout(buffer_reference, std430)          buffer IndirectCmdBufRef     { uint        c[]; };
 layout(buffer_reference, std430)          buffer IndirectCountBufRef   { uint        n[]; };

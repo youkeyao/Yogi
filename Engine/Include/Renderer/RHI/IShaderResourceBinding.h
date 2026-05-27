@@ -9,8 +9,16 @@ namespace Yogi
 enum class ShaderResourceType : uint8_t
 {
     StorageBuffer,
-    Texture,
-    StorageImage
+    StorageTexture,
+    SampledTexture,
+    Sampler,
+};
+
+enum class SamplerReductionMode : uint8_t
+{
+    None,
+    Min,
+    Max,
 };
 
 enum class ShaderStage : uint8_t
@@ -22,15 +30,7 @@ enum class ShaderStage : uint8_t
     Task     = 1 << 4,
     Mesh     = 1 << 5
 };
-
-inline ShaderStage operator|(ShaderStage a, ShaderStage b)
-{
-    return static_cast<ShaderStage>(static_cast<uint8_t>(a) | static_cast<uint8_t>(b));
-}
-inline ShaderStage operator&(ShaderStage a, ShaderStage b)
-{
-    return static_cast<ShaderStage>(static_cast<uint8_t>(a) & static_cast<uint8_t>(b));
-}
+YG_ENABLE_ENUM_FLAGS(ShaderStage);
 
 struct ShaderResourceAttribute
 {
@@ -40,11 +40,10 @@ struct ShaderResourceAttribute
     ShaderStage        Stage;
 };
 
-struct PushConstantRange
+struct ImmutableSamplerDesc
 {
-    ShaderStage Stage;
-    uint32_t    Offset;
-    uint32_t    Size;
+    int                  Binding;
+    SamplerReductionMode Reduction;
 };
 
 class YG_API IShaderResourceBinding
@@ -56,14 +55,14 @@ public:
     virtual void BindTextureView(const ITextureView* view, int binding, int slot = 0) = 0;
 
     const std::vector<ShaderResourceAttribute>& GetLayout() const { return m_layout; }
-    const std::vector<PushConstantRange>&       GetPushConstantRanges() const { return m_pushConstantRanges; }
+    const std::vector<ImmutableSamplerDesc>&    GetImmutableSamplers() const { return m_immutableSamplers; }
 
     static Owner<IShaderResourceBinding> Create(const std::vector<ShaderResourceAttribute>& shaderResourceLayout,
-                                                const std::vector<PushConstantRange>&       pushConstantRanges = {});
+                                                const std::vector<ImmutableSamplerDesc>&    immutableSamplers = {});
 
 protected:
     std::vector<ShaderResourceAttribute> m_layout;
-    std::vector<PushConstantRange>       m_pushConstantRanges;
+    std::vector<ImmutableSamplerDesc>    m_immutableSamplers;
 };
 
 template <>

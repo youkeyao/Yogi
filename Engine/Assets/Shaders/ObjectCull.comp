@@ -5,6 +5,7 @@
 #extension GL_EXT_shader_explicit_arithmetic_types: require
 #extension GL_EXT_shader_16bit_storage: require
 #extension GL_EXT_shader_8bit_storage: require
+#extension GL_EXT_nonuniform_qualifier: require
 #extension GL_GOOGLE_include_directive: require
 
 #include "Renderer/ShaderData.h"
@@ -13,7 +14,8 @@
 layout(local_size_x = CULL_WORKGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
 #ifdef LATE
-layout(binding = 0) uniform sampler2D u_depthPyramid;
+layout(binding = 1) uniform sampler u_samplerMax;
+layout(binding = 2) uniform texture2D u_textures[MAX_TEXTURES];
 #endif
 
 layout(push_constant) uniform CullPushBlock
@@ -70,9 +72,11 @@ void main()
         {
             float w     = aabb.z - aabb.x;
             float h     = aabb.w - aabb.y;
-            ivec2 p0    = textureSize(u_depthPyramid, 0);
+            ivec2 p0    = textureSize(sampler2D(u_textures[nonuniformEXT(pcCull.PyramidSlot)], u_samplerMax), 0);
             float level = ceil(log2(max(w * float(p0.x), h * float(p0.y))));
-            float depth = textureLod(u_depthPyramid, (aabb.xy + aabb.zw) * 0.5, level).r;
+            float depth = textureLod(
+                sampler2D(u_textures[nonuniformEXT(pcCull.PyramidSlot)], u_samplerMax),
+                (aabb.xy + aabb.zw) * 0.5, level).r;
 
             // Sphere closest-point NDC depth (perspectiveRH_ZO finite-far):
             float closestZ    = viewPos.z - radius;

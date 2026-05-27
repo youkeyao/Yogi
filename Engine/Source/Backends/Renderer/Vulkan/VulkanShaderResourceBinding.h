@@ -13,7 +13,7 @@ class VulkanShaderResourceBinding : public IShaderResourceBinding
 {
 public:
     VulkanShaderResourceBinding(const std::vector<ShaderResourceAttribute>& shaderResourceLayout,
-                                const std::vector<PushConstantRange>&       pushConstantRanges);
+                                const std::vector<ImmutableSamplerDesc>&    immutableSamplers);
     virtual ~VulkanShaderResourceBinding();
 
     void BindBuffer(const IBuffer* buffer, int binding, int slot = 0) override;
@@ -21,12 +21,10 @@ public:
 
     inline VkDescriptorSet       GetVkDescriptorSet() const { return m_descriptorSet; }
     inline VkDescriptorSetLayout GetVkDescriptorSetLayout() const { return m_descriptorSetLayout; }
-    inline VkPipelineLayout      GetVkPipelineLayout() const { return m_pipelineLayout; }
 
 private:
     VkDescriptorSet       m_descriptorSet       = VK_NULL_HANDLE;
     VkDescriptorSetLayout m_descriptorSetLayout = VK_NULL_HANDLE;
-    VkPipelineLayout      m_pipelineLayout      = VK_NULL_HANDLE;
 };
 
 } // namespace Yogi

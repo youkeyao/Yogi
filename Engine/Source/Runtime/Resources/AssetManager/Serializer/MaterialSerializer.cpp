@@ -11,10 +11,8 @@ Owner<Material> MaterialSerializer::Deserialize(const std::vector<uint8_t>& bina
 {
     zpp::bits::in inArchive(binary);
 
-    std::vector<PipelineData>         pipelineDatas;
-    std::vector<std::vector<uint8_t>> passData;
-    std::vector<std::string>          textureKeys;
-    auto                              result = inArchive(pipelineDatas, passData, textureKeys);
+    std::vector<std::string> textureKeys;
+    auto                     result = inArchive(textureKeys);
     if (failure(result))
     {
         YG_CORE_ERROR("Failed to deserialize material '{0}'!", key);
@@ -22,87 +20,14 @@ Owner<Material> MaterialSerializer::Deserialize(const std::vector<uint8_t>& bina
     }
 
     Owner<Material> material = Owner<Material>::Create();
-    for (auto& pipelineData : pipelineDatas)
+    material->Textures.resize(textureKeys.size());
+    for (size_t i = 0; i < textureKeys.size(); ++i)
     {
-        bool hasMeshTaskShader = false;
-        for (const auto& shaderKey : pipelineData.ShaderKeys)
+        if (!textureKeys[i].empty())
         {
-            if (shaderKey.find(".task") != std::string::npos || shaderKey.find(".mesh") != std::string::npos)
-            {
-                hasMeshTaskShader = true;
-                break;
-            }
+            material->Textures[i] = AssetManager::AcquireAsset<ITexture>(textureKeys[i]);
         }
-
-        if (hasMeshTaskShader)
-        {
-            bool hasBinding3 = false;
-            bool hasBinding4 = false;
-            for (auto& attr : pipelineData.ShaderResourceLayout)
-            {
-                if (attr.Binding == 3)
-                {
-                    hasBinding3 = true;
-                    attr.Count  = 1;
-                    attr.Type   = ShaderResourceType::StorageBuffer;
-                    attr.Stage  = ShaderStage::Task | ShaderStage::Mesh;
-                }
-                if (attr.Binding == 4)
-                {
-                    hasBinding4 = true;
-                    attr.Count  = 1;
-                    attr.Type   = ShaderResourceType::StorageBuffer;
-                    attr.Stage  = ShaderStage::Task;
-                }
-            }
-            if (!hasBinding3)
-            {
-                pipelineData.ShaderResourceLayout.push_back(ShaderResourceAttribute{
-                    3, 1, ShaderResourceType::StorageBuffer, ShaderStage::Task | ShaderStage::Mesh });
-            }
-            if (!hasBinding4)
-            {
-                pipelineData.ShaderResourceLayout.push_back(
-                    ShaderResourceAttribute{ 4, 1, ShaderResourceType::StorageBuffer, ShaderStage::Task });
-            }
-        }
-
-        PipelineDesc                  pipelineDesc;
-        std::vector<WRef<ShaderDesc>> shaderRefs;
-        shaderRefs.reserve(pipelineData.ShaderKeys.size());
-        for (auto& shaderKey : pipelineData.ShaderKeys)
-        {
-            shaderRefs.push_back(AssetManager::AcquireAsset<ShaderDesc>(shaderKey));
-            pipelineDesc.Shaders.push_back(shaderRefs.back().Get());
-        }
-        pipelineDesc.VertexLayout        = pipelineData.VertexLayout;
-        WRef<IShaderResourceBinding> srb = ResourceManager::CreateResource<IShaderResourceBinding>(
-            pipelineData.ShaderResourceLayout, pipelineData.PushConstantRanges);
-        pipelineDesc.ShaderResourceBinding = srb.Get();
-        pipelineDesc.ColorFormats          = pipelineData.ColorFormats;
-        pipelineDesc.DepthFormat           = pipelineData.DepthFormat;
-        pipelineDesc.Samples               = pipelineData.Samples;
-        pipelineDesc.Topology              = pipelineData.Topology;
-
-        auto passPipeline = ResourceManager::AcquireSharedResource<IPipeline>(pipelineDesc);
-        material->AddPass(Material::MaterialPass{ pipelineData, passPipeline, {} });
     }
-    auto materialPasses = material->GetPasses();
-    int  textureIndex   = 0;
-    for (int i = 0; i < materialPasses.size(); ++i)
-    {
-        materialPasses[i].Textures.resize(textureKeys.size());
-        for (int j = 0; j < materialPasses[i].Textures.size(); ++j)
-        {
-            if (textureIndex < textureKeys.size() && !textureKeys[textureIndex].empty())
-            {
-                materialPasses[i].Textures[j] = AssetManager::AcquireAsset<ITexture>(textureKeys[textureIndex]);
-            }
-            ++textureIndex;
-        }
-        material->SetPass(i, materialPasses[i]);
-    }
-
     return material;
 }
 
@@ -111,21 +36,14 @@ std::vector<uint8_t> MaterialSerializer::Serialize(const WRef<Material>& asset, 
     std::vector<uint8_t> data;
     zpp::bits::out       outArchive(data);
 
-    auto materialPasses = asset->GetPasses();
-
-    std::vector<PipelineData>         pipelineDatas;
-    std::vector<std::vector<uint8_t>> passData;
-    std::vector<std::string>          textureKeys;
-    for (auto& pass : materialPasses)
+    std::vector<std::string> textureKeys;
+    textureKeys.reserve(asset->Textures.size());
+    for (auto& texture : asset->Textures)
     {
-        pipelineDatas.emplace_back(pass.PipelineInfo);
-        passData.emplace_back();
-        for (auto& texture : pass.Textures)
-        {
-            textureKeys.emplace_back(AssetManager::GetAssetKey<ITexture>(texture));
-        }
+        textureKeys.emplace_back(AssetManager::GetAssetKey<ITexture>(texture));
     }
-    auto result = outArchive(pipelineDatas, passData, textureKeys);
+
+    auto result = outArchive(textureKeys);
     if (failure(result))
     {
         YG_CORE_ERROR("Failed to serialize material '{0}'!", key);

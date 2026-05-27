@@ -28,8 +28,7 @@ void FrameUploadArena::Shutdown()
 
 void FrameUploadArena::BeginFrame(uint32_t slot)
 {
-    YG_CORE_ASSERT(m_buffer && slot < m_segmentCount,
-                   "FrameUploadArena: BeginFrame called before Init / bad slot");
+    YG_CORE_ASSERT(m_buffer && slot < m_segmentCount, "FrameUploadArena: BeginFrame called before Init / bad slot");
     m_currentSlot = slot;
     m_head        = 0;
 }

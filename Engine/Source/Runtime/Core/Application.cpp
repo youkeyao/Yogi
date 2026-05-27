@@ -2,6 +2,7 @@
 
 #include "Resources/AssetManager/AssetManager.h"
 #include "Resources/ResourceManager/ResourceManager.h"
+#include "Renderer/BindlessTextures.h"
 
 namespace Yogi
 {
@@ -42,6 +43,9 @@ Application::~Application()
 
     AssetManager::Clear();
     ResourceManager::Clear();
+
+    if (BindlessTextures::IsInitialized())
+        BindlessTextures::Shutdown();
 
     m_swapChain = nullptr;
     m_context   = nullptr;

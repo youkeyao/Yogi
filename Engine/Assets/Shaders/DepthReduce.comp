@@ -9,8 +9,10 @@ layout(push_constant) uniform DepthReducePushConstants
 {
     uvec2 imageSize;
 } u_push;
-layout(binding = 0) uniform sampler2D u_SrcMip;
-layout(binding = 1, r32f) uniform writeonly image2D u_DstMip;
+
+layout(binding = 0) uniform sampler        u_samplerMax;
+layout(binding = 1) uniform texture2D      u_srcMip;
+layout(binding = 2, r32f) uniform writeonly image2D u_dstMip;
 
 void main()
 {
@@ -19,7 +21,7 @@ void main()
         return;
 
     vec2  uv    = (vec2(pos) + vec2(0.5)) / vec2(u_push.imageSize);
-    float depth = textureLod(u_SrcMip, uv, 0).r;
+    float depth = textureLod(sampler2D(u_srcMip, u_samplerMax), uv, 0).r;
 
-    imageStore(u_DstMip, ivec2(pos), vec4(depth, 0.0, 0.0, 0.0));
+    imageStore(u_dstMip, ivec2(pos), vec4(depth, 0.0, 0.0, 0.0));
 }

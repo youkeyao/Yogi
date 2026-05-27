@@ -19,7 +19,9 @@ layout(push_constant) uniform ScenePushBlock
     ScenePush pcScene;
 };
 
-layout(location = 0) out vec4 v_Color[];
+layout(location = 0) out vec3      v_NormalShade[];     // smooth, per-vertex
+layout(location = 1) out vec2      v_UV[];              // smooth, per-vertex
+layout(location = 2) out flat uint v_MaterialIndex[];   // flat,   per-instance
 
 vec3 hashToColor(uint id)
 {
@@ -73,8 +75,9 @@ void main()
         vec3 normal   = vec3(v.nx, v.ny, v.nz) / 127.0;
         vec4 clipPos  = sf.ProjectionViewMatrix * vec4(position, 1.0);
         gl_MeshVerticesEXT[i].gl_Position = clipPos;
-        v_Color[i] = vec4(normal * 0.5 + 0.5, 1.0);
-        // v_Color[i] = vec4(hashToColor(mi), 1);
+        v_NormalShade[i]   = normal * 0.5 + 0.5;
+        v_UV[i]            = vec2(v.tx, v.ty);
+        v_MaterialIndex[i] = draw.MaterialIndex;
 #if TRIANGLE_CULL
         s_clipPos[i] = clipPos;
 #endif

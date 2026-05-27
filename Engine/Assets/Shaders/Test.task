@@ -4,6 +4,7 @@
 #extension GL_EXT_shader_16bit_storage: require
 #extension GL_EXT_shader_8bit_storage: require
 #extension GL_EXT_mesh_shader: require
+#extension GL_EXT_nonuniform_qualifier: require
 #extension GL_ARB_shader_draw_parameters: require
 #extension GL_GOOGLE_include_directive: require
 
@@ -20,7 +21,8 @@ layout(push_constant) uniform ScenePushBlock
 };
 
 #ifdef LATE
-layout(binding = 0) uniform sampler2D u_depthPyramid;
+layout(binding = 1) uniform sampler u_samplerMax;
+layout(binding = 2) uniform texture2D u_textures[MAX_TEXTURES];
 #endif
 
 #if TASK_CULL
@@ -89,9 +91,11 @@ void main()
             {
                 float w     = aabb.z - aabb.x;
                 float h     = aabb.w - aabb.y;
-                ivec2 p0    = textureSize(u_depthPyramid, 0);
+                ivec2 p0    = textureSize(sampler2D(u_textures[nonuniformEXT(pcScene.PyramidSlot)], u_samplerMax), 0);
                 float level = ceil(log2(max(w * float(p0.x), h * float(p0.y))));
-                float depth = textureLod(u_depthPyramid, (aabb.xy + aabb.zw) * 0.5, level).r;
+                float depth = textureLod(
+                    sampler2D(u_textures[nonuniformEXT(pcScene.PyramidSlot)], u_samplerMax),
+                    (aabb.xy + aabb.zw) * 0.5, level).r;
 
                 float closestZ    = viewCenter.z - radius;
                 float depthSphere = sf.ZFar * (closestZ - sf.ZNear)

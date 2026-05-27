@@ -102,7 +102,7 @@ std::vector<uint8_t> CompileGlslToSpirv(const std::vector<uint8_t>& glslBinary,
     glslang::TShader shader(shaderStage);
     shader.setEnvInput(glslang::EShSourceGlsl, shaderStage, glslang::EShClientVulkan, 460);
     shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_3);
-    shader.setEnvTarget(glslang::EshTargetSpv, glslang::EShTargetSpv_1_4);
+    shader.setEnvTarget(glslang::EshTargetSpv, glslang::EShTargetSpv_1_5);
     shader.setStrings(shaderStrings, 1);
 
     std::string preamble = MakePreambleFromKey(key);

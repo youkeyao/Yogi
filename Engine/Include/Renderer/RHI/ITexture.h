@@ -41,13 +41,6 @@ public:
         Storage,
     };
 
-    enum class SamplerReductionMode
-    {
-        None,
-        Min,
-        Max,
-    };
-
 public:
     virtual ~ITexture() = default;
 
@@ -62,13 +55,12 @@ public:
 
 struct TextureDesc
 {
-    uint32_t                       Width;
-    uint32_t                       Height;
-    uint32_t                       MipLevels = 1;
-    ITexture::Format               Format;
-    ITexture::Usage                Usage;
-    SampleCountFlagBits            NumSamples = SampleCountFlagBits::Count1;
-    ITexture::SamplerReductionMode Reduction  = ITexture::SamplerReductionMode::None;
+    uint32_t            Width;
+    uint32_t            Height;
+    uint32_t            MipLevels = 1;
+    ITexture::Format    Format;
+    ITexture::Usage     Usage;
+    SampleCountFlagBits NumSamples = SampleCountFlagBits::Count1;
 };
 
 template <>

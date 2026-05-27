@@ -1,4 +1,7 @@
 #include "Renderer/ForwardRenderSystem.h"
+#include "Renderer/Material.h"
+#include "Renderer/MaterialSchema.h"
+#include "Renderer/BindlessTextures.h"
 #include "Resources/AssetManager/AssetManager.h"
 #include "Resources/ResourceManager/ResourceManager.h"
 #include "Core/Application.h"
@@ -28,18 +31,21 @@ ForwardRenderSystem::ForwardRenderSystem()
         BufferDesc{ MAX_VISIBLE_DRAW_INDEX_SIZE, BufferUsage::Storage, BufferAccess::Dynamic });
     m_meshTaskIndirectCountBuffer = ResourceManager::AcquireSharedResource<IBuffer>(BufferDesc{
         MAX_INDIRECT_DRAW_COUNT_SIZE, BufferUsage::Storage | BufferUsage::Indirect, BufferAccess::Dynamic });
-    m_objectVisBuffer            = ResourceManager::AcquireSharedResource<IBuffer>(
+    m_objectVisBuffer             = ResourceManager::AcquireSharedResource<IBuffer>(
         BufferDesc{ MAX_OBJECT_VIS_SIZE, BufferUsage::Storage, BufferAccess::Dynamic });
     // Per-instance per-meshlet visibility -- one uint per (drawIndex, miLocal) slot.
     // Persistent across frames; LATE meshlet task is the sole writer.
     m_meshletVisBuffer = ResourceManager::AcquireSharedResource<IBuffer>(
         BufferDesc{ MAX_MESHLET_VIS_SIZE, BufferUsage::Storage, BufferAccess::Dynamic });
+    // Bindless material data, uploaded fresh each frame from the collect loop.
+    m_materialBuffer = ResourceManager::AcquireSharedResource<IBuffer>(
+        BufferDesc{ MAX_MATERIAL_SIZE, BufferUsage::Storage, BufferAccess::Dynamic });
     // Per-frame static data (SceneFrame) accessed via BDA — sub-allocated each
     // frame from a single arena buffer so frame N's host writes don't race
     // frame N-1's GPU reads.
     {
-        auto           swapChain  = Application::GetInstance().GetSwapChain();
-        const uint32_t imageCount = swapChain->GetImageCount();
+        auto               swapChain    = Application::GetInstance().GetSwapChain();
+        const uint32_t     imageCount   = swapChain->GetImageCount();
         constexpr uint64_t kSegmentSize = 4 * 1024;
         m_frameArena.Init(kSegmentSize, imageCount);
     }
@@ -58,38 +64,28 @@ ForwardRenderSystem::ForwardRenderSystem()
     // is a staging-buffer copy; it does NOT block the render loop.
     {
         std::vector<uint32_t> zeros(MAX_MESHLET_VIS_COUNT, 0u);
-        m_meshletVisBuffer->UpdateData(
-            zeros.data(), static_cast<uint32_t>(MAX_MESHLET_VIS_SIZE), 0);
+        m_meshletVisBuffer->UpdateData(zeros.data(), static_cast<uint32_t>(MAX_MESHLET_VIS_SIZE), 0);
     }
 
-    // Mesh/task SRB: SSBOs live in a SceneFrame buffer accessed via BDA; only the
-    // address + per-batch DrawBase travels through push constants (16 B). The
-    // descriptor at binding=0 is the Hi-Z pyramid sampler used by the LATE task
-    // shader variant for meshlet occlusion. The EARLY variant doesn't reference
-    // it -- a Vulkan layout that's a superset of what the SPIR-V uses is legal,
-    // and lets both pipelines share one IShaderResourceBinding.
-    m_shaderResourceBinding = ResourceManager::AcquireSharedResource<IShaderResourceBinding>(
-        std::vector<ShaderResourceAttribute>{
-            ShaderResourceAttribute{ 0, 1, ShaderResourceType::Texture, ShaderStage::Task | ShaderStage::Mesh } },
-        std::vector<PushConstantRange>{
-            PushConstantRange{ ShaderStage::Task | ShaderStage::Mesh, 0, static_cast<uint32_t>(sizeof(ScenePush)) } });
+    // Mesh/task/frag and cull pipelines share the engine-level BindlessTextures
+    // SRB. Material textures + the pyramid sampled view (used by LATE Hi-Z)
+    // both live in that pool; per-pipeline state flows through push constants
+    // (slot indices, DrawBase, ...). The DepthReduce pipeline below is the
+    // exception -- it owns private storage write targets so it brings its own
+    // SRB chain instead of going through this pool.
+    if (!BindlessTextures::IsInitialized())
+        BindlessTextures::Initialize();
+    IShaderResourceBinding* bindlessSRB = BindlessTextures::Get().GetSRB();
 
-    // Cull SRB: shares the SceneFrame BDA via push constants; only descriptor is
-    // the Hi-Z pyramid sampler at binding=0. Push constant is 32 B.
-    m_cullShaderResourceBinding = ResourceManager::AcquireSharedResource<IShaderResourceBinding>(
-        std::vector<ShaderResourceAttribute>{
-            ShaderResourceAttribute{ 0, 1, ShaderResourceType::Texture, ShaderStage::Compute } },
-        std::vector<PushConstantRange>{
-            PushConstantRange{ ShaderStage::Compute, 0, static_cast<uint32_t>(sizeof(CullPush)) } });
-
-    WRef<ShaderDesc> cullShaderEarly =
-        AssetManager::AcquireAsset<ShaderDesc>("EngineAssets/Shaders/ObjectCull.comp");
+    WRef<ShaderDesc> cullShaderEarly = AssetManager::AcquireAsset<ShaderDesc>("EngineAssets/Shaders/ObjectCull.comp");
     WRef<ShaderDesc> cullShaderLate =
         AssetManager::AcquireAsset<ShaderDesc>("EngineAssets/Shaders/ObjectCull.comp::LATE=1");
 
     PipelineDesc cullPipelineDesc{};
-    cullPipelineDesc.Type                  = PipelineType::Compute;
-    cullPipelineDesc.ShaderResourceBinding = m_cullShaderResourceBinding.Get();
+    cullPipelineDesc.Type               = PipelineType::Compute;
+    cullPipelineDesc.ResourceBinding    = bindlessSRB;
+    cullPipelineDesc.PushConstantRanges = { PushConstantRange{
+        ShaderStage::Compute, 0, static_cast<uint32_t>(sizeof(CullPush)) } };
 
     cullPipelineDesc.Shaders = { cullShaderEarly.Get() };
     m_cullPipelineEarly      = ResourceManager::AcquireSharedResource<IPipeline>(cullPipelineDesc);
@@ -97,16 +93,67 @@ ForwardRenderSystem::ForwardRenderSystem()
     cullPipelineDesc.Shaders = { cullShaderLate.Get() };
     m_cullPipelineLate       = ResourceManager::AcquireSharedResource<IPipeline>(cullPipelineDesc);
 
-    // Depth Pyramid (Hi-Z) compute pipeline.
+    // Meshlet (task + mesh + frag) graphics pipelines.
+    {
+        auto             swapChain       = Application::GetInstance().GetSwapChain();
+        WRef<ShaderDesc> taskShaderEarly = AssetManager::AcquireAsset<ShaderDesc>("EngineAssets/Shaders/Test.task");
+        WRef<ShaderDesc> taskShaderLate =
+            AssetManager::AcquireAsset<ShaderDesc>("EngineAssets/Shaders/Test.task::LATE=1");
+        WRef<ShaderDesc> meshShader     = AssetManager::AcquireAsset<ShaderDesc>("EngineAssets/Shaders/Test.mesh");
+        WRef<ShaderDesc> fragmentShader = AssetManager::AcquireAsset<ShaderDesc>("EngineAssets/Shaders/Test.frag");
+
+        PipelineDesc meshletPipelineDesc{};
+        meshletPipelineDesc.ResourceBinding    = bindlessSRB;
+        meshletPipelineDesc.PushConstantRanges = { PushConstantRange{ ShaderStage::Task | ShaderStage::Mesh |
+                                                                          ShaderStage::Fragment,
+                                                                      0,
+                                                                      static_cast<uint32_t>(sizeof(ScenePush)) } };
+        meshletPipelineDesc.ColorFormats       = { swapChain->GetColorFormat() };
+        meshletPipelineDesc.DepthFormat        = ITexture::Format::D32_FLOAT;
+        meshletPipelineDesc.Samples            = SampleCountFlagBits::Count1;
+        meshletPipelineDesc.Topology           = PrimitiveTopology::TriangleList;
+
+        meshletPipelineDesc.Shaders = { taskShaderEarly.Get(), meshShader.Get(), fragmentShader.Get() };
+        m_meshletEarlyPipeline      = ResourceManager::AcquireSharedResource<IPipeline>(meshletPipelineDesc);
+
+        meshletPipelineDesc.Shaders = { taskShaderLate.Get(), meshShader.Get(), fragmentShader.Get() };
+        m_meshletLatePipeline       = ResourceManager::AcquireSharedResource<IPipeline>(meshletPipelineDesc);
+    }
+
+    // Depth Pyramid (Hi-Z) compute pipeline. NOT bindless: the reduce pass
+    // owns its storage-image write targets and their immediate sampled
+    // sources, so it carries its own SRB layout (one descriptor set instance
+    // per mip is allocated by DepthPyramid). Push-constant ranges only carry
+    // the destination mip extent.
     WRef<IShaderResourceBinding> depthReduceBindingTemplate =
         ResourceManager::AddResource(DepthPyramid::CreateReduceBindingLayout());
     WRef<ShaderDesc> depthReduceShader =
         AssetManager::AcquireAsset<ShaderDesc>("EngineAssets/Shaders/DepthReduce.comp");
     PipelineDesc depthReducePipelineDesc{};
-    depthReducePipelineDesc.Type                  = PipelineType::Compute;
-    depthReducePipelineDesc.Shaders               = { depthReduceShader.Get() };
-    depthReducePipelineDesc.ShaderResourceBinding = depthReduceBindingTemplate.Get();
+    depthReducePipelineDesc.Type               = PipelineType::Compute;
+    depthReducePipelineDesc.Shaders            = { depthReduceShader.Get() };
+    depthReducePipelineDesc.ResourceBinding    = depthReduceBindingTemplate.Get();
+    depthReducePipelineDesc.PushConstantRanges = DepthPyramid::GetReducePushConstantRanges();
     m_depthReducePipeline = ResourceManager::AcquireSharedResource<IPipeline>(depthReducePipelineDesc);
+
+    // Register the engine-wide MaterialSchema. Must mirror struct MaterialData
+    // in ShaderData.h field-by-field. Adding a new PBR field is a 2-step:
+    //   1. add it to MaterialData (ShaderData.h)
+    //   2. add one AddField call below with its default
+    // Materials reference fields by name and inherit the default if unset.
+    {
+        auto& schema = MaterialSchema::Default();
+        schema.AddField("BaseColor",
+                        offsetof(MaterialData, BaseColor),
+                        MaterialSchema::FieldType::Vec4,
+                        Vector4{ 1.0f, 1.0f, 1.0f, 1.0f });
+        // Bindless texture index. Default 0 = the engine's 1x1 white view in
+        // slot 0 of u_textures[]; any Material setting Params["AlbedoTexture"]
+        // = WRef<ITexture>{...} gets the texture registered through
+        // RegisterTexture and packed as the resolved uint slot.
+        schema.AddField("AlbedoTexture", offsetof(MaterialData, AlbedoTexture), MaterialSchema::FieldType::Texture, 0u);
+        schema.Build(static_cast<uint32_t>(sizeof(MaterialData)));
+    }
 }
 
 ForwardRenderSystem::~ForwardRenderSystem()
@@ -122,15 +169,30 @@ ForwardRenderSystem::~ForwardRenderSystem()
     m_meshTaskIndirectCountBuffer = nullptr;
     m_objectVisBuffer             = nullptr;
     m_meshletVisBuffer            = nullptr;
+    m_materialBuffer              = nullptr;
     m_frameArena.Shutdown();
-    m_shaderResourceBinding     = nullptr;
-    m_cullShaderResourceBinding = nullptr;
-    m_cullPipelineEarly         = nullptr;
-    m_cullPipelineLate          = nullptr;
-    m_depthReducePipeline       = nullptr;
+    m_cullPipelineEarly    = nullptr;
+    m_cullPipelineLate     = nullptr;
+    m_meshletEarlyPipeline = nullptr;
+    m_meshletLatePipeline  = nullptr;
+    m_depthReducePipeline  = nullptr;
     m_depthPyramid.Reset();
     m_depthView    = nullptr;
     m_depthTexture = nullptr;
+
+    // Drop cached views. Unregister each from the bindless pool first so the
+    // freed slots return to the LIFO free-list.
+    if (BindlessTextures::IsInitialized())
+    {
+        BindlessTextures& bt = BindlessTextures::Get();
+        for (auto& [tex, view] : m_materialViews)
+        {
+            const uint32_t slot = bt.Find(view.Get());
+            if (slot != BindlessTextures::INVALID_SLOT)
+                bt.Unregister(slot);
+        }
+    }
+    m_materialViews.clear();
 }
 
 void ForwardRenderSystem::OnUpdate(Timestep ts, World& world)
@@ -218,15 +280,15 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
     // niagara-style symmetric frustum: derive (Lx, Lz, Ty, Tz) from the projection
     // matrix's left and top planes (rows 3+0 and 3+1 of the transpose). Right/Bottom
     // are mirrored via abs() in the cull/task shaders.
-    auto    PT      = projectionMatrix.Transpose();
-    Vector4 leftRaw = PT[3] + PT[0];
-    Vector4 topRaw  = PT[3] + PT[1];
-    Vector3 leftN   = Vector3(leftRaw.x, leftRaw.y, leftRaw.z);
-    Vector3 topN    = Vector3(topRaw.x, topRaw.y, topRaw.z);
-    float   leftLen = leftN.Length();
-    float   topLen  = topN.Length();
-    Vector4 left    = leftLen > 0.0f ? leftRaw / leftLen : leftRaw;
-    Vector4 top     = topLen > 0.0f ? topRaw / topLen : topRaw;
+    auto    PT         = projectionMatrix.Transpose();
+    Vector4 leftRaw    = PT[3] + PT[0];
+    Vector4 topRaw     = PT[3] + PT[1];
+    Vector3 leftN      = Vector3(leftRaw.x, leftRaw.y, leftRaw.z);
+    Vector3 topN       = Vector3(topRaw.x, topRaw.y, topRaw.z);
+    float   leftLen    = leftN.Length();
+    float   topLen     = topN.Length();
+    Vector4 left       = leftLen > 0.0f ? leftRaw / leftLen : leftRaw;
+    Vector4 top        = topLen > 0.0f ? topRaw / topLen : topRaw;
     sceneFrame.Frustum = Vector4(left.x, -left.z, top.y, -top.z);
 
     sceneFrame.P00   = projectionMatrix[0][0];
@@ -234,19 +296,58 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
     sceneFrame.ZNear = k_zNear;
     sceneFrame.ZFar  = k_zFar;
 
-    sceneFrame.VertexBuffer            = m_vertexStorageBuffer->GetDeviceAddress();
-    sceneFrame.MeshletBuffer           = m_meshletBuffer->GetDeviceAddress();
-    sceneFrame.MeshletDataBuffer       = m_meshletDataBuffer->GetDeviceAddress();
-    sceneFrame.MeshDataBuffer          = m_meshBuffer->GetDeviceAddress();
-    sceneFrame.MeshDrawBuffer          = m_meshDrawBuffer->GetDeviceAddress();
-    sceneFrame.VisibleDrawIndexBuffer  = m_visibleDrawIndexBuffer->GetDeviceAddress();
-    sceneFrame.IndirectCommandBuffer   = m_meshTaskIndirectBuffer->GetDeviceAddress();
-    sceneFrame.IndirectCountBuffer     = m_meshTaskIndirectCountBuffer->GetDeviceAddress();
-    sceneFrame.ObjectVisBuffer         = m_objectVisBuffer->GetDeviceAddress();
-    sceneFrame.MeshletVisBuffer        = m_meshletVisBuffer->GetDeviceAddress();
+    sceneFrame.VertexBuffer           = m_vertexStorageBuffer->GetDeviceAddress();
+    sceneFrame.MeshletBuffer          = m_meshletBuffer->GetDeviceAddress();
+    sceneFrame.MeshletDataBuffer      = m_meshletDataBuffer->GetDeviceAddress();
+    sceneFrame.MeshDataBuffer         = m_meshBuffer->GetDeviceAddress();
+    sceneFrame.MeshDrawBuffer         = m_meshDrawBuffer->GetDeviceAddress();
+    sceneFrame.VisibleDrawIndexBuffer = m_visibleDrawIndexBuffer->GetDeviceAddress();
+    sceneFrame.IndirectCommandBuffer  = m_meshTaskIndirectBuffer->GetDeviceAddress();
+    sceneFrame.IndirectCountBuffer    = m_meshTaskIndirectCountBuffer->GetDeviceAddress();
+    sceneFrame.ObjectVisBuffer        = m_objectVisBuffer->GetDeviceAddress();
+    sceneFrame.MeshletVisBuffer       = m_meshletVisBuffer->GetDeviceAddress();
+    sceneFrame.MaterialBuffer         = m_materialBuffer->GetDeviceAddress();
 
-    std::vector<RenderBatch>          renderBatches;
-    std::unordered_map<uint64_t, int> renderBatchLookup;
+    std::vector<RenderBatch> renderBatches;
+    renderBatches.emplace_back(); // single batch -- one pipeline pair for everyone
+
+    // Per-frame material upload state (bindless materials). uploadMaterialBytes
+    // holds packed MaterialData blobs (one Stride() bytes per unique Material).
+    // materialIndexMap dedupes Material* references during collect so 10K
+    // instances of one Material yield one entry. Both reset on mid-frame flush.
+    std::vector<uint8_t>                    uploadMaterialBytes;
+    std::unordered_map<Material*, uint32_t> materialIndexMap;
+    auto&                                   matSchema = MaterialSchema::Default();
+    // Texture-typed fields (e.g. AlbedoTexture) come into Pack() as
+    // WRef<ITexture>; this lambda resolves each to its bindless slot via the
+    // engine-level BindlessTextures manager. m_materialViews caches one
+    // ITextureView per ITexture so the slot stays live (BindlessTextures
+    // dedupes by view pointer; the cache makes that effective per Material).
+    MaterialSchema::TextureResolver textureResolver = [this](const WRef<ITexture>& tex) -> uint32_t {
+        if (!tex)
+            return 0u; // default white at slot 0
+        ITexture* key = tex.Get();
+        auto      it  = m_materialViews.find(key);
+        if (it == m_materialViews.end())
+        {
+            auto inserted = m_materialViews.emplace(key, ITextureView::Create(tex));
+            it            = inserted.first;
+        }
+        return BindlessTextures::Get().Register(it->second.Get());
+    };
+    auto getOrAddMaterial = [&](const WRef<Material>& mat) -> uint32_t {
+        Material* ptr = mat.Get();
+        auto      it  = materialIndexMap.find(ptr);
+        if (it != materialIndexMap.end())
+            return it->second;
+        const uint32_t stride = matSchema.Stride();
+        uint32_t       idx    = static_cast<uint32_t>(uploadMaterialBytes.size() / stride);
+        materialIndexMap[ptr] = idx;
+        const size_t oldSize  = uploadMaterialBytes.size();
+        uploadMaterialBytes.resize(oldSize + stride);
+        matSchema.Pack(*ptr, uploadMaterialBytes.data() + oldSize, textureResolver);
+        return idx;
+    };
 
     // collect and batch meshes into meshlets
     world.ViewComponents<TransformComponent, MeshRendererComponent>([&](Entity                 entity,
@@ -259,19 +360,18 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
 
         uint32_t meshVertexCount  = static_cast<uint32_t>(mesh->GetVertices().size());
         uint32_t meshMeshletCount = static_cast<uint32_t>(mesh->GetMeshlets().size());
-        uint32_t passCount        = static_cast<uint32_t>(material->GetPasses().size());
 
-        uint32_t totalMeshDraws = 0;
-        for (const auto& batch : renderBatches)
-        {
-            totalMeshDraws += static_cast<uint32_t>(batch.MeshDraws.size());
-        }
-
-        if (totalMeshDraws + passCount > MAX_MESH_DRAWS)
+        if (renderBatches.back().MeshDraws.size() + 1 > MAX_MESH_DRAWS)
         {
             // Mid-frame flush -- still more draws coming, don't transition to present yet.
-            FlushBatch(commandBuffer, currentTarget, /*transitionToPresent=*/false,
-                       sceneFrame, renderBatches, renderBatchLookup);
+            FlushBatch(commandBuffer,
+                       currentTarget,
+                       /*transitionToPresent=*/false,
+                       sceneFrame,
+                       renderBatches,
+                       uploadMaterialBytes);
+            renderBatches.emplace_back();
+            materialIndexMap.clear();
         }
 
         std::string assetKey = AssetManager::GetAssetKey(mesh);
@@ -287,8 +387,14 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
                 m_cachedMeshletDataSize + meshletDataSize > MAX_MESHLET_DATA_SIZE / sizeof(uint32_t))
             {
                 // Mid-frame flush due to upload cache pressure; not the final pass.
-                FlushBatch(commandBuffer, currentTarget, /*transitionToPresent=*/false,
-                           sceneFrame, renderBatches, renderBatchLookup);
+                FlushBatch(commandBuffer,
+                           currentTarget,
+                           /*transitionToPresent=*/false,
+                           sceneFrame,
+                           renderBatches,
+                           uploadMaterialBytes);
+                renderBatches.emplace_back();
+                materialIndexMap.clear();
                 ResetMeshUploadCache();
             }
 
@@ -339,52 +445,27 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
             m_meshUploadCache.Upsert(meshKey, meshIndex);
         }
 
-        for (auto& materialPass : material->GetPasses())
-        {
-            WRef<IPipeline> pipeline     = materialPass.Pipeline;
-            WRef<IPipeline> latePipeline = materialPass.LatePipeline;
-            if (!pipeline)
-                continue;
-
-            // Hash both pipelines so an EARLY/LATE pair distinct from another
-            // pair (or the absence of a LATE variant) lands in its own batch.
-            uint64_t passKey  = HashArgs(pipeline, latePipeline);
-            auto     lookupIt = renderBatchLookup.find(passKey);
-            if (lookupIt == renderBatchLookup.end())
-            {
-                renderBatchLookup[passKey] = static_cast<int>(renderBatches.size());
-                RenderBatch newBatch{};
-                newBatch.PipelineKey  = passKey;
-                newBatch.Pipeline     = pipeline;
-                newBatch.LatePipeline = latePipeline;
-                renderBatches.push_back(std::move(newBatch));
-                lookupIt = renderBatchLookup.find(passKey);
-            }
-
-            auto& batch = renderBatches[lookupIt->second];
-
-            MeshDraw draw{};
-            draw.Position    = meshTransform.Transform.Position;
-            draw.Scale       = meshTransform.Transform.Scale;
-            draw.Orientation = Vector4(meshTransform.Transform.Rotation.x,
-                                       meshTransform.Transform.Rotation.y,
-                                       meshTransform.Transform.Rotation.z,
-                                       meshTransform.Transform.Rotation.w);
-            draw.MeshIndex   = meshIndex;
-            batch.MeshDraws.push_back(draw);
-        }
+        MeshDraw draw{};
+        draw.Position      = meshTransform.Transform.Position;
+        draw.Scale         = meshTransform.Transform.Scale;
+        draw.Orientation   = Vector4(meshTransform.Transform.Rotation.x,
+                                     meshTransform.Transform.Rotation.y,
+                                     meshTransform.Transform.Rotation.z,
+                                     meshTransform.Transform.Rotation.w);
+        draw.MeshIndex     = meshIndex;
+        draw.MaterialIndex = getOrAddMaterial(material);
+        renderBatches.back().MeshDraws.push_back(draw);
     });
 
-    FlushBatch(commandBuffer, currentTarget, transitionToPresent,
-               sceneFrame, renderBatches, renderBatchLookup);
+    FlushBatch(commandBuffer, currentTarget, transitionToPresent, sceneFrame, renderBatches, uploadMaterialBytes);
 }
 
-void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandBuffer,
-                                     ITextureView*                      colorView,
-                                     bool                               transitionToPresent,
-                                     SceneFrame&                        sceneFrame,
-                                     std::vector<RenderBatch>&          renderBatches,
-                                     std::unordered_map<uint64_t, int>& renderBatchLookup)
+void ForwardRenderSystem::FlushBatch(ICommandBuffer*           commandBuffer,
+                                     ITextureView*             colorView,
+                                     bool                      transitionToPresent,
+                                     SceneFrame&               sceneFrame,
+                                     std::vector<RenderBatch>& renderBatches,
+                                     std::vector<uint8_t>&     uploadMaterialBytes)
 {
     commandBuffer->Wait();
     if (renderBatches.empty())
@@ -398,13 +479,9 @@ void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandB
 
     std::vector<MeshDraw> uploadMeshDraws;
 
-    std::sort(renderBatches.begin(), renderBatches.end(), [](const RenderBatch& a, const RenderBatch& b) {
-        return a.PipelineKey < b.PipelineKey;
-    });
-
     for (auto& batch : renderBatches)
     {
-        if (!batch.Pipeline || batch.MeshDraws.empty())
+        if (batch.MeshDraws.empty())
             continue;
 
         batch.DrawBase            = static_cast<uint32_t>(uploadMeshDraws.size());
@@ -426,9 +503,8 @@ void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandB
         uint32_t cumMeshletCount = 0;
         for (auto& draw : uploadMeshDraws)
         {
-            const uint32_t meshletCount = draw.MeshIndex < m_cachedMeshMeshletCounts.size()
-                ? m_cachedMeshMeshletCounts[draw.MeshIndex]
-                : 0u;
+            const uint32_t meshletCount =
+                draw.MeshIndex < m_cachedMeshMeshletCounts.size() ? m_cachedMeshMeshletCounts[draw.MeshIndex] : 0u;
             draw.MeshletVisOffset = cumMeshletCount;
             cumMeshletCount += meshletCount;
         }
@@ -436,15 +512,34 @@ void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandB
         {
             YG_CORE_ERROR("MeshletVis cap exceeded: needed {0}, cap {1}. Skipping frame to "
                           "avoid out-of-bounds BDA writes from the task shader.",
-                          cumMeshletCount, MAX_MESHLET_VIS_COUNT);
+                          cumMeshletCount,
+                          MAX_MESHLET_VIS_COUNT);
             renderBatches.clear();
-            renderBatchLookup.clear();
+            uploadMaterialBytes.clear();
             return;
         }
     }
 
     m_meshDrawBuffer->UpdateData(
         uploadMeshDraws.data(), static_cast<uint32_t>(uploadMeshDraws.size() * sizeof(MeshDraw)), 0);
+
+    // Bindless materials: uploadMaterialBytes is a packed run of Stride()-byte
+    // MaterialData blobs, one per unique Material referenced this frame. Empty
+    // when no MeshRenderers were drawn. Cap as a hard guard since indices are
+    // unbounded BDA reads on the GPU side.
+    if (!uploadMaterialBytes.empty())
+    {
+        const uint32_t stride        = MaterialSchema::Default().Stride();
+        const size_t   materialCount = stride > 0 ? uploadMaterialBytes.size() / stride : 0;
+        if (materialCount > MAX_MATERIALS)
+        {
+            YG_CORE_ERROR("Material cap exceeded: needed {0}, cap {1}. Skipping frame.", materialCount, MAX_MATERIALS);
+            renderBatches.clear();
+            uploadMaterialBytes.clear();
+            return;
+        }
+        m_materialBuffer->UpdateData(uploadMaterialBytes.data(), static_cast<uint32_t>(uploadMaterialBytes.size()), 0);
+    }
 
     uint32_t totalDrawCount  = static_cast<uint32_t>(uploadMeshDraws.size());
     uint32_t totalBatchCount = static_cast<uint32_t>(renderBatches.size());
@@ -456,16 +551,9 @@ void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandB
 
     commandBuffer->Begin();
 
-    // Resize + (re)bind the pyramid texture for the cull shader and the
-    // mesh/task shader (LATE variant samples it for meshlet Hi-Z).
-    if (m_depthPyramid.Resize(m_depthTexture->GetWidth(), m_depthTexture->GetHeight()))
-    {
-        m_cullShaderResourceBinding->BindTextureView(m_depthPyramid.GetTextureView(), 0, 0);
-        // Same pyramid view also feeds the LATE meshlet task variant. The
-        // EARLY variant's SPIR-V doesn't reference this binding, but Vulkan
-        // permits a layout broader than the SPIR-V uses -- one SRB serves both.
-        m_shaderResourceBinding->BindTextureView(m_depthPyramid.GetTextureView(), 0, 0);
-    }
+    // The depth pyramid is fully bindless: its mip slots auto-(re)register on
+    // every Resize -- nothing to wire up here beyond that.
+    m_depthPyramid.Resize(m_depthTexture->GetWidth(), m_depthTexture->GetHeight());
     const bool pyramidValid = m_depthPyramid.IsValid();
 
     // Zero the per-batch counters for BOTH EARLY (slots [0..B)) and LATE (slots [B..2B)).
@@ -482,15 +570,16 @@ void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandB
 
     // ================ EARLY cull dispatch ================
     commandBuffer->SetPipeline(m_cullPipelineEarly.Get());
-    commandBuffer->SetShaderResourceBinding(m_cullShaderResourceBinding.Get());
+    commandBuffer->SetShaderResourceBinding(BindlessTextures::Get().GetSRB());
 
     CullPush pcCull{};
     pcCull.SceneFrameAddr = sceneFrameAddr;
+    pcCull.PyramidSlot    = 0; // unused by EARLY (no Hi-Z probing)
 
     for (size_t batchIndex = 0; batchIndex < renderBatches.size(); ++batchIndex)
     {
         auto& batch = renderBatches[batchIndex];
-        if (!batch.Pipeline || batch.DrawCount == 0)
+        if (batch.DrawCount == 0)
             continue;
 
         pcCull.DrawBase   = batch.DrawBase;
@@ -498,8 +587,7 @@ void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandB
         pcCull.OutputBase = batch.DrawBase;
         pcCull.CountIndex = static_cast<uint32_t>(batchIndex);
 
-        commandBuffer->SetPushConstants(
-            m_cullShaderResourceBinding.Get(), ShaderStage::Compute, 0, sizeof(CullPush), &pcCull);
+        commandBuffer->SetPushConstants(m_cullPipelineEarly.Get(), ShaderStage::Compute, 0, sizeof(CullPush), &pcCull);
 
         uint32_t dispatchX = (batch.DrawCount + CULL_WORKGROUP_SIZE - 1) / CULL_WORKGROUP_SIZE;
         commandBuffer->Dispatch(dispatchX, 1, 1);
@@ -532,17 +620,17 @@ void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandB
     });
     {
         RenderingDesc rdesc{};
-        rdesc.Width  = targetWidth;
-        rdesc.Height = targetHeight;
+        rdesc.Width   = targetWidth;
+        rdesc.Height  = targetHeight;
         rdesc.Samples = SampleCountFlagBits::Count1;
         RenderingAttachment color{};
-        color.View                   = colorView;
-        color.LoadAction             = LoadOp::Clear;
-        color.StoreAction            = StoreOp::Store;
-        color.ClearVal.Color[0]      = 0.1f;
-        color.ClearVal.Color[1]      = 0.1f;
-        color.ClearVal.Color[2]      = 0.1f;
-        color.ClearVal.Color[3]      = 1.0f;
+        color.View              = colorView;
+        color.LoadAction        = LoadOp::Clear;
+        color.StoreAction       = StoreOp::Store;
+        color.ClearVal.Color[0] = 0.1f;
+        color.ClearVal.Color[1] = 0.1f;
+        color.ClearVal.Color[2] = 0.1f;
+        color.ClearVal.Color[3] = 1.0f;
         rdesc.ColorAttachments.push_back(color);
         rdesc.DepthAttachment.View                          = m_depthView.Get();
         rdesc.DepthAttachment.LoadAction                    = LoadOp::Clear;
@@ -551,25 +639,26 @@ void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandB
         rdesc.DepthAttachment.ClearVal.DepthStencil.Stencil = 0;
         commandBuffer->BeginRendering(rdesc);
     }
-    commandBuffer->SetShaderResourceBinding(m_shaderResourceBinding.Get());
+    commandBuffer->SetPipeline(m_meshletEarlyPipeline.Get());
+    commandBuffer->SetShaderResourceBinding(BindlessTextures::Get().GetSRB());
     commandBuffer->SetViewport({ 0, 0, (float)targetWidth, (float)targetHeight });
     commandBuffer->SetScissor({ 0, 0, targetWidth, targetHeight });
 
     for (size_t batchIndex = 0; batchIndex < renderBatches.size(); ++batchIndex)
     {
         auto& batch = renderBatches[batchIndex];
-        if (!batch.Pipeline || batch.DrawCount == 0)
+        if (batch.DrawCount == 0)
             continue;
-
-        commandBuffer->SetPipeline(batch.Pipeline.Get());
-        commandBuffer->SetShaderResourceBinding(m_shaderResourceBinding.Get());
 
         ScenePush pcScene{};
         pcScene.SceneFrameAddr = sceneFrameAddr;
         pcScene.DrawBase       = batch.DrawBase;
-        pcScene._Pad0          = 0u;
-        commandBuffer->SetPushConstants(
-            m_shaderResourceBinding.Get(), ShaderStage::Task | ShaderStage::Mesh, 0, sizeof(ScenePush), &pcScene);
+        pcScene.PyramidSlot    = 0; // unused by EARLY task
+        commandBuffer->SetPushConstants(m_meshletEarlyPipeline.Get(),
+                                        ShaderStage::Task | ShaderStage::Mesh | ShaderStage::Fragment,
+                                        0,
+                                        sizeof(ScenePush),
+                                        &pcScene);
         commandBuffer->DrawMeshTasksIndirectCount(m_meshTaskIndirectBuffer.Get(),
                                                   batch.IndirectOffsetBytes,
                                                   m_meshTaskIndirectCountBuffer.Get(),
@@ -613,32 +702,43 @@ void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandB
         });
 
         // Pyramid was just written by the reduce dispatches. Both LATE cull
-        // (compute sample) and LATE meshlet task (task sample) read it; flush
-        // those writes for all three shader stages while keeping the GENERAL
-        // image layout (UnorderedAccess on both sides extends the dst stage
-        // mask to compute+task+mesh -- see VulkanUtils::YgResourceState2VkPipelineStage2).
+        // (compute sampler2D read) and LATE meshlet task (task sampler2D read)
+        // read it via SAMPLED, not via storage. UnorderedAccess->UnorderedAccess
+        // alone only flushes STORAGE_READ|STORAGE_WRITE on the dst side, which
+        // does NOT cover SHADER_SAMPLED_READ_BIT -- the consumer reads can race
+        // against still-in-flight storage writes from the last reduce dispatch
+        // -> wrong Hi-Z verdict -> meshlets and objects flicker. OR-ing in
+        // {Compute,Task,Mesh}ShaderResource adds SHADER_READ_BIT to dstAccess
+        // (covers sampled reads); UnorderedAccess in BOTH states keeps the
+        // image layout in GENERAL (the state->layout function picks
+        // UnorderedAccess first), so the next frame's pyramid build can keep
+        // writing via image2D without an extra layout transition.
         commandBuffer->Barrier(BarrierDesc{
             .TextureView = m_depthPyramid.GetTextureView(),
             .BeforeState = ResourceState::UnorderedAccess,
-            .AfterState  = ResourceState::UnorderedAccess,
+            .AfterState  = ResourceState::UnorderedAccess | ResourceState::ComputeShaderResource |
+                ResourceState::TaskShaderResource | ResourceState::MeshShaderResource,
         });
 
         commandBuffer->SetPipeline(m_cullPipelineLate.Get());
-        commandBuffer->SetShaderResourceBinding(m_cullShaderResourceBinding.Get());
+        commandBuffer->SetShaderResourceBinding(BindlessTextures::Get().GetSRB());
+
+        const uint32_t pyramidSlot = m_depthPyramid.GetPyramidSampledSlot();
 
         for (size_t batchIndex = 0; batchIndex < renderBatches.size(); ++batchIndex)
         {
             auto& batch = renderBatches[batchIndex];
-            if (!batch.Pipeline || batch.DrawCount == 0)
+            if (batch.DrawCount == 0)
                 continue;
 
-            pcCull.DrawBase   = batch.DrawBase;
-            pcCull.DrawCount  = batch.DrawCount;
-            pcCull.OutputBase = kLateRegionBase + batch.DrawBase;
-            pcCull.CountIndex = totalBatchCount + static_cast<uint32_t>(batchIndex);
+            pcCull.DrawBase    = batch.DrawBase;
+            pcCull.DrawCount   = batch.DrawCount;
+            pcCull.OutputBase  = kLateRegionBase + batch.DrawBase;
+            pcCull.CountIndex  = totalBatchCount + static_cast<uint32_t>(batchIndex);
+            pcCull.PyramidSlot = pyramidSlot;
 
             commandBuffer->SetPushConstants(
-                m_cullShaderResourceBinding.Get(), ShaderStage::Compute, 0, sizeof(CullPush), &pcCull);
+                m_cullPipelineLate.Get(), ShaderStage::Compute, 0, sizeof(CullPush), &pcCull);
 
             uint32_t dispatchX = (batch.DrawCount + CULL_WORKGROUP_SIZE - 1) / CULL_WORKGROUP_SIZE;
             commandBuffer->Dispatch(dispatchX, 1, 1);
@@ -681,29 +781,26 @@ void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandB
             rdesc.DepthAttachment.StoreAction = StoreOp::Store;
             commandBuffer->BeginRendering(rdesc);
         }
-        commandBuffer->SetShaderResourceBinding(m_shaderResourceBinding.Get());
+        commandBuffer->SetPipeline(m_meshletLatePipeline.Get());
+        commandBuffer->SetShaderResourceBinding(BindlessTextures::Get().GetSRB());
         commandBuffer->SetViewport({ 0, 0, (float)targetWidth, (float)targetHeight });
         commandBuffer->SetScissor({ 0, 0, targetWidth, targetHeight });
 
         for (size_t batchIndex = 0; batchIndex < renderBatches.size(); ++batchIndex)
         {
             auto& batch = renderBatches[batchIndex];
-            if (!batch.Pipeline || batch.DrawCount == 0)
+            if (batch.DrawCount == 0)
                 continue;
-
-            // LATE variant when the material provides one (meshlet pipelines
-            // ship a LATE-only Hi-Z shader); otherwise reuse the EARLY pipeline.
-            const IPipeline* latePipeline =
-                batch.LatePipeline ? batch.LatePipeline.Get() : batch.Pipeline.Get();
-            commandBuffer->SetPipeline(latePipeline);
-            commandBuffer->SetShaderResourceBinding(m_shaderResourceBinding.Get());
 
             ScenePush pcScene{};
             pcScene.SceneFrameAddr = sceneFrameAddr;
             pcScene.DrawBase       = kLateRegionBase + batch.DrawBase;
-            pcScene._Pad0          = 0u;
-            commandBuffer->SetPushConstants(
-                m_shaderResourceBinding.Get(), ShaderStage::Task | ShaderStage::Mesh, 0, sizeof(ScenePush), &pcScene);
+            pcScene.PyramidSlot    = pyramidSlot;
+            commandBuffer->SetPushConstants(m_meshletLatePipeline.Get(),
+                                            ShaderStage::Task | ShaderStage::Mesh | ShaderStage::Fragment,
+                                            0,
+                                            sizeof(ScenePush),
+                                            &pcScene);
 
             const uint32_t lateIndirectOffset =
                 static_cast<uint32_t>(kLateRegionBase + batch.DrawBase) * sizeof(uint32_t) * 3;
@@ -738,7 +835,7 @@ void ForwardRenderSystem::FlushBatch(ICommandBuffer*                    commandB
     commandBuffer->Submit();
 
     renderBatches.clear();
-    renderBatchLookup.clear();
+    uploadMaterialBytes.clear();
 }
 
 void ForwardRenderSystem::EnsureDepthTexture(uint32_t width, uint32_t height)
@@ -753,7 +850,6 @@ void ForwardRenderSystem::EnsureDepthTexture(uint32_t width, uint32_t height)
     desc.Format     = m_depthFormat;
     desc.Usage      = ITexture::Usage::DepthStencil;
     desc.NumSamples = SampleCountFlagBits::Count1;
-    desc.Reduction  = ITexture::SamplerReductionMode::Max;
     m_depthTexture  = ResourceManager::CreateResource<ITexture>(desc);
     m_depthView     = ResourceManager::CreateResource<ITextureView>(m_depthTexture);
 }

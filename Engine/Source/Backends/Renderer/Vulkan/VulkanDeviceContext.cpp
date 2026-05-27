@@ -38,7 +38,7 @@ VulkanDeviceContext::VulkanDeviceContext(const Window* window)
     CreateVkSurface(window);
     PickPhysicalDevice();
     CreateLogicalDevice();
-    CreateCommandPool();
+    CreateCommandPools();
     CreateDescriptorPool();
 }
 
@@ -46,13 +46,31 @@ VulkanDeviceContext::~VulkanDeviceContext()
 {
     vkDeviceWaitIdle(m_device);
 
+    for (VkSampler& s : m_samplers)
+    {
+        if (s != VK_NULL_HANDLE)
+        {
+            vkDestroySampler(m_device, s, nullptr);
+            s = VK_NULL_HANDLE;
+        }
+    }
+
     for (auto& pool : m_descriptorPools)
     {
         vkDestroyDescriptorPool(m_device, pool, nullptr);
     }
     m_descriptorPools.clear();
 
-    vkDestroyCommandPool(m_device, m_commandPool, nullptr);
+    if (m_transferCommandPool != VK_NULL_HANDLE)
+    {
+        vkDestroyCommandPool(m_device, m_transferCommandPool, nullptr);
+        m_transferCommandPool = VK_NULL_HANDLE;
+    }
+    if (m_graphicsCommandPool != VK_NULL_HANDLE)
+    {
+        vkDestroyCommandPool(m_device, m_graphicsCommandPool, nullptr);
+        m_graphicsCommandPool = VK_NULL_HANDLE;
+    }
     vkDestroyDevice(m_device, nullptr);
 
 #ifdef YG_DEBUG
@@ -68,13 +86,21 @@ void VulkanDeviceContext::WaitIdle()
     vkDeviceWaitIdle(m_device);
 }
 
-VkDescriptorSet VulkanDeviceContext::AllocateVkDescriptorSet(VkDescriptorSetLayout layout)
+VkDescriptorSet VulkanDeviceContext::AllocateVkDescriptorSet(VkDescriptorSetLayout layout,
+                                                             uint32_t              variableDescriptorCount)
 {
+    VkDescriptorSetVariableDescriptorCountAllocateInfo countInfo{};
+    countInfo.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO;
+    countInfo.descriptorSetCount = 1;
+    countInfo.pDescriptorCounts  = &variableDescriptorCount;
+
     VkDescriptorSetAllocateInfo allocInfo{};
     allocInfo.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     allocInfo.descriptorPool     = m_descriptorPools.back();
     allocInfo.descriptorSetCount = 1;
     allocInfo.pSetLayouts        = &layout;
+    if (variableDescriptorCount > 0)
+        allocInfo.pNext = &countInfo;
 
     VkDescriptorSet set;
     if (vkAllocateDescriptorSets(m_device, &allocInfo, &set) != VK_SUCCESS)
@@ -86,8 +112,6 @@ VkDescriptorSet VulkanDeviceContext::AllocateVkDescriptorSet(VkDescriptorSetLayo
     }
     return set;
 }
-
-// -------------------------------------------------------------------------------------
 
 void VulkanDeviceContext::CreateVkInstance()
 {
@@ -216,14 +240,20 @@ void VulkanDeviceContext::CreateLogicalDevice()
     vulkan11Features.storageBuffer16BitAccess = VK_TRUE;
     deviceFeatures2.pNext                     = &vulkan11Features;
     VkPhysicalDeviceVulkan12Features vulkan12Features{};
-    vulkan12Features.sType                   = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
-    vulkan12Features.storageBuffer8BitAccess = VK_TRUE;
-    vulkan12Features.shaderFloat16           = VK_TRUE;
-    vulkan12Features.shaderInt8              = VK_TRUE;
-    vulkan12Features.drawIndirectCount       = VK_TRUE;
-    vulkan12Features.samplerFilterMinmax     = VK_TRUE;
-    vulkan12Features.bufferDeviceAddress     = VK_TRUE; // BDA: pointer-based push constants
-    vulkan11Features.pNext                   = &vulkan12Features;
+    vulkan12Features.sType                           = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+    vulkan12Features.storageBuffer8BitAccess         = VK_TRUE;
+    vulkan12Features.shaderFloat16                   = VK_TRUE;
+    vulkan12Features.shaderInt8                      = VK_TRUE;
+    vulkan12Features.drawIndirectCount               = VK_TRUE;
+    vulkan12Features.samplerFilterMinmax             = VK_TRUE;
+    vulkan12Features.bufferDeviceAddress             = VK_TRUE;
+    vulkan12Features.descriptorIndexing              = VK_TRUE;
+    vulkan12Features.runtimeDescriptorArray          = VK_TRUE;
+    vulkan12Features.descriptorBindingPartiallyBound = VK_TRUE;
+    vulkan12Features.descriptorBindingSampledImageUpdateAfterBind = VK_TRUE;
+    vulkan12Features.descriptorBindingVariableDescriptorCount     = VK_TRUE;
+    vulkan12Features.shaderSampledImageArrayNonUniformIndexing    = VK_TRUE;
+    vulkan11Features.pNext                                        = &vulkan12Features;
     VkPhysicalDeviceVulkan13Features vulkan13Features{};
     vulkan13Features.sType            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
     vulkan13Features.dynamicRendering = VK_TRUE;
@@ -263,17 +293,42 @@ void VulkanDeviceContext::CreateLogicalDevice()
     vkGetDeviceQueue(m_device, indices.transferFamily.value(), 0, &m_transferQueue);
 }
 
-void VulkanDeviceContext::CreateCommandPool()
+void VulkanDeviceContext::CreateCommandPools()
 {
     QueueFamilyIndices indices = FindQueueFamilies(m_physicalDevice, m_surface);
 
-    VkCommandPoolCreateInfo poolInfo{};
-    poolInfo.sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    poolInfo.queueFamilyIndex = indices.graphicsFamily.value();
-    poolInfo.flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    auto makePool = [this](uint32_t familyIndex) {
+        VkCommandPoolCreateInfo poolInfo{};
+        poolInfo.sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        poolInfo.queueFamilyIndex = familyIndex;
+        poolInfo.flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 
-    VkResult result = vkCreateCommandPool(m_device, &poolInfo, nullptr, &m_commandPool);
-    YG_CORE_ASSERT(result == VK_SUCCESS, "Vulkan: Failed to create command pool!");
+        VkCommandPool pool   = VK_NULL_HANDLE;
+        VkResult      result = vkCreateCommandPool(m_device, &poolInfo, nullptr, &pool);
+        YG_CORE_ASSERT(result == VK_SUCCESS, "Vulkan: Failed to create command pool!");
+        return pool;
+    };
+
+    m_graphicsCommandPool = makePool(indices.graphicsFamily.value());
+
+    if (indices.transferFamily.value() != indices.graphicsFamily.value())
+    {
+        m_transferCommandPool = makePool(indices.transferFamily.value());
+    }
+}
+
+VkCommandPool VulkanDeviceContext::GetVkCommandPoolForQueue(SubmitQueue queue) const
+{
+    switch (queue)
+    {
+        case SubmitQueue::Graphics:
+            return m_graphicsCommandPool;
+        case SubmitQueue::Transfer:
+            return m_transferCommandPool != VK_NULL_HANDLE ? m_transferCommandPool : m_graphicsCommandPool;
+        case SubmitQueue::Compute:
+            return m_graphicsCommandPool;
+    }
+    return m_graphicsCommandPool;
 }
 
 void VulkanDeviceContext::CreateDescriptorPool()
@@ -282,8 +337,8 @@ void VulkanDeviceContext::CreateDescriptorPool()
     VkDescriptorPoolCreateInfo poolInfo = {};
 
     VkDescriptorPoolSize poolSizes[] = { { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
-                                         { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
-                                         { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+                                         { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4096 },
+                                         { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 4096 },
                                          { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
                                          { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
                                          { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
@@ -293,8 +348,9 @@ void VulkanDeviceContext::CreateDescriptorPool()
                                          { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
                                          { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 } };
 
-    poolInfo.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    poolInfo.flags         = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.flags =
+        VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT | VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
     poolInfo.maxSets       = 1000 * sizeof(poolSizes) / sizeof(VkDescriptorPoolSize);
     poolInfo.poolSizeCount = sizeof(poolSizes) / sizeof(VkDescriptorPoolSize);
     poolInfo.pPoolSizes    = poolSizes;
@@ -303,6 +359,43 @@ void VulkanDeviceContext::CreateDescriptorPool()
     YG_CORE_ASSERT(result == VK_SUCCESS, "Vulkan: Failed to create descriptor pool!");
 
     m_descriptorPools.push_back(descriptorPool);
+}
+
+VkSampler VulkanDeviceContext::GetSampler(SamplerReductionMode mode)
+{
+    const size_t slot = static_cast<size_t>(mode);
+    YG_CORE_ASSERT(slot < m_samplers.size(), "Vulkan: SamplerReductionMode out of range");
+    if (m_samplers[slot] != VK_NULL_HANDLE)
+        return m_samplers[slot];
+
+    VkSamplerCreateInfo samplerInfo{};
+    samplerInfo.sType            = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerInfo.magFilter        = VK_FILTER_LINEAR;
+    samplerInfo.minFilter        = VK_FILTER_LINEAR;
+    samplerInfo.mipmapMode       = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    samplerInfo.addressModeU     = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.addressModeV     = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.addressModeW     = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.anisotropyEnable = VK_FALSE;
+    samplerInfo.maxAnisotropy    = 1.0f;
+    samplerInfo.compareEnable    = VK_FALSE;
+    samplerInfo.compareOp        = VK_COMPARE_OP_ALWAYS;
+    samplerInfo.minLod           = 0.0f;
+    samplerInfo.maxLod           = VK_LOD_CLAMP_NONE;
+    samplerInfo.borderColor      = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+
+    VkSamplerReductionModeCreateInfo reductionInfo{};
+    if (mode != SamplerReductionMode::None)
+    {
+        reductionInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO;
+        reductionInfo.reductionMode =
+            (mode == SamplerReductionMode::Max) ? VK_SAMPLER_REDUCTION_MODE_MAX : VK_SAMPLER_REDUCTION_MODE_MIN;
+        samplerInfo.pNext = &reductionInfo;
+    }
+
+    VkResult result = vkCreateSampler(m_device, &samplerInfo, nullptr, &m_samplers[slot]);
+    YG_CORE_ASSERT(result == VK_SUCCESS, "Vulkan: Failed to create sampler!");
+    return m_samplers[slot];
 }
 
 } // namespace Yogi

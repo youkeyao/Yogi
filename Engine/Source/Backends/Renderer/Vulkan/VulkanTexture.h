@@ -19,8 +19,7 @@ public:
     inline ITexture::Format GetFormat() const override { return m_format; }
     inline ITexture::Usage  GetUsage() const override { return m_usage; }
 
-    inline VkImage   GetVkImage() const { return m_image; }
-    inline VkSampler GetVkSampler() const { return m_sampler; }
+    inline VkImage GetVkImage() const { return m_image; }
 
     VkImageLayout GetCurrentLayout() const { return m_currentLayout; }
     void          SetCurrentLayout(VkImageLayout layout) const { m_currentLayout = layout; }
@@ -34,16 +33,10 @@ private:
                        VkImageUsageFlags     usage,
                        VkMemoryPropertyFlags properties);
 
-    void CreateVkSampler(VkFilter                       magFilter,
-                         VkFilter                       minFilter,
-                         VkSamplerAddressMode           addressMode,
-                         ITexture::SamplerReductionMode reduction);
-
 private:
     bool           m_ownsImage   = true;
     VkImage        m_image       = VK_NULL_HANDLE;
     VkDeviceMemory m_imageMemory = VK_NULL_HANDLE;
-    VkSampler      m_sampler     = VK_NULL_HANDLE;
 
     mutable VkImageLayout m_currentLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 

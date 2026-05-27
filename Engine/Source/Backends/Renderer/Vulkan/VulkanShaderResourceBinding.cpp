@@ -1,6 +1,5 @@
 #include "VulkanShaderResourceBinding.h"
 #include "VulkanBuffer.h"
-#include "VulkanTexture.h"
 #include "VulkanTextureView.h"
 #include "VulkanUtils.h"
 
@@ -11,22 +10,40 @@ namespace Yogi
 
 Owner<IShaderResourceBinding> IShaderResourceBinding::Create(
     const std::vector<ShaderResourceAttribute>& shaderResourceLayout,
-    const std::vector<PushConstantRange>&       pushConstantRanges)
+    const std::vector<ImmutableSamplerDesc>&    immutableSamplers)
 {
-    return Owner<VulkanShaderResourceBinding>::Create(shaderResourceLayout, pushConstantRanges);
+    return Owner<VulkanShaderResourceBinding>::Create(shaderResourceLayout, immutableSamplers);
 }
 
 VulkanShaderResourceBinding::VulkanShaderResourceBinding(
     const std::vector<ShaderResourceAttribute>& shaderResourceLayout,
-    const std::vector<PushConstantRange>&       pushConstantRanges)
+    const std::vector<ImmutableSamplerDesc>&    immutableSamplers)
 {
-    m_layout             = shaderResourceLayout;
-    m_pushConstantRanges = pushConstantRanges;
+    m_layout            = shaderResourceLayout;
+    m_immutableSamplers = immutableSamplers;
 
     VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
     VkDevice             device  = context->GetVkDevice();
 
+    std::unordered_map<int, SamplerReductionMode> reductionByBinding;
+    for (const auto& s : immutableSamplers)
+        reductionByBinding[s.Binding] = s.Reduction;
+
+    std::vector<std::vector<VkSampler>> immutableSamplerArrays(shaderResourceLayout.size());
+    for (size_t i = 0; i < shaderResourceLayout.size(); ++i)
+    {
+        const auto& attr = shaderResourceLayout[i];
+        if (attr.Type == ShaderResourceType::Sampler)
+        {
+            auto                       it = reductionByBinding.find(attr.Binding);
+            const SamplerReductionMode mode =
+                (it != reductionByBinding.end()) ? it->second : SamplerReductionMode::None;
+            immutableSamplerArrays[i].assign(static_cast<size_t>(attr.Count), context->GetSampler(mode));
+        }
+    }
+
     std::vector<VkDescriptorSetLayoutBinding> bindings(shaderResourceLayout.size());
+    std::vector<VkDescriptorBindingFlags>     bindingFlags(shaderResourceLayout.size(), 0);
     for (int i = 0; i < shaderResourceLayout.size(); ++i)
     {
         const auto& attr    = shaderResourceLayout[i];
@@ -36,11 +53,14 @@ VulkanShaderResourceBinding::VulkanShaderResourceBinding(
             case ShaderResourceType::StorageBuffer:
                 bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
                 break;
-            case ShaderResourceType::Texture:
-                bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-                break;
-            case ShaderResourceType::StorageImage:
+            case ShaderResourceType::StorageTexture:
                 bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                break;
+            case ShaderResourceType::SampledTexture:
+                bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+                break;
+            case ShaderResourceType::Sampler:
+                bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
                 break;
             default:
                 YG_CORE_ERROR("Vulkan: Unsupported shader resource type!");
@@ -48,39 +68,40 @@ VulkanShaderResourceBinding::VulkanShaderResourceBinding(
         }
         bindings[i].descriptorCount    = attr.Count;
         bindings[i].stageFlags         = YgShaderStage2VkShaderStage(attr.Stage);
-        bindings[i].pImmutableSamplers = nullptr;
+        bindings[i].pImmutableSamplers = immutableSamplerArrays[i].empty() ? nullptr : immutableSamplerArrays[i].data();
+
+        bindingFlags[i] = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT;
+        if (attr.Type != ShaderResourceType::Sampler)
+            bindingFlags[i] |= VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
     }
+
+    uint32_t variableDescriptorCount = 0;
+    if (!shaderResourceLayout.empty())
+    {
+        const auto& lastAttr = shaderResourceLayout.back();
+        if (lastAttr.Count > 1)
+        {
+            bindingFlags.back() |= VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT;
+            variableDescriptorCount = static_cast<uint32_t>(lastAttr.Count);
+        }
+    }
+
+    VkDescriptorSetLayoutBindingFlagsCreateInfo flagsInfo{};
+    flagsInfo.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
+    flagsInfo.bindingCount  = static_cast<uint32_t>(bindingFlags.size());
+    flagsInfo.pBindingFlags = bindingFlags.data();
 
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
     layoutInfo.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
     layoutInfo.pBindings    = bindings.data();
+    layoutInfo.flags        = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;
+    layoutInfo.pNext        = &flagsInfo;
 
     VkResult result = vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &m_descriptorSetLayout);
     YG_CORE_ASSERT(result == VK_SUCCESS, "Vulkan: Failed to create descriptor set layout!");
 
-    m_descriptorSet = context->AllocateVkDescriptorSet(m_descriptorSetLayout);
-
-    std::vector<VkPushConstantRange> vkPushConstantRanges;
-    vkPushConstantRanges.reserve(m_pushConstantRanges.size());
-    for (const auto& range : m_pushConstantRanges)
-    {
-        VkPushConstantRange vkRange{};
-        vkRange.stageFlags = YgShaderStage2VkShaderStage(range.Stage);
-        vkRange.offset     = range.Offset;
-        vkRange.size       = range.Size;
-        vkPushConstantRanges.push_back(vkRange);
-    }
-
-    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-    pipelineLayoutInfo.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount         = 1;
-    pipelineLayoutInfo.pSetLayouts            = &m_descriptorSetLayout;
-    pipelineLayoutInfo.pushConstantRangeCount = static_cast<uint32_t>(vkPushConstantRanges.size());
-    pipelineLayoutInfo.pPushConstantRanges    = vkPushConstantRanges.empty() ? nullptr : vkPushConstantRanges.data();
-
-    result = vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &m_pipelineLayout);
-    YG_CORE_ASSERT(result == VK_SUCCESS, "Vulkan: Failed to create pipeline layout");
+    m_descriptorSet = context->AllocateVkDescriptorSet(m_descriptorSetLayout, variableDescriptorCount);
 }
 
 VulkanShaderResourceBinding::~VulkanShaderResourceBinding()
@@ -89,8 +110,6 @@ VulkanShaderResourceBinding::~VulkanShaderResourceBinding()
     VkDevice             device  = context->GetVkDevice();
     if (m_descriptorSetLayout != VK_NULL_HANDLE)
         vkDestroyDescriptorSetLayout(device, m_descriptorSetLayout, nullptr);
-    if (m_pipelineLayout != VK_NULL_HANDLE)
-        vkDestroyPipelineLayout(device, m_pipelineLayout, nullptr);
 }
 
 void VulkanShaderResourceBinding::BindBuffer(const IBuffer* buffer, int binding, int slot)
@@ -153,7 +172,6 @@ void VulkanShaderResourceBinding::BindTextureView(const ITextureView* view, int 
     YG_CORE_ASSERT(tex, "Vulkan: BindTextureView called with view whose source texture has been destroyed");
 
     const VulkanTextureView* vkView = static_cast<const VulkanTextureView*>(view);
-    const VulkanTexture*     vkTex  = static_cast<const VulkanTexture*>(tex);
 
     VkDescriptorImageInfo imageInfo{};
     imageInfo.imageView = vkView->GetVkImageView();
@@ -161,17 +179,17 @@ void VulkanShaderResourceBinding::BindTextureView(const ITextureView* view, int 
     VkDescriptorType descriptorType = VK_DESCRIPTOR_TYPE_MAX_ENUM;
     switch (bindingAttr->Type)
     {
-        case ShaderResourceType::Texture:
-            descriptorType    = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            imageInfo.sampler = vkTex->GetVkSampler();
-            if (tex->GetUsage() == ITexture::Usage::Storage)
-                imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-            else if (tex->GetUsage() == ITexture::Usage::DepthStencil)
+        case ShaderResourceType::SampledTexture:
+            descriptorType    = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+            imageInfo.sampler = VK_NULL_HANDLE;
+            if (tex->GetUsage() == ITexture::Usage::DepthStencil)
                 imageInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+            else if (tex->GetUsage() == ITexture::Usage::Storage)
+                imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
             else
                 imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
             break;
-        case ShaderResourceType::StorageImage:
+        case ShaderResourceType::StorageTexture:
             descriptorType        = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
             imageInfo.sampler     = VK_NULL_HANDLE;
             imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;

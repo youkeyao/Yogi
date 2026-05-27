@@ -25,9 +25,6 @@ public:
 private:
     struct RenderBatch
     {
-        uint64_t              PipelineKey = 0;
-        WRef<IPipeline>       Pipeline;          // EARLY render (or sole pipeline if LatePipeline is null)
-        WRef<IPipeline>       LatePipeline;      // optional; LATE render swaps to this when non-null
         std::vector<MeshDraw> MeshDraws;
         uint32_t              DrawBase            = 0;
         uint32_t              DrawCount           = 0;
@@ -37,12 +34,12 @@ private:
     bool OnWindowResize(WindowResizeEvent& e, World& world);
     void ResetMeshUploadCache();
     void EnsureDepthTexture(uint32_t width, uint32_t height);
-    void FlushBatch(ICommandBuffer*                    commandBuffer,
-                    ITextureView*                      colorView,
-                    bool                               transitionToPresent,
-                    SceneFrame&                        sceneFrame,
-                    std::vector<RenderBatch>&          renderBatches,
-                    std::unordered_map<uint64_t, int>& renderBatchLookup);
+    void FlushBatch(ICommandBuffer*           commandBuffer,
+                    ITextureView*             colorView,
+                    bool                      transitionToPresent,
+                    SceneFrame&               sceneFrame,
+                    std::vector<RenderBatch>& renderBatches,
+                    std::vector<uint8_t>&     uploadMaterialBytes);
 
 private:
     static const uint64_t MAX_TRIANGLES     = 10000000;
@@ -79,6 +76,19 @@ private:
     // Persistent across frames.
     static const uint64_t MAX_MESHLET_VIS_COUNT = 32ull * 1024ull * 1024ull;
     static const uint64_t MAX_MESHLET_VIS_SIZE  = MAX_MESHLET_VIS_COUNT * sizeof(uint32_t);
+    // Per-frame uploaded MaterialData -- one slot per unique Material referenced
+    // this frame. Cap is generous (64K materials per flush); a real scene with
+    // 10K instances of 1 Material uses 1 slot.
+    static const uint64_t MAX_MATERIALS     = 65536;
+    static const uint64_t MAX_MATERIAL_SIZE = MAX_MATERIALS * sizeof(MaterialData);
+
+    // Niagara-style mostly-bindless rendering. Cull / mesh / frag pipelines
+    // declare a single descriptor set (the engine's BindlessTextures SRB) for
+    // sampled textures + immutable samplers; per-pipeline state flows through
+    // push constants and BDA-addressed buffers. The DepthReduce pipeline is
+    // the one exception -- it owns private storage-image write targets and
+    // their immediate sampled sources, so it brings its own SRB chain (one
+    // per mip) instead of going through BindlessTextures.
 
     WRef<IBuffer> m_vertexStorageBuffer         = nullptr;
     WRef<IBuffer> m_meshletBuffer               = nullptr;
@@ -99,6 +109,10 @@ private:
     // Object LATE cull dispatches all currently-visible objects (not just newly-visible
     // ones), so even stable-visible objects' meshlet vis gets refreshed every frame.
     WRef<IBuffer> m_meshletVisBuffer = nullptr;
+    // Bindless material data. Uploaded each frame from RenderCamera's collect
+    // loop -- per-Material (not per-instance), so 10K instances of one Material
+    // produce one entry. MeshDraw.MaterialIndex is the index into this buffer.
+    WRef<IBuffer> m_materialBuffer = nullptr;
     // Per-frame static data (matrices + buffer pointers) for both the mesh/task
     // and cull shaders. Push constants only carry the BDA returned by the arena
     // plus per-batch state. The arena is a single host-visible buffer carved into
@@ -118,17 +132,19 @@ private:
     // GPU-side MeshDataBuffer. Reset alongside the upload cache when it spills.
     std::vector<uint32_t> m_cachedMeshMeshletCounts;
 
-    WRef<IShaderResourceBinding> m_shaderResourceBinding     = nullptr;
-    WRef<IShaderResourceBinding> m_cullShaderResourceBinding = nullptr;
     // Two compile-time variants of ObjectCull.comp:
     //   EARLY -- prev_obj_vis==1 gate, no Hi-Z, no vis writes.
     //   LATE  -- full cone+frustum+Hi-Z, writes vis for next frame's EARLY.
-    // Same SRB layout (sampler at binding 0) for both; EARLY's SPIR-V doesn't
-    // reference the sampler -- Vulkan permits a layout broader than SPIR-V uses.
-    WRef<IPipeline>              m_cullPipelineEarly         = nullptr;
-    WRef<IPipeline>              m_cullPipelineLate          = nullptr;
-    WRef<IPipeline>              m_depthReducePipeline       = nullptr;
-    DepthPyramid                 m_depthPyramid;
+    WRef<IPipeline> m_cullPipelineEarly = nullptr;
+    WRef<IPipeline> m_cullPipelineLate  = nullptr;
+    // Meshlet (task + mesh + frag) graphics pipelines. Single pair shared by
+    // every MeshRenderer -- Material is pure data and doesn't carry pipelines.
+    // EARLY / LATE are compiled twice off the same Test.task source via the
+    // "::LATE=1" key suffix; LATE adds Hi-Z occlusion + meshlet vis updates.
+    WRef<IPipeline> m_meshletEarlyPipeline = nullptr;
+    WRef<IPipeline> m_meshletLatePipeline  = nullptr;
+    WRef<IPipeline> m_depthReducePipeline  = nullptr;
+    DepthPyramid    m_depthPyramid;
 
     // Scene znear/zfar match MathUtils::Perspective(..., 0.1f, 100.0f) in RenderCamera().
     static constexpr float k_zNear = 0.1f;
@@ -137,6 +153,14 @@ private:
     WRef<ITexture>     m_depthTexture = nullptr;
     WRef<ITextureView> m_depthView    = nullptr;
     ITexture::Format   m_depthFormat  = ITexture::Format::D32_FLOAT;
+
+    // Cache of sampled views keyed by ITexture* -- one view per unique
+    // texture referenced by any live Material. Each view auto-registers a
+    // bindless slot in its ctor; we hold the Owner here so the slot stays
+    // live across frames (Materials that re-reference the same texture
+    // tomorrow don't pay the re-registration cost). Cleared on shutdown
+    // along with everything else.
+    std::unordered_map<ITexture*, Owner<ITextureView>> m_materialViews;
 };
 
 } // namespace Yogi

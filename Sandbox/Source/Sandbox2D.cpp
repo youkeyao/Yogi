@@ -27,61 +27,6 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
 
     Yogi::AssetManager::PushAssetSource<Yogi::FileSystemSource>(".");
 
-    auto swapChain = Yogi::Application::GetInstance().GetSwapChain();
-
-    // SRB layout MUST match ForwardRenderSystem::m_shaderResourceBinding so the
-    // pipeline's descriptor set layout is compatible with the SRB bound at draw
-    // time. Sampler at binding=0 is the Hi-Z pyramid used by the LATE task
-    // variant; EARLY variant doesn't reference it but Vulkan permits a layout
-    // broader than the SPIR-V uses.
-    //
-    // AcquireSharedResource (not CreateResource) so the engine system that runs
-    // later (ForwardRenderSystem) hits the cache with identical args and gets
-    // the same instance back. Two distinct-but-"compatible" SRB instances
-    // produced silent sampler-not-bound failures on some drivers.
-    auto shaderResourceBinding = Yogi::ResourceManager::AcquireSharedResource<Yogi::IShaderResourceBinding>(
-        std::vector<Yogi::ShaderResourceAttribute>{ Yogi::ShaderResourceAttribute{
-            0, 1, Yogi::ShaderResourceType::Texture, Yogi::ShaderStage::Task | Yogi::ShaderStage::Mesh } },
-        std::vector<Yogi::PushConstantRange>{ Yogi::PushConstantRange{
-            Yogi::ShaderStage::Task | Yogi::ShaderStage::Mesh, 0, static_cast<uint32_t>(sizeof(ScenePush)) } });
-
-    // Yogi::WRef<Yogi::ShaderDesc> vertexShader =
-    //     Yogi::AssetManager::AcquireAsset<Yogi::ShaderDesc>("EngineAssets/Shaders/Test.vert");
-    Yogi::WRef<Yogi::ShaderDesc> fragmentShader =
-        Yogi::AssetManager::AcquireAsset<Yogi::ShaderDesc>("EngineAssets/Shaders/Test.frag");
-    // Two compile-time variants of the meshlet task shader, niagara-style:
-    //   EARLY  (no LATE define) -- emits prev_meshlet_vis==1 meshlets after cone+frustum.
-    //   LATE   (LATE=1)         -- emits prev_meshlet_vis==0 meshlets after cone+frustum+Hi-Z;
-    //                             writes the canonical per-meshlet visibility for next frame.
-    // The "::LATE=1" key suffix is parsed by ShaderSerializer into a glslang
-    // preamble; FileSystemSource strips the suffix before file open so both
-    // variants share Test.task on disk and dedupe correctly in the asset cache.
-    Yogi::WRef<Yogi::ShaderDesc> taskShaderEarly =
-        Yogi::AssetManager::AcquireAsset<Yogi::ShaderDesc>("EngineAssets/Shaders/Test.task");
-    Yogi::WRef<Yogi::ShaderDesc> taskShaderLate =
-        Yogi::AssetManager::AcquireAsset<Yogi::ShaderDesc>("EngineAssets/Shaders/Test.task::LATE=1");
-    Yogi::WRef<Yogi::ShaderDesc> meshShader =
-        Yogi::AssetManager::AcquireAsset<Yogi::ShaderDesc>("EngineAssets/Shaders/Test.mesh");
-    std::vector<const Yogi::ShaderDesc*> earlyShaders = {
-        taskShaderEarly.Get(), meshShader.Get(), fragmentShader.Get() };
-    std::vector<const Yogi::ShaderDesc*> lateShaders = {
-        taskShaderLate.Get(), meshShader.Get(), fragmentShader.Get() };
-
-    // dynamic rendering: pipeline carries attachment formats directly. Must match
-    // ForwardRenderSystem's swapchain color format + D32_FLOAT depth.
-    Yogi::PipelineDesc earlyPipelineDesc{};
-    earlyPipelineDesc.Shaders               = earlyShaders;
-    earlyPipelineDesc.ShaderResourceBinding = shaderResourceBinding.Get();
-    earlyPipelineDesc.ColorFormats          = { swapChain->GetColorFormat() };
-    earlyPipelineDesc.DepthFormat           = Yogi::ITexture::Format::D32_FLOAT;
-    earlyPipelineDesc.Samples               = Yogi::SampleCountFlagBits::Count1;
-    earlyPipelineDesc.Topology              = Yogi::PrimitiveTopology::TriangleList;
-    auto earlyPipeline = Yogi::ResourceManager::AcquireSharedResource<Yogi::IPipeline>(earlyPipelineDesc);
-
-    Yogi::PipelineDesc latePipelineDesc            = earlyPipelineDesc;
-    latePipelineDesc.Shaders                       = lateShaders;
-    auto latePipeline = Yogi::ResourceManager::AcquireSharedResource<Yogi::IPipeline>(latePipelineDesc);
-
     m_world = Yogi::Owner<Yogi::World>::Create();
     m_world->AddSystem<Yogi::ForwardRenderSystem>();
 
@@ -91,8 +36,34 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
         Yogi::AssetManager::AcquireAsset<Yogi::Mesh>("EngineAssets/Meshes/Bunny.obj::defaultobject")
     };
 
-    Yogi::WRef<Yogi::Material> material = Yogi::ResourceManager::CreateResource<Yogi::Material>();
-    material->AddPass(Yogi::Material::MaterialPass{ {}, earlyPipeline, latePipeline, {} });
+    // [DEBUG isolation #3] frag-side BDA + sampler chain confirmed clean
+    // (single-material + full Test.frag rendered stably). Re-enable multi-
+    // material so we can see if the flicker comes back -- if yes, the bug
+    // is exclusive to the multi-material path: 4 MaterialData uploads,
+    // RegisterTexture-driven slot allocation in u_textures[], non-zero
+    // v_MaterialIndex values, or some interaction between them.
+    Yogi::WRef<Yogi::ITexture> texCheckerboard =
+        Yogi::AssetManager::AcquireAsset<Yogi::ITexture>("EngineAssets/Textures/Checkerboard.png");
+    Yogi::WRef<Yogi::ITexture> texChernoLogo =
+        Yogi::AssetManager::AcquireAsset<Yogi::ITexture>("EngineAssets/Textures/ChernoLogo.png");
+    Yogi::WRef<Yogi::ITexture> texSkybox =
+        Yogi::AssetManager::AcquireAsset<Yogi::ITexture>("EngineAssets/Textures/Skybox.png");
+
+    auto makeTexturedMaterial = [](const Yogi::WRef<Yogi::ITexture>& tex, const Yogi::Vector4& tint) {
+        auto m                     = Yogi::ResourceManager::CreateResource<Yogi::Material>();
+        m->Params["AlbedoTexture"] = tex;
+        m->Params["BaseColor"]     = tint;
+        return m;
+    };
+
+    std::vector<Yogi::WRef<Yogi::Material>> materials = {
+        // Plain white -- exercises slot 0 (default 1x1 white) since AlbedoTexture
+        // is unset; useful as a control group to confirm "no texture" still works.
+        Yogi::ResourceManager::CreateResource<Yogi::Material>(),
+        makeTexturedMaterial(texCheckerboard, Yogi::Vector4{ 1.0f, 1.0f, 1.0f, 1.0f }),
+        makeTexturedMaterial(texChernoLogo, Yogi::Vector4{ 1.0f, 1.0f, 1.0f, 1.0f }),
+        makeTexturedMaterial(texSkybox, Yogi::Vector4{ 1.0f, 1.0f, 1.0f, 1.0f }),
+    };
 
     srand(41);
     for (int i = 0; i < 10000; i++)
@@ -118,7 +89,11 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
         entityTransform.Scale = { x_scale, y_scale, z_scale };
         auto& meshRenderer    = m_box.AddComponent<Yogi::MeshRendererComponent>();
         meshRenderer.Mesh     = meshes[rand() % meshes.size()];
-        meshRenderer.Material = material;
+        // 4 unique Material*'s -> getOrAddMaterial dedupes them into 4
+        // MaterialData uploads per frame; 3 unique ITextures register into
+        // slots 1..3 of u_textures[] via FRS::RegisterTexture; the 10000
+        // instances cost zero extra material work.
+        meshRenderer.Material = materials[rand() % materials.size()];
     }
 
     m_box                        = m_world->CreateEntity();

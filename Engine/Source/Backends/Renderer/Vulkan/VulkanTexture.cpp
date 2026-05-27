@@ -31,8 +31,6 @@ VulkanTexture::VulkanTexture(const TextureDesc& desc) :
                       (desc.Usage == ITexture::Usage::RenderTarget ? VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT : 0) |
                       (desc.Usage == ITexture::Usage::DepthStencil ? VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT : 0),
                   VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-    CreateVkSampler(VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, desc.Reduction);
 }
 
 VulkanTexture::VulkanTexture(uint32_t         width,
@@ -41,7 +39,6 @@ VulkanTexture::VulkanTexture(uint32_t         width,
                              ITexture::Usage  usage,
                              VkImage          image) :
     m_image(image),
-    m_sampler(VK_NULL_HANDLE),
     m_ownsImage(false),
     m_width(width),
     m_height(height),
@@ -56,10 +53,6 @@ VulkanTexture::~VulkanTexture()
     VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
     VkDevice             device  = context->GetVkDevice();
 
-    if (m_sampler != VK_NULL_HANDLE)
-    {
-        vkDestroySampler(device, m_sampler, nullptr);
-    }
     if (m_ownsImage && m_image != VK_NULL_HANDLE)
     {
         vkDestroyImage(device, m_image, nullptr);
@@ -97,7 +90,19 @@ void VulkanTexture::CreateVkImage(uint32_t              width,
     imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     imageInfo.usage         = usage;
     imageInfo.samples       = numSamples;
-    imageInfo.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
+
+    QueueFamilyIndices indices           = FindQueueFamilies(physicalDevice, context->GetVkSurface());
+    uint32_t           sharedFamilies[2] = { indices.graphicsFamily.value(), indices.transferFamily.value() };
+    if (indices.graphicsFamily.value() != indices.transferFamily.value())
+    {
+        imageInfo.sharingMode           = VK_SHARING_MODE_CONCURRENT;
+        imageInfo.queueFamilyIndexCount = 2;
+        imageInfo.pQueueFamilyIndices   = sharedFamilies;
+    }
+    else
+    {
+        imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    }
 
     VkResult result = vkCreateImage(device, &imageInfo, nullptr, &m_image);
     YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to create image!");
@@ -114,46 +119,6 @@ void VulkanTexture::CreateVkImage(uint32_t              width,
     YG_CORE_ASSERT(result == VK_SUCCESS, "Failed to allocate image memory!");
 
     vkBindImageMemory(device, m_image, m_imageMemory, 0);
-}
-
-void VulkanTexture::CreateVkSampler(VkFilter                       magFilter,
-                                    VkFilter                       minFilter,
-                                    VkSamplerAddressMode           addressMode,
-                                    ITexture::SamplerReductionMode reduction)
-{
-    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
-    VkDevice             device  = context->GetVkDevice();
-
-    VkSamplerCreateInfo samplerInfo{};
-    samplerInfo.sType                   = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    samplerInfo.magFilter               = magFilter;
-    samplerInfo.minFilter               = minFilter;
-    samplerInfo.addressModeU            = addressMode;
-    samplerInfo.addressModeV            = addressMode;
-    samplerInfo.addressModeW            = addressMode;
-    samplerInfo.anisotropyEnable        = VK_FALSE;
-    samplerInfo.maxAnisotropy           = 1.0f;
-    samplerInfo.borderColor             = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-    samplerInfo.unnormalizedCoordinates = VK_FALSE;
-    samplerInfo.compareEnable           = VK_FALSE;
-    samplerInfo.compareOp               = VK_COMPARE_OP_ALWAYS;
-    samplerInfo.mipmapMode              = VK_SAMPLER_MIPMAP_MODE_NEAREST;
-    samplerInfo.mipLodBias              = 0.0f;
-    samplerInfo.minLod                  = 0.0f;
-    samplerInfo.maxLod                  = static_cast<float>(m_mipLevels - 1);
-
-    VkSamplerReductionModeCreateInfo reductionInfo{};
-    if (reduction != ITexture::SamplerReductionMode::None)
-    {
-        reductionInfo.sType         = VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO;
-        reductionInfo.reductionMode = (reduction == ITexture::SamplerReductionMode::Max) ?
-            VK_SAMPLER_REDUCTION_MODE_MAX :
-            VK_SAMPLER_REDUCTION_MODE_MIN;
-        samplerInfo.pNext           = &reductionInfo;
-    }
-
-    VkResult result = vkCreateSampler(device, &samplerInfo, nullptr, &m_sampler);
-    YG_CORE_ASSERT(result == VK_SUCCESS, "Vulkan: Failed to create texture sampler!");
 }
 
 } // namespace Yogi

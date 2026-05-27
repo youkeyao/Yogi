@@ -28,7 +28,7 @@ VulkanCommandBuffer::VulkanCommandBuffer(const CommandBufferDesc& desc) :
 
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.commandPool        = context->GetVkCommandPool();
+    allocInfo.commandPool        = context->GetVkCommandPoolForQueue(m_queue);
     allocInfo.level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocInfo.commandBufferCount = 1;
     YG_CORE_ASSERT(vkAllocateCommandBuffers(context->GetVkDevice(), &allocInfo, &m_commandBuffer) == VK_SUCCESS,
@@ -53,7 +53,7 @@ VulkanCommandBuffer::~VulkanCommandBuffer()
     if (m_commandBuffer != VK_NULL_HANDLE)
     {
         Wait();
-        vkFreeCommandBuffers(context->GetVkDevice(), context->GetVkCommandPool(), 1, &m_commandBuffer);
+        vkFreeCommandBuffers(context->GetVkDevice(), context->GetVkCommandPoolForQueue(m_queue), 1, &m_commandBuffer);
     }
     if (m_commandFence != VK_NULL_HANDLE)
     {
@@ -209,10 +209,9 @@ void VulkanCommandBuffer::BeginRendering(const RenderingDesc& desc)
         if (color.ResolveView && desc.Samples > SampleCountFlagBits::Count1)
         {
             const VulkanTextureView* vkResolveView = static_cast<const VulkanTextureView*>(color.ResolveView);
-            YG_CORE_ASSERT(
-                static_cast<const VulkanTexture*>(vkResolveView->GetTexture())->GetCurrentLayout() ==
-                    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                "Vulkan: resolve attachment must be in COLOR_ATTACHMENT_OPTIMAL before BeginRendering");
+            YG_CORE_ASSERT(static_cast<const VulkanTexture*>(vkResolveView->GetTexture())->GetCurrentLayout() ==
+                               VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                           "Vulkan: resolve attachment must be in COLOR_ATTACHMENT_OPTIMAL before BeginRendering");
             info.resolveMode        = VK_RESOLVE_MODE_AVERAGE_BIT;
             info.resolveImageView   = vkResolveView->GetVkImageView();
             info.resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -263,6 +262,7 @@ void VulkanCommandBuffer::SetPipeline(const IPipeline* pipeline)
     const VulkanPipeline& vkPipeline = *static_cast<const VulkanPipeline*>(pipeline);
     m_currentBindPoint =
         pipeline->GetType() == PipelineType::Compute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS;
+    m_currentLayout = vkPipeline.GetVkPipelineLayout();
     vkCmdBindPipeline(m_commandBuffer, m_currentBindPoint, vkPipeline.GetVkPipeline());
 }
 
@@ -302,22 +302,23 @@ void VulkanCommandBuffer::SetScissor(const Scissor& scissor)
 
 void VulkanCommandBuffer::SetShaderResourceBinding(const IShaderResourceBinding* binding)
 {
+    YG_CORE_ASSERT(m_currentLayout != VK_NULL_HANDLE,
+                   "Vulkan: SetShaderResourceBinding called before SetPipeline -- pipeline layout is unknown");
     const VulkanShaderResourceBinding& vkBinding = *static_cast<const VulkanShaderResourceBinding*>(binding);
 
     VkDescriptorSet set = vkBinding.GetVkDescriptorSet();
-    vkCmdBindDescriptorSets(
-        m_commandBuffer, m_currentBindPoint, vkBinding.GetVkPipelineLayout(), 0, 1, &set, 0, nullptr);
+    vkCmdBindDescriptorSets(m_commandBuffer, m_currentBindPoint, m_currentLayout, 0, 1, &set, 0, nullptr);
 }
 
-void VulkanCommandBuffer::SetPushConstants(const IShaderResourceBinding* binding,
-                                           ShaderStage                   stage,
-                                           uint32_t                      offset,
-                                           uint32_t                      size,
-                                           const void*                   data)
+void VulkanCommandBuffer::SetPushConstants(const IPipeline* pipeline,
+                                           ShaderStage      stage,
+                                           uint32_t         offset,
+                                           uint32_t         size,
+                                           const void*      data)
 {
-    const VulkanShaderResourceBinding& vkBinding = *static_cast<const VulkanShaderResourceBinding*>(binding);
+    const VulkanPipeline& vkPipeline = *static_cast<const VulkanPipeline*>(pipeline);
     vkCmdPushConstants(
-        m_commandBuffer, vkBinding.GetVkPipelineLayout(), YgShaderStage2VkShaderStage(stage), offset, size, data);
+        m_commandBuffer, vkPipeline.GetVkPipelineLayout(), YgShaderStage2VkShaderStage(stage), offset, size, data);
 }
 
 void VulkanCommandBuffer::Draw(uint32_t vertexCount,
@@ -383,9 +384,8 @@ void VulkanCommandBuffer::Barrier(const BarrierDesc& barrierDesc)
         YG_CORE_ASSERT(tex, "Vulkan: Barrier called on a view whose texture is destroyed");
         const VulkanTexture* vkTex = static_cast<const VulkanTexture*>(tex);
 
-        VkImageLayout oldLayout = (barrierDesc.BeforeState & ResourceState::Undefined)
-                                      ? VK_IMAGE_LAYOUT_UNDEFINED
-                                      : vkTex->GetCurrentLayout();
+        VkImageLayout oldLayout = (barrierDesc.BeforeState & ResourceState::Undefined) ? VK_IMAGE_LAYOUT_UNDEFINED :
+                                                                                         vkTex->GetCurrentLayout();
         VkImageLayout newLayout = YgResourceState2VkImageLayout(barrierDesc.AfterState, tex->GetUsage());
 
         VkImageMemoryBarrier2 b{};

@@ -148,11 +148,11 @@ public:
     virtual void SetViewport(const Viewport& viewport)                           = 0;
     virtual void SetScissor(const Scissor& scissor)                              = 0;
     virtual void SetShaderResourceBinding(const IShaderResourceBinding* binding) = 0;
-    virtual void SetPushConstants(const IShaderResourceBinding* binding,
-                                  ShaderStage                   stage,
-                                  uint32_t                      offset,
-                                  uint32_t                      size,
-                                  const void*                   data)            = 0;
+    virtual void SetPushConstants(const IPipeline* pipeline,
+                                  ShaderStage      stage,
+                                  uint32_t         offset,
+                                  uint32_t         size,
+                                  const void*      data)                         = 0;
 
     virtual void Draw(uint32_t vertexCount,
                       uint32_t instanceCount = 1,
