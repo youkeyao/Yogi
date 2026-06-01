@@ -22,12 +22,10 @@ class YG_API ISwapChain
 public:
     virtual ~ISwapChain() = default;
 
-    virtual uint32_t            GetWidth() const             = 0;
-    virtual uint32_t            GetHeight() const            = 0;
-    virtual ITexture::Format    GetColorFormat() const       = 0;
-    virtual SampleCountFlagBits GetNumSamples() const        = 0;
-    virtual uint32_t            GetImageCount() const        = 0;
-    virtual uint32_t            GetCurrentFrameIndex() const = 0;
+    virtual uint32_t            GetWidth() const       = 0;
+    virtual uint32_t            GetHeight() const      = 0;
+    virtual ITexture::Format    GetColorFormat() const = 0;
+    virtual SampleCountFlagBits GetNumSamples() const  = 0;
 
     virtual WRef<ITextureView>   AcquireCurrentTarget() const        = 0;
     virtual WRef<ICommandBuffer> AcquireCurrentCommandBuffer() const = 0;

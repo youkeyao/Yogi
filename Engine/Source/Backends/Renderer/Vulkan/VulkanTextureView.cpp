@@ -101,8 +101,10 @@ void VulkanTextureView::SetData(void* data, uint32_t size)
                                                MathUtils::Max(1u, tex->GetHeight() >> m_baseMip),
                                                1 };
 
-    VulkanBuffer stagingBuffer(BufferDesc{ size, BufferUsage::Staging, BufferAccess::Dynamic });
-    stagingBuffer.UpdateData(data, size);
+    VulkanBuffer stagingBuffer(BufferDesc{ size, BufferUsage::Staging });
+    void* mapped = stagingBuffer.GetMappedPtr();
+    YG_CORE_ASSERT(mapped, "VulkanTextureView::SetData: staging buffer was not mapped");
+    memcpy(mapped, data, size);
     vkCmdCopyBufferToImage(commandBuffer.GetVkCommandBuffer(),
                            stagingBuffer.GetVkBuffer(),
                            vkTex->GetVkImage(),

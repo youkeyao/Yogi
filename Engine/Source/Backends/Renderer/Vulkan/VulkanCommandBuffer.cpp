@@ -150,6 +150,15 @@ void VulkanCommandBuffer::Wait()
     }
 }
 
+bool VulkanCommandBuffer::IsFinished() const
+{
+    if (!m_submitted)
+        return true;
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
+
+    return vkGetFenceStatus(context->GetVkDevice(), m_commandFence) == VK_SUCCESS;
+}
+
 // ---------- Helpers for BeginRendering / EndRendering ----------------------
 
 namespace
@@ -375,80 +384,141 @@ void VulkanCommandBuffer::Dispatch(uint32_t groupCountX, uint32_t groupCountY, u
     vkCmdDispatch(m_commandBuffer, groupCountX, groupCountY, groupCountZ);
 }
 
-void VulkanCommandBuffer::Barrier(const BarrierDesc& barrierDesc)
+void VulkanCommandBuffer::CopyBuffer(const IBuffer* src, const IBuffer* dst,
+                                     uint64_t srcOffset, uint64_t dstOffset, uint64_t size)
 {
-    if (barrierDesc.TextureView)
-    {
-        const VulkanTextureView* vkView = static_cast<const VulkanTextureView*>(barrierDesc.TextureView);
-        const ITexture*          tex    = vkView->GetTexture();
-        YG_CORE_ASSERT(tex, "Vulkan: Barrier called on a view whose texture is destroyed");
-        const VulkanTexture* vkTex = static_cast<const VulkanTexture*>(tex);
+    YG_CORE_ASSERT(src && dst, "Vulkan: CopyBuffer called with null buffer");
+    YG_CORE_ASSERT(size > 0, "Vulkan: CopyBuffer called with zero size");
 
-        VkImageLayout oldLayout = (barrierDesc.BeforeState & ResourceState::Undefined) ? VK_IMAGE_LAYOUT_UNDEFINED :
-                                                                                         vkTex->GetCurrentLayout();
-        VkImageLayout newLayout = YgResourceState2VkImageLayout(barrierDesc.AfterState, tex->GetUsage());
+    const VulkanBuffer& vkSrc = *static_cast<const VulkanBuffer*>(src);
+    const VulkanBuffer& vkDst = *static_cast<const VulkanBuffer*>(dst);
 
-        VkImageMemoryBarrier2 b{};
-        b.sType               = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
-        b.srcStageMask        = YgResourceState2VkPipelineStage2(barrierDesc.BeforeState);
-        b.srcAccessMask       = YgResourceState2VkAccess2(barrierDesc.BeforeState);
-        b.dstStageMask        = YgResourceState2VkPipelineStage2(barrierDesc.AfterState);
-        b.dstAccessMask       = YgResourceState2VkAccess2(barrierDesc.AfterState);
-        b.oldLayout           = oldLayout;
-        b.newLayout           = newLayout;
-        b.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        b.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        b.image               = vkTex->GetVkImage();
-        b.subresourceRange    = vkView->GetVkSubresourceRange();
+    VkBufferCopy region{};
+    region.srcOffset = static_cast<VkDeviceSize>(srcOffset);
+    region.dstOffset = static_cast<VkDeviceSize>(dstOffset);
+    region.size      = static_cast<VkDeviceSize>(size);
 
-        VkDependencyInfo dep{};
-        dep.sType                   = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-        dep.imageMemoryBarrierCount = 1;
-        dep.pImageMemoryBarriers    = &b;
-        vkCmdPipelineBarrier2(m_commandBuffer, &dep);
+    vkCmdCopyBuffer(m_commandBuffer, vkSrc.GetVkBuffer(), vkDst.GetVkBuffer(), 1, &region);
+}
 
-        vkTex->SetCurrentLayout(newLayout);
+void VulkanCommandBuffer::FillBuffer(const IBuffer* dst, uint64_t offset, uint64_t size, uint32_t value)
+{
+    YG_CORE_ASSERT(dst, "Vulkan: FillBuffer called with null buffer");
+    // size == VK_WHOLE_SIZE is legal and means "to end of buffer".
+    YG_CORE_ASSERT(size > 0, "Vulkan: FillBuffer called with zero size");
+    YG_CORE_ASSERT((offset & 0x3) == 0, "Vulkan: FillBuffer offset must be 4-byte aligned");
+    YG_CORE_ASSERT(size == VK_WHOLE_SIZE || (size & 0x3) == 0,
+                   "Vulkan: FillBuffer size must be 4-byte aligned");
+
+    const VulkanBuffer& vkDst = *static_cast<const VulkanBuffer*>(dst);
+    vkCmdFillBuffer(m_commandBuffer,
+                    vkDst.GetVkBuffer(),
+                    static_cast<VkDeviceSize>(offset),
+                    static_cast<VkDeviceSize>(size),
+                    value);
+}
+
+void VulkanCommandBuffer::Barrier(std::initializer_list<BarrierDesc> barrierDescs)
+{
+    if (barrierDescs.size() == 0)
         return;
-    }
-    else if (barrierDesc.Buffer)
+
+    // Collect by kind. Most call sites are 1-3 barriers; reserve a small
+    // amount up-front to avoid heap traffic on the common path.
+    std::vector<VkMemoryBarrier2>       memBarriers;
+    std::vector<VkBufferMemoryBarrier2> bufBarriers;
+    std::vector<VkImageMemoryBarrier2>  imgBarriers;
+    memBarriers.reserve(barrierDescs.size());
+    bufBarriers.reserve(barrierDescs.size());
+    imgBarriers.reserve(barrierDescs.size());
+
+    // Collect post-barrier image layouts in a side list and apply AFTER the
+    // submit. Doing it during build is fine in single-barrier mode but breaks
+    // if the same image appears twice in one batch (the second's BeforeState
+    // would observe the first's already-applied layout, wrongly).
+    struct PendingLayout
     {
-        const VulkanBuffer* vkBuffer = static_cast<const VulkanBuffer*>(barrierDesc.Buffer);
+        const VulkanTexture* Tex;
+        VkImageLayout        NewLayout;
+    };
+    std::vector<PendingLayout> pendingLayouts;
+    pendingLayouts.reserve(barrierDescs.size());
 
-        VkBufferMemoryBarrier2 b{};
-        b.sType               = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
-        b.srcStageMask        = YgResourceState2VkPipelineStage2(barrierDesc.BeforeState);
-        b.srcAccessMask       = YgResourceState2VkAccess2(barrierDesc.BeforeState);
-        b.dstStageMask        = YgResourceState2VkPipelineStage2(barrierDesc.AfterState);
-        b.dstAccessMask       = YgResourceState2VkAccess2(barrierDesc.AfterState);
-        b.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        b.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        b.buffer              = vkBuffer->GetVkBuffer();
-        b.offset              = barrierDesc.BufferOffset;
-        b.size                = barrierDesc.BufferSize == 0 ? VK_WHOLE_SIZE : (VkDeviceSize)barrierDesc.BufferSize;
-
-        VkDependencyInfo dep{};
-        dep.sType                    = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-        dep.bufferMemoryBarrierCount = 1;
-        dep.pBufferMemoryBarriers    = &b;
-        vkCmdPipelineBarrier2(m_commandBuffer, &dep);
-        return;
-    }
-    else
+    for (const BarrierDesc& d : barrierDescs)
     {
-        VkMemoryBarrier2 b{};
-        b.sType         = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2;
-        b.srcStageMask  = YgResourceState2VkPipelineStage2(barrierDesc.BeforeState);
-        b.srcAccessMask = YgResourceState2VkAccess2(barrierDesc.BeforeState);
-        b.dstStageMask  = YgResourceState2VkPipelineStage2(barrierDesc.AfterState);
-        b.dstAccessMask = YgResourceState2VkAccess2(barrierDesc.AfterState);
+        if (d.TextureView)
+        {
+            const VulkanTextureView* vkView = static_cast<const VulkanTextureView*>(d.TextureView);
+            const ITexture*          tex    = vkView->GetTexture();
+            YG_CORE_ASSERT(tex, "Vulkan: Barrier called on a view whose texture is destroyed");
+            const VulkanTexture* vkTex = static_cast<const VulkanTexture*>(tex);
 
-        VkDependencyInfo dep{};
-        dep.sType              = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-        dep.memoryBarrierCount = 1;
-        dep.pMemoryBarriers    = &b;
-        vkCmdPipelineBarrier2(m_commandBuffer, &dep);
-        return;
+            VkImageLayout oldLayout = (d.BeforeState & ResourceState::Undefined) ? VK_IMAGE_LAYOUT_UNDEFINED :
+                                                                                   vkTex->GetCurrentLayout();
+            VkImageLayout newLayout = YgResourceState2VkImageLayout(d.AfterState, tex->GetUsage());
+
+            VkImageMemoryBarrier2 b{};
+            b.sType               = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+            b.srcStageMask        = YgResourceState2VkPipelineStage2(d.BeforeState);
+            b.srcAccessMask       = YgResourceState2VkAccess2(d.BeforeState);
+            b.dstStageMask        = YgResourceState2VkPipelineStage2(d.AfterState);
+            b.dstAccessMask       = YgResourceState2VkAccess2(d.AfterState);
+            b.oldLayout           = oldLayout;
+            b.newLayout           = newLayout;
+            b.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            b.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            b.image               = vkTex->GetVkImage();
+            b.subresourceRange    = vkView->GetVkSubresourceRange();
+            imgBarriers.push_back(b);
+
+            pendingLayouts.push_back({ vkTex, newLayout });
+        }
+        else if (d.Buffer)
+        {
+            const VulkanBuffer* vkBuffer = static_cast<const VulkanBuffer*>(d.Buffer);
+
+            VkBufferMemoryBarrier2 b{};
+            b.sType               = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
+            b.srcStageMask        = YgResourceState2VkPipelineStage2(d.BeforeState);
+            b.srcAccessMask       = YgResourceState2VkAccess2(d.BeforeState);
+            b.dstStageMask        = YgResourceState2VkPipelineStage2(d.AfterState);
+            b.dstAccessMask       = YgResourceState2VkAccess2(d.AfterState);
+            b.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            b.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            b.buffer              = vkBuffer->GetVkBuffer();
+            b.offset              = d.BufferOffset;
+            b.size                = d.BufferSize == 0 ? VK_WHOLE_SIZE : (VkDeviceSize)d.BufferSize;
+            bufBarriers.push_back(b);
+        }
+        else
+        {
+            // Global memory barrier: no resource targeting, just a stage +
+            // access mask transition. Modern GPU drivers translate per-buffer
+            // barriers to the same hardware op (global cache flush + pipeline
+            // stall), so collapsing N per-buffer barriers into 1 of these is
+            // a code-size win at zero perf cost.
+            VkMemoryBarrier2 b{};
+            b.sType         = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2;
+            b.srcStageMask  = YgResourceState2VkPipelineStage2(d.BeforeState);
+            b.srcAccessMask = YgResourceState2VkAccess2(d.BeforeState);
+            b.dstStageMask  = YgResourceState2VkPipelineStage2(d.AfterState);
+            b.dstAccessMask = YgResourceState2VkAccess2(d.AfterState);
+            memBarriers.push_back(b);
+        }
     }
+
+    VkDependencyInfo dep{};
+    dep.sType                    = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+    dep.memoryBarrierCount       = static_cast<uint32_t>(memBarriers.size());
+    dep.pMemoryBarriers          = memBarriers.empty() ? nullptr : memBarriers.data();
+    dep.bufferMemoryBarrierCount = static_cast<uint32_t>(bufBarriers.size());
+    dep.pBufferMemoryBarriers    = bufBarriers.empty() ? nullptr : bufBarriers.data();
+    dep.imageMemoryBarrierCount  = static_cast<uint32_t>(imgBarriers.size());
+    dep.pImageMemoryBarriers     = imgBarriers.empty() ? nullptr : imgBarriers.data();
+    vkCmdPipelineBarrier2(m_commandBuffer, &dep);
+
+    for (const PendingLayout& p : pendingLayouts)
+        p.Tex->SetCurrentLayout(p.NewLayout);
 }
 
 void VulkanCommandBuffer::Blit(const ITextureView* src, const ITextureView* dst, const BlitDesc& blitDesc)

@@ -10,18 +10,14 @@ Owner<IBuffer> IBuffer::Create(const BufferDesc& desc)
     return Owner<VulkanBuffer>::Create(desc);
 }
 
-VulkanBuffer::VulkanBuffer(const BufferDesc& desc) : m_size(desc.Size), m_usage(desc.Usage), m_access(desc.Access)
+VulkanBuffer::VulkanBuffer(const BufferDesc& desc) : m_size(desc.Size), m_usage(desc.Usage)
 {
     VkBufferCreateInfo bufferInfo{};
     bufferInfo.sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     bufferInfo.size        = m_size;
-    bufferInfo.usage       = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+    bufferInfo.usage       = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    if (m_access == BufferAccess::Immutable)
-    {
-        bufferInfo.usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-    }
     if (m_usage & BufferUsage::Vertex)
     {
         bufferInfo.usage |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
@@ -40,7 +36,7 @@ VulkanBuffer::VulkanBuffer(const BufferDesc& desc) : m_size(desc.Size), m_usage(
     }
     if (m_usage & BufferUsage::Staging)
     {
-        bufferInfo.usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+        bufferInfo.usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
     }
     if (m_usage & BufferUsage::Indirect)
     {
@@ -50,7 +46,8 @@ VulkanBuffer::VulkanBuffer(const BufferDesc& desc) : m_size(desc.Size), m_usage(
     VulkanDeviceContext* context        = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
     VkDevice             device         = context->GetVkDevice();
     VkPhysicalDevice     physicalDevice = context->GetVkPhysicalDevice();
-    vkCreateBuffer(device, &bufferInfo, nullptr, &m_buffer);
+    YG_CORE_ASSERT(vkCreateBuffer(device, &bufferInfo, nullptr, &m_buffer) == VK_SUCCESS,
+                   "Vulkan: Failed to create buffer!");
 
     VkMemoryRequirements memRequirements;
     vkGetBufferMemoryRequirements(device, m_buffer, &memRequirements);
@@ -60,17 +57,18 @@ VulkanBuffer::VulkanBuffer(const BufferDesc& desc) : m_size(desc.Size), m_usage(
     allocFlagsInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO;
     allocFlagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
 
+    const VkMemoryPropertyFlags memoryProps = (m_usage & BufferUsage::Staging) ?
+        (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) :
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
     VkMemoryAllocateInfo allocInfo{};
     allocInfo.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.pNext           = &allocFlagsInfo;
     allocInfo.allocationSize  = memRequirements.size;
-    allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits,
-                                               physicalDevice,
-                                               m_access == BufferAccess::Dynamic ? VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                                                       VK_MEMORY_PROPERTY_HOST_COHERENT_BIT :
-                                                                                   VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, physicalDevice, memoryProps);
 
-    vkAllocateMemory(device, &allocInfo, nullptr, &m_memory);
+    YG_CORE_ASSERT(vkAllocateMemory(device, &allocInfo, nullptr, &m_memory) == VK_SUCCESS,
+                   "Vulkan: Failed to allocate buffer memory!");
     vkBindBufferMemory(device, m_buffer, m_memory, 0);
 
     VkBufferDeviceAddressInfo addrInfo{};
@@ -79,7 +77,11 @@ VulkanBuffer::VulkanBuffer(const BufferDesc& desc) : m_size(desc.Size), m_usage(
     m_deviceAddress = vkGetBufferDeviceAddress(device, &addrInfo);
     YG_CORE_ASSERT(m_deviceAddress != 0, "Vulkan: vkGetBufferDeviceAddress returned null");
 
-    vkMapMemory(device, m_memory, 0, m_size, 0, &m_bufferMapped);
+    if (m_usage & BufferUsage::Staging)
+    {
+        YG_CORE_ASSERT(vkMapMemory(device, m_memory, 0, m_size, 0, &m_bufferMapped) == VK_SUCCESS,
+                       "Vulkan: Failed to map staging buffer memory!");
+    }
 }
 
 VulkanBuffer::~VulkanBuffer()
@@ -88,20 +90,21 @@ VulkanBuffer::~VulkanBuffer()
     VkDevice             device  = context->GetVkDevice();
 
     vkDeviceWaitIdle(device);
-    vkUnmapMemory(device, m_memory);
-    vkDestroyBuffer(device, m_buffer, nullptr);
-    vkFreeMemory(device, m_memory, nullptr);
-}
-
-void VulkanBuffer::UpdateData(const void* data, uint64_t size, uint64_t offset)
-{
-    if (m_access == BufferAccess::Immutable)
+    if (m_bufferMapped)
     {
-        YG_CORE_ERROR("Vulkan: Attempting to update immutable buffer!");
-        return;
+        vkUnmapMemory(device, m_memory);
+        m_bufferMapped = nullptr;
     }
-
-    memcpy((char*)m_bufferMapped + offset, data, size);
+    if (m_buffer != VK_NULL_HANDLE)
+    {
+        vkDestroyBuffer(device, m_buffer, nullptr);
+        m_buffer = VK_NULL_HANDLE;
+    }
+    if (m_memory != VK_NULL_HANDLE)
+    {
+        vkFreeMemory(device, m_memory, nullptr);
+        m_memory = VK_NULL_HANDLE;
+    }
 }
 
 } // namespace Yogi

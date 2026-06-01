@@ -17,17 +17,10 @@ enum class BufferUsage : uint8_t
 
 YG_ENABLE_ENUM_FLAGS(BufferUsage);
 
-enum class BufferAccess : uint8_t
-{
-    Dynamic,
-    Immutable
-};
-
 struct BufferDesc
 {
-    uint64_t     Size;
-    BufferUsage  Usage;
-    BufferAccess Access;
+    uint64_t    Size;
+    BufferUsage Usage;
 };
 
 class YG_API IBuffer
@@ -36,14 +29,12 @@ public:
     virtual ~IBuffer() = default;
 
     // Buffer properties
-    virtual uint64_t     GetSize() const   = 0;
-    virtual BufferUsage  GetUsage() const  = 0;
-    virtual BufferAccess GetAccess() const = 0;
+    virtual uint64_t    GetSize() const  = 0;
+    virtual BufferUsage GetUsage() const = 0;
 
     virtual uint64_t GetDeviceAddress() const = 0;
 
-    // Buffer operations
-    virtual void UpdateData(const void* data, uint64_t size, uint64_t offset = 0) = 0;
+    virtual void* GetMappedPtr() const = 0;
 
     static Owner<IBuffer> Create(const BufferDesc& desc);
 };

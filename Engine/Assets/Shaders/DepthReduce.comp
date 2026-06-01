@@ -3,7 +3,14 @@
 // Hi-Z pyramid downsample. Each dst texel samples the source at its center UV
 // with a LINEAR + MAX-reduction sampler, so the GPU does the 2x2 max in hardware.
 
-layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+#extension GL_EXT_shader_explicit_arithmetic_types: require
+#extension GL_EXT_shader_16bit_storage: require
+#extension GL_EXT_shader_8bit_storage: require
+#extension GL_EXT_nonuniform_qualifier: require
+#extension GL_GOOGLE_include_directive: require
+#include "Renderer/ShaderData.h"
+
+layout(local_size_x = DEPTH_REDUCE_WGSIZE, local_size_y = DEPTH_REDUCE_WGSIZE, local_size_z = 1) in;
 
 layout(push_constant) uniform DepthReducePushConstants
 {

@@ -42,7 +42,6 @@ void main()
     MeshDrawBufferRef    mdBuf  = MeshDrawBufferRef(sf.MeshDrawBuffer);
     MeshDataBufferRef    mDBuf  = MeshDataBufferRef(sf.MeshDataBuffer);
     MeshletBufferRef     mlBuf  = MeshletBufferRef(sf.MeshletBuffer);
-    MeshletVisBufRef     mvBuf  = MeshletVisBufRef(sf.MeshletVisBuffer);
 
     uint drawIndex = vdiBuf.i[uint(gl_DrawID) + pcScene.DrawBase];
     payload.drawIndex = drawIndex;
@@ -60,7 +59,7 @@ void main()
     {
         uint mi = mesh.MeshletOffset + miLocal;
         uint visIdx       = draw.MeshletVisOffset + miLocal;
-        uint prevMlVisible = mvBuf.v[visIdx];
+        bool prevMlVisible = VisBitTest(sf.MeshletVisBufferRead, visIdx);
         MeshletData meshlet = mlBuf.m[mi];
 
         // World-space sphere center, then to view (+Z forward like ObjectCull).
@@ -104,15 +103,17 @@ void main()
             }
         }
 
-        mvBuf.v[visIdx] = visible ? 1u : 0u;
+        // LATE writes the canonical bit (0 = invisible left at zero, 1 = atomicOr).
+        if (visible)
+            VisBitSet(sf.MeshletVisBufferWrite, visIdx);
 
-        if (visible && prevMlVisible == 0u)
+        if (visible && !prevMlVisible)
         {
             uint idx = atomicAdd(s_survivorCount, 1);
             payload.meshletIndices[idx] = mi;
         }
 #else
-        if (visible && prevMlVisible == 1u)
+        if (visible && prevMlVisible)
         {
             uint idx = atomicAdd(s_survivorCount, 1);
             payload.meshletIndices[idx] = mi;

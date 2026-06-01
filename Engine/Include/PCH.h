@@ -29,6 +29,7 @@
 #include <typeindex>
 #include <unordered_set>
 #include <unordered_map>
+#include <variant>
 
 #ifdef YG_SHARED_LIB
 #    ifdef YG_EXPORT

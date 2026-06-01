@@ -16,13 +16,14 @@
 #    define YG_GPU_STRUCT
 #    define TASK_CULL     1
 #    define TRIANGLE_CULL 1
-#    define MESH_WGSIZE   32
+#    define MESH_WGSIZE   64
 #endif
 
 #define TASK_WGSIZE           32
 #define MESHLET_MAX_VERTICES  64
 #define MESHLET_MAX_TRIANGLES 126
 #define CULL_WORKGROUP_SIZE   64
+#define DEPTH_REDUCE_WGSIZE   16
 #define MAX_TEXTURES          1024
 
 struct VertexData
@@ -92,10 +93,14 @@ struct YG_GPU_STRUCT SceneFrame
     uint64_t VisibleDrawIndexBuffer; // off 208
     uint64_t IndirectCommandBuffer;  // off 216 (cull writes; indirect dispatch reads)
     uint64_t IndirectCountBuffer;    // off 224
-    uint64_t ObjectVisBuffer;        // off 232 (per-MeshDraw two-phase visibility)
-    uint64_t MeshletVisBuffer;       // off 240 (per-instance per-meshlet vis)
-    uint64_t MaterialBuffer;         // off 248 (per-unique-material data, bindless)
-}; // total 256
+    uint64_t ObjectVisBufferRead;    // off 232 -- last-frame LATE write (bit-packed)
+    uint64_t ObjectVisBufferWrite;   // off 240 -- this-frame LATE write (bit-packed)
+    uint64_t MeshletVisBufferRead;   // off 248 -- last-frame meshlet vis (bit-packed)
+    uint64_t MeshletVisBufferWrite;  // off 256 -- this-frame meshlet vis (bit-packed)
+    uint64_t MaterialBuffer;         // off 264
+    uint64_t _Pad0;                  // off 272 -- pad to keep 16-byte alignment of overall struct
+    uint64_t _Pad1;                  // off 280
+}; // total 288 (16-byte aligned)
 
 // Push constant for mesh/task shaders. Carries only the SceneFrame buffer
 // address + per-batch DrawBase; matrices/buffer pointers come via SceneFrame.
@@ -111,11 +116,8 @@ struct CullPush
     uint64_t SceneFrameAddr; // off  0, 8
     uint     DrawBase;       // off  8, 4
     uint     DrawCount;      // off 12, 4
-    uint     OutputBase;     // off 16, 4
-    uint     CountIndex;     // off 20, 4
-    uint     PyramidSlot;    // off 24, 4  Hi-Z pyramid sampled slot (LATE only)
-    uint     _Pad0;          // off 28, 4
-}; // total 32
+    uint     PyramidSlot;    // off 16, 4 -- Hi-Z pyramid sampled slot (LATE only)
+}; // total 24 (offset 20 rounded up to 24 by uint64_t's 8-byte struct alignment)
 
 #ifdef __cplusplus
 #    undef uint

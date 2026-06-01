@@ -12,24 +12,22 @@ public:
     VulkanBuffer(const BufferDesc& desc);
     virtual ~VulkanBuffer();
 
-    inline uint64_t     GetSize() const override { return m_size; }
-    inline BufferUsage  GetUsage() const override { return m_usage; }
-    inline BufferAccess GetAccess() const override { return m_access; }
-    inline uint64_t     GetDeviceAddress() const override { return m_deviceAddress; }
+    inline uint64_t    GetSize() const override { return m_size; }
+    inline BufferUsage GetUsage() const override { return m_usage; }
+    inline uint64_t    GetDeviceAddress() const override { return m_deviceAddress; }
 
-    void UpdateData(const void* data, uint64_t size, uint64_t offset = 0) override;
+    inline void* GetMappedPtr() const override { return m_bufferMapped; }
 
     inline VkBuffer GetVkBuffer() const { return m_buffer; }
 
 private:
-    VkBuffer        m_buffer;
-    VkDeviceMemory  m_memory;
+    VkBuffer        m_buffer        = VK_NULL_HANDLE;
+    VkDeviceMemory  m_memory        = VK_NULL_HANDLE;
     VkDeviceAddress m_deviceAddress = 0; // cached vkGetBufferDeviceAddress result
 
-    uint64_t     m_size;
-    BufferUsage  m_usage;
-    BufferAccess m_access;
-    void*        m_bufferMapped;
+    uint64_t    m_size         = 0;
+    BufferUsage m_usage        = {};
+    void*       m_bufferMapped = nullptr;
 };
 
 } // namespace Yogi

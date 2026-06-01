@@ -1,5 +1,6 @@
 #include "Renderer/DepthPyramid.h"
 #include "Renderer/BindlessTextures.h"
+#include "Renderer/ShaderData.h"
 
 #include "Resources/ResourceManager/ResourceManager.h"
 #include "Math/MathUtils.h"
@@ -191,9 +192,8 @@ void DepthPyramid::Build(ICommandBuffer* commandBuffer, const IPipeline* reduceP
         push.ImageHeight = dstHeight;
         cmd->SetPushConstants(reducePipeline, ShaderStage::Compute, 0, sizeof(DepthReducePushConstants), &push);
 
-        constexpr uint32_t kGroup = 32;
-        uint32_t           gx     = (dstWidth + kGroup - 1) / kGroup;
-        uint32_t           gy     = (dstHeight + kGroup - 1) / kGroup;
+        uint32_t gx = (dstWidth + DEPTH_REDUCE_WGSIZE - 1) / DEPTH_REDUCE_WGSIZE;
+        uint32_t gy = (dstHeight + DEPTH_REDUCE_WGSIZE - 1) / DEPTH_REDUCE_WGSIZE;
         cmd->Dispatch(gx, gy, 1);
 
         if (mip + 1 < m_mipCount)

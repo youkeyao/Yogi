@@ -6,6 +6,7 @@
 #extension GL_EXT_shader_explicit_arithmetic_types : require
 #extension GL_EXT_shader_16bit_storage             : require
 #extension GL_EXT_shader_8bit_storage              : require
+#extension GL_KHR_memory_scope_semantics           : enable
 
 #include "Renderer/ShaderData.h"
 
@@ -19,9 +20,21 @@ layout(buffer_reference, std430) readonly buffer MaterialBufferRef     { Materia
 layout(buffer_reference, std430)          buffer VisibleDrawIdxBufRef  { uint        i[]; };
 layout(buffer_reference, std430)          buffer IndirectCmdBufRef     { uint        c[]; };
 layout(buffer_reference, std430)          buffer IndirectCountBufRef   { uint        n[]; };
-layout(buffer_reference, std430)          buffer ObjectVisBufRef       { uint        v[]; };
-layout(buffer_reference, std430)          buffer MeshletVisBufRef       { uint        v[]; };
+layout(buffer_reference, std430)          buffer VisBitfieldRef        { uint        v[]; };
 layout(buffer_reference, std430) readonly buffer SceneFrameRef         { SceneFrame fd; };
+
+bool VisBitTest(uint64_t bufAddr, uint idx)
+{
+    VisBitfieldRef bits = VisBitfieldRef(bufAddr);
+    uint word = bits.v[idx >> 5u];
+    return (word & (1u << (idx & 31u))) != 0u;
+}
+
+void VisBitSet(uint64_t bufAddr, uint idx)
+{
+    VisBitfieldRef bits = VisBitfieldRef(bufAddr);
+    atomicOr(bits.v[idx >> 5u], 1u << (idx & 31u));
+}
 
 bool sphereInsideFrustum(vec3 c, float r, vec4 frustum, float zNear, float zFar)
 {

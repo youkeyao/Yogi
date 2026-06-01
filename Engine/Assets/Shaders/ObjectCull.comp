@@ -1,7 +1,5 @@
 #version 460 core
 
-// Two-phase GPU object culling
-
 #extension GL_EXT_shader_explicit_arithmetic_types: require
 #extension GL_EXT_shader_16bit_storage: require
 #extension GL_EXT_shader_8bit_storage: require
@@ -34,7 +32,6 @@ void main()
 
     SceneFrame sf = SceneFrameRef(pcCull.SceneFrameAddr).fd;
 
-    ObjectVisBufRef      ovBuf     = ObjectVisBufRef(sf.ObjectVisBuffer);
     MeshDrawBufferRef    mdBuf     = MeshDrawBufferRef(sf.MeshDrawBuffer);
     MeshDataBufferRef    mDBuf     = MeshDataBufferRef(sf.MeshDataBuffer);
     IndirectCmdBufRef    icBuf     = IndirectCmdBufRef(sf.IndirectCommandBuffer);
@@ -43,7 +40,7 @@ void main()
 
 #ifndef LATE
     // EARLY: skip objects invisible last frame (LATE will catch them).
-    if (ovBuf.v[meshDrawIndex] == 0u)
+    if (!VisBitTest(sf.ObjectVisBufferRead, meshDrawIndex))
         return;
 #endif
 
@@ -87,16 +84,17 @@ void main()
     }
 
     // LATE writes the canonical visibility for next frame's EARLY gating.
-    ovBuf.v[meshDrawIndex] = visible ? 1u : 0u;
+    if (visible)
+        VisBitSet(sf.ObjectVisBufferWrite, meshDrawIndex);
 #endif
 
     if (visible)
     {
-        uint compactIndex          = atomicAdd(icountBuf.n[pcCull.CountIndex], 1);
-        uint commandOffset         = (pcCull.OutputBase + compactIndex) * 3;
+        uint compactIndex          = atomicAdd(icountBuf.n[0], 1);
+        uint commandOffset         = (pcCull.DrawBase + compactIndex) * 3;
         icBuf.c[commandOffset + 0] = (mesh.MeshletCount + TASK_WGSIZE - 1) / TASK_WGSIZE;
         icBuf.c[commandOffset + 1] = 1;
         icBuf.c[commandOffset + 2] = 1;
-        vdiBuf.i[pcCull.OutputBase + compactIndex] = meshDrawIndex;
+        vdiBuf.i[pcCull.DrawBase + compactIndex] = meshDrawIndex;
     }
 }

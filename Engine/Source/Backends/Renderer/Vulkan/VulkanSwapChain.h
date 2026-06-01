@@ -18,8 +18,9 @@ public:
     inline uint32_t            GetHeight() const override { return m_height; }
     inline ITexture::Format    GetColorFormat() const override { return m_colorFormat; }
     inline SampleCountFlagBits GetNumSamples() const override { return m_numSamples; }
-    inline uint32_t            GetImageCount() const override { return static_cast<uint32_t>(m_colorTextures.size()); }
-    inline uint32_t            GetCurrentFrameIndex() const override { return m_currentFrame; }
+
+    inline uint32_t GetImageCount() const { return static_cast<uint32_t>(m_colorTextures.size()); }
+    inline uint32_t GetCurrentFrameIndex() const { return m_currentFrame; }
 
     WRef<ITextureView> AcquireCurrentTarget() const override
     {

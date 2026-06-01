@@ -139,6 +139,8 @@ public:
     virtual void Submit() = 0;
     virtual void Wait()   = 0;
 
+    virtual bool IsFinished() const = 0;
+
     virtual void BeginRendering(const RenderingDesc& desc) = 0;
     virtual void EndRendering()                            = 0;
 
@@ -181,7 +183,22 @@ public:
 
     virtual void Dispatch(uint32_t groupCountX, uint32_t groupCountY = 1, uint32_t groupCountZ = 1) = 0;
 
-    virtual void Barrier(const BarrierDesc& barrierDesc) = 0;
+    virtual void CopyBuffer(const IBuffer* src,
+                            const IBuffer* dst,
+                            uint64_t       srcOffset,
+                            uint64_t       dstOffset,
+                            uint64_t       size) = 0;
+
+    virtual void FillBuffer(const IBuffer* dst, uint64_t offset, uint64_t size, uint32_t value) = 0;
+
+    virtual void Barrier(std::initializer_list<BarrierDesc> barrierDescs) = 0;
+
+    inline void Barrier(const BarrierDesc& desc) { Barrier({ desc }); }
+
+    inline void Barrier(ResourceState before, ResourceState after)
+    {
+        Barrier(BarrierDesc{ .BeforeState = before, .AfterState = after });
+    }
 
     virtual void Blit(const ITextureView* src, const ITextureView* dst, const BlitDesc& blitDesc = {}) = 0;
 
