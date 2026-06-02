@@ -2,7 +2,7 @@
 
 #include "Resources/AssetManager/AssetManager.h"
 #include "Resources/ResourceManager/ResourceManager.h"
-#include "Renderer/BindlessTextures.h"
+#include "Renderer/BindlessTextureManager.h"
 
 namespace Yogi
 {
@@ -41,11 +41,9 @@ Application::~Application()
     }
     m_layers.clear();
 
-    AssetManager::Clear();
-    ResourceManager::Clear();
-
-    if (BindlessTextures::IsInitialized())
-        BindlessTextures::Shutdown();
+    AssetManager::Shutdown();
+    ResourceManager::Shutdown();
+    BindlessTextureManager::Shutdown();
 
     m_swapChain = nullptr;
     m_context   = nullptr;

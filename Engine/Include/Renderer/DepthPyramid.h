@@ -26,9 +26,6 @@ public:
 
     bool IsValid() const { return m_texture != nullptr; }
 
-    // Perform the one-time Undefined->General transition if it hasn't happened yet.
-    void EnsureInitialLayout(ICommandBuffer* commandBuffer);
-
     void Build(ICommandBuffer* commandBuffer, const IPipeline* reducePipeline, const ITextureView* sourceView);
 
     const ITexture*     GetTexture() const { return m_texture.Get(); }

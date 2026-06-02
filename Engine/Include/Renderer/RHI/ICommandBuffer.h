@@ -202,6 +202,10 @@ public:
 
     virtual void Blit(const ITextureView* src, const ITextureView* dst, const BlitDesc& blitDesc = {}) = 0;
 
+    virtual void BeginDebugLabel(const char* name)  = 0;
+    virtual void EndDebugLabel()                    = 0;
+    virtual void InsertDebugLabel(const char* name) = 0;
+
     static Owner<ICommandBuffer> Create(const CommandBufferDesc& desc);
 };
 

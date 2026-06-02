@@ -14,6 +14,43 @@
 namespace Yogi
 {
 
+namespace
+{
+
+VkAttachmentLoadOp ToVkLoadOp(LoadOp op)
+{
+    switch (op)
+    {
+        case LoadOp::Load:
+            return VK_ATTACHMENT_LOAD_OP_LOAD;
+        case LoadOp::Clear:
+            return VK_ATTACHMENT_LOAD_OP_CLEAR;
+        case LoadOp::DontCare:
+            return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    }
+    return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+}
+
+VkAttachmentStoreOp ToVkStoreOp(StoreOp op)
+{
+    switch (op)
+    {
+        case StoreOp::Store:
+            return VK_ATTACHMENT_STORE_OP_STORE;
+        case StoreOp::DontCare:
+            return VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    }
+    return VK_ATTACHMENT_STORE_OP_DONT_CARE;
+}
+
+static bool VkDebugLabelsAvailable()
+{
+    return vkCmdBeginDebugUtilsLabelEXT != nullptr && vkCmdEndDebugUtilsLabelEXT != nullptr &&
+        vkCmdInsertDebugUtilsLabelEXT != nullptr;
+}
+
+} // anonymous namespace
+
 Owner<ICommandBuffer> ICommandBuffer::Create(const CommandBufferDesc& desc)
 {
     return Owner<VulkanCommandBuffer>::Create(desc);
@@ -158,39 +195,6 @@ bool VulkanCommandBuffer::IsFinished() const
 
     return vkGetFenceStatus(context->GetVkDevice(), m_commandFence) == VK_SUCCESS;
 }
-
-// ---------- Helpers for BeginRendering / EndRendering ----------------------
-
-namespace
-{
-
-VkAttachmentLoadOp ToVkLoadOp(LoadOp op)
-{
-    switch (op)
-    {
-        case LoadOp::Load:
-            return VK_ATTACHMENT_LOAD_OP_LOAD;
-        case LoadOp::Clear:
-            return VK_ATTACHMENT_LOAD_OP_CLEAR;
-        case LoadOp::DontCare:
-            return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    }
-    return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-}
-
-VkAttachmentStoreOp ToVkStoreOp(StoreOp op)
-{
-    switch (op)
-    {
-        case StoreOp::Store:
-            return VK_ATTACHMENT_STORE_OP_STORE;
-        case StoreOp::DontCare:
-            return VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    }
-    return VK_ATTACHMENT_STORE_OP_DONT_CARE;
-}
-
-} // anonymous namespace
 
 void VulkanCommandBuffer::BeginRendering(const RenderingDesc& desc)
 {
@@ -384,8 +388,11 @@ void VulkanCommandBuffer::Dispatch(uint32_t groupCountX, uint32_t groupCountY, u
     vkCmdDispatch(m_commandBuffer, groupCountX, groupCountY, groupCountZ);
 }
 
-void VulkanCommandBuffer::CopyBuffer(const IBuffer* src, const IBuffer* dst,
-                                     uint64_t srcOffset, uint64_t dstOffset, uint64_t size)
+void VulkanCommandBuffer::CopyBuffer(const IBuffer* src,
+                                     const IBuffer* dst,
+                                     uint64_t       srcOffset,
+                                     uint64_t       dstOffset,
+                                     uint64_t       size)
 {
     YG_CORE_ASSERT(src && dst, "Vulkan: CopyBuffer called with null buffer");
     YG_CORE_ASSERT(size > 0, "Vulkan: CopyBuffer called with zero size");
@@ -404,11 +411,9 @@ void VulkanCommandBuffer::CopyBuffer(const IBuffer* src, const IBuffer* dst,
 void VulkanCommandBuffer::FillBuffer(const IBuffer* dst, uint64_t offset, uint64_t size, uint32_t value)
 {
     YG_CORE_ASSERT(dst, "Vulkan: FillBuffer called with null buffer");
-    // size == VK_WHOLE_SIZE is legal and means "to end of buffer".
     YG_CORE_ASSERT(size > 0, "Vulkan: FillBuffer called with zero size");
     YG_CORE_ASSERT((offset & 0x3) == 0, "Vulkan: FillBuffer offset must be 4-byte aligned");
-    YG_CORE_ASSERT(size == VK_WHOLE_SIZE || (size & 0x3) == 0,
-                   "Vulkan: FillBuffer size must be 4-byte aligned");
+    YG_CORE_ASSERT(size == VK_WHOLE_SIZE || (size & 0x3) == 0, "Vulkan: FillBuffer size must be 4-byte aligned");
 
     const VulkanBuffer& vkDst = *static_cast<const VulkanBuffer*>(dst);
     vkCmdFillBuffer(m_commandBuffer,
@@ -423,8 +428,6 @@ void VulkanCommandBuffer::Barrier(std::initializer_list<BarrierDesc> barrierDesc
     if (barrierDescs.size() == 0)
         return;
 
-    // Collect by kind. Most call sites are 1-3 barriers; reserve a small
-    // amount up-front to avoid heap traffic on the common path.
     std::vector<VkMemoryBarrier2>       memBarriers;
     std::vector<VkBufferMemoryBarrier2> bufBarriers;
     std::vector<VkImageMemoryBarrier2>  imgBarriers;
@@ -432,10 +435,6 @@ void VulkanCommandBuffer::Barrier(std::initializer_list<BarrierDesc> barrierDesc
     bufBarriers.reserve(barrierDescs.size());
     imgBarriers.reserve(barrierDescs.size());
 
-    // Collect post-barrier image layouts in a side list and apply AFTER the
-    // submit. Doing it during build is fine in single-barrier mode but breaks
-    // if the same image appears twice in one batch (the second's BeforeState
-    // would observe the first's already-applied layout, wrongly).
     struct PendingLayout
     {
         const VulkanTexture* Tex;
@@ -453,8 +452,8 @@ void VulkanCommandBuffer::Barrier(std::initializer_list<BarrierDesc> barrierDesc
             YG_CORE_ASSERT(tex, "Vulkan: Barrier called on a view whose texture is destroyed");
             const VulkanTexture* vkTex = static_cast<const VulkanTexture*>(tex);
 
-            VkImageLayout oldLayout = (d.BeforeState & ResourceState::Undefined) ? VK_IMAGE_LAYOUT_UNDEFINED :
-                                                                                   vkTex->GetCurrentLayout();
+            VkImageLayout oldLayout =
+                (d.BeforeState & ResourceState::Undefined) ? VK_IMAGE_LAYOUT_UNDEFINED : vkTex->GetCurrentLayout();
             VkImageLayout newLayout = YgResourceState2VkImageLayout(d.AfterState, tex->GetUsage());
 
             VkImageMemoryBarrier2 b{};
@@ -492,11 +491,6 @@ void VulkanCommandBuffer::Barrier(std::initializer_list<BarrierDesc> barrierDesc
         }
         else
         {
-            // Global memory barrier: no resource targeting, just a stage +
-            // access mask transition. Modern GPU drivers translate per-buffer
-            // barriers to the same hardware op (global cache flush + pipeline
-            // stall), so collapsing N per-buffer barriers into 1 of these is
-            // a code-size win at zero perf cost.
             VkMemoryBarrier2 b{};
             b.sType         = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2;
             b.srcStageMask  = YgResourceState2VkPipelineStage2(d.BeforeState);
@@ -633,6 +627,33 @@ void VulkanCommandBuffer::Blit(const ITextureView* src, const ITextureView* dst,
         .BeforeState = dstStableState,
         .AfterState  = ResourceState::FragmentShaderResource,
     });
+}
+
+void VulkanCommandBuffer::BeginDebugLabel(const char* name)
+{
+    if (!VkDebugLabelsAvailable())
+        return;
+    VkDebugUtilsLabelEXT label{};
+    label.sType      = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
+    label.pLabelName = name ? name : "";
+    vkCmdBeginDebugUtilsLabelEXT(m_commandBuffer, &label);
+}
+
+void VulkanCommandBuffer::EndDebugLabel()
+{
+    if (!VkDebugLabelsAvailable())
+        return;
+    vkCmdEndDebugUtilsLabelEXT(m_commandBuffer);
+}
+
+void VulkanCommandBuffer::InsertDebugLabel(const char* name)
+{
+    if (!VkDebugLabelsAvailable())
+        return;
+    VkDebugUtilsLabelEXT label{};
+    label.sType      = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
+    label.pLabelName = name ? name : "";
+    vkCmdInsertDebugUtilsLabelEXT(m_commandBuffer, &label);
 }
 
 } // namespace Yogi

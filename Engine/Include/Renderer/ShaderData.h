@@ -19,12 +19,13 @@
 #    define MESH_WGSIZE   64
 #endif
 
-#define TASK_WGSIZE           32
-#define MESHLET_MAX_VERTICES  64
-#define MESHLET_MAX_TRIANGLES 126
-#define CULL_WORKGROUP_SIZE   64
-#define DEPTH_REDUCE_WGSIZE   16
-#define MAX_TEXTURES          1024
+#define TASK_WGSIZE                   32
+#define MESHLET_MAX_VERTICES          64
+#define MESHLET_MAX_TRIANGLES         126
+#define CULL_WORKGROUP_SIZE           64
+#define DEPTH_REDUCE_WGSIZE           16
+#define MAX_TEXTURES                  1024
+#define MESH_DRAW_SENTINEL_MESH_INDEX 0xFFFFFFFFu
 
 struct VertexData
 {

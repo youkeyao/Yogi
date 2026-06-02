@@ -45,6 +45,10 @@ void main()
 #endif
 
     MeshDraw draw = mdBuf.m[meshDrawIndex];
+
+    if (draw.MeshIndex == MESH_DRAW_SENTINEL_MESH_INDEX)
+        return;
+
     MeshData mesh = mDBuf.m[draw.MeshIndex];
 
     // World-space sphere center: matches the vertex shader's TRS (rotate(localPos * S) + T).

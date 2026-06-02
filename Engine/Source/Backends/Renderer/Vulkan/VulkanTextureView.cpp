@@ -102,7 +102,7 @@ void VulkanTextureView::SetData(void* data, uint32_t size)
                                                1 };
 
     VulkanBuffer stagingBuffer(BufferDesc{ size, BufferUsage::Staging });
-    void* mapped = stagingBuffer.GetMappedPtr();
+    void*        mapped = stagingBuffer.GetMappedPtr();
     YG_CORE_ASSERT(mapped, "VulkanTextureView::SetData: staging buffer was not mapped");
     memcpy(mapped, data, size);
     vkCmdCopyBufferToImage(commandBuffer.GetVkCommandBuffer(),

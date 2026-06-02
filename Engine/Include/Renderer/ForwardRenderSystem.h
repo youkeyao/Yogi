@@ -8,6 +8,7 @@
 #include "Renderer/RenderPass.h"
 #include "Renderer/ObjectCullPass.h"
 #include "Renderer/MeshletDrawPass.h"
+#include "Renderer/DrawSlotRegistry.h"
 #include "Renderer/StagingArena.h"
 #include "Renderer/RHI/ICommandBuffer.h"
 
@@ -41,42 +42,25 @@ private:
     static const uint64_t MAX_MATERIALS     = 65536;
     static const uint64_t MAX_MATERIAL_SIZE = MAX_MATERIALS * sizeof(MaterialData);
 
-    // Niagara-style mostly-bindless rendering. Bulk per-frame state is
-    // uploaded via StagingArena into device-local IBuffers; small per-frame
-    // structs (SceneFrame) ride directly on host-visible staging memory and
-    // the shader reads them via BDA -- no device-local copy needed.
-
-    // Device-local persistent buffers (filled via StagingArena::Stage).
     WRef<IBuffer> m_vertexStorageBuffer = nullptr;
     WRef<IBuffer> m_meshletBuffer       = nullptr;
     WRef<IBuffer> m_meshletDataBuffer   = nullptr;
     WRef<IBuffer> m_meshBuffer          = nullptr;
     WRef<IBuffer> m_meshDrawBuffer      = nullptr;
     WRef<IBuffer> m_materialBuffer      = nullptr;
-    // SceneFrame is no longer persisted in a device-local buffer. Each frame
-    // RenderCamera Push()es it into the StagingArena and uses the returned
-    // BDA -- the staging block's fence-tagged recycling keeps the bytes alive
-    // exactly as long as the GPU needs them.
 
     StagingArena    m_stagingArena;
     ObjectCullPass  m_objectCullPass;
     MeshletDrawPass m_meshletDrawPass;
 
     MeshGPUUploadCache m_meshUploadCache;
-    uint32_t           m_cachedVertexCount     = 0;
-    uint32_t           m_cachedMeshletCount    = 0;
-    uint32_t           m_cachedMeshletDataSize = 0;
-    uint32_t           m_cachedMeshCount       = 0;
-    // Parallel to m_meshUploadCache (indexed by meshIndex). Lets the prefix-sum
-    // for per-MeshDraw MeshletVisOffset run host-side without reading the GPU
-    // MeshDataBuffer.
-    std::vector<uint32_t> m_cachedMeshMeshletCounts;
+
+    DrawSlotRegistry m_drawSlotRegistry;
 
     // DepthReduce pipeline + Hi-Z manager.
     WRef<IPipeline> m_depthReducePipeline = nullptr;
     DepthPyramid    m_depthPyramid;
 
-    // Scene znear/zfar match MathUtils::Perspective(..., 0.1f, 100.0f) in RenderCamera().
     static constexpr float k_zNear = 0.1f;
     static constexpr float k_zFar  = 100.0f;
 
@@ -84,8 +68,6 @@ private:
     WRef<ITextureView> m_depthView    = nullptr;
     ITexture::Format   m_depthFormat  = ITexture::Format::D32_FLOAT;
 
-    // Cache of sampled views keyed by ITexture* -- one view per unique texture
-    // referenced by any live Material. Same lifecycle as before.
     std::unordered_map<ITexture*, Owner<ITextureView>> m_materialViews;
 };
 

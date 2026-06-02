@@ -23,7 +23,7 @@ public:
 private:
     VkBuffer        m_buffer        = VK_NULL_HANDLE;
     VkDeviceMemory  m_memory        = VK_NULL_HANDLE;
-    VkDeviceAddress m_deviceAddress = 0; // cached vkGetBufferDeviceAddress result
+    VkDeviceAddress m_deviceAddress = 0;
 
     uint64_t    m_size         = 0;
     BufferUsage m_usage        = {};

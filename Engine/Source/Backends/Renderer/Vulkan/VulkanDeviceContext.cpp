@@ -250,12 +250,12 @@ void VulkanDeviceContext::CreateLogicalDevice()
     vulkan12Features.descriptorIndexing              = VK_TRUE;
     vulkan12Features.runtimeDescriptorArray          = VK_TRUE;
     vulkan12Features.descriptorBindingPartiallyBound = VK_TRUE;
-    vulkan12Features.descriptorBindingSampledImageUpdateAfterBind = VK_TRUE;
+    vulkan12Features.descriptorBindingSampledImageUpdateAfterBind  = VK_TRUE;
     vulkan12Features.descriptorBindingStorageImageUpdateAfterBind  = VK_TRUE;
     vulkan12Features.descriptorBindingStorageBufferUpdateAfterBind = VK_TRUE;
     vulkan12Features.descriptorBindingVariableDescriptorCount      = VK_TRUE;
-    vulkan12Features.shaderSampledImageArrayNonUniformIndexing    = VK_TRUE;
-    vulkan11Features.pNext                                        = &vulkan12Features;
+    vulkan12Features.shaderSampledImageArrayNonUniformIndexing     = VK_TRUE;
+    vulkan11Features.pNext                                         = &vulkan12Features;
     VkPhysicalDeviceVulkan13Features vulkan13Features{};
     vulkan13Features.sType            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
     vulkan13Features.dynamicRendering = VK_TRUE;

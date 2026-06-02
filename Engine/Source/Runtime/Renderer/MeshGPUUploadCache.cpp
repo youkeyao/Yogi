@@ -44,6 +44,10 @@ void MeshGPUUploadCache::Upsert(const Key& key, const uint32_t& record)
 void MeshGPUUploadCache::Clear()
 {
     m_records.clear();
+    m_vertexCount     = 0;
+    m_meshletCount    = 0;
+    m_meshletDataSize = 0;
+    m_meshCount       = 0;
 }
 
 } // namespace Yogi

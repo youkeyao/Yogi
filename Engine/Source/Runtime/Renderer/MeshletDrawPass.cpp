@@ -1,5 +1,5 @@
 #include "Renderer/MeshletDrawPass.h"
-#include "Renderer/BindlessTextures.h"
+#include "Renderer/BindlessTextureManager.h"
 #include "Resources/AssetManager/AssetManager.h"
 #include "Resources/ResourceManager/ResourceManager.h"
 
@@ -13,19 +13,15 @@ void MeshletDrawPass::Initialize()
     YG_CORE_ASSERT(m_colorFormat != ITexture::Format::NONE,
                    "MeshletDrawPass: SetTargetColorFormat must be called before Initialize");
 
-    IShaderResourceBinding* bindlessSRB = BindlessTextures::IsInitialized() ? BindlessTextures::Get().GetSRB() : nullptr;
-    YG_CORE_ASSERT(bindlessSRB, "MeshletDrawPass: BindlessTextures must be initialized before Initialize()");
-
     WRef<ShaderDesc> taskShaderEarly = AssetManager::AcquireAsset<ShaderDesc>("EngineAssets/Shaders/Test.task");
     WRef<ShaderDesc> taskShaderLate  = AssetManager::AcquireAsset<ShaderDesc>("EngineAssets/Shaders/Test.task::LATE=1");
     WRef<ShaderDesc> meshShader      = AssetManager::AcquireAsset<ShaderDesc>("EngineAssets/Shaders/Test.mesh");
     WRef<ShaderDesc> fragmentShader  = AssetManager::AcquireAsset<ShaderDesc>("EngineAssets/Shaders/Test.frag");
 
     PipelineDesc desc{};
-    desc.ResourceBinding    = bindlessSRB;
-    desc.PushConstantRanges = { PushConstantRange{ ShaderStage::Task | ShaderStage::Mesh | ShaderStage::Fragment,
-                                                   0,
-                                                   static_cast<uint32_t>(sizeof(ScenePush)) } };
+    desc.ResourceBinding    = BindlessTextureManager::GetSRB();
+    desc.PushConstantRanges = { PushConstantRange{
+        ShaderStage::Task | ShaderStage::Mesh | ShaderStage::Fragment, 0, static_cast<uint32_t>(sizeof(ScenePush)) } };
     desc.ColorFormats       = { m_colorFormat };
     desc.DepthFormat        = ITexture::Format::D32_FLOAT;
     desc.Samples            = SampleCountFlagBits::Count1;
@@ -46,16 +42,14 @@ void MeshletDrawPass::Shutdown()
     m_indirectCount = nullptr;
 }
 
-void MeshletDrawPass::ExecuteEarly(ICommandBuffer* cmd,
-                                   uint64_t        sceneFrameAddr,
-                                   uint32_t        drawBase,
-                                   uint32_t        drawCount)
+void MeshletDrawPass::ExecuteEarly(ICommandBuffer* cmd, uint64_t sceneFrameAddr, uint32_t drawBase, uint32_t drawCount)
 {
     if (drawCount == 0 || !m_indirectCmd || !m_indirectCount)
         return;
+    cmd->BeginDebugLabel("MeshletDraw::ExecuteEarly");
 
     cmd->SetPipeline(m_earlyPipeline.Get());
-    cmd->SetShaderResourceBinding(BindlessTextures::Get().GetSRB());
+    cmd->SetShaderResourceBinding(BindlessTextureManager::GetSRB());
 
     ScenePush pcScene{};
     pcScene.SceneFrameAddr = sceneFrameAddr;
@@ -68,12 +62,14 @@ void MeshletDrawPass::ExecuteEarly(ICommandBuffer* cmd,
                           &pcScene);
 
     const uint32_t indirectOffsetBytes = drawBase * sizeof(uint32_t) * 3;
-    cmd->DrawMeshTasksIndirectCount(m_indirectCmd,
+    cmd->DrawMeshTasksIndirectCount(m_indirectCmd.Get(),
                                     indirectOffsetBytes,
-                                    m_indirectCount,
+                                    m_indirectCount.Get(),
                                     /*countOffset*/ 0,
                                     drawCount,
                                     sizeof(uint32_t) * 3);
+
+    cmd->EndDebugLabel();
 }
 
 void MeshletDrawPass::ExecuteLate(ICommandBuffer* cmd,
@@ -84,9 +80,10 @@ void MeshletDrawPass::ExecuteLate(ICommandBuffer* cmd,
 {
     if (drawCount == 0 || !m_indirectCmd || !m_indirectCount)
         return;
+    cmd->BeginDebugLabel("MeshletDraw::ExecuteLate");
 
     cmd->SetPipeline(m_latePipeline.Get());
-    cmd->SetShaderResourceBinding(BindlessTextures::Get().GetSRB());
+    cmd->SetShaderResourceBinding(BindlessTextureManager::GetSRB());
 
     ScenePush pcScene{};
     pcScene.SceneFrameAddr = sceneFrameAddr;
@@ -99,12 +96,14 @@ void MeshletDrawPass::ExecuteLate(ICommandBuffer* cmd,
                           &pcScene);
 
     const uint32_t indirectOffsetBytes = drawBase * sizeof(uint32_t) * 3;
-    cmd->DrawMeshTasksIndirectCount(m_indirectCmd,
+    cmd->DrawMeshTasksIndirectCount(m_indirectCmd.Get(),
                                     indirectOffsetBytes,
-                                    m_indirectCount,
+                                    m_indirectCount.Get(),
                                     /*countOffset*/ 0,
                                     drawCount,
                                     sizeof(uint32_t) * 3);
+
+    cmd->EndDebugLabel();
 }
 
 } // namespace Yogi

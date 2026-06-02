@@ -8,9 +8,6 @@ void StagingArena::Init(uint64_t blockSize)
 {
     m_blockSize = AlignUp(blockSize, 256ull);
     m_blocks.clear();
-    // Lazy alloc: first Stage call allocates the first block. Eager alloc
-    // would need to know up-front the typical per-frame upload size; lazy
-    // gets the size right by definition.
 }
 
 void StagingArena::Shutdown()
@@ -25,10 +22,6 @@ void StagingArena::BeginFrame()
 {
     m_pendingBlock       = nullptr;
     m_pendingBlockOffset = 0;
-    // Eager poll. Not strictly required for correctness (FindOrAlloc lazy-
-    // polls too), but lets the steady-state pool stay minimal: without it,
-    // a stale tag on a free block would force a new allocation if the
-    // *first* Stage of the frame walks past it.
     for (Block& b : m_blocks)
     {
         if (b.LastUserCmd && b.LastUserCmd->IsFinished())
@@ -56,14 +49,11 @@ StagingArena::Block& StagingArena::FindOrAllocBlockForSize(ICommandBuffer* cmd, 
 {
     for (Block& b : m_blocks)
     {
-        // A block is reusable for `cmd` if either (a) it's already being
-        // appended to by `cmd` itself, or (b) its previous owner has finished.
         ICommandBuffer* owner = b.LastUserCmd;
         if (owner && owner != cmd)
         {
             if (!owner->IsFinished())
                 continue; // still in flight on a different cmd, can't touch
-            // Lazy reclaim path -- BeginFrame may have been skipped.
             b.Head        = 0;
             b.LastUserCmd = nullptr;
         }
@@ -76,8 +66,12 @@ StagingArena::Block& StagingArena::FindOrAllocBlockForSize(ICommandBuffer* cmd, 
     return AllocateNewBlock(need > m_blockSize ? need : m_blockSize);
 }
 
-uint64_t StagingArena::Stage(ICommandBuffer* cmd, IBuffer* dst, uint64_t dstOffset,
-                             const void* data, uint64_t size, uint64_t alignment)
+uint64_t StagingArena::Stage(ICommandBuffer* cmd,
+                             IBuffer*        dst,
+                             uint64_t        dstOffset,
+                             const void*     data,
+                             uint64_t        size,
+                             uint64_t        alignment)
 {
     YG_CORE_ASSERT(cmd && dst && data, "StagingArena: Stage called with null arg");
     YG_CORE_ASSERT(size > 0, "StagingArena: Stage called with zero size");
@@ -107,7 +101,6 @@ uint64_t StagingArena::Push(ICommandBuffer* cmd, const void* data, uint64_t size
     memcpy(static_cast<char*>(b.Mapped) + off, data, size);
     b.Head        = off + size;
     b.LastUserCmd = cmd;
-    // No CopyBuffer recorded -- caller will read directly via the returned BDA.
     return b.Buffer->GetDeviceAddress() + off;
 }
 

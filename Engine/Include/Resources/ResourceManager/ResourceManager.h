@@ -1,24 +1,28 @@
 #pragma once
 
+#include "Core/Singleton.h"
 #include "Resources/ResourceManager/ResourceHash.h"
 
 namespace Yogi
 {
 
-class YG_API ResourceManager
+class YG_API ResourceManager : public Singleton<ResourceManager>
 {
+    friend class Singleton<ResourceManager>;
+
 public:
     static size_t CollectUnusedResourcesAll(size_t maxCollectPerType = std::numeric_limits<size_t>::max())
     {
+        auto&  self           = Get();
         size_t totalCollected = 0;
-        for (auto& [_, entry] : s_resourceMaps)
+        for (auto& [_, entry] : self.m_resourceMaps)
         {
             if (entry.collectFn)
             {
                 totalCollected += entry.collectFn(entry.data.get(), maxCollectPerType);
             }
         }
-        for (auto& [_, entry] : s_resourceLists)
+        for (auto& [_, entry] : self.m_resourceLists)
         {
             if (entry.collectFn)
             {
@@ -91,12 +95,6 @@ public:
         return AddResource(Owner<T>::Create(std::forward<Args>(args)...));
     }
 
-    static void Clear()
-    {
-        s_resourceMaps.clear();
-        s_resourceLists.clear();
-    }
-
     struct ResourceStats
     {
         size_t sharedCount = 0;
@@ -129,9 +127,10 @@ public:
 
     static ResourceStatsAll GetResourceStatsAll()
     {
+        auto&            self = Get();
         ResourceStatsAll stats;
-        stats.totalShared    = s_resourceMaps.size();
-        stats.totalUnique    = s_resourceLists.size();
+        stats.totalShared    = self.m_resourceMaps.size();
+        stats.totalUnique    = self.m_resourceLists.size();
         stats.totalResources = stats.totalShared + stats.totalUnique;
         return stats;
     }
@@ -218,15 +217,15 @@ protected:
     template <typename T>
     static std::unordered_map<uint64_t, Owner<T>>& GetResourceMap()
     {
-        auto it = s_resourceMaps.find(typeid(T));
-        if (it == s_resourceMaps.end())
+        auto& maps = Get().m_resourceMaps;
+        auto  it   = maps.find(typeid(T));
+        if (it == maps.end())
         {
             auto* newMap             = new std::unordered_map<uint64_t, Owner<T>>();
             void (*deleterFn)(void*) = +[](void* p) {
                 delete static_cast<std::unordered_map<uint64_t, Owner<T>>*>(p);
             };
-            s_resourceMaps[typeid(T)] =
-                Entry{ Any{ newMap, VoidDeleter(deleterFn) }, &CollectUnusedMappedResourcesThunk<T> };
+            maps[typeid(T)] = Entry{ Any{ newMap, VoidDeleter(deleterFn) }, &CollectUnusedMappedResourcesThunk<T> };
             return *newMap;
         }
         return *static_cast<std::unordered_map<uint64_t, Owner<T>>*>(it->second.data.get());
@@ -235,24 +234,28 @@ protected:
     template <typename T>
     static std::vector<Owner<T>>& GetResourceList()
     {
-        auto it = s_resourceLists.find(typeid(T));
-        if (it == s_resourceLists.end())
+        auto& lists = Get().m_resourceLists;
+        auto  it    = lists.find(typeid(T));
+        if (it == lists.end())
         {
             auto* newList            = new std::vector<Owner<T>>();
             void (*deleterFn)(void*) = +[](void* p) {
                 delete static_cast<std::vector<Owner<T>>*>(p);
             };
-            s_resourceLists[typeid(T)] =
-                Entry{ Any{ newList, VoidDeleter(deleterFn) }, &CollectUnusedCreatedResourcesThunk<T> };
+            lists[typeid(T)] = Entry{ Any{ newList, VoidDeleter(deleterFn) }, &CollectUnusedCreatedResourcesThunk<T> };
             return *newList;
         }
         return *static_cast<std::vector<Owner<T>>*>(it->second.data.get());
     }
 
-protected:
 private:
-    static std::unordered_map<std::type_index, Entry> s_resourceMaps;
-    static std::unordered_map<std::type_index, Entry> s_resourceLists;
+    ResourceManager()  = default;
+    ~ResourceManager() = default;
+
+    static ResourceManager* s_instance; // defined in .cpp, exported via YG_API
+
+    std::unordered_map<std::type_index, Entry> m_resourceMaps;
+    std::unordered_map<std::type_index, Entry> m_resourceLists;
 };
 
 } // namespace Yogi

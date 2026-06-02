@@ -3,7 +3,6 @@
 namespace Yogi
 {
 
-std::unordered_map<std::type_index, ResourceManager::Entry> ResourceManager::s_resourceMaps;
-std::unordered_map<std::type_index, ResourceManager::Entry> ResourceManager::s_resourceLists;
+ResourceManager* ResourceManager::s_instance = nullptr;
 
 } // namespace Yogi

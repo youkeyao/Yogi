@@ -1,5 +1,5 @@
 #include "Renderer/DepthPyramid.h"
-#include "Renderer/BindlessTextures.h"
+#include "Renderer/BindlessTextureManager.h"
 #include "Renderer/ShaderData.h"
 
 #include "Resources/ResourceManager/ResourceManager.h"
@@ -46,9 +46,9 @@ std::vector<PushConstantRange> DepthPyramid::GetReducePushConstantRanges()
 
 DepthPyramid::~DepthPyramid()
 {
-    if (BindlessTextures::IsInitialized() && m_pyramidSampledSlot != BindlessTextures::INVALID_SLOT)
+    if (BindlessTextureManager::IsInitialized() && m_pyramidSampledSlot != BindlessTextureManager::INVALID_SLOT)
     {
-        BindlessTextures::Get().Unregister(m_pyramidSampledSlot);
+        BindlessTextureManager::Unregister(m_pyramidSampledSlot);
     }
 }
 
@@ -60,7 +60,6 @@ bool DepthPyramid::Resize(uint32_t sourceWidth, uint32_t sourceHeight)
         return false;
     }
 
-    // Pyramid mip 0 = previousPow2(source). Forces every later reduction to be a clean 2:1 divide
     uint32_t width  = MathUtils::Max(1u, MathUtils::PreviousPow2(sourceWidth));
     uint32_t height = MathUtils::Max(1u, MathUtils::PreviousPow2(sourceHeight));
 
@@ -89,7 +88,6 @@ bool DepthPyramid::Resize(uint32_t sourceWidth, uint32_t sourceHeight)
         m_mipSizes.emplace_back(MathUtils::Max(1u, width >> mip), MathUtils::Max(1u, height >> mip));
     }
 
-    // One single-mip view per mip level; one full-pyramid view spanning all mips.
     m_mipViews.clear();
     m_mipViews.reserve(m_mipCount);
     for (uint32_t mip = 0; mip < m_mipCount; ++mip)
@@ -99,10 +97,6 @@ bool DepthPyramid::Resize(uint32_t sourceWidth, uint32_t sourceHeight)
     }
     m_textureView = ITextureView::Create(m_texture);
 
-    // One SRB per mip, with binding=2 (storage write target) wired up here
-    // (it never changes). binding=1 (sampled src image) gets wired in Build();
-    // binding=0 is the immutable max-reduction sampler -- baked into the
-    // layout, no descriptor write needed.
     m_mipBindings.clear();
     m_mipBindings.reserve(m_mipCount);
     for (uint32_t mip = 0; mip < m_mipCount; ++mip)
@@ -112,10 +106,7 @@ bool DepthPyramid::Resize(uint32_t sourceWidth, uint32_t sourceHeight)
         m_mipBindings.push_back(std::move(binding));
     }
 
-    // Pyramid sampled view goes into the global bindless pool so LATE passes
-    // can reach it via texture slot indices (same as material textures).
-    if (BindlessTextures::IsInitialized())
-        m_pyramidSampledSlot = BindlessTextures::Get().Register(m_textureView.Get());
+    m_pyramidSampledSlot = BindlessTextureManager::Register(m_textureView.Get());
 
     m_lastBoundDepth            = nullptr;
     m_initialLayoutTransitioned = false;
@@ -124,11 +115,11 @@ bool DepthPyramid::Resize(uint32_t sourceWidth, uint32_t sourceHeight)
 
 void DepthPyramid::Reset()
 {
-    if (BindlessTextures::IsInitialized() && m_pyramidSampledSlot != BindlessTextures::INVALID_SLOT)
+    if (BindlessTextureManager::IsInitialized() && m_pyramidSampledSlot != BindlessTextureManager::INVALID_SLOT)
     {
-        BindlessTextures::Get().Unregister(m_pyramidSampledSlot);
+        BindlessTextureManager::Unregister(m_pyramidSampledSlot);
     }
-    m_pyramidSampledSlot = BindlessTextures::INVALID_SLOT;
+    m_pyramidSampledSlot = BindlessTextureManager::INVALID_SLOT;
 
     m_mipBindings.clear();
     m_mipViews.clear();
@@ -142,32 +133,27 @@ void DepthPyramid::Reset()
     m_initialLayoutTransitioned = false;
 }
 
-void DepthPyramid::EnsureInitialLayout(ICommandBuffer* commandBuffer)
-{
-    if (!m_texture || m_initialLayoutTransitioned)
-        return;
-
-    commandBuffer->Barrier(BarrierDesc{
-        .TextureView = m_textureView.Get(),
-        .BeforeState = ResourceState::None,
-        .AfterState  = ResourceState::UnorderedAccess,
-    });
-    m_initialLayoutTransitioned = true;
-}
-
 void DepthPyramid::Build(ICommandBuffer* commandBuffer, const IPipeline* reducePipeline, const ITextureView* sourceView)
 {
     if (!m_texture || !reducePipeline || !sourceView)
         return;
 
     ICommandBuffer* cmd = commandBuffer;
+    cmd->BeginDebugLabel("DepthPyramid::Build");
 
-    // One-time Undefined -> General; the pyramid stays in General for its lifetime.
-    EnsureInitialLayout(cmd);
+    // Transition texture layout for initial use
+    {
+        if (!m_texture || m_initialLayoutTransitioned)
+            return;
 
-    // Rewire mip 0's sampled src only when the underlying depth view changes
-    // (window resize / first frame). mip 1+ are wired once at Resize-time
-    // because they read the pyramid's own previous mip, which doesn't move.
+        commandBuffer->Barrier(BarrierDesc{
+            .TextureView = m_textureView.Get(),
+            .BeforeState = ResourceState::None,
+            .AfterState  = ResourceState::UnorderedAccess,
+        });
+        m_initialLayoutTransitioned = true;
+    }
+
     if (sourceView != m_lastBoundDepth)
     {
         m_mipBindings[0]->BindTextureView(sourceView, 1, 0);
@@ -205,6 +191,8 @@ void DepthPyramid::Build(ICommandBuffer* commandBuffer, const IPipeline* reduceP
             });
         }
     }
+
+    cmd->EndDebugLabel();
 }
 
 } // namespace Yogi

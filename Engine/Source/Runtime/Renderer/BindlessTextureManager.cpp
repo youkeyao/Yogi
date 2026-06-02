@@ -1,49 +1,20 @@
-#include "Renderer/BindlessTextures.h"
-#include "Renderer/ShaderData.h" // MAX_TEXTURES
+#include "Renderer/BindlessTextureManager.h"
+#include "Renderer/ShaderData.h"
 
 namespace Yogi
 {
 
 namespace
 {
-BindlessTextures* g_instance = nullptr;
-
 constexpr int kBindingSampler         = 0;
 constexpr int kBindingSamplerMax      = 1;
 constexpr int kBindingSampledTextures = 2;
 } // namespace
 
-void BindlessTextures::Initialize()
-{
-    YG_CORE_ASSERT(g_instance == nullptr, "BindlessTextures::Initialize called twice");
-    g_instance = new BindlessTextures();
-}
+BindlessTextureManager* BindlessTextureManager::s_instance = nullptr;
 
-void BindlessTextures::Shutdown()
+BindlessTextureManager::BindlessTextureManager()
 {
-    delete g_instance;
-    g_instance = nullptr;
-}
-
-bool BindlessTextures::IsInitialized()
-{
-    return g_instance != nullptr;
-}
-
-BindlessTextures& BindlessTextures::Get()
-{
-    YG_CORE_ASSERT(g_instance, "BindlessTextures::Get called before Initialize");
-    return *g_instance;
-}
-
-BindlessTextures::BindlessTextures()
-{
-    // Two immutable samplers (linear / max-reduction) followed by the
-    // variable-count sampled-image array. Vulkan permits VARIABLE_DESCRIPTOR_
-    // COUNT only on the highest-numbered binding, so the texture array MUST
-    // be last. The RHI uniformly applies PARTIALLY_BOUND + UPDATE_AFTER_BIND
-    // to non-sampler bindings, so unused slots in the bindless array can
-    // stay unwritten and per-frame texture registration doesn't stall.
     const ShaderStage stages = ShaderStage::Vertex | ShaderStage::Fragment | ShaderStage::Compute | ShaderStage::Task |
         ShaderStage::Mesh | ShaderStage::Geometry;
 
@@ -59,14 +30,16 @@ BindlessTextures::BindlessTextures()
     EnsureDefaultWhite();
 }
 
-BindlessTextures::~BindlessTextures()
+BindlessTextureManager::~BindlessTextureManager()
 {
+    m_viewToSlot.clear();
+    m_freeList.clear();
     m_defaultWhiteView = nullptr;
     m_defaultWhite     = nullptr;
     m_srb              = nullptr;
 }
 
-void BindlessTextures::EnsureDefaultWhite()
+void BindlessTextureManager::EnsureDefaultWhite()
 {
     if (m_defaultWhite)
         return;
@@ -84,63 +57,64 @@ void BindlessTextures::EnsureDefaultWhite()
     const uint8_t whiteRGBA[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
     m_defaultWhiteView->SetData(const_cast<uint8_t*>(whiteRGBA), sizeof(whiteRGBA));
 
-    // Slot 0 reserved by convention; bind directly so the free-list never
-    // hands out slot 0.
     m_srb->BindTextureView(m_defaultWhiteView.Get(), kBindingSampledTextures, 0);
     m_viewToSlot[m_defaultWhiteView.Get()] = 0u;
 }
 
-uint32_t BindlessTextures::Register(const ITextureView* view)
+uint32_t BindlessTextureManager::Register(const ITextureView* view)
 {
-    YG_CORE_ASSERT(view, "BindlessTextures::Register called with null view");
+    YG_CORE_ASSERT(view, "BindlessTextureManager::Register called with null view");
+    BindlessTextureManager& self = Get();
 
-    auto it = m_viewToSlot.find(view);
-    if (it != m_viewToSlot.end())
+    auto it = self.m_viewToSlot.find(view);
+    if (it != self.m_viewToSlot.end())
         return it->second;
 
     uint32_t slot;
-    if (!m_freeList.empty())
+    if (!self.m_freeList.empty())
     {
-        slot = m_freeList.back();
-        m_freeList.pop_back();
+        slot = self.m_freeList.back();
+        self.m_freeList.pop_back();
     }
     else
     {
-        if (m_nextSlot >= MAX_TEXTURES)
+        if (self.m_nextSlot >= MAX_TEXTURES)
         {
-            YG_CORE_WARN("BindlessTextures: pool exhausted ({0} slots), falling back to slot 0 "
+            YG_CORE_WARN("BindlessTextureManager: pool exhausted ({0} slots), falling back to slot 0 "
                          "(default white). Raise MAX_TEXTURES in ShaderData.h.",
                          MAX_TEXTURES);
             return 0u;
         }
-        slot = m_nextSlot++;
+        slot = self.m_nextSlot++;
     }
 
-    m_srb->BindTextureView(view, kBindingSampledTextures, static_cast<int>(slot));
-    m_viewToSlot[view] = slot;
+    self.m_srb->BindTextureView(view, kBindingSampledTextures, static_cast<int>(slot));
+    self.m_viewToSlot[view] = slot;
     return slot;
 }
 
-void BindlessTextures::Unregister(uint32_t slot)
+void BindlessTextureManager::Unregister(uint32_t slot)
 {
     if (slot == INVALID_SLOT || slot == 0u)
         return; // slot 0 (default white) is never released
 
-    for (auto it = m_viewToSlot.begin(); it != m_viewToSlot.end(); ++it)
+    BindlessTextureManager& self = Get();
+    for (auto it = self.m_viewToSlot.begin(); it != self.m_viewToSlot.end(); ++it)
     {
         if (it->second == slot)
         {
-            m_viewToSlot.erase(it);
+            self.m_viewToSlot.erase(it);
             break;
         }
     }
-    m_freeList.push_back(slot);
+    self.m_freeList.push_back(slot);
 }
 
-uint32_t BindlessTextures::Find(const ITextureView* view) const
+uint32_t BindlessTextureManager::Find(const ITextureView* view)
 {
-    auto it = m_viewToSlot.find(view);
-    return it == m_viewToSlot.end() ? INVALID_SLOT : it->second;
+    BindlessTextureManager& self = Get();
+    auto                    it   = self.m_viewToSlot.find(view);
+    return it == self.m_viewToSlot.end() ? INVALID_SLOT : it->second;
 }
 
 } // namespace Yogi

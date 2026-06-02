@@ -36,9 +36,6 @@ void MaterialSchema::AddField(const std::string& name, uint32_t offset, FieldTyp
     if (m_defaults.size() < offset + f.Size)
         m_defaults.resize(offset + f.Size, 0);
 
-    // Stash the default at its byte offset. Variant alternative size must
-    // match the field's declared size; a mismatch leaves zero-fill in place
-    // (visible at runtime as "default-default", easy to spot).
     std::visit(
         [&](auto&& v) {
             using T = std::decay_t<decltype(v)>;
@@ -70,9 +67,6 @@ void MaterialSchema::Pack(const Material& material, uint8_t* outBytes, const Tex
 
         if (f.Type == FieldType::Texture)
         {
-            // Texture fields are packed as uint indices. Source must be a
-            // WRef<ITexture> in Params; uint32_t (raw index) also accepted as
-            // a power-user escape hatch. Anything else falls back to default.
             uint32_t idx = 0;
             if (auto* texPtr = std::get_if<WRef<ITexture>>(&value))
             {
@@ -87,9 +81,6 @@ void MaterialSchema::Pack(const Material& material, uint8_t* outBytes, const Tex
             continue;
         }
 
-        // Numeric / vector field: visit the variant; the alternative whose
-        // sizeof matches the field's declared size wins (others are ignored
-        // -- e.g., a Vec3 written into a Float slot is dropped).
         std::visit(
             [&](auto&& v) {
                 using T = std::decay_t<decltype(v)>;

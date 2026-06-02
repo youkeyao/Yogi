@@ -54,13 +54,20 @@ public:
                                     uint32_t       maxDrawCount,
                                     uint32_t       stride) override;
     void Dispatch(uint32_t groupCountX, uint32_t groupCountY = 1, uint32_t groupCountZ = 1) override;
-    void CopyBuffer(const IBuffer* src, const IBuffer* dst,
-                    uint64_t srcOffset, uint64_t dstOffset, uint64_t size) override;
+    void CopyBuffer(const IBuffer* src,
+                    const IBuffer* dst,
+                    uint64_t       srcOffset,
+                    uint64_t       dstOffset,
+                    uint64_t       size) override;
     void FillBuffer(const IBuffer* dst, uint64_t offset, uint64_t size, uint32_t value) override;
     void Barrier(std::initializer_list<BarrierDesc> barrierDescs) override;
-    using ICommandBuffer::Barrier;  // expose the inline sugar overloads
+    using ICommandBuffer::Barrier; // expose the inline sugar overloads
 
     void Blit(const ITextureView* src, const ITextureView* dst, const BlitDesc& blitDesc = {}) override;
+
+    void BeginDebugLabel(const char* name) override;
+    void EndDebugLabel() override;
+    void InsertDebugLabel(const char* name) override;
 
     inline VkCommandBuffer    GetVkCommandBuffer() const { return m_commandBuffer; }
     inline VkFence            GetFence() const { return m_commandFence; }

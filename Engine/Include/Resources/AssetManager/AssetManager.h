@@ -1,18 +1,22 @@
 #pragma once
 
+#include "Core/Singleton.h"
 #include "Resources/AssetManager/IAssetSource.h"
 #include "Resources/AssetManager/Serializer/AssetSerializer.h"
 
 namespace Yogi
 {
 
-class YG_API AssetManager
+class YG_API AssetManager : public Singleton<AssetManager>
 {
+    friend class Singleton<AssetManager>;
+
 public:
     static size_t CollectUnusedAssetsAll(size_t maxCollectPerType = std::numeric_limits<size_t>::max())
     {
+        auto&  self           = Get();
         size_t totalCollected = 0;
-        for (auto& [_, entry] : s_assetMaps)
+        for (auto& [_, entry] : self.m_assetMaps)
         {
             if (entry.collectFn)
             {
@@ -46,9 +50,10 @@ public:
 
     static AssetStatsAll GetAssetStatsAll()
     {
+        auto&         self = Get();
         AssetStatsAll stats;
         stats.totalAssets = 0;
-        for (const auto& [typeIdx, entry] : s_assetMaps)
+        for (const auto& [typeIdx, entry] : self.m_assetMaps)
         {
             (void)typeIdx;
             if (entry.data)
@@ -57,7 +62,7 @@ public:
                 stats.totalAssets += map->size();
             }
         }
-        stats.totalTypes = s_assetMaps.size();
+        stats.totalTypes = self.m_assetMaps.size();
         return stats;
     }
 
@@ -129,7 +134,8 @@ public:
             return nullptr;
         }
 
-        for (auto sourceIt = s_sources.rbegin(); sourceIt != s_sources.rend(); ++sourceIt)
+        auto& sources = Get().m_sources;
+        for (auto sourceIt = sources.rbegin(); sourceIt != sources.rend(); ++sourceIt)
         {
             auto source = (*sourceIt)->LoadSource(key);
             if (source)
@@ -143,7 +149,8 @@ public:
     template <typename T>
     static void SaveAsset(const WRef<T>& asset, const std::string& key, int sourceIndex = 0)
     {
-        if (sourceIndex < 0 || sourceIndex >= static_cast<int>(s_sources.size()))
+        auto& sources = Get().m_sources;
+        if (sourceIndex < 0 || sourceIndex >= static_cast<int>(sources.size()))
         {
             YG_CORE_ERROR("Invalid AssetSource index: {0}", sourceIndex);
             return;
@@ -156,7 +163,7 @@ public:
             return;
         }
 
-        s_sources[sourceIndex]->SaveSource(key, serializer->Serialize(asset, key));
+        sources[sourceIndex]->SaveSource(key, serializer->Serialize(asset, key));
     }
 
     template <typename T>
@@ -177,57 +184,52 @@ public:
         void (*deleterFn)(void*) = +[](void* p) {
             delete static_cast<SerializerType*>(p);
         };
-        s_serializers[typeid(T)] = { new SerializerType(), VoidDeleter(deleterFn) };
+        Get().m_serializers[typeid(T)] = { new SerializerType(), VoidDeleter(deleterFn) };
     }
 
     template <typename T, typename... Args>
     static void PushAssetSource(Args&&... args)
     {
-        s_sources.push_back(Owner<T>::Create(std::forward<Args>(args)...));
+        Get().m_sources.push_back(Owner<T>::Create(std::forward<Args>(args)...));
     }
 
     static void PopAssetSource()
     {
-        if (s_sources.empty())
+        auto& sources = Get().m_sources;
+        if (sources.empty())
         {
             YG_CORE_ERROR("No AssetSource to pop");
             return;
         }
-        s_sources.pop_back();
+        sources.pop_back();
     }
 
     static WRef<IAssetSource> AcquireAssetSource(int sourceIndex = 0)
     {
-        if (sourceIndex < 0 || sourceIndex >= static_cast<int>(s_sources.size()))
+        auto& sources = Get().m_sources;
+        if (sourceIndex < 0 || sourceIndex >= static_cast<int>(sources.size()))
         {
             YG_CORE_ERROR("Invalid AssetSource index: {0}", sourceIndex);
             return nullptr;
         }
-        return WRef<IAssetSource>::Create(s_sources[sourceIndex]);
+        return WRef<IAssetSource>::Create(sources[sourceIndex]);
     }
 
     template <typename T>
     static std::unordered_map<std::string, Owner<T>>& GetAssetMap()
     {
-        auto it = s_assetMaps.find(typeid(T));
-        if (it == s_assetMaps.end())
+        auto& maps = Get().m_assetMaps;
+        auto  it   = maps.find(typeid(T));
+        if (it == maps.end())
         {
             auto* newMap             = new std::unordered_map<std::string, Owner<T>>();
             void (*deleterFn)(void*) = +[](void* p) {
                 delete static_cast<std::unordered_map<std::string, Owner<T>>*>(p);
             };
-            s_assetMaps[typeid(T)] = MapEntry{ Any{ newMap, VoidDeleter(deleterFn) }, &CollectUnusedAssetsImpl<T> };
+            maps[typeid(T)] = MapEntry{ Any{ newMap, VoidDeleter(deleterFn) }, &CollectUnusedAssetsImpl<T> };
             return *newMap;
         }
         return *static_cast<std::unordered_map<std::string, Owner<T>>*>(it->second.data.get());
-    }
-
-    static void Clear()
-    {
-        s_sources.clear();
-        s_serializers.clear();
-        s_assetMaps.clear();
-        s_assetKeyMaps.clear();
     }
 
 protected:
@@ -281,8 +283,9 @@ protected:
     template <typename T>
     static AssetSerializer<T>* GetAssetSerializer()
     {
-        auto it = s_serializers.find(typeid(T));
-        if (it != s_serializers.end())
+        auto& serializers = Get().m_serializers;
+        auto  it          = serializers.find(typeid(T));
+        if (it != serializers.end())
         {
             return static_cast<AssetSerializer<T>*>(it->second.get());
         }
@@ -304,14 +307,15 @@ protected:
     template <typename T>
     static std::unordered_map<const void*, std::string>& GetAssetKeyMap()
     {
-        auto it = s_assetKeyMaps.find(typeid(T));
-        if (it == s_assetKeyMaps.end())
+        auto& keyMaps = Get().m_assetKeyMaps;
+        auto  it      = keyMaps.find(typeid(T));
+        if (it == keyMaps.end())
         {
             auto* newMap             = new std::unordered_map<const void*, std::string>();
             void (*deleterFn)(void*) = +[](void* p) {
                 delete static_cast<std::unordered_map<const void*, std::string>*>(p);
             };
-            s_assetKeyMaps[typeid(T)] = Any{ newMap, VoidDeleter(deleterFn) };
+            keyMaps[typeid(T)] = Any{ newMap, VoidDeleter(deleterFn) };
             return *newMap;
         }
         return *static_cast<std::unordered_map<const void*, std::string>*>(it->second.get());
@@ -325,8 +329,9 @@ protected:
             return "";
         }
 
-        auto it = s_assetKeyMaps.find(typeid(T));
-        if (it == s_assetKeyMaps.end())
+        auto& keyMaps = Get().m_assetKeyMaps;
+        auto  it      = keyMaps.find(typeid(T));
+        if (it == keyMaps.end())
         {
             return "";
         }
@@ -358,8 +363,9 @@ protected:
     template <typename T>
     static void RemoveAssetKeyMapIfEmpty()
     {
-        auto it = s_assetKeyMaps.find(typeid(T));
-        if (it == s_assetKeyMaps.end())
+        auto& keyMaps = Get().m_assetKeyMaps;
+        auto  it      = keyMaps.find(typeid(T));
+        if (it == keyMaps.end())
         {
             return;
         }
@@ -367,15 +373,20 @@ protected:
         auto& keyMap = *static_cast<std::unordered_map<const void*, std::string>*>(it->second.get());
         if (keyMap.empty())
         {
-            s_assetKeyMaps.erase(it);
+            keyMaps.erase(it);
         }
     }
 
 private:
-    static std::vector<Owner<IAssetSource>>              s_sources;
-    static std::unordered_map<std::type_index, Any>      s_serializers;
-    static std::unordered_map<std::type_index, MapEntry> s_assetMaps;
-    static std::unordered_map<std::type_index, Any>      s_assetKeyMaps;
+    AssetManager()  = default;
+    ~AssetManager() = default;
+
+    static AssetManager* s_instance; // defined in .cpp, exported via YG_API
+
+    std::vector<Owner<IAssetSource>>              m_sources;
+    std::unordered_map<std::type_index, Any>      m_serializers;
+    std::unordered_map<std::type_index, MapEntry> m_assetMaps;
+    std::unordered_map<std::type_index, Any>      m_assetKeyMaps;
 };
 
 } // namespace Yogi
