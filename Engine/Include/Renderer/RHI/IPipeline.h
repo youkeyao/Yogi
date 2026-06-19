@@ -57,6 +57,13 @@ struct PushConstantRange
     uint32_t    Size;
 };
 
+enum class CullMode : uint8_t
+{
+    None,
+    Back,
+    Front,
+};
+
 struct PipelineDesc
 {
     std::vector<const ShaderDesc*> Shaders;
@@ -68,6 +75,7 @@ struct PipelineDesc
     SampleCountFlagBits            Samples     = SampleCountFlagBits::Count1;
     PrimitiveTopology              Topology    = PrimitiveTopology::TriangleList;
     PipelineType                   Type        = PipelineType::Graphics;
+    CullMode                       Cull        = CullMode::Back;
 };
 
 class YG_API IPipeline

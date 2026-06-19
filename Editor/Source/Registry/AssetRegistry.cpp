@@ -46,14 +46,16 @@ void RegisterMaterials(const std::filesystem::path&                            p
 }
 void RegisterShaders(const std::filesystem::path& path, std::unordered_map<uint32_t, std::vector<std::string>>& keyMaps)
 {
-    if (path.extension().string() == ".vert" || path.extension().string() == ".frag")
+    if (path.extension().string() == ".slang")
     {
         keyMaps[GetTypeHash<ShaderDesc>()].push_back(path.lexically_normal().generic_string());
     }
 }
-void RegisterTextures(const std::filesystem::path& path, std::unordered_map<uint32_t, std::vector<std::string>>& keyMaps)
+void RegisterTextures(const std::filesystem::path&                            path,
+                      std::unordered_map<uint32_t, std::vector<std::string>>& keyMaps)
 {
-    if (path.extension().string() == ".rt" || path.extension().string() == ".png" || path.extension().string() == ".jpg")
+    if (path.extension().string() == ".rt" || path.extension().string() == ".png" ||
+        path.extension().string() == ".jpg")
     {
         keyMaps[GetTypeHash<ITexture>()].push_back(path.lexically_normal().generic_string());
     }
@@ -90,7 +92,13 @@ void AssetRegistry::Scan(const std::string& rootDir)
     }
 }
 
-void AssetRegistry::Register(RegisterKeyFunc&& func) { s_registerKeyFuncs.push_back(std::move(func)); }
-void AssetRegistry::Clear() { s_keyMaps.clear(); }
+void AssetRegistry::Register(RegisterKeyFunc&& func)
+{
+    s_registerKeyFuncs.push_back(std::move(func));
+}
+void AssetRegistry::Clear()
+{
+    s_keyMaps.clear();
+}
 
 } // namespace Yogi

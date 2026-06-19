@@ -4,5 +4,5 @@ namespace Yogi
 {
 
 EditorCamera::EditorCamera() {}
-    
+
 } // namespace Yogi

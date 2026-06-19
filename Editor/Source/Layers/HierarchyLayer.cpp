@@ -14,7 +14,10 @@ HierarchyLayer::HierarchyLayer() : Layer("Hierarchy Layer")
     m_viewportLayer = WRef<ViewportLayer>::Cast(Application::GetInstance().AcquireLayer("Viewport Layer"));
 }
 
-HierarchyLayer::~HierarchyLayer() { m_allEntities.clear(); }
+HierarchyLayer::~HierarchyLayer()
+{
+    m_allEntities.clear();
+}
 
 void HierarchyLayer::OnUpdate(Timestep ts)
 {
@@ -359,7 +362,7 @@ void HierarchyLayer::DrawField(Field& field, uint8_t* component)
     }
     else if (field.TypeHash == GetTypeHash<WRef<Mesh>>())
     {
-        WRef<Mesh>&  mesh    = *reinterpret_cast<WRef<Mesh>*>((uint8_t*)component + field.Offset);
+        WRef<Mesh>& mesh    = *reinterpret_cast<WRef<Mesh>*>((uint8_t*)component + field.Offset);
         std::string meshKey = AssetManager::GetAssetKey(mesh);
         if (ImGui::BeginCombo(field.Name.c_str(), meshKey.c_str()))
         {
@@ -376,7 +379,7 @@ void HierarchyLayer::DrawField(Field& field, uint8_t* component)
     else if (field.TypeHash == GetTypeHash<WRef<Material>>())
     {
         WRef<Material>& material    = *(WRef<Material>*)((uint8_t*)component + field.Offset);
-        std::string    materialKey = AssetManager::GetAssetKey(material);
+        std::string     materialKey = AssetManager::GetAssetKey(material);
         if (ImGui::BeginCombo(field.Name.c_str(), materialKey.c_str()))
         {
             for (auto& key : AssetRegistry::GetKeys<Material>())

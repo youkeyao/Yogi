@@ -2,29 +2,48 @@ add_subdirectory( spdlog )
 add_subdirectory( stb_image )
 add_subdirectory( meshoptimizer )
 
-set( SPIRV_HEADERS_ENABLE_TESTS OFF )
-set( SPIRV_HEADERS_ENABLE_INSTALL OFF )
-add_subdirectory( SPIRV-Headers )
+# ---------- Slang (and its vendored shader-toolchain deps) ----------------
+# Slang vendors its own copies of Vulkan-Headers, SPIRV-Headers, SPIRV-Tools,
+# and glslang under slang/external/. We let Slang own all four for the whole
+# build (the project-level Engine/ThirdParty/Vulkan-Headers / SPIRV-Headers /
+# SPIRV-Tools / glslang submodules conflict with Slang's vendored copies via
+# duplicate CMake target names: `Vulkan::Headers`, `SPIRV-Tools-opt`,
+# `glslang::glslang`, etc.).
+#
+# CRITICAL: SLANG_ENABLE_SPIRV_TOOLS_MIMALLOC defaults to ON on Windows.
+# That builds mimalloc and links it into slang-compiler.dll. mimalloc on
+# Windows hooks malloc/free/operator new/operator delete process-wide via
+# its `mi_override` mechanism, which corrupts the heap state of any module
+# (Sandbox.exe, YGEngined.dll) that allocated through the original CRT
+# heap before mimalloc loaded. The visible symptom is RtlValidateHeap
+# failing inside ~vector<uint8_t> at random destruction sites that have
+# nothing to do with Slang. We force it OFF to keep all modules on a
+# single ucrtbased heap. SPIRV-Tools without mimalloc is just slightly
+# slower at compile-time, no functional impact.
+set( SLANG_ENABLE_GFX                 OFF CACHE BOOL "" FORCE )
+set( SLANG_ENABLE_SLANG_RHI           OFF CACHE BOOL "" FORCE )
+set( SLANG_ENABLE_TESTS               OFF CACHE BOOL "" FORCE )
+set( SLANG_ENABLE_EXAMPLES            OFF CACHE BOOL "" FORCE )
+set( SLANG_ENABLE_SLANGD              OFF CACHE BOOL "" FORCE )
+set( SLANG_ENABLE_SLANGC              OFF CACHE BOOL "" FORCE )
+set( SLANG_ENABLE_SLANGI              OFF CACHE BOOL "" FORCE )
+set( SLANG_ENABLE_SLANGRT             OFF CACHE BOOL "" FORCE )
+set( SLANG_ENABLE_REPLAYER            OFF CACHE BOOL "" FORCE )
+set( SLANG_ENABLE_DXIL                OFF CACHE BOOL "" FORCE )
+set( SLANG_ENABLE_SLANG_GLSLANG       ON  CACHE BOOL "" FORCE )
+set( SLANG_ENABLE_SPIRV_TOOLS_MIMALLOC OFF CACHE BOOL "" FORCE )
+set( SLANG_SLANG_LLVM_FLAVOR          DISABLE CACHE STRING "" FORCE )
+set( SLANG_LIB_TYPE                   SHARED  CACHE STRING "" FORCE )
 
-set( SKIP_SPIRV_TOOLS_INSTALL OFF )
-set( SPIRV_SKIP_EXECUTABLES ON )
-add_subdirectory( SPIRV-Tools )
+# Local /utf-8 swap for the slang subtree only (Slang sources expect /utf-8,
+# the project default of /source-charset:utf-8 conflicts via D8016).
+get_directory_property( _yogi_inherited_compile_options COMPILE_OPTIONS )
+set_directory_properties( PROPERTIES COMPILE_OPTIONS "" )
+add_compile_options( $<$<CXX_COMPILER_ID:MSVC>:/utf-8> )
+add_subdirectory( slang )
+set_directory_properties( PROPERTIES COMPILE_OPTIONS "${_yogi_inherited_compile_options}" )
+# --------------------------------------------------------------------------
 
-set( BUILD_EXTERNAL OFF )
-set( GLSLANG_TESTS OFF )
-set( GLSLANG_ENABLE_INSTALL OFF )
-set( ENABLE_GLSLANG_BINARIES OFF )
-add_subdirectory( glslang )
-# set(SPIRV_CROSS_CLI OFF)
-# set(SPIRV_CROSS_ENABLE_TESTS OFF)
-# set(SPIRV_CROSS_ENABLE_HLSL OFF)
-# set(SPIRV_CROSS_ENABLE_MSL OFF)
-# set(SPIRV_CROSS_ENABLE_CPP OFF)
-# set(SPIRV_CROSS_ENABLE_REFLECT OFF)
-# set(SPIRV_CROSS_ENABLE_C_API OFF)
-# set(SPIRV_CROSS_ENABLE_UTIL OFF)
-# set(SPIRV_CROSS_SKIP_INSTALL ON)
-# add_subdirectory( vendor/SPIRV-Cross )
 set( ASSIMP_INSTALL OFF )
 set( ASSIMP_BUILD_TESTS OFF )
 set( ASSIMP_BUILD_ZLIB ON )

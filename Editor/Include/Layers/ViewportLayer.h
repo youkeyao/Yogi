@@ -21,7 +21,7 @@ public:
     // void save_scene();
 
     inline WRef<World> GetWorld() const { return WRef<World>::Create(m_world); }
-    inline Entity     GetSelectedEntity() const { return m_selectedEntity; }
+    inline Entity      GetSelectedEntity() const { return m_selectedEntity; }
 
     void SetSelectedEntity(Entity entity) { m_selectedEntity = entity; }
 
@@ -36,7 +36,7 @@ private:
 
 private:
     Owner<World> m_world;
-    Entity        m_selectedEntity;
+    Entity       m_selectedEntity;
     // WRef<SceneHierarchyPanel> m_hierarchy_panel;
     // WRef<ContentBrowserPanel> m_content_browser_panel;
     // WRef<MaterialEditorPanel> m_material_editor_panel;
@@ -44,16 +44,15 @@ private:
     // WRef<RenderSystem> m_editor_render_system;
     // EditorCamera      m_editor_camera;
 
-    EditorCamera                m_editorCamera;
+    EditorCamera               m_editorCamera;
     Owner<ForwardRenderSystem> m_editRenderSystem;
 
     bool    m_viewportHovered = false;
     Vector2 m_viewportSize    = { 1, 1 };
     Vector2 m_viewportBounds[2];
 
-    WRef<ITexture>               m_frameTexture        = nullptr;
-    WRef<ITextureView>           m_frameView           = nullptr;
-    WRef<IShaderResourceBinding> m_frameTextureBinding = nullptr;
+    WRef<ITexture>     m_frameTexture = nullptr;
+    WRef<ITextureView> m_frameView    = nullptr;
     // ImGuizmo::OPERATION m_gizmo_type = ImGuizmo::OPERATION::TRANSLATE;
 
     // WRef<RenderTexture> m_frame_texture;

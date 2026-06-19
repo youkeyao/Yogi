@@ -49,24 +49,41 @@ Sandbox2D::Sandbox2D() : Layer("Sandbox 2D")
     Yogi::WRef<Yogi::ITexture> texSkybox =
         Yogi::AssetManager::AcquireAsset<Yogi::ITexture>("EngineAssets/Textures/Skybox.png");
 
-    auto makeTexturedMaterial = [](const Yogi::WRef<Yogi::ITexture>& tex, const Yogi::Vector4& tint) {
-        auto m                     = Yogi::ResourceManager::CreateResource<Yogi::Material>();
+    auto makeStandardMaterial = [](const Yogi::WRef<Yogi::ITexture>& tex, const Yogi::Vector4& tint) {
+        auto m = Yogi::ResourceManager::CreateResource<Yogi::Material>();
+        m->Schema =
+            Yogi::AssetManager::AcquireAsset<Yogi::MaterialSchema>("EngineAssets/Shaders/Materials/Standard.slang");
         m->Params["AlbedoTexture"] = tex;
         m->Params["BaseColor"]     = tint;
         return m;
     };
+    auto makeUnlitMaterial = [](const Yogi::WRef<Yogi::ITexture>& tex, const Yogi::Vector4& tint) {
+        auto m = Yogi::ResourceManager::CreateResource<Yogi::Material>();
+        m->Schema =
+            Yogi::AssetManager::AcquireAsset<Yogi::MaterialSchema>("EngineAssets/Shaders/Materials/Unlit.slang");
+        m->Params["AlbedoTexture"] = tex;
+        // UnlitMaterial's authoring spelling is `Tint` (BaseColor in the
+        // shared MaterialData slab row, but the impl reads it as Tint --
+        // this is an alias-by-offset deal). We feed via the runtime param
+        // name the IMaterial impl uses; reflection lets the editor see
+        // "Tint" instead of "BaseColor".
+        m->Params["Tint"] = tint;
+        return m;
+    };
 
     std::vector<Yogi::WRef<Yogi::Material>> materials = {
-        // Plain white -- exercises slot 0 (default 1x1 white) since AlbedoTexture
-        // is unset; useful as a control group to confirm "no texture" still works.
-        Yogi::ResourceManager::CreateResource<Yogi::Material>(),
-        makeTexturedMaterial(texCheckerboard, Yogi::Vector4{ 1.0f, 1.0f, 1.0f, 1.0f }),
-        makeTexturedMaterial(texChernoLogo, Yogi::Vector4{ 1.0f, 1.0f, 1.0f, 1.0f }),
-        makeTexturedMaterial(texSkybox, Yogi::Vector4{ 1.0f, 1.0f, 1.0f, 1.0f }),
+        // Standard: lit by NormalShade -- responds to surface orientation.
+        makeStandardMaterial(texCheckerboard, Yogi::Vector4{ 1.0f, 1.0f, 1.0f, 1.0f }),
+        makeStandardMaterial(texChernoLogo, Yogi::Vector4{ 1.0f, 0.6f, 0.6f, 1.0f }),
+        // Unlit: full-bright tint*albedo, no normal contribution. Visually
+        // pops next to Standard meshes in the same scene -- the side-by-side
+        // is the easiest way to tell the bucket / specialization is real.
+        makeUnlitMaterial(texCheckerboard, Yogi::Vector4{ 1.0f, 1.0f, 1.0f, 1.0f }),
+        makeUnlitMaterial(texSkybox, Yogi::Vector4{ 0.4f, 1.0f, 0.6f, 1.0f }),
     };
 
     srand(41);
-    for (int i = 0; i < 10000; i++)
+    for (int i = 0; i < 1000; i++)
     {
         float x = float(rand()) / RAND_MAX * 4.0f - 2.0f;
         float y = float(rand()) / RAND_MAX * 4.0f - 2.0f;

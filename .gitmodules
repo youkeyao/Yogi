@@ -10,18 +10,6 @@
 [submodule "Engine/ThirdParty/volk"]
 	path = Engine/ThirdParty/volk
 	url = https://github.com/zeux/volk.git
-[submodule "Engine/ThirdParty/Vulkan-Headers"]
-	path = Engine/ThirdParty/Vulkan-Headers
-	url = https://github.com/KhronosGroup/Vulkan-Headers.git
-[submodule "Engine/ThirdParty/SPIRV-Headers"]
-	path = Engine/ThirdParty/SPIRV-Headers
-	url = https://github.com/KhronosGroup/SPIRV-Headers.git
-[submodule "Engine/ThirdParty/SPIRV-Tools"]
-	path = Engine/ThirdParty/SPIRV-Tools
-	url = https://github.com/KhronosGroup/SPIRV-Tools.git
-[submodule "Engine/ThirdParty/glslang"]
-	path = Engine/ThirdParty/glslang
-	url = https://github.com/KhronosGroup/glslang.git
 [submodule "Engine/ThirdParty/entt"]
 	path = Engine/ThirdParty/entt
 	url = https://github.com/skypjack/entt.git

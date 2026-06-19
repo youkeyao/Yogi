@@ -41,7 +41,7 @@ VkExtent2D              ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabil
 
 uint32_t FindMemoryType(uint32_t typeFilter, VkPhysicalDevice physicalDevice, VkMemoryPropertyFlags properties);
 
-VkFormat            YgTextureFormat2VkFormat(ITexture::Format format);
+YG_API VkFormat     YgTextureFormat2VkFormat(ITexture::Format format);
 ITexture::Format    VkFormat2YgTextureFormat(VkFormat format);
 VkFormat            YgShaderElementType2VkFormat(ShaderElementType type);
 VkImageLayout       YgResourceState2VkImageLayout(ResourceState state, ITexture::Usage usage);

@@ -6,41 +6,88 @@
 namespace Yogi
 {
 
-static uint32_t SizeOfFieldType(MaterialSchema::FieldType t)
+static uint32_t SizeOfFieldKind(MaterialSchema::FieldKind k)
 {
-    switch (t)
+    switch (k)
     {
-        case MaterialSchema::FieldType::Float:
+        case MaterialSchema::FieldKind::Float:
             return 4;
-        case MaterialSchema::FieldType::Vec2:
+        case MaterialSchema::FieldKind::Vec2:
             return 8;
-        case MaterialSchema::FieldType::Vec3:
+        case MaterialSchema::FieldKind::Vec3:
             return 12;
-        case MaterialSchema::FieldType::Vec4:
+        case MaterialSchema::FieldKind::Vec4:
             return 16;
-        case MaterialSchema::FieldType::Int:
+        case MaterialSchema::FieldKind::Int:
             return 4;
-        case MaterialSchema::FieldType::UInt:
+        case MaterialSchema::FieldKind::Uint:
             return 4;
-        case MaterialSchema::FieldType::Texture:
-            return 4; // bindless slot index, uint
+        case MaterialSchema::FieldKind::TextureSlot:
+            return 4;
     }
     return 0;
 }
 
-void MaterialSchema::AddField(const std::string& name, uint32_t offset, FieldType type, const DefaultValue& def)
+MaterialSchema::Field* MaterialSchema::FindMutable(const std::string& name)
 {
-    Field f{ offset, SizeOfFieldType(type), type };
-    m_fields[name] = f;
+    for (auto& f : m_fields)
+    {
+        if (f.Name == name)
+            return &f;
+    }
+    return nullptr;
+}
 
-    if (m_defaults.size() < offset + f.Size)
-        m_defaults.resize(offset + f.Size, 0);
+void MaterialSchema::AddField(const std::string& name, uint32_t offset, FieldKind kind)
+{
+    Field f;
+    f.Name   = name;
+    f.Offset = offset;
+    f.Size   = SizeOfFieldKind(kind);
+    f.Kind   = kind;
+    m_fields.push_back(std::move(f));
+
+    if (m_defaults.size() < offset + SizeOfFieldKind(kind))
+        m_defaults.resize(offset + SizeOfFieldKind(kind), 0);
+}
+
+void MaterialSchema::AddField(const std::string& name, uint32_t offset, FieldKind kind, const DefaultValue& def)
+{
+    AddField(name, offset, kind);
+
+    Field* f = FindMutable(name);
+    if (!f)
+        return;
 
     std::visit(
         [&](auto&& v) {
             using T = std::decay_t<decltype(v)>;
-            if (sizeof(T) == f.Size)
-                std::memcpy(m_defaults.data() + offset, &v, sizeof(T));
+            if (sizeof(T) == f->Size)
+                std::memcpy(m_defaults.data() + f->Offset, &v, sizeof(T));
+        },
+        def);
+}
+
+void MaterialSchema::AddAttribute(const std::string& fieldName, FieldAttribute attribute)
+{
+    if (Field* f = FindMutable(fieldName))
+        f->Attributes.push_back(std::move(attribute));
+}
+
+void MaterialSchema::SetDefault(const std::string& name, const DefaultValue& def)
+{
+    Field* f = FindMutable(name);
+    if (!f)
+        return;
+
+    if (m_defaults.size() < f->Offset + f->Size)
+        m_defaults.resize(f->Offset + f->Size, 0);
+
+    std::visit(
+        [&](auto&& v) {
+            using T = std::decay_t<decltype(v)>;
+            if (sizeof(T) == f->Size)
+                std::memcpy(m_defaults.data() + f->Offset, &v, sizeof(T));
         },
         def);
 }
@@ -59,13 +106,19 @@ void MaterialSchema::Pack(const Material& material, uint8_t* outBytes, const Tex
 
     for (const auto& [name, value] : material.Params)
     {
-        auto it = m_fields.find(name);
-        if (it == m_fields.end())
+        const Field* f = nullptr;
+        for (const auto& candidate : m_fields)
+        {
+            if (candidate.Name == name)
+            {
+                f = &candidate;
+                break;
+            }
+        }
+        if (!f)
             continue;
 
-        const Field& f = it->second;
-
-        if (f.Type == FieldType::Texture)
+        if (f->Kind == FieldKind::TextureSlot)
         {
             uint32_t idx = 0;
             if (auto* texPtr = std::get_if<WRef<ITexture>>(&value))
@@ -77,7 +130,7 @@ void MaterialSchema::Pack(const Material& material, uint8_t* outBytes, const Tex
             {
                 idx = *uintPtr;
             }
-            std::memcpy(outBytes + f.Offset, &idx, sizeof(uint32_t));
+            std::memcpy(outBytes + f->Offset, &idx, sizeof(uint32_t));
             continue;
         }
 
@@ -86,18 +139,12 @@ void MaterialSchema::Pack(const Material& material, uint8_t* outBytes, const Tex
                 using T = std::decay_t<decltype(v)>;
                 if constexpr (!std::is_same_v<T, WRef<ITexture>>)
                 {
-                    if (sizeof(T) == f.Size)
-                        std::memcpy(outBytes + f.Offset, &v, sizeof(T));
+                    if (sizeof(T) == f->Size)
+                        std::memcpy(outBytes + f->Offset, &v, sizeof(T));
                 }
             },
             value);
     }
-}
-
-MaterialSchema& MaterialSchema::Default()
-{
-    static MaterialSchema s_schema;
-    return s_schema;
 }
 
 } // namespace Yogi

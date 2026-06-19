@@ -1,61 +1,17 @@
 #include "Resources/AssetManager/Serializer/ShaderSerializer.h"
-
-#include <glslang/Public/ShaderLang.h>
-#include <glslang/Public/ResourceLimits.h>
-#include <SPIRV/GlslangToSpv.h>
+#include "Resources/AssetManager/Serializer/SlangShaderCompiler.h"
 
 namespace Yogi
 {
 
-class FileIncluder : public glslang::TShader::Includer
+static std::vector<std::pair<std::string, std::string>> ParseMacrosFromKey(const std::string& key)
 {
-public:
-    FileIncluder(std::vector<std::filesystem::path> searchDirs) : m_searchDirs(std::move(searchDirs)) {}
-
-    IncludeResult* includeLocal(const char* headerName,
-                                const char* /*includerName*/,
-                                size_t /*inclusionDepth*/) override
-    {
-        for (const auto& dir : m_searchDirs)
-        {
-            std::filesystem::path fullPath = dir / std::filesystem::path(headerName);
-            std::ifstream         file(fullPath, std::ios::binary);
-            if (!file)
-                continue;
-
-            file.seekg(0, std::ios::end);
-            size_t length = file.tellg();
-            file.seekg(0, std::ios::beg);
-
-            char* data = new char[length];
-            file.read(data, length);
-
-            return new IncludeResult(fullPath.string(), data, length, data);
-        }
-        return nullptr;
-    }
-
-    void releaseInclude(IncludeResult* result) override
-    {
-        if (result)
-        {
-            delete[] static_cast<char*>(result->userData);
-            delete result;
-        }
-    }
-
-private:
-    std::vector<std::filesystem::path> m_searchDirs;
-};
-
-static std::string MakePreambleFromKey(const std::string& key)
-{
-    size_t sepPos = key.find("::");
+    std::vector<std::pair<std::string, std::string>> out;
+    size_t                                           sepPos = key.find("::");
     if (sepPos == std::string::npos)
-        return {};
+        return out;
 
-    std::string preamble;
-    size_t      cursor = sepPos + 2;
+    size_t cursor = sepPos + 2;
     while (cursor < key.size())
     {
         size_t comma = key.find(',', cursor);
@@ -64,25 +20,18 @@ static std::string MakePreambleFromKey(const std::string& key)
         size_t equals = key.find('=', cursor);
         if (equals != std::string::npos && equals < end)
         {
-            preamble.append("#define ");
-            preamble.append(key, cursor, equals - cursor);
-            preamble.append(" ");
-            preamble.append(key, equals + 1, end - equals - 1);
-            preamble.append("\n");
+            out.emplace_back(key.substr(cursor, equals - cursor), key.substr(equals + 1, end - equals - 1));
         }
         else
         {
-            // Bare token with no value: define as 1
-            preamble.append("#define ");
-            preamble.append(key, cursor, end - cursor);
-            preamble.append(" 1\n");
+            out.emplace_back(key.substr(cursor, end - cursor), "1");
         }
 
         if (comma == std::string::npos)
             break;
         cursor = comma + 1;
     }
-    return preamble;
+    return out;
 }
 
 static std::string StripMacroSuffix(const std::string& key)
@@ -91,97 +40,106 @@ static std::string StripMacroSuffix(const std::string& key)
     return (sepPos == std::string::npos) ? key : key.substr(0, sepPos);
 }
 
-std::vector<uint8_t> CompileGlslToSpirv(const std::vector<uint8_t>& glslBinary,
-                                        EShLanguage                 shaderStage,
-                                        const std::string&          key)
+struct SlangStageMapping
 {
-    std::string source;
-    source.assign(reinterpret_cast<const char*>(glslBinary.data()), glslBinary.size());
-    const char* shaderStrings[1] = { source.c_str() };
+    ShaderStage Stage;
+    const char* EntryPoint;
+};
 
-    glslang::TShader shader(shaderStage);
-    shader.setEnvInput(glslang::EShSourceGlsl, shaderStage, glslang::EShClientVulkan, 460);
-    shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_3);
-    shader.setEnvTarget(glslang::EshTargetSpv, glslang::EShTargetSpv_1_5);
-    shader.setStrings(shaderStrings, 1);
+static bool ResolveSlangStage(const std::filesystem::path& path, SlangStageMapping& out)
+{
+    std::string stem   = path.stem().string(); // strips trailing ".slang"
+    auto        dot    = stem.find_last_of('.');
+    std::string subExt = (dot == std::string::npos) ? std::string{} : stem.substr(dot + 1);
 
-    std::string preamble = MakePreambleFromKey(key);
-    if (!preamble.empty())
-        shader.setPreamble(preamble.c_str());
-
-    int         clientInputSemanticsVersion = 100;
-    EShMessages messages                    = (EShMessages)(EShMsgSpvRules | EShMsgVulkanRules);
-
-    std::filesystem::path shaderDir = std::filesystem::path(StripMacroSuffix(key)).parent_path();
-    FileIncluder          includer({ shaderDir, "EngineInclude" });
-
-    if (!shader.parse(GetDefaultResources(), 460, false, messages, includer))
+    if (subExt == "vs" || subExt == "vert")
     {
-        std::string log   = shader.getInfoLog();
-        std::string debug = shader.getInfoDebugLog();
-        YG_CORE_ERROR("{0} GLSL parse error:\n{1}\n{2}", key, log, debug);
-        return {};
+        out = { ShaderStage::Vertex, "vsMain" };
+        return true;
     }
-
-    glslang::TProgram program;
-    program.addShader(&shader);
-
-    if (!program.link(messages))
+    if (subExt == "fs" || subExt == "frag")
     {
-        std::string log   = program.getInfoLog();
-        std::string debug = program.getInfoDebugLog();
-        YG_CORE_ERROR("{0} GLSL link error:\n{1}\n{2}", key, log, debug);
-        return {};
+        out = { ShaderStage::Fragment, "fsMain" };
+        return true;
     }
-
-    const glslang::TIntermediate* intermediate = program.getIntermediate(shaderStage);
-    if (!intermediate)
+    if (subExt == "cs" || subExt == "comp")
     {
-        YG_CORE_ERROR("{0} Failed to get intermediate representation after linking.", key);
-        return {};
+        out = { ShaderStage::Compute, "csMain" };
+        return true;
     }
-
-    std::vector<unsigned int> spirv;
-    spv::SpvBuildLogger       logger;
-    glslang::GlslangToSpv(*intermediate, spirv, &logger);
-
-    std::string loggerMsg = logger.getAllMessages();
-    if (!loggerMsg.empty())
+    if (subExt == "ms" || subExt == "mesh")
     {
-        YG_CORE_WARN("{0} GLSL->SPIRV validator/warnings:\n{1}", key, loggerMsg);
+        out = { ShaderStage::Mesh, "msMain" };
+        return true;
     }
-
-    std::vector<uint8_t> out;
-    out.resize(spirv.size() * sizeof(unsigned int));
-    static_assert(sizeof(unsigned int) == 4, "This code expects unsigned int to be 4 bytes");
-    memcpy(out.data(), spirv.data(), out.size());
-
-    return out;
+    if (subExt == "as" || subExt == "task")
+    {
+        out = { ShaderStage::Task, "asMain" };
+        return true;
+    }
+    if (subExt == "gs")
+    {
+        out = { ShaderStage::Geometry, "gsMain" };
+        return true;
+    }
+    return false;
 }
 
-ShaderSerializer::ShaderSerializer()
+static Owner<ShaderDesc> CompileSlangAsset(const std::vector<uint8_t>& binary, const std::string& key)
 {
-    glslang::InitializeProcess();
-}
+    std::filesystem::path path(StripMacroSuffix(key));
 
-ShaderSerializer::~ShaderSerializer()
-{
-    glslang::FinalizeProcess();
+    SlangStageMapping mapping{};
+    if (!ResolveSlangStage(path, mapping))
+    {
+        YG_CORE_ERROR("Slang: cannot infer stage from '{0}'. Expected '<name>.<vs|fs|cs|ms|as|gs>.slang'.",
+                      path.string());
+        return nullptr;
+    }
+
+    std::string source(reinterpret_cast<const char*>(binary.data()), binary.size());
+    auto        macros = ParseMacrosFromKey(key);
+
+    constexpr const char* kSpecializeMarker = "__SPECIALIZE_M";
+    std::string           specializeType;
+    for (auto it = macros.begin(); it != macros.end();)
+    {
+        if (it->first == kSpecializeMarker)
+        {
+            specializeType = it->second;
+            it             = macros.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
+
+    if (!specializeType.empty())
+    {
+        auto code = SlangShaderCompiler::CompileSpecialized(
+            source, path, mapping.EntryPoint, mapping.Stage, specializeType, key, macros);
+        if (code.empty())
+            return nullptr;
+
+        return Owner<ShaderDesc>::Create(mapping.Stage, std::move(code));
+    }
+
+    auto code = SlangShaderCompiler::Compile(source, path, mapping.EntryPoint, mapping.Stage, macros);
+    if (code.empty())
+        return nullptr;
+
+    return Owner<ShaderDesc>::Create(mapping.Stage, std::move(code));
 }
 
 Owner<ShaderDesc> ShaderSerializer::Deserialize(const std::vector<uint8_t>& binary, const std::string& key)
 {
     std::filesystem::path path(StripMacroSuffix(key));
-    if (path.extension() == ".vert")
-        return Owner<ShaderDesc>::Create(ShaderStage::Vertex, CompileGlslToSpirv(binary, EShLangVertex, key));
-    else if (path.extension() == ".frag")
-        return Owner<ShaderDesc>::Create(ShaderStage::Fragment, CompileGlslToSpirv(binary, EShLangFragment, key));
-    else if (path.extension() == ".mesh")
-        return Owner<ShaderDesc>::Create(ShaderStage::Mesh, CompileGlslToSpirv(binary, EShLangMesh, key));
-    else if (path.extension() == ".task")
-        return Owner<ShaderDesc>::Create(ShaderStage::Task, CompileGlslToSpirv(binary, EShLangTask, key));
-    else if (path.extension() == ".comp")
-        return Owner<ShaderDesc>::Create(ShaderStage::Compute, CompileGlslToSpirv(binary, EShLangCompute, key));
+    if (path.extension() == ".slang")
+        return CompileSlangAsset(binary, key);
+
+    YG_CORE_ERROR("ShaderSerializer: unsupported shader extension '{0}' (Phase 6 dropped GLSL; use *.<stage>.slang)",
+                  path.extension().string());
     return nullptr;
 }
 

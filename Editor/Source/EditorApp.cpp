@@ -45,6 +45,9 @@ public:
     }
 };
 
-Application* CreateApplication() { return new EditorApp(); }
+Application* CreateApplication()
+{
+    return new EditorApp();
+}
 
 } // namespace Yogi

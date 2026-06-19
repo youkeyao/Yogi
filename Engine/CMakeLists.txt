@@ -27,6 +27,8 @@ else()
 endif()
 #-------------------------------------------------------------
 
+add_subdirectory( ThirdParty )
+
 # ---renderer--------------------------------------------
 if ( YG_RENDERER_API STREQUAL "OpenGL" )
     add_subdirectory( vendor/glad )
@@ -37,7 +39,6 @@ if ( YG_RENDERER_API STREQUAL "OpenGL" )
     set( YGRendererLib glad )
     set( YGRendererInclude vendor/glad/include )
 elseif ( YG_RENDERER_API STREQUAL "Vulkan" )
-    add_subdirectory( ThirdParty/Vulkan-Headers )
     set( VOLK_PULL_IN_VULKAN OFF )
     add_subdirectory( ThirdParty/volk )
     target_link_libraries(volk PRIVATE Vulkan::Headers)
@@ -62,8 +63,6 @@ else()
     message( FATAL_ERROR "Unknow renderer" )
 endif()
 #-------------------------------------------------------------
-
-add_subdirectory( ThirdParty )
 
 file( GLOB_RECURSE
     YG_ENGINE_SOURCES CONFIGURE_DEPENDS
@@ -99,9 +98,7 @@ target_link_libraries( YGEngine
     PRIVATE
         stb_image
         meshoptimizer
-        glslang
-        glslang::glslang-default-resource-limits
-        # spirv-cross-glsl
+        slang
 )
 target_precompile_headers( YGEngine
     PUBLIC
@@ -117,13 +114,13 @@ target_include_directories( YGEngine
         ${YGWindowInclude}
         ${YGRendererInclude}
         ThirdParty/zpp_bits
+        ThirdParty/slang/include
         # ThirdParty/JoltPhysics
-        # ThirdParty/SPIRV-Cross
         # ThirdParty/stb_image
         # ThirdParty/assimp/include
 )
 
-# copy assets
+# copy assets + EngineInclude
 add_custom_command(
     TARGET YGEngine POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory

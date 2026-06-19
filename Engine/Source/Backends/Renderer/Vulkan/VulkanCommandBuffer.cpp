@@ -76,12 +76,16 @@ VulkanCommandBuffer::VulkanCommandBuffer(const CommandBufferDesc& desc) :
     fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
     YG_CORE_ASSERT(vkCreateFence(context->GetVkDevice(), &fenceInfo, nullptr, &m_commandFence) == VK_SUCCESS,
                    "Vulkan: Failed to create fence!");
-    vkResetFences(context->GetVkDevice(), 1, &m_commandFence);
 
     VkSemaphoreCreateInfo semaphoreInfo{};
     semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-    YG_CORE_ASSERT(vkCreateSemaphore(context->GetVkDevice(), &semaphoreInfo, nullptr, &m_signalSemaphore) == VK_SUCCESS,
-                   "Vulkan: Failed to create signal semaphore!");
+
+    if (m_usage != CommandBufferUsage::OneTimeSubmit)
+    {
+        YG_CORE_ASSERT(vkCreateSemaphore(context->GetVkDevice(), &semaphoreInfo, nullptr, &m_signalSemaphore) ==
+                           VK_SUCCESS,
+                       "Vulkan: Failed to create signal semaphore!");
+    }
 }
 
 VulkanCommandBuffer::~VulkanCommandBuffer()
@@ -104,6 +108,8 @@ VulkanCommandBuffer::~VulkanCommandBuffer()
 
 void VulkanCommandBuffer::Begin()
 {
+    Wait();
+
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     if (m_usage == CommandBufferUsage::OneTimeSubmit)
@@ -170,20 +176,44 @@ void VulkanCommandBuffer::Submit()
         default:
             YG_CORE_ASSERT(false, "Invalid SubmitQueue type!");
     }
-    YG_CORE_ASSERT(result == VK_SUCCESS, "Vulkan: Failed to submit render command buffer!");
-    m_submitted = true;
+
+    if (result == VK_SUCCESS)
+    {
+        m_submitted = true;
+    }
+    else
+    {
+        YG_CORE_ERROR("Vulkan: Failed to submit render command buffer! error: {}", static_cast<int>(result));
+    }
 }
 
 void VulkanCommandBuffer::Wait()
 {
     YG_PROFILE_FUNCTION();
 
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
+    VkDevice             device  = context->GetVkDevice();
+
     if (m_submitted)
     {
-        VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
-        vkWaitForFences(context->GetVkDevice(), 1, &m_commandFence, VK_TRUE, UINT64_MAX);
-        vkResetFences(context->GetVkDevice(), 1, &m_commandFence);
-        m_submitted = false;
+        VkResult waitResult = vkWaitForFences(device, 1, &m_commandFence, VK_TRUE, UINT64_MAX);
+        if (waitResult == VK_SUCCESS)
+        {
+            vkResetFences(device, 1, &m_commandFence);
+            m_submitted = false;
+        }
+        else
+        {
+            YG_CORE_ERROR("Vulkan: vkWaitForFences failed: {}", static_cast<int>(waitResult));
+        }
+    }
+    else
+    {
+        VkResult status = vkGetFenceStatus(device, m_commandFence);
+        if (status == VK_SUCCESS)
+        {
+            vkResetFences(device, 1, &m_commandFence);
+        }
     }
 }
 

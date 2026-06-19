@@ -9,9 +9,6 @@ namespace Yogi
 class YG_API ShaderSerializer : public AssetSerializer<ShaderDesc>
 {
 public:
-    ShaderSerializer();
-    ~ShaderSerializer();
-
     Owner<ShaderDesc>    Deserialize(const std::vector<uint8_t>& binary, const std::string& key) override;
     std::vector<uint8_t> Serialize(const WRef<ShaderDesc>& asset, const std::string& key) override;
 };

@@ -15,15 +15,7 @@ ViewportLayer::ViewportLayer() :
 {
     m_frameTexture = ResourceManager::CreateResource<ITexture>(
         TextureDesc{ 1, 1, 1, ITexture::Format::B8G8R8A8_UNORM, ITexture::Usage::RenderTarget });
-    m_frameView    = ResourceManager::CreateResource<ITextureView>(m_frameTexture);
-    // Editor RT preview SRB: a sampler + the sampled image view, mirroring the
-    // engine's standard separation. The default linear/repeat sampler is
-    // baked into binding=0 via the absence of an ImmutableSamplerDesc entry.
-    m_frameTextureBinding =
-        ResourceManager::CreateResource<IShaderResourceBinding>(std::vector<ShaderResourceAttribute>{
-            ShaderResourceAttribute{ 0, 1, ShaderResourceType::Sampler,        ShaderStage::Fragment },
-            ShaderResourceAttribute{ 1, 1, ShaderResourceType::SampledTexture, ShaderStage::Fragment } });
-    m_frameTextureBinding->BindTextureView(m_frameView.Get(), 1, 0);
+    m_frameView = ResourceManager::CreateResource<ITextureView>(m_frameTexture);
 }
 
 void ViewportLayer::OnUpdate(Timestep ts)
@@ -113,10 +105,9 @@ void ViewportLayer::OnGUI()
                                                                                     ITexture::Format::B8G8R8A8_UNORM,
                                                                                     ITexture::Usage::RenderTarget });
             m_frameView    = ResourceManager::CreateResource<ITextureView>(m_frameTexture);
-            m_frameTextureBinding->BindTextureView(m_frameView.Get(), 0, 0);
         }
     }
-    ImGuiImage(*m_frameView, *m_frameTextureBinding, ImVec2(m_viewportSize.x, m_viewportSize.y));
+    ImGuiImage(*m_frameView, ImVec2(m_viewportSize.x, m_viewportSize.y));
 
     // Drop scene
     if (ImGui::BeginDragDropTarget())

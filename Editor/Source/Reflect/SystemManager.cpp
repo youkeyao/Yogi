@@ -5,9 +5,15 @@ namespace Yogi
 
 std::unordered_map<uint32_t, SystemManager::SystemInfo> SystemManager::s_systemInfos;
 
-void SystemManager::Init() { RegisterSystem<ForwardRenderSystem>(); }
+void SystemManager::Init()
+{
+    RegisterSystem<ForwardRenderSystem>();
+}
 
-void SystemManager::Clear() { s_systemInfos.clear(); }
+void SystemManager::Clear()
+{
+    s_systemInfos.clear();
+}
 
 template <typename T>
 void SystemManager::RegisterSystem()

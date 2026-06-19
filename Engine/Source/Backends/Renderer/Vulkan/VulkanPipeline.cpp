@@ -182,9 +182,20 @@ void VulkanPipeline::CreateVkPipeline(const PipelineDesc& desc)
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
     rasterizer.polygonMode             = VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth               = 1.0f;
-    rasterizer.cullMode                = VK_CULL_MODE_BACK_BIT;
-    rasterizer.frontFace               = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-    rasterizer.depthBiasEnable         = VK_FALSE;
+    switch (desc.Cull)
+    {
+        case CullMode::None:
+            rasterizer.cullMode = VK_CULL_MODE_NONE;
+            break;
+        case CullMode::Back:
+            rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+            break;
+        case CullMode::Front:
+            rasterizer.cullMode = VK_CULL_MODE_FRONT_BIT;
+            break;
+    }
+    rasterizer.frontFace       = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    rasterizer.depthBiasEnable = VK_FALSE;
 
     // --- Multisampling ---
     VkPipelineMultisampleStateCreateInfo multisampling{};

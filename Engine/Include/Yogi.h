@@ -34,6 +34,7 @@
 
 #include "Renderer/Mesh.h"
 #include "Renderer/Material.h"
+#include "Renderer/MaterialSchema.h"
 #include "Renderer/RenderComponents.h"
 #include "Renderer/ForwardRenderSystem.h"
 // ---------------------------------------------

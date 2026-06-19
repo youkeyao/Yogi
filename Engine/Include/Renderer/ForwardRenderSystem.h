@@ -5,10 +5,11 @@
 #include "Renderer/MeshGPUUploadCache.h"
 #include "Renderer/RenderComponents.h"
 #include "Renderer/DepthPyramid.h"
-#include "Renderer/RenderPass.h"
-#include "Renderer/ObjectCullPass.h"
-#include "Renderer/MeshletDrawPass.h"
+#include "Renderer/Passes/ObjectCullPass.h"
+#include "Renderer/Passes/MeshletDrawPass.h"
+#include "Renderer/Passes/OutlinePass.h"
 #include "Renderer/DrawSlotRegistry.h"
+#include "Renderer/MaterialSlabUploader.h"
 #include "Renderer/StagingArena.h"
 #include "Renderer/RHI/ICommandBuffer.h"
 
@@ -39,23 +40,24 @@ private:
     static const uint64_t MAX_MESHLET_SIZE  = MAX_MESHLETS * sizeof(MeshletData);
     static const uint64_t MAX_MESHLET_DATA_SIZE =
         MAX_MESHLETS * (MESHLET_MAX_VERTICES + MESHLET_MAX_TRIANGLES * 3) * sizeof(uint32_t);
-    static const uint64_t MAX_MATERIALS     = 65536;
-    static const uint64_t MAX_MATERIAL_SIZE = MAX_MATERIALS * sizeof(MaterialData);
 
     WRef<IBuffer> m_vertexStorageBuffer = nullptr;
     WRef<IBuffer> m_meshletBuffer       = nullptr;
     WRef<IBuffer> m_meshletDataBuffer   = nullptr;
     WRef<IBuffer> m_meshBuffer          = nullptr;
     WRef<IBuffer> m_meshDrawBuffer      = nullptr;
-    WRef<IBuffer> m_materialBuffer      = nullptr;
+    WRef<IBuffer> m_drawIndexBuffer     = nullptr;
 
-    StagingArena    m_stagingArena;
-    ObjectCullPass  m_objectCullPass;
-    MeshletDrawPass m_meshletDrawPass;
+    StagingArena         m_stagingArena;
+    ObjectCullPass       m_objectCullPass;
+    MeshletDrawPass      m_meshletDrawPass;
+    OutlinePass          m_outlinePass;
+    MaterialSlabUploader m_slabUploader;
 
     MeshGPUUploadCache m_meshUploadCache;
 
     DrawSlotRegistry m_drawSlotRegistry;
+    PipelineRegistry m_pipelineRegistry;
 
     // DepthReduce pipeline + Hi-Z manager.
     WRef<IPipeline> m_depthReducePipeline = nullptr;

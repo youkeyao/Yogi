@@ -60,28 +60,24 @@ void ImGuiEndLayer::RendererInit()
     VulkanDeviceContext*      context   = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
     VulkanSwapChain*          swapChain = static_cast<VulkanSwapChain*>(Application::GetInstance().GetSwapChain());
 
-    QueueFamilyIndices indices = FindQueueFamilies(context->GetVkPhysicalDevice(), context->GetVkSurface());
-    initInfo.Instance          = context->GetVkInstance();
-    initInfo.PhysicalDevice    = context->GetVkPhysicalDevice();
-    initInfo.Device            = context->GetVkDevice();
-    initInfo.QueueFamily       = indices.graphicsFamily.value();
-    initInfo.Queue             = context->GetGraphicsQueue();
-    initInfo.PipelineCache     = VK_NULL_HANDLE;
-    initInfo.DescriptorPool    = context->GetVkDescriptorPool();
-    initInfo.MinImageCount     = swapChain->GetImageCount();
-    initInfo.ImageCount        = swapChain->GetImageCount();
-    initInfo.MSAASamples       = VK_SAMPLE_COUNT_1_BIT;
-    initInfo.Allocator         = nullptr;
-    initInfo.CheckVkResultFn   = nullptr;
-
-    // Dynamic rendering: tell ImGui not to create its own VkRenderPass and to
-    // emit pipelines compatible with our swapchain color format. ImGui draws
-    // directly onto the swapchain image inside our BeginRendering/EndRendering pair.
-    initInfo.UseDynamicRendering = true;
-    VkFormat swapchainFormat                                    = YgTextureFormat2VkFormat(swapChain->GetColorFormat());
-    initInfo.PipelineRenderingCreateInfo                        = {};
-    initInfo.PipelineRenderingCreateInfo.sType                  = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
-    initInfo.PipelineRenderingCreateInfo.colorAttachmentCount   = 1;
+    QueueFamilyIndices indices           = FindQueueFamilies(context->GetVkPhysicalDevice(), context->GetVkSurface());
+    initInfo.Instance                    = context->GetVkInstance();
+    initInfo.PhysicalDevice              = context->GetVkPhysicalDevice();
+    initInfo.Device                      = context->GetVkDevice();
+    initInfo.QueueFamily                 = indices.graphicsFamily.value();
+    initInfo.Queue                       = context->GetGraphicsQueue();
+    initInfo.PipelineCache               = VK_NULL_HANDLE;
+    initInfo.DescriptorPool              = context->GetVkDescriptorPool();
+    initInfo.MinImageCount               = swapChain->GetImageCount();
+    initInfo.ImageCount                  = swapChain->GetImageCount();
+    initInfo.MSAASamples                 = VK_SAMPLE_COUNT_1_BIT;
+    initInfo.Allocator                   = nullptr;
+    initInfo.CheckVkResultFn             = nullptr;
+    initInfo.UseDynamicRendering         = true;
+    VkFormat swapchainFormat             = YgTextureFormat2VkFormat(swapChain->GetColorFormat());
+    initInfo.PipelineRenderingCreateInfo = {};
+    initInfo.PipelineRenderingCreateInfo.sType                   = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+    initInfo.PipelineRenderingCreateInfo.colorAttachmentCount    = 1;
     initInfo.PipelineRenderingCreateInfo.pColorAttachmentFormats = &swapchainFormat;
     initInfo.PipelineRenderingCreateInfo.depthAttachmentFormat   = VK_FORMAT_UNDEFINED;
     initInfo.PipelineRenderingCreateInfo.stencilAttachmentFormat = VK_FORMAT_UNDEFINED;
@@ -90,7 +86,7 @@ void ImGuiEndLayer::RendererInit()
     ImGui_ImplVulkan_Init(&initInfo);
 
     m_commandBuffer = ResourceManager::CreateResource<ICommandBuffer>(
-        CommandBufferDesc{ CommandBufferUsage::Persistent, SubmitQueue::Graphics });
+        CommandBufferDesc{ CommandBufferUsage::OneTimeSubmit, SubmitQueue::Graphics });
 #endif
 }
 
@@ -98,16 +94,12 @@ void ImGuiEndLayer::RendererDraw()
 {
     ImDrawData* mainDrawData = ImGui::GetDrawData();
 #ifdef YG_RENDERER_VULKAN
-    auto                swapChain     = Application::GetInstance().GetSwapChain();
-    WRef<ITextureView>  currentTarget = swapChain->AcquireCurrentTarget();
-    const ITexture*     targetTex     = currentTarget->GetTexture();
+    auto               swapChain     = Application::GetInstance().GetSwapChain();
+    WRef<ITextureView> currentTarget = swapChain->AcquireCurrentTarget();
+    const ITexture*    targetTex     = currentTarget->GetTexture();
 
     m_commandBuffer->Begin();
 
-    // Dynamic rendering pass that loads whatever ForwardRenderSystem left in the
-    // swapchain image and draws ImGui on top. Forward leaves the image in
-    // ColorAttachmentOptimal -- we self-transition to carry the memory
-    // dependency without changing layout.
     m_commandBuffer->Barrier(BarrierDesc{
         .TextureView = currentTarget.Get(),
         .BeforeState = ResourceState::ColorAttachment,
@@ -115,8 +107,8 @@ void ImGuiEndLayer::RendererDraw()
     });
     {
         RenderingDesc rdesc{};
-        rdesc.Width  = targetTex->GetWidth();
-        rdesc.Height = targetTex->GetHeight();
+        rdesc.Width   = targetTex->GetWidth();
+        rdesc.Height  = targetTex->GetHeight();
         rdesc.Samples = SampleCountFlagBits::Count1;
         RenderingAttachment color{};
         color.View        = currentTarget.Get();
@@ -129,9 +121,6 @@ void ImGuiEndLayer::RendererDraw()
                                     static_cast<VulkanCommandBuffer*>(m_commandBuffer.Get())->GetVkCommandBuffer());
     m_commandBuffer->EndRendering();
 
-    // Hand the swapchain image off to vkQueuePresentKHR. Without an implicit
-    // VkRenderPass finalLayout this transition has to be explicit, and this is
-    // the only convenient place where we know the cmd buffer is the last user.
     m_commandBuffer->Barrier(BarrierDesc{
         .TextureView = currentTarget.Get(),
         .BeforeState = ResourceState::ColorAttachment,

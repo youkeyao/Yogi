@@ -13,7 +13,10 @@ void ComponentManager::Init()
     RegisterComponent<CameraComponent>({ "Target", "Fov", "ZoomLevel", "IsOrtho" });
 }
 
-void ComponentManager::Clear() { s_componentInfos.clear(); }
+void ComponentManager::Clear()
+{
+    s_componentInfos.clear();
+}
 
 template <typename T>
 void ComponentManager::RegisterComponent(const std::vector<std::string>& fieldNames)
@@ -50,7 +53,10 @@ void ComponentManager::EachComponentType(std::function<void(ComponentType&)>&& f
         func(info.Type);
 }
 
-void ComponentManager::AddComponent(Entity& entity, uint32_t typeHash) { s_componentInfos[typeHash].AddFunc(entity); }
+void ComponentManager::AddComponent(Entity& entity, uint32_t typeHash)
+{
+    s_componentInfos[typeHash].AddFunc(entity);
+}
 
 void ComponentManager::RemoveComponent(Entity& entity, uint32_t typeHash)
 {

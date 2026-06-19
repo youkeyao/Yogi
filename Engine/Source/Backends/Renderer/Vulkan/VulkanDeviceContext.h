@@ -11,7 +11,7 @@
 namespace Yogi
 {
 
-class VulkanDeviceContext : public IDeviceContext
+class YG_API VulkanDeviceContext : public IDeviceContext
 {
 public:
     VulkanDeviceContext(const Window* window);

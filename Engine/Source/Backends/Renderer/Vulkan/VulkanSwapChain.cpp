@@ -48,6 +48,7 @@ void VulkanSwapChain::AcquireNextImage()
     VkDevice             device  = context->GetVkDevice();
 
     m_commandBuffers[m_currentFrame]->Wait();
+
     VkResult result = vkAcquireNextImageKHR(
         device, m_swapChain, UINT64_MAX, m_imageAvailableSemaphores[m_currentFrame], VK_NULL_HANDLE, &m_imageIndex);
     YG_CORE_ASSERT(result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR, "Vulkan: Failed to acquire swap chain image!");

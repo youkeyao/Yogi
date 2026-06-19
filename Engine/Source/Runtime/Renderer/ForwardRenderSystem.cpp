@@ -1,6 +1,6 @@
 #include "Renderer/ForwardRenderSystem.h"
 #include "Renderer/Material.h"
-#include "Renderer/MaterialSchema.h"
+#include "Renderer/PipelineRegistry.h"
 #include "Renderer/BindlessTextureManager.h"
 #include "Resources/AssetManager/AssetManager.h"
 #include "Resources/ResourceManager/ResourceManager.h"
@@ -22,11 +22,11 @@ ForwardRenderSystem::ForwardRenderSystem()
     m_meshletDataBuffer =
         ResourceManager::AcquireSharedResource<IBuffer>(BufferDesc{ MAX_MESHLET_DATA_SIZE, BufferUsage::Storage });
     m_meshBuffer = ResourceManager::AcquireSharedResource<IBuffer>(
-        BufferDesc{ ObjectCullPass::MAX_MESH_DRAWS * sizeof(MeshData), BufferUsage::Storage });
+        BufferDesc{ MAX_MESH_DRAWS * sizeof(MeshData), BufferUsage::Storage });
     m_meshDrawBuffer = ResourceManager::AcquireSharedResource<IBuffer>(
-        BufferDesc{ ObjectCullPass::MAX_MESH_DRAWS * sizeof(MeshDraw), BufferUsage::Storage });
-    m_materialBuffer =
-        ResourceManager::AcquireSharedResource<IBuffer>(BufferDesc{ MAX_MATERIAL_SIZE, BufferUsage::Storage });
+        BufferDesc{ MAX_MESH_DRAWS * sizeof(MeshDraw), BufferUsage::Storage });
+    m_drawIndexBuffer = ResourceManager::AcquireSharedResource<IBuffer>(
+        BufferDesc{ MAX_MESH_DRAWS * sizeof(uint32_t), BufferUsage::Storage });
 
     // ---- StagingArena ----
     {
@@ -34,39 +34,42 @@ ForwardRenderSystem::ForwardRenderSystem()
         m_stagingArena.Init(kBlockSize);
     }
 
-    m_drawSlotRegistry.Init(static_cast<uint32_t>(ObjectCullPass::MAX_MESH_DRAWS),
+    m_drawSlotRegistry.Init(static_cast<uint32_t>(MAX_MESH_DRAWS),
                             static_cast<uint32_t>(ObjectCullPass::MAX_MESHLET_VIS_COUNT));
 
     // ---- Passes ----
     m_objectCullPass.Initialize();
     auto swapChain = Application::GetInstance().GetSwapChain();
-    m_meshletDrawPass.SetTargetColorFormat(swapChain->GetColorFormat());
     m_meshletDrawPass.SetIndirectBuffers(m_objectCullPass.AcquireIndirectCommandBuffer(),
                                          m_objectCullPass.AcquireIndirectCountBuffer());
     m_meshletDrawPass.Initialize();
+
+    // ---- OutlinePass (Phase 7 demo) ----
+    m_outlinePass.SetIndirectBuffers(m_objectCullPass.AcquireIndirectCommandBuffer(),
+                                     m_objectCullPass.AcquireIndirectCountBuffer());
+    m_outlinePass.Initialize();
+
+    // ---- Register PipelineRegistry builders ----
+    // Each pass owns its colorFormat decision -- GetPipelineBuilder()
+    // queries the swap-chain format internally.
+    m_pipelineRegistry.RegisterPass(m_meshletDrawPass.GetPassName(), m_meshletDrawPass.GetPipelineBuilder());
+    m_pipelineRegistry.RegisterPass(m_outlinePass.GetPassName(), m_outlinePass.GetPipelineBuilder());
+
+    // Pre-warm StandardMaterial
+    (void)m_pipelineRegistry.Acquire(m_meshletDrawPass.GetPassName(), "EngineAssets/Shaders/Materials/Standard.slang");
+    (void)m_pipelineRegistry.Acquire(m_outlinePass.GetPassName(), "EngineAssets/Shaders/Materials/Standard.slang");
 
     // ---- DepthPyramid pipeline ----
     WRef<IShaderResourceBinding> depthReduceBindingTemplate =
         ResourceManager::AddResource(DepthPyramid::CreateReduceBindingLayout());
     WRef<ShaderDesc> depthReduceShader =
-        AssetManager::AcquireAsset<ShaderDesc>("EngineAssets/Shaders/DepthReduce.comp");
+        AssetManager::AcquireAsset<ShaderDesc>("EngineAssets/Shaders/Passes/DepthReduce.cs.slang");
     PipelineDesc depthReducePipelineDesc{};
     depthReducePipelineDesc.Type               = PipelineType::Compute;
     depthReducePipelineDesc.Shaders            = { depthReduceShader.Get() };
     depthReducePipelineDesc.ResourceBinding    = depthReduceBindingTemplate.Get();
     depthReducePipelineDesc.PushConstantRanges = DepthPyramid::GetReducePushConstantRanges();
     m_depthReducePipeline = ResourceManager::AcquireSharedResource<IPipeline>(depthReducePipelineDesc);
-
-    // ---- MaterialSchema ----
-    {
-        auto& schema = MaterialSchema::Default();
-        schema.AddField("BaseColor",
-                        offsetof(MaterialData, BaseColor),
-                        MaterialSchema::FieldType::Vec4,
-                        Vector4{ 1.0f, 1.0f, 1.0f, 1.0f });
-        schema.AddField("AlbedoTexture", offsetof(MaterialData, AlbedoTexture), MaterialSchema::FieldType::Texture, 0u);
-        schema.Build(static_cast<uint32_t>(sizeof(MaterialData)));
-    }
 }
 
 ForwardRenderSystem::~ForwardRenderSystem()
@@ -74,6 +77,7 @@ ForwardRenderSystem::~ForwardRenderSystem()
     ResetMeshUploadCache();
 
     m_meshletDrawPass.Shutdown();
+    m_outlinePass.Shutdown();
     m_objectCullPass.Shutdown();
 
     m_vertexStorageBuffer = nullptr;
@@ -81,7 +85,7 @@ ForwardRenderSystem::~ForwardRenderSystem()
     m_meshletDataBuffer   = nullptr;
     m_meshBuffer          = nullptr;
     m_meshDrawBuffer      = nullptr;
-    m_materialBuffer      = nullptr;
+    m_drawIndexBuffer     = nullptr;
 
     m_stagingArena.Shutdown();
 
@@ -215,7 +219,7 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
     sceneFrame.MeshletDataBuffer = m_meshletDataBuffer->GetDeviceAddress();
     sceneFrame.MeshDataBuffer    = m_meshBuffer->GetDeviceAddress();
     sceneFrame.MeshDrawBuffer    = m_meshDrawBuffer->GetDeviceAddress();
-    sceneFrame.MaterialBuffer    = m_materialBuffer->GetDeviceAddress();
+    sceneFrame.DrawIndexBuffer   = m_drawIndexBuffer->GetDeviceAddress();
 
     // BDA pointers owned by ObjectCullPass (indirect / vis double buffer).
     m_objectCullPass.FillSceneFrame(sceneFrame);
@@ -226,11 +230,15 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
 
     // ============== Collect mesh data + slot-aware MeshDraw build ==============
     m_drawSlotRegistry.BeginFrame();
+    m_slabUploader.BeginFrame();
     std::vector<DrawSlotRegistry::DirtyEntry> dirtyDraws;
-
-    std::vector<uint8_t>                    uploadMaterialBytes;
-    std::unordered_map<Material*, uint32_t> materialIndexMap;
-    auto&                                   matSchema = MaterialSchema::Default();
+    struct LiveDraw
+    {
+        uint32_t    BufferIndex;
+        std::string ShaderKey;
+    };
+    std::vector<LiveDraw> liveDraws;
+    liveDraws.reserve(256);
 
     MaterialSchema::TextureResolver textureResolver = [this](const WRef<ITexture>& tex) -> uint32_t {
         if (!tex)
@@ -243,19 +251,6 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
             it            = inserted.first;
         }
         return BindlessTextureManager::Register(it->second.Get());
-    };
-    auto getOrAddMaterial = [&](const WRef<Material>& mat) -> uint32_t {
-        Material* ptr = mat.Get();
-        auto      it  = materialIndexMap.find(ptr);
-        if (it != materialIndexMap.end())
-            return it->second;
-        const uint32_t stride = matSchema.Stride();
-        uint32_t       idx    = static_cast<uint32_t>(uploadMaterialBytes.size() / stride);
-        materialIndexMap[ptr] = idx;
-        const size_t oldSize  = uploadMaterialBytes.size();
-        uploadMaterialBytes.resize(oldSize + stride);
-        matSchema.Pack(*ptr, uploadMaterialBytes.data() + oldSize, textureResolver);
-        return idx;
     };
 
     bool overflowed = false;
@@ -347,18 +342,32 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
 
             // Build the MeshDraw with the slot's stable MeshletVisOffset.
             MeshDraw draw{};
-            draw.Position         = meshTransform.Transform.Position;
-            draw.Scale            = meshTransform.Transform.Scale;
-            draw.Orientation      = Vector4(meshTransform.Transform.Rotation.x,
-                                            meshTransform.Transform.Rotation.y,
-                                            meshTransform.Transform.Rotation.z,
-                                            meshTransform.Transform.Rotation.w);
-            draw.MeshIndex        = meshIndex;
-            draw.MaterialIndex    = getOrAddMaterial(material);
+            draw.Position    = meshTransform.Transform.Position;
+            draw.Scale       = meshTransform.Transform.Scale;
+            draw.Orientation = Vector4(meshTransform.Transform.Rotation.x,
+                                       meshTransform.Transform.Rotation.y,
+                                       meshTransform.Transform.Rotation.z,
+                                       meshTransform.Transform.Rotation.w);
+            draw.MeshIndex   = meshIndex;
+            std::string shaderKey;
+            if (material)
+            {
+                shaderKey = AssetManager::GetAssetKey(material->Schema);
+                if (shaderKey.empty())
+                    shaderKey = std::string{ Material::kDefaultMaterialSchemaKey };
+                (void)m_pipelineRegistry.Acquire(m_meshletDrawPass.GetPassName(), shaderKey);
+            }
+            const auto staged     = m_slabUploader.Stage(material.Get(), textureResolver);
+            draw.MaterialIndex    = staged.SlabLocalIndex;
             draw.MeshletVisOffset = visOffset;
 
             // Dirty diff: only stage if anything changed since last upload.
             m_drawSlotRegistry.CommitDraw(entityHandle, draw, dirtyDraws);
+
+            // Track this slot in the per-frame live list so the bucket
+            // splitter below knows it exists, regardless of whether the
+            // MeshDraw itself was dirty this frame.
+            liveDraws.push_back(LiveDraw{ bufferIndex, shaderKey });
         });
 
     if (overflowed)
@@ -401,21 +410,75 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
         }
     }
 
-    // ============== Stage Material + SceneFrame ==============
-    if (!uploadMaterialBytes.empty())
+    // ============== Phase 5: per-type material slabs ==============
+    // Upload staged material data to per-type GPU buffers. Must happen
+    // before we query GPU addresses for push constants.
+    m_slabUploader.Submit(commandBuffer, m_stagingArena, sceneFrame);
+
+    // ============== Phase 6: bucket the live draws by shaderKey =====
+    // For each (shaderKey) bucket we want a contiguous [DrawBase, DrawBase+Count)
+    // range of slot indices in m_drawIndexBuffer. The cull/draw passes
+    // dispatch once per bucket using that range; ObjectCull.cs.slang reads
+    // sf.DrawIndexBuffer[DrawBase + thread] to recover the real slot.
+    //
+    // We sort liveDraws by (shaderKey, bufferIndex). Stable order inside a
+    // bucket keeps RenderDoc captures readable; it doesn't otherwise matter
+    // for correctness.
+    std::vector<DrawBucket> buckets;
+    std::vector<std::string>
+        bucketTypeNames; // parallel to buckets, used by passes that need typeName for PipelineRegistry
+
+    if (!liveDraws.empty())
     {
-        const uint32_t stride        = MaterialSchema::Default().Stride();
-        const size_t   materialCount = stride > 0 ? uploadMaterialBytes.size() / stride : 0;
-        if (materialCount > MAX_MATERIALS)
+        std::sort(liveDraws.begin(), liveDraws.end(), [](const LiveDraw& a, const LiveDraw& b) {
+            if (a.ShaderKey != b.ShaderKey)
+                return a.ShaderKey < b.ShaderKey;
+            return a.BufferIndex < b.BufferIndex;
+        });
+
+        std::vector<uint32_t> drawIndices;
+        drawIndices.reserve(liveDraws.size());
+        uint32_t cursor = 0;
+        for (size_t i = 0; i < liveDraws.size();)
         {
-            YG_CORE_ERROR("Material cap exceeded: needed {0}, cap {1}. Skipping frame.", materialCount, MAX_MATERIALS);
-            commandBuffer->EndDebugLabel();
-            commandBuffer->End();
-            commandBuffer->Submit();
-            return;
+            const std::string& t           = liveDraws[i].ShaderKey;
+            uint32_t           bucketStart = cursor;
+            while (i < liveDraws.size() && liveDraws[i].ShaderKey == t)
+            {
+                drawIndices.push_back(liveDraws[i].BufferIndex);
+                ++cursor;
+                ++i;
+            }
+            DrawBucket b{};
+            b.ShaderKey          = t;
+            b.DrawBase           = bucketStart;
+            b.DrawCount          = cursor - bucketStart;
+            b.MaterialBufferAddr = m_slabUploader.GetMaterialBufferAddr(t);
+            if (b.MaterialBufferAddr == 0)
+            {
+                YG_CORE_WARN("ForwardRender: MaterialBufferAddr is 0 for shaderKey='{0}'", t);
+            }
+            buckets.push_back(b);
+
+            std::string typeName = "StandardMaterial"; // default fallback
+            size_t      pos      = t.find_last_of('/');
+            if (pos != std::string::npos)
+            {
+                std::string stem = t.substr(pos + 1);
+                // Remove ".slang" extension
+                size_t dot = stem.find_last_of('.');
+                if (dot != std::string::npos)
+                    stem = stem.substr(0, dot);
+                typeName = stem + "Material";
+            }
+            bucketTypeNames.push_back(std::move(typeName));
         }
-        m_stagingArena.Stage(
-            commandBuffer, m_materialBuffer.Get(), 0, uploadMaterialBytes.data(), uploadMaterialBytes.size());
+
+        m_stagingArena.Stage(commandBuffer,
+                             m_drawIndexBuffer.Get(),
+                             /*dstOffset*/ 0,
+                             drawIndices.data(),
+                             drawIndices.size() * sizeof(uint32_t));
     }
 
     const uint64_t sceneFrameAddr = m_stagingArena.Push(commandBuffer, &sceneFrame, sizeof(SceneFrame));
@@ -436,7 +499,16 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
     {
         commandBuffer->BeginDebugLabel("EARLY phase");
         m_objectCullPass.PrepareEarly(commandBuffer);
-        m_objectCullPass.ExecuteEarly(commandBuffer, sceneFrameAddr, /*drawBase*/ 0, totalDrawCount);
+        // Phase 5: cull dispatches once per (typeId) bucket. Each bucket
+        // has its own [DrawBase, DrawBase+Count) slice of m_drawIndexBuffer
+        // and its own IndirectCountBuffer slot (bucketIndex), so the
+        // dispatches don't fight for a shared counter.
+        for (size_t bi = 0; bi < buckets.size(); ++bi)
+        {
+            const DrawBucket& b = buckets[bi];
+            m_objectCullPass.ExecuteEarly(
+                commandBuffer, sceneFrameAddr, b.DrawBase, b.DrawCount, /*bucketIndex*/ static_cast<uint32_t>(bi));
+        }
 
         commandBuffer->Barrier({
             BarrierDesc{
@@ -473,7 +545,21 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
         }
         commandBuffer->SetViewport({ 0, 0, (float)targetWidth, (float)targetHeight });
         commandBuffer->SetScissor({ 0, 0, targetWidth, targetHeight });
-        m_meshletDrawPass.ExecuteEarly(commandBuffer, sceneFrameAddr, /*drawBase*/ 0, totalDrawCount);
+        for (size_t bi = 0; bi < buckets.size(); ++bi)
+        {
+            const DrawBucket&       b        = buckets[bi];
+            const std::string       typeName = bucketTypeNames[bi];
+            SpecializedPipelinePair pipelinePair =
+                m_pipelineRegistry.Acquire(m_meshletDrawPass.GetPassName(), b.ShaderKey);
+            m_meshletDrawPass.ExecuteEarly(commandBuffer,
+                                           pipelinePair,
+                                           sceneFrameAddr,
+                                           b.DrawBase,
+                                           b.DrawCount,
+                                           b.MaterialBufferAddr,
+                                           b.ShaderKey,
+                                           static_cast<uint32_t>(bi));
+        }
         commandBuffer->EndRendering();
         commandBuffer->EndDebugLabel();
     }
@@ -521,7 +607,16 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
         const uint32_t pyramidSlot = m_depthPyramid.GetPyramidSampledSlot();
 
         m_objectCullPass.PrepareLate(commandBuffer);
-        m_objectCullPass.ExecuteLate(commandBuffer, sceneFrameAddr, /*drawBase*/ 0, totalDrawCount, pyramidSlot);
+        for (size_t bi = 0; bi < buckets.size(); ++bi)
+        {
+            const DrawBucket& b = buckets[bi];
+            m_objectCullPass.ExecuteLate(commandBuffer,
+                                         sceneFrameAddr,
+                                         b.DrawBase,
+                                         b.DrawCount,
+                                         pyramidSlot,
+                                         /*bucketIndex*/ static_cast<uint32_t>(bi));
+        }
         {
             RenderingDesc rdesc{};
             rdesc.Width   = targetWidth;
@@ -539,7 +634,31 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
         }
         commandBuffer->SetViewport({ 0, 0, (float)targetWidth, (float)targetHeight });
         commandBuffer->SetScissor({ 0, 0, targetWidth, targetHeight });
-        m_meshletDrawPass.ExecuteLate(commandBuffer, sceneFrameAddr, /*drawBase*/ 0, totalDrawCount, pyramidSlot);
+        for (size_t bi = 0; bi < buckets.size(); ++bi)
+        {
+            const DrawBucket&       b        = buckets[bi];
+            const std::string       typeName = bucketTypeNames[bi];
+            SpecializedPipelinePair pipelinePair =
+                m_pipelineRegistry.Acquire(m_meshletDrawPass.GetPassName(), b.ShaderKey);
+            m_meshletDrawPass.ExecuteLate(commandBuffer,
+                                          pipelinePair,
+                                          sceneFrameAddr,
+                                          b.DrawBase,
+                                          b.DrawCount,
+                                          pyramidSlot,
+                                          b.MaterialBufferAddr,
+                                          b.ShaderKey,
+                                          static_cast<uint32_t>(bi));
+        }
+
+        // OutlinePass: acquire pipeline then execute
+        // if (!buckets.empty())
+        // {
+        //     SpecializedPipelinePair outlinePair =
+        //         m_pipelineRegistry.Acquire(m_outlinePass.GetPassName(), buckets[0].TypeId);
+        //     m_outlinePass.Execute(commandBuffer, sceneFrameAddr, outlinePair, buckets, bucketTypeNames);
+        // }
+
         commandBuffer->EndRendering();
         commandBuffer->EndDebugLabel();
     }

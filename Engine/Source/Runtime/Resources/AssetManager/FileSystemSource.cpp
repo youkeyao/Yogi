@@ -2,6 +2,7 @@
 #include "Resources/AssetManager/AssetManager.h"
 #include "Resources/AssetManager/Serializer/MeshSerializer.h"
 #include "Resources/AssetManager/Serializer/MaterialSerializer.h"
+#include "Resources/AssetManager/Serializer/MaterialSchemaSerializer.h"
 #include "Resources/AssetManager/Serializer/TextureSerializer.h"
 #include "Resources/AssetManager/Serializer/ShaderSerializer.h"
 
@@ -33,6 +34,7 @@ FileSystemSource::FileSystemSource(const std::string& rootDir) : m_rootDir(rootD
 {
     AssetManager::RegisterAssetSerializer<Mesh, MeshSerializer>();
     AssetManager::RegisterAssetSerializer<Material, MaterialSerializer>();
+    AssetManager::RegisterAssetSerializer<MaterialSchema, MaterialSchemaSerializer>();
     AssetManager::RegisterAssetSerializer<ITexture, TextureSerializer>();
     AssetManager::RegisterAssetSerializer<ShaderDesc, ShaderSerializer>();
 }

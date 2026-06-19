@@ -19,7 +19,7 @@ private:
 
 private:
     WRef<Material> m_material;
-    std::string   m_key;
+    std::string    m_key;
 };
 
 } // namespace Yogi
