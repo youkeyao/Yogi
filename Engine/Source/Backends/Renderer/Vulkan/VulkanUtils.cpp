@@ -251,7 +251,7 @@ VkFormat YgShaderElementType2VkFormat(ShaderElementType type)
     }
 }
 
-VkImageLayout YgResourceState2VkImageLayout(ResourceState state, ITexture::Usage usage)
+VkImageLayout YgResourceState2VkImageLayout(ResourceState state, ITexture::Format format)
 {
     if (state & ResourceState::Undefined)
         return VK_IMAGE_LAYOUT_UNDEFINED;
@@ -273,8 +273,8 @@ VkImageLayout YgResourceState2VkImageLayout(ResourceState state, ITexture::Usage
         state & ResourceState::ComputeShaderResource || state & ResourceState::TaskShaderResource ||
         state & ResourceState::MeshShaderResource)
     {
-        return usage == ITexture::Usage::DepthStencil ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL :
-                                                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        return YgTextureFormatIsDepthStencil(format) ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL :
+                                                       VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     }
 
     return VK_IMAGE_LAYOUT_UNDEFINED;
@@ -391,6 +391,47 @@ VkPrimitiveTopology YgPrimitiveTopology2VkPrimitiveTopology(PrimitiveTopology to
 PFN_vkVoidFunction VkLoadFunction(const char* funcName, void* instance)
 {
     return vkGetInstanceProcAddr((VkInstance)instance, funcName);
+}
+
+bool YgTextureFormatHasStencil(ITexture::Format format)
+{
+    switch (format)
+    {
+        case ITexture::Format::D24_UNORM_S8_UINT:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool YgTextureFormatIsDepthStencil(ITexture::Format format)
+{
+    switch (format)
+    {
+        case ITexture::Format::D32_FLOAT:
+        case ITexture::Format::D24_UNORM_S8_UINT:
+            return true;
+        default:
+            return false;
+    }
+}
+
+VkImageUsageFlags YgTextureUsageFlags2VkImageUsage(TextureUsageFlags flags)
+{
+    VkImageUsageFlags result = 0;
+    if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(TextureUsageFlags::Sampled))
+        result |= VK_IMAGE_USAGE_SAMPLED_BIT;
+    if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(TextureUsageFlags::ColorAttachment))
+        result |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(TextureUsageFlags::DepthStencil))
+        result |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(TextureUsageFlags::Storage))
+        result |= VK_IMAGE_USAGE_STORAGE_BIT;
+    if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(TextureUsageFlags::TransferSrc))
+        result |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(TextureUsageFlags::TransferDst))
+        result |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    return result;
 }
 
 } // namespace Yogi

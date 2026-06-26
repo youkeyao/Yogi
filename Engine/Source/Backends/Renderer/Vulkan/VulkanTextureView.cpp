@@ -30,8 +30,25 @@ VulkanTextureView::VulkanTextureView(const WRef<ITexture>& texture, const Textur
 
     YG_CORE_ASSERT(m_baseMip + m_mipCount <= tex->GetMipLevels(), "VulkanTextureView: mip range out of bounds");
 
-    m_aspectMask =
-        (tex->GetUsage() == ITexture::Usage::DepthStencil) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+    // Determine aspect masks from format (not from a separate Usage enum)
+    bool isDepthStencil = YgTextureFormatIsDepthStencil(m_format);
+    if (isDepthStencil)
+    {
+        // ImageView creation: aspectMask can only contain DEPTH_BIT or STENCIL_BIT, not both
+        m_viewAspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+
+        // Image memory barrier: aspectMask can contain both DEPTH and STENCIL bits
+        m_barrierAspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+        if (YgTextureFormatHasStencil(m_format))
+        {
+            m_barrierAspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+        }
+    }
+    else
+    {
+        m_viewAspectMask    = VK_IMAGE_ASPECT_COLOR_BIT;
+        m_barrierAspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    }
 
     const VulkanTexture* vkTex = static_cast<const VulkanTexture*>(tex);
 
@@ -40,7 +57,7 @@ VulkanTextureView::VulkanTextureView(const WRef<ITexture>& texture, const Textur
     info.image                           = vkTex->GetVkImage();
     info.viewType                        = VK_IMAGE_VIEW_TYPE_2D;
     info.format                          = YgTextureFormat2VkFormat(m_format);
-    info.subresourceRange.aspectMask     = m_aspectMask;
+    info.subresourceRange.aspectMask     = m_viewAspectMask;
     info.subresourceRange.baseMipLevel   = m_baseMip;
     info.subresourceRange.levelCount     = m_mipCount;
     info.subresourceRange.baseArrayLayer = m_baseLayer;
@@ -64,7 +81,7 @@ VulkanTextureView::~VulkanTextureView()
 VkImageSubresourceRange VulkanTextureView::GetVkSubresourceRange() const
 {
     VkImageSubresourceRange range{};
-    range.aspectMask     = m_aspectMask;
+    range.aspectMask     = m_barrierAspectMask;
     range.baseMipLevel   = m_baseMip;
     range.levelCount     = m_mipCount;
     range.baseArrayLayer = m_baseLayer;
@@ -92,7 +109,7 @@ void VulkanTextureView::SetData(void* data, uint32_t size)
     region.bufferOffset                    = 0;
     region.bufferRowLength                 = 0;
     region.bufferImageHeight               = 0;
-    region.imageSubresource.aspectMask     = m_aspectMask;
+    region.imageSubresource.aspectMask     = m_barrierAspectMask;
     region.imageSubresource.mipLevel       = m_baseMip;
     region.imageSubresource.baseArrayLayer = m_baseLayer;
     region.imageSubresource.layerCount     = m_layerCount;

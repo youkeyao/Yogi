@@ -1,45 +1,45 @@
 #pragma once
 
 #include "Renderer/RHI/ICommandBuffer.h"
+#include "Renderer/RHI/IPipeline.h"
 #include "Renderer/ShaderData.h"
-#include "Renderer/PipelineRegistry.h"
 
 namespace Yogi
 {
 
-// Base class for all render passes.
-//
-// Each concrete pass implements two virtual methods that let
-// ForwardRenderSystem register the pass with PipelineRegistry
-// without knowing the pass's shader paths or pipeline layout:
-//
-//   GetPassName()      – unique key used by PipelineRegistry
-//   GetPipelineBuilder() – returns a builder lambda that knows how to
-//                          construct (Early, Late) pipeline pairs for
-//                          any material type.
-//
-// The builder captures pass-specific state (color format, etc.) that
-// is set via SetTargetColorFormat() before the builder is retrieved.
+class RenderGraph;
+class RenderGraphBuilder;
+class RenderGraphContext;
+
+struct DrawBucket
+{
+    std::string ShaderKey;
+    uint32_t    DrawBase;
+    uint32_t    DrawCount;
+    uint64_t    MaterialBufferAddr;
+};
+
 class YG_API RenderPass
 {
 public:
+    RenderPass()          = default;
     virtual ~RenderPass() = default;
 
-    virtual void Initialize() = 0;
-    virtual void Shutdown()   = 0;
+    RenderPass(const RenderPass&)            = delete;
+    RenderPass& operator=(const RenderPass&) = delete;
+    RenderPass(RenderPass&&)                 = delete;
+    RenderPass& operator=(RenderPass&&)      = delete;
 
-    virtual void BeginFrame() {}
+    // Initialization: called once when the pass is registered, before any frame.
+    // Declare/allocate the named resources this pass produces here.
+    virtual void Init(RenderGraph& graph) {}
 
-    virtual void FillSceneFrame(SceneFrame& sceneFrame) {}
+    // Runtime: called every frame for all passes before any Execute runs.
+    // Resolve consumed resources (GetBuffer/GetTexture), perform lazy rebuilds,
+    // and declare this frame's resource-state transitions via the builder.
+    virtual void Prepare(RenderGraphContext& context, RenderGraph& graph, RenderGraphBuilder& builder) {}
 
-    // Returns a pipeline builder that PipelineRegistry can use to
-    // construct specialized (Early, Late) pipeline pairs for this pass.
-    // The builder captures pass-specific state (color format, etc.).
-    virtual SpecializedPipelineBuilder GetPipelineBuilder() = 0;
-
-    // Pass name used as the key when registering / acquiring from
-    // PipelineRegistry (e.g. "MeshletDraw", "Outline").
-    virtual std::string GetPassName() const = 0;
+    virtual void Execute(RenderGraphContext& context) {}
 };
 
 } // namespace Yogi

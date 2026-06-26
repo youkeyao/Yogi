@@ -64,6 +64,48 @@ enum class CullMode : uint8_t
     Front,
 };
 
+enum class CompareOp : uint8_t
+{
+    Never = 0,
+    Less,
+    Equal,
+    LessOrEqual,
+    Greater,
+    NotEqual,
+    GreaterOrEqual,
+    Always,
+};
+
+enum class StencilOp : uint8_t
+{
+    Keep = 0,
+    Zero,
+    Replace,
+    IncrementClamp,
+    DecrementClamp,
+    Invert,
+    IncrementWrap,
+    DecrementWrap,
+};
+
+struct StencilFaceDesc
+{
+    CompareOp CompareFn   = CompareOp::Always;
+    StencilOp FailOp      = StencilOp::Keep;
+    StencilOp DepthFailOp = StencilOp::Keep;
+    StencilOp PassOp      = StencilOp::Keep;
+};
+
+struct StencilDesc
+{
+    bool            Enable    = false;
+    uint8_t         ReadMask  = 0xFF;
+    uint8_t         WriteMask = 0xFF;
+    uint8_t         Reference = 0;
+    StencilFaceDesc Front     = {};
+    StencilFaceDesc Back      = {};
+};
+
 struct PipelineDesc
 {
     std::vector<const ShaderDesc*> Shaders;
@@ -76,6 +118,14 @@ struct PipelineDesc
     PrimitiveTopology              Topology    = PrimitiveTopology::TriangleList;
     PipelineType                   Type        = PipelineType::Graphics;
     CullMode                       Cull        = CullMode::Back;
+
+    // Depth state
+    bool      DepthTestEnable  = true;
+    bool      DepthWriteEnable = true;
+    CompareOp DepthCompareOp   = CompareOp::Less;
+
+    // Stencil state
+    StencilDesc Stencil = {};
 };
 
 class YG_API IPipeline

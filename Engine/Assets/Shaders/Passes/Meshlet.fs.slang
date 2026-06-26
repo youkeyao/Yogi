@@ -4,15 +4,16 @@ import Shared.Bindless;
 import Materials.IMaterial;
 import Materials.Standard;
 import Materials.Unlit;
+#include "Renderer/Passes/MeshletDrawPush.h"
 
-[[vk::push_constant]] ConstantBuffer<ScenePush> pcScene;
+[[vk::push_constant]] ConstantBuffer<MeshletDrawPush> pcMeshletDraw;
 
 [shader("fragment")]
 float4 fsMain<M : IMaterial>(MeshletVertex i) : SV_Target
 {
-    SceneFrame sf = ((SceneFrame*)pcScene.SceneFrameAddr)[0];
+    SceneFrame sf = ((SceneFrame*)pcMeshletDraw.SceneFrameAddr)[0];
 
-    M* matBuf = (M*)pcScene.MaterialBufferAddr;
+    M* matBuf = (M*)pcMeshletDraw.MaterialBufferAddr;
     M m = matBuf[i.MaterialIndex];
 
     ShadingContext ctx;

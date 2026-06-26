@@ -18,33 +18,25 @@ VulkanTexture::VulkanTexture(const TextureDesc& desc) :
     m_height(desc.Height),
     m_mipLevels(MathUtils::Max(1u, desc.MipLevels)),
     m_format(desc.Format),
-    m_usage(desc.Usage),
-    m_numSamples(desc.NumSamples)
+    m_numSamples(desc.NumSamples),
+    m_usageFlags(desc.UsageFlags)
 {
     CreateVkImage(desc.Width,
                   desc.Height,
                   (VkSampleCountFlagBits)desc.NumSamples,
                   YgTextureFormat2VkFormat(desc.Format),
                   VK_IMAGE_TILING_OPTIMAL,
-                  VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT |
-                      (desc.Usage == ITexture::Usage::Storage ? VK_IMAGE_USAGE_STORAGE_BIT : 0) |
-                      (desc.Usage == ITexture::Usage::RenderTarget ? VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT : 0) |
-                      (desc.Usage == ITexture::Usage::DepthStencil ? VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT : 0),
+                  YgTextureUsageFlags2VkImageUsage(desc.UsageFlags),
                   VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 }
 
-VulkanTexture::VulkanTexture(uint32_t         width,
-                             uint32_t         height,
-                             ITexture::Format format,
-                             ITexture::Usage  usage,
-                             VkImage          image) :
+VulkanTexture::VulkanTexture(uint32_t width, uint32_t height, ITexture::Format format, VkImage image) :
     m_image(image),
     m_ownsImage(false),
     m_width(width),
     m_height(height),
     m_mipLevels(1),
     m_format(format),
-    m_usage(usage),
     m_numSamples(SampleCountFlagBits::Count1)
 {}
 

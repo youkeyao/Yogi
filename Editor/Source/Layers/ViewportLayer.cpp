@@ -13,9 +13,15 @@ ViewportLayer::ViewportLayer() :
     m_selectedEntity(Entity::Null()),
     m_editRenderSystem(Owner<ForwardRenderSystem>::Create())
 {
-    m_frameTexture = ResourceManager::CreateResource<ITexture>(
-        TextureDesc{ 1, 1, 1, ITexture::Format::B8G8R8A8_UNORM, ITexture::Usage::RenderTarget });
-    m_frameView = ResourceManager::CreateResource<ITextureView>(m_frameTexture);
+    TextureDesc frameDesc{};
+    frameDesc.Width     = 1;
+    frameDesc.Height    = 1;
+    frameDesc.MipLevels = 1;
+    frameDesc.Format    = ITexture::Format::B8G8R8A8_UNORM;
+    frameDesc.UsageFlags =
+        TextureUsageFlags::ColorAttachment | TextureUsageFlags::Sampled | TextureUsageFlags::TransferDst;
+    m_frameTexture = ResourceManager::CreateResource<ITexture>(frameDesc);
+    m_frameView    = ResourceManager::CreateResource<ITextureView>(m_frameTexture, TextureViewDesc{});
 }
 
 void ViewportLayer::OnUpdate(Timestep ts)
@@ -98,13 +104,14 @@ void ViewportLayer::OnGUI()
         if (m_viewportSize.x > 0 && m_viewportSize.y > 0)
         {
             // Drop old view first (Vulkan: VkImageView must die before its VkImage).
-            m_frameView    = nullptr;
-            m_frameTexture = ResourceManager::CreateResource<ITexture>(TextureDesc{ (uint32_t)m_viewportSize.x,
-                                                                                    (uint32_t)m_viewportSize.y,
-                                                                                    1,
-                                                                                    ITexture::Format::B8G8R8A8_UNORM,
-                                                                                    ITexture::Usage::RenderTarget });
-            m_frameView    = ResourceManager::CreateResource<ITextureView>(m_frameTexture);
+            m_frameView = nullptr;
+            m_frameTexture =
+                ResourceManager::CreateResource<ITexture>(TextureDesc{ (uint32_t)m_viewportSize.x,
+                                                                       (uint32_t)m_viewportSize.y,
+                                                                       1,
+                                                                       ITexture::Format::B8G8R8A8_UNORM,
+                                                                       TextureUsageFlags::ColorAttachment });
+            m_frameView = ResourceManager::CreateResource<ITextureView>(m_frameTexture);
         }
     }
     ImGuiImage(*m_frameView, ImVec2(m_viewportSize.x, m_viewportSize.y));

@@ -4,10 +4,11 @@ import Shared.Bindless;
 import Materials.IMaterial;
 import Materials.Standard;
 import Materials.Unlit;
+#include "Renderer/Passes/MeshletDrawPush.h"
 
 #define TRIANGLE_CULL 1
 
-[[vk::push_constant]] ConstantBuffer<ScenePush> pcScene;
+[[vk::push_constant]] ConstantBuffer<MeshletDrawPush> pcMeshletDraw;
 
 #if TRIANGLE_CULL
 groupshared float4 s_clipPos[MESHLET_MAX_VERTICES];
@@ -23,15 +24,15 @@ void msMain<M : IMaterial>(uint gid  : SV_GroupID,
                            out indices uint3 prims[MESHLET_MAX_TRIANGLES],
                            out primitives MeshletPrimitiveAttrs primAttrs[MESHLET_MAX_TRIANGLES])
 {
-    SceneFrame sf = ((SceneFrame*)pcScene.SceneFrameAddr)[0];
+    SceneFrame sf = ((SceneFrame*)pcMeshletDraw.SceneFrameAddr)[0];
 
-    MeshDraw*  mdBuf   = (MeshDraw*)sf.MeshDrawBuffer;
-    MeshData*  mDBuf   = (MeshData*)sf.MeshDataBuffer;
-    MeshletData* mlBuf  = (MeshletData*)sf.MeshletBuffer;
-    VertexData* vBuf    = (VertexData*)sf.VertexBuffer;
-    uint*       mlDBuf  = (uint*)sf.MeshletDataBuffer;
-    uint8_t*   mlD8Buf = (uint8_t*)sf.MeshletDataBuffer;
-    M* matBuf  = (M*)pcScene.MaterialBufferAddr;
+    MeshDraw*  mdBuf   = (MeshDraw*)pcMeshletDraw.MeshDrawBuffer;
+    MeshData*  mDBuf   = (MeshData*)pcMeshletDraw.MeshDataBuffer;
+    MeshletData* mlBuf  = (MeshletData*)pcMeshletDraw.MeshletBuffer;
+    VertexData* vBuf    = (VertexData*)pcMeshletDraw.VertexBuffer;
+    uint*       mlDBuf  = (uint*)pcMeshletDraw.MeshletDataBuffer;
+    uint8_t*   mlD8Buf = (uint8_t*)pcMeshletDraw.MeshletDataBuffer;
+    M* matBuf  = (M*)pcMeshletDraw.MaterialBufferAddr;
 
     MeshDraw draw = mdBuf[payload.drawIndex];
     MeshData mesh = mDBuf[draw.MeshIndex];

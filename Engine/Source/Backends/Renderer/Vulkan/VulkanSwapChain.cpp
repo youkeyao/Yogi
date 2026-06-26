@@ -181,8 +181,8 @@ void VulkanSwapChain::CreateVkSwapChain()
     m_colorViews.reserve(imageCount);
     for (size_t i = 0; i < swapChainImages.size(); ++i)
     {
-        Owner<ITexture> tex = Owner<VulkanTexture>::Create(
-            extent.width, extent.height, m_colorFormat, ITexture::Usage::RenderTarget, swapChainImages[i]);
+        Owner<ITexture> tex =
+            Owner<VulkanTexture>::Create(extent.width, extent.height, m_colorFormat, swapChainImages[i]);
         Owner<ITextureView> view = ITextureView::Create(WRef<ITexture>::Create(tex), {});
         m_colorTextures.push_back(std::move(tex));
         m_colorViews.push_back(std::move(view));

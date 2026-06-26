@@ -44,9 +44,13 @@ uint32_t FindMemoryType(uint32_t typeFilter, VkPhysicalDevice physicalDevice, Vk
 YG_API VkFormat     YgTextureFormat2VkFormat(ITexture::Format format);
 ITexture::Format    VkFormat2YgTextureFormat(VkFormat format);
 VkFormat            YgShaderElementType2VkFormat(ShaderElementType type);
-VkImageLayout       YgResourceState2VkImageLayout(ResourceState state, ITexture::Usage usage);
+VkImageLayout       YgResourceState2VkImageLayout(ResourceState state, ITexture::Format format);
 VkShaderStageFlags  YgShaderStage2VkShaderStage(ShaderStage stage);
 VkPrimitiveTopology YgPrimitiveTopology2VkPrimitiveTopology(PrimitiveTopology topology);
+VkImageUsageFlags   YgTextureUsageFlags2VkImageUsage(TextureUsageFlags flags);
+
+bool YgTextureFormatHasStencil(ITexture::Format format);
+bool YgTextureFormatIsDepthStencil(ITexture::Format format);
 
 VkPipelineStageFlags2 YgResourceState2VkPipelineStage2(ResourceState state);
 VkAccessFlags2        YgResourceState2VkAccess2(ResourceState state);

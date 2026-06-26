@@ -22,14 +22,13 @@ Owner<ITexture> TextureSerializer::Deserialize(const std::vector<uint8_t>& binar
             return nullptr;
         }
 
-        Owner<ITexture> texture = Owner<ITexture>::Create(TextureDesc{
-            (uint32_t)width,
-            (uint32_t)height,
-            1,
-            ITexture::Format::R8G8B8A8_UNORM,
-            ITexture::Usage::Texture2D,
-            SampleCountFlagBits::Count1,
-        });
+        TextureDesc desc{};
+        desc.Width      = (uint32_t)width;
+        desc.Height     = (uint32_t)height;
+        desc.Format     = ITexture::Format::R8G8B8A8_UNORM;
+        desc.UsageFlags = TextureUsageFlags::Sampled | TextureUsageFlags::TransferDst;
+
+        Owner<ITexture> texture = Owner<ITexture>::Create(desc);
 
         // Transient view for the upload — texture survives, view dies at scope exit.
         Owner<ITextureView> uploadView = ITextureView::Create(WRef<ITexture>::Create(texture));
@@ -55,8 +54,6 @@ Owner<ITexture> TextureSerializer::Deserialize(const std::vector<uint8_t>& binar
             (uint32_t)height,
             1,
             format,
-            ITexture::Usage::RenderTarget,
-            SampleCountFlagBits::Count1,
         });
         return texture;
     }

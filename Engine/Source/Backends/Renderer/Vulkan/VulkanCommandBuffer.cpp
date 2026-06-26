@@ -484,7 +484,7 @@ void VulkanCommandBuffer::Barrier(std::initializer_list<BarrierDesc> barrierDesc
 
             VkImageLayout oldLayout =
                 (d.BeforeState & ResourceState::Undefined) ? VK_IMAGE_LAYOUT_UNDEFINED : vkTex->GetCurrentLayout();
-            VkImageLayout newLayout = YgResourceState2VkImageLayout(d.AfterState, tex->GetUsage());
+            VkImageLayout newLayout = YgResourceState2VkImageLayout(d.AfterState, vkView->GetFormat());
 
             VkImageMemoryBarrier2 b{};
             b.sType               = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
@@ -579,84 +579,35 @@ void VulkanCommandBuffer::Blit(const ITextureView* src, const ITextureView* dst,
     uint32_t dstWidth                = blitDesc.DstWidth == 0 ? dstMipWidth : blitDesc.DstWidth;
     uint32_t dstHeight               = blitDesc.DstHeight == 0 ? dstMipHeight : blitDesc.DstHeight;
 
-    auto inferReadableState = [](const ITexture& texture) {
-        if (texture.GetUsage() == ITexture::Usage::DepthStencil)
-            return ResourceState::DepthRead;
-        return ResourceState::FragmentShaderResource;
-    };
+    YG_CORE_ASSERT(srcTex != dstTex, "Vulkan: Blit src and dst must be different textures.");
 
-    auto inferWritableState = [](const ITexture& texture) {
-        if (texture.GetUsage() == ITexture::Usage::DepthStencil)
-            return ResourceState::DepthWrite;
-        if (texture.GetUsage() == ITexture::Usage::RenderTarget)
-            return ResourceState::ColorAttachment;
-        if (texture.GetUsage() == ITexture::Usage::Storage)
-            return ResourceState::UnorderedAccess;
-        return ResourceState::FragmentShaderResource;
-    };
+    VkImageAspectFlags srcAspect = vkSrcView->GetVkBarrierAspectMask();
+    VkImageAspectFlags dstAspect = vkDstView->GetVkBarrierAspectMask();
 
-    ResourceState srcStableState = inferReadableState(*srcTex);
-    ResourceState dstStableState = inferWritableState(*dstTex);
+    VkImageBlit blit{};
+    blit.srcSubresource.aspectMask     = srcAspect;
+    blit.srcSubresource.mipLevel       = srcMip;
+    blit.srcSubresource.baseArrayLayer = src->GetBaseArrayLayer();
+    blit.srcSubresource.layerCount     = src->GetArrayLayerCount();
+    blit.srcOffsets[0]                 = { 0, 0, 0 };
+    blit.srcOffsets[1]                 = { (int32_t)srcWidth, (int32_t)srcHeight, 1 };
+    blit.dstSubresource.aspectMask     = dstAspect;
+    blit.dstSubresource.mipLevel       = dstMip;
+    blit.dstSubresource.baseArrayLayer = dst->GetBaseArrayLayer();
+    blit.dstSubresource.layerCount     = dst->GetArrayLayerCount();
+    blit.dstOffsets[0]                 = { 0, 0, 0 };
+    blit.dstOffsets[1]                 = { (int32_t)dstWidth, (int32_t)dstHeight, 1 };
 
-    VkImageAspectFlags srcAspect = vkSrcView->GetVkAspectMask();
-    VkImageAspectFlags dstAspect = vkDstView->GetVkAspectMask();
-
-    if (srcTex != dstTex)
-    {
-        Barrier(BarrierDesc{
-            .TextureView = src,
-            .BeforeState = srcStableState,
-            .AfterState  = ResourceState::CopySource,
-        });
-        Barrier(BarrierDesc{
-            .TextureView = dst,
-            .BeforeState = ResourceState::Undefined,
-            .AfterState  = ResourceState::CopyDestination,
-        });
-
-        VkImageBlit blit{};
-        blit.srcSubresource.aspectMask     = srcAspect;
-        blit.srcSubresource.mipLevel       = srcMip;
-        blit.srcSubresource.baseArrayLayer = src->GetBaseArrayLayer();
-        blit.srcSubresource.layerCount     = src->GetArrayLayerCount();
-        blit.srcOffsets[0]                 = { 0, 0, 0 };
-        blit.srcOffsets[1]                 = { (int32_t)srcWidth, (int32_t)srcHeight, 1 };
-        blit.dstSubresource.aspectMask     = dstAspect;
-        blit.dstSubresource.mipLevel       = dstMip;
-        blit.dstSubresource.baseArrayLayer = dst->GetBaseArrayLayer();
-        blit.dstSubresource.layerCount     = dst->GetArrayLayerCount();
-        blit.dstOffsets[0]                 = { 0, 0, 0 };
-        blit.dstOffsets[1]                 = { (int32_t)dstWidth, (int32_t)dstHeight, 1 };
-
-        vkCmdBlitImage(m_commandBuffer,
-                       vkSrc.GetVkImage(),
-                       YgResourceState2VkImageLayout(ResourceState::CopySource, srcTex->GetUsage()),
-                       vkDst.GetVkImage(),
-                       YgResourceState2VkImageLayout(ResourceState::CopyDestination, dstTex->GetUsage()),
-                       1,
-                       &blit,
-                       blitDesc.Filter == BlitFilter::Nearest || srcAspect == VK_IMAGE_ASPECT_DEPTH_BIT ?
-                           VK_FILTER_NEAREST :
-                           VK_FILTER_LINEAR);
-
-        Barrier(BarrierDesc{
-            .TextureView = src,
-            .BeforeState = ResourceState::CopySource,
-            .AfterState  = srcStableState,
-        });
-        Barrier(BarrierDesc{
-            .TextureView = dst,
-            .BeforeState = ResourceState::CopyDestination,
-            .AfterState  = dstStableState,
-        });
-        return;
-    }
-
-    Barrier(BarrierDesc{
-        .TextureView = dst,
-        .BeforeState = dstStableState,
-        .AfterState  = ResourceState::FragmentShaderResource,
-    });
+    vkCmdBlitImage(m_commandBuffer,
+                   vkSrc.GetVkImage(),
+                   YgResourceState2VkImageLayout(ResourceState::CopySource, src->GetFormat()),
+                   vkDst.GetVkImage(),
+                   YgResourceState2VkImageLayout(ResourceState::CopyDestination, dst->GetFormat()),
+                   1,
+                   &blit,
+                   blitDesc.Filter == BlitFilter::Nearest || srcAspect == VK_IMAGE_ASPECT_DEPTH_BIT ?
+                       VK_FILTER_NEAREST :
+                       VK_FILTER_LINEAR);
 }
 
 void VulkanCommandBuffer::BeginDebugLabel(const char* name)

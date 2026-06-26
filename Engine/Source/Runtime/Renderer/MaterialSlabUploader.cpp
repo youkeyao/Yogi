@@ -115,7 +115,7 @@ MaterialSlabUploader::StagedRef MaterialSlabUploader::Stage(const Material* mate
     return out;
 }
 
-void MaterialSlabUploader::Submit(ICommandBuffer* commandBuffer, StagingArena& stagingArena, SceneFrame& outSceneFrame)
+void MaterialSlabUploader::Submit(ICommandBuffer* commandBuffer, StagingArena& stagingArena)
 {
     for (auto& [schema, bucket] : m_buckets)
     {

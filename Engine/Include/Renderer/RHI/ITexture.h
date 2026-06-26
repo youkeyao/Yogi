@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Core/EnumFlags.h"
+
 namespace Yogi
 {
 
@@ -12,6 +14,18 @@ enum class SampleCountFlagBits : uint8_t
     Count16 = 16
 };
 
+enum class TextureUsageFlags : uint8_t
+{
+    None            = 0,
+    Sampled         = 1 << 0,
+    ColorAttachment = 1 << 1,
+    DepthStencil    = 1 << 2,
+    Storage         = 1 << 3,
+    TransferSrc     = 1 << 4,
+    TransferDst     = 1 << 5,
+};
+YG_ENABLE_ENUM_FLAGS(TextureUsageFlags);
+
 struct TextureDesc;
 
 class YG_API ITexture
@@ -19,6 +33,7 @@ class YG_API ITexture
 public:
     enum class Format
     {
+        NONE,
         R8G8B8_UNORM,
         R8G8B8_SRGB,
         R8G8B8A8_UNORM,
@@ -30,25 +45,16 @@ public:
         R32_FLOAT,
         D32_FLOAT,
         D24_UNORM_S8_UINT,
-        NONE,
-    };
-
-    enum class Usage
-    {
-        Texture2D,
-        RenderTarget,
-        DepthStencil,
-        Storage,
     };
 
 public:
     virtual ~ITexture() = default;
 
-    virtual uint32_t         GetWidth() const     = 0;
-    virtual uint32_t         GetHeight() const    = 0;
-    virtual uint32_t         GetMipLevels() const = 0;
-    virtual ITexture::Format GetFormat() const    = 0;
-    virtual Usage            GetUsage() const     = 0;
+    virtual uint32_t          GetWidth() const      = 0;
+    virtual uint32_t          GetHeight() const     = 0;
+    virtual uint32_t          GetMipLevels() const  = 0;
+    virtual ITexture::Format  GetFormat() const     = 0;
+    virtual TextureUsageFlags GetUsageFlags() const = 0;
 
     static Owner<ITexture> Create(const TextureDesc& desc);
 };
@@ -59,7 +65,7 @@ struct TextureDesc
     uint32_t            Height;
     uint32_t            MipLevels = 1;
     ITexture::Format    Format;
-    ITexture::Usage     Usage;
+    TextureUsageFlags   UsageFlags = TextureUsageFlags::Sampled;
     SampleCountFlagBits NumSamples = SampleCountFlagBits::Count1;
 };
 

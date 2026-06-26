@@ -49,10 +49,10 @@ void BindlessTextureManager::EnsureDefaultWhite()
     desc.Height        = 1;
     desc.MipLevels     = 1;
     desc.Format        = ITexture::Format::R8G8B8A8_UNORM;
-    desc.Usage         = ITexture::Usage::Texture2D;
     desc.NumSamples    = SampleCountFlagBits::Count1;
+    desc.UsageFlags    = TextureUsageFlags::Sampled | TextureUsageFlags::TransferDst;
     m_defaultWhite     = ITexture::Create(desc);
-    m_defaultWhiteView = ITextureView::Create(WRef<ITexture>::Create(m_defaultWhite), TextureViewDesc{});
+    m_defaultWhiteView = ITextureView::Create(WRef<ITexture>::Create(m_defaultWhite), {});
 
     const uint8_t whiteRGBA[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
     m_defaultWhiteView->SetData(const_cast<uint8_t*>(whiteRGBA), sizeof(whiteRGBA));

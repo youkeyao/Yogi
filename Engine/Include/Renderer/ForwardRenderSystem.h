@@ -4,12 +4,16 @@
 #include "Events/ApplicationEvent.h"
 #include "Renderer/MeshGPUUploadCache.h"
 #include "Renderer/RenderComponents.h"
-#include "Renderer/DepthPyramid.h"
-#include "Renderer/Passes/ObjectCullPass.h"
-#include "Renderer/Passes/MeshletDrawPass.h"
+#include "Renderer/Passes/HiZPass.h"
+#include "Renderer/Passes/ObjectCullClearPass.h"
+#include "Renderer/Passes/ObjectCullEarlyPass.h"
+#include "Renderer/Passes/ObjectCullLatePass.h"
+#include "Renderer/Passes/MeshletDrawEarlyPass.h"
+#include "Renderer/Passes/MeshletDrawLatePass.h"
 #include "Renderer/Passes/OutlinePass.h"
 #include "Renderer/DrawSlotRegistry.h"
 #include "Renderer/MaterialSlabUploader.h"
+#include "Renderer/RenderGraph.h"
 #include "Renderer/StagingArena.h"
 #include "Renderer/RHI/ICommandBuffer.h"
 
@@ -49,26 +53,18 @@ private:
     WRef<IBuffer> m_drawIndexBuffer     = nullptr;
 
     StagingArena         m_stagingArena;
-    ObjectCullPass       m_objectCullPass;
-    MeshletDrawPass      m_meshletDrawPass;
-    OutlinePass          m_outlinePass;
+    RenderGraph          m_renderGraph;
     MaterialSlabUploader m_slabUploader;
 
     MeshGPUUploadCache m_meshUploadCache;
 
-    DrawSlotRegistry m_drawSlotRegistry;
-    PipelineRegistry m_pipelineRegistry;
-
-    // DepthReduce pipeline + Hi-Z manager.
-    WRef<IPipeline> m_depthReducePipeline = nullptr;
-    DepthPyramid    m_depthPyramid;
-
+    DrawSlotRegistry       m_drawSlotRegistry;
     static constexpr float k_zNear = 0.1f;
     static constexpr float k_zFar  = 100.0f;
 
     WRef<ITexture>     m_depthTexture = nullptr;
     WRef<ITextureView> m_depthView    = nullptr;
-    ITexture::Format   m_depthFormat  = ITexture::Format::D32_FLOAT;
+    ITexture::Format   m_depthFormat = ITexture::Format::D24_UNORM_S8_UINT;
 
     std::unordered_map<ITexture*, Owner<ITextureView>> m_materialViews;
 };

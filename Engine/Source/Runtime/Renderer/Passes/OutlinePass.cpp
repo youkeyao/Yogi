@@ -1,5 +1,5 @@
 #include "Renderer/Passes/OutlinePass.h"
-#include "Renderer/BindlessTextureManager.h"
+#include "Renderer/RenderGraph.h"
 #include "Core/Application.h"
 #include "Resources/AssetManager/AssetManager.h"
 #include "Resources/ResourceManager/ResourceManager.h"
@@ -7,116 +7,100 @@
 namespace Yogi
 {
 
-SpecializedPipelineBuilder OutlinePass::GetPipelineBuilder()
+OutlinePass::OutlinePass()
 {
-    return [](const PassKey& /*pass*/, const std::string& shaderKey) -> SpecializedPipelinePair {
-        // Derive materialTypeName from shaderKey: "Standard.slang" -> "StandardMaterial"
-        std::string materialTypeName = "StandardMaterial"; // default fallback
-        size_t      pos              = shaderKey.find_last_of('/');
-        if (pos != std::string::npos)
-        {
-            std::string stem = shaderKey.substr(pos + 1);
-            // Remove ".slang" extension
-            size_t dot = stem.find_last_of('.');
-            if (dot != std::string::npos)
-                stem = stem.substr(0, dot);
-            materialTypeName = stem + "Material";
-        }
+    WRef<IShaderResourceBinding> bindingTemplate = ResourceManager::AddResource(CreateDepthBinding());
 
-        // Query swap-chain format at build time -- the pass owns this decision.
-        const ITexture::Format colorFormat = Application::GetInstance().GetSwapChain()->GetColorFormat();
-
-        const std::string asKey = "EngineAssets/Shaders/Passes/Meshlet.as.slang::LATE=1";
-        const std::string msKey = "EngineAssets/Shaders/Passes/Outline.ms.slang::__SPECIALIZE_M=" + materialTypeName;
-        const std::string fsKey = "EngineAssets/Shaders/Passes/Outline.fs.slang::__SPECIALIZE_M=" + materialTypeName;
-
-        WRef<ShaderDesc> task = AssetManager::AcquireAsset<ShaderDesc>(asKey);
-        WRef<ShaderDesc> mesh = AssetManager::AcquireAsset<ShaderDesc>(msKey);
-        WRef<ShaderDesc> frag = AssetManager::AcquireAsset<ShaderDesc>(fsKey);
-        if (!task.Get() || !mesh.Get() || !frag.Get())
-        {
-            YG_CORE_ERROR("OutlinePass builder: shader load failed for type '{0}' (shaderKey='{1}')",
-                          materialTypeName,
-                          shaderKey);
-            return {};
-        }
-
-        PipelineDesc desc{};
-        desc.ResourceBinding    = BindlessTextureManager::GetSRB();
-        desc.PushConstantRanges = { PushConstantRange{ ShaderStage::Task | ShaderStage::Mesh | ShaderStage::Fragment,
-                                                       0,
-                                                       static_cast<uint32_t>(sizeof(ScenePush)) } };
-        desc.ColorFormats       = { colorFormat };
-        desc.DepthFormat        = ITexture::Format::D32_FLOAT;
-        desc.Samples            = SampleCountFlagBits::Count1;
-        desc.Topology           = PrimitiveTopology::TriangleList;
-        desc.Cull               = CullMode::Front;
-
-        SpecializedPipelinePair pair;
-        desc.Shaders = { task.Get(), mesh.Get(), frag.Get() };
-        pair.Late    = ResourceManager::AcquireSharedResource<IPipeline>(desc);
-        pair.Early   = pair.Late; // Outline only uses Late
-        return pair;
-    };
-}
-
-void OutlinePass::Initialize()
-{
-    // Pipeline building is now handled by PipelineRegistry via
-    // the builder returned from GetPipelineBuilder().
-}
-
-void OutlinePass::Shutdown()
-{
-    m_indirectCmd   = nullptr;
-    m_indirectCount = nullptr;
-}
-
-void OutlinePass::Execute(ICommandBuffer*                 cmd,
-                          uint64_t                        sceneFrameAddr,
-                          const SpecializedPipelinePair&  pipelinePair,
-                          const std::vector<DrawBucket>&  buckets,
-                          const std::vector<std::string>& bucketTypeNames)
-{
-    if (buckets.empty() || !m_indirectCmd || !m_indirectCount)
+    WRef<ShaderDesc> vs = AssetManager::AcquireAsset<ShaderDesc>("EngineAssets/Shaders/Passes/Outline.vs.slang");
+    WRef<ShaderDesc> fs = AssetManager::AcquireAsset<ShaderDesc>("EngineAssets/Shaders/Passes/Outline.fs.slang");
+    if (!vs.Get() || !fs.Get())
+    {
+        YG_CORE_ERROR("OutlinePass: shader load failed");
         return;
+    }
+
+    PipelineDesc desc{};
+    desc.Type               = PipelineType::Graphics;
+    desc.Shaders            = { vs.Get(), fs.Get() };
+    desc.ResourceBinding    = bindingTemplate.Get();
+    desc.PushConstantRanges = { PushConstantRange{
+        ShaderStage::Fragment, 0, static_cast<uint32_t>(sizeof(OutlinePush)) } };
+    desc.ColorFormats       = { Application::GetInstance().GetSwapChain()->GetColorFormat() };
+    desc.DepthFormat        = ITexture::Format::NONE;
+    desc.Samples            = SampleCountFlagBits::Count1;
+    desc.Topology           = PrimitiveTopology::TriangleList;
+    desc.Cull               = CullMode::None;
+    desc.DepthTestEnable    = false;
+    desc.DepthWriteEnable   = false;
+
+    m_pipeline       = ResourceManager::AcquireSharedResource<IPipeline>(desc);
+    m_depthBinding   = CreateDepthBinding();
+    m_lastBoundDepth = nullptr;
+}
+
+Owner<IShaderResourceBinding> OutlinePass::CreateDepthBinding() const
+{
+    return Owner<IShaderResourceBinding>::Create(
+        std::vector<ShaderResourceAttribute>{
+            ShaderResourceAttribute{ 0, 1, ShaderResourceType::Sampler, ShaderStage::Fragment },
+            ShaderResourceAttribute{ 1, 1, ShaderResourceType::SampledTexture, ShaderStage::Fragment } },
+        std::vector<ImmutableSamplerDesc>{ ImmutableSamplerDesc{ 0, SamplerReductionMode::None } });
+}
+
+void OutlinePass::Prepare(RenderGraphContext& context, RenderGraph& graph, RenderGraphBuilder& builder)
+{
+    (void)graph;
+    if (!m_pipeline || !context.CurrentTarget || !context.DepthView)
+        return;
+
+    builder.UseTexture(context.CurrentTarget, ResourceState::ColorAttachment);
+    builder.UseTexture(context.DepthView, ResourceState::FragmentShaderResource);
+}
+
+void OutlinePass::Execute(RenderGraphContext& context)
+{
+    if (!m_pipeline || !context.CurrentTarget || !context.DepthView || !m_depthBinding)
+        return;
+
+    if (context.DepthView != m_lastBoundDepth)
+    {
+        m_depthBinding->BindTextureView(context.DepthView, 1, 0);
+        m_lastBoundDepth = context.DepthView;
+    }
+
+    RenderingDesc rdesc{};
+    rdesc.Width   = context.TargetWidth;
+    rdesc.Height  = context.TargetHeight;
+    rdesc.Samples = SampleCountFlagBits::Count1;
+
+    RenderingAttachment color{};
+    color.View        = context.CurrentTarget;
+    color.LoadAction  = LoadOp::Load;
+    color.StoreAction = StoreOp::Store;
+    rdesc.ColorAttachments.push_back(color);
+    // No depth attachment: this is a fullscreen overlay.
+
+    ICommandBuffer* cmd = context.CommandBuffer;
     cmd->BeginDebugLabel("OutlinePass::Execute");
+    cmd->BeginRendering(rdesc);
+    cmd->SetViewport({ 0, 0, static_cast<float>(context.TargetWidth), static_cast<float>(context.TargetHeight) });
+    cmd->SetScissor({ 0, 0, context.TargetWidth, context.TargetHeight });
 
-    if (!pipelinePair.Late)
-    {
-        YG_CORE_WARN("OutlinePass: pipeline pair is invalid, Execute skipped");
-        return;
-    }
+    cmd->SetPipeline(m_pipeline.Get());
+    cmd->SetShaderResourceBinding(m_depthBinding.Get());
 
-    cmd->SetPipeline(pipelinePair.Late.Get());
-    cmd->SetShaderResourceBinding(BindlessTextureManager::GetSRB());
+    OutlinePush pc{};
+    pc.SceneFrameAddr = context.SceneFrameAddr;
+    pc.Thickness      = 1.5f;
+    pc.DepthThreshold = 0.02f;
+    pc.Color[0]       = 0.0f;
+    pc.Color[1]       = 0.0f;
+    pc.Color[2]       = 0.0f;
+    cmd->SetPushConstants(m_pipeline.Get(), ShaderStage::Fragment, 0, sizeof(OutlinePush), &pc);
 
-    for (size_t bi = 0; bi < buckets.size(); ++bi)
-    {
-        const DrawBucket&  b        = buckets[bi];
-        const std::string& typeName = bucketTypeNames[bi];
+    cmd->Draw(3, 1, 0, 0);
 
-        ScenePush pcScene{};
-        pcScene.SceneFrameAddr     = sceneFrameAddr;
-        pcScene.MaterialBufferAddr = b.MaterialBufferAddr;
-        pcScene.DrawBase           = b.DrawBase;
-        pcScene.PyramidSlot        = 0; // outline doesn't sample HZB
-        cmd->SetPushConstants(pipelinePair.Late.Get(),
-                              ShaderStage::Task | ShaderStage::Mesh | ShaderStage::Fragment,
-                              0,
-                              sizeof(ScenePush),
-                              &pcScene);
-
-        const uint32_t indirectOffsetBytes = b.DrawBase * sizeof(uint32_t) * 3;
-        const uint32_t countOffsetBytes    = static_cast<uint32_t>(bi) * sizeof(uint32_t);
-        cmd->DrawMeshTasksIndirectCount(m_indirectCmd.Get(),
-                                        indirectOffsetBytes,
-                                        m_indirectCount.Get(),
-                                        countOffsetBytes,
-                                        b.DrawCount,
-                                        sizeof(uint32_t) * 3);
-    }
-
+    cmd->EndRendering();
     cmd->EndDebugLabel();
 }
 

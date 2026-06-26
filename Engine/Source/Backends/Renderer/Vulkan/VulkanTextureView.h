@@ -22,18 +22,20 @@ public:
     void SetData(void* data, uint32_t size) override;
 
     inline VkImageView        GetVkImageView() const { return m_imageView; }
-    inline VkImageAspectFlags GetVkAspectMask() const { return m_aspectMask; }
+    inline VkImageAspectFlags GetVkViewAspectMask() const { return m_viewAspectMask; }
+    inline VkImageAspectFlags GetVkBarrierAspectMask() const { return m_barrierAspectMask; }
     VkImageSubresourceRange   GetVkSubresourceRange() const;
 
 private:
     WRef<ITexture>     m_texture;
-    VkImageView        m_imageView  = VK_NULL_HANDLE;
-    VkImageAspectFlags m_aspectMask = 0;
-    uint32_t           m_baseMip    = 0;
-    uint32_t           m_mipCount   = 1;
-    uint32_t           m_baseLayer  = 0;
-    uint32_t           m_layerCount = 1;
-    ITexture::Format   m_format     = ITexture::Format::NONE;
+    VkImageView        m_imageView         = VK_NULL_HANDLE;
+    VkImageAspectFlags m_viewAspectMask    = 0; // For ImageView creation (can only be DEPTH or STENCIL, not both)
+    VkImageAspectFlags m_barrierAspectMask = 0; // For image memory barriers (can be both DEPTH and STENCIL)
+    uint32_t           m_baseMip           = 0;
+    uint32_t           m_mipCount          = 1;
+    uint32_t           m_baseLayer         = 0;
+    uint32_t           m_layerCount        = 1;
+    ITexture::Format   m_format            = ITexture::Format::NONE;
 };
 
 } // namespace Yogi

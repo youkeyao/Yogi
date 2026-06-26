@@ -1,10 +1,11 @@
 import Shared.ShaderData;
 import Shared.Utils;
 import Shared.Bindless;
+#include "Renderer/Passes/MeshletDrawPush.h"
 
 #define TASK_CULL 1
 
-[[vk::push_constant]] ConstantBuffer<ScenePush> pcScene;
+[[vk::push_constant]] ConstantBuffer<MeshletDrawPush> pcMeshletDraw;
 
 bool coneCull(float3 center, float radius, float3 coneAxis, float coneCutoff, float3 cameraPosition)
 {
@@ -20,14 +21,14 @@ void asMain(uint  gid    : SV_GroupID,
             uint  gtid   : SV_GroupIndex,
             uint  drawId : SV_DrawIndex)
 {
-    SceneFrame sf = ((SceneFrame*)pcScene.SceneFrameAddr)[0];
+    SceneFrame sf = ((SceneFrame*)pcMeshletDraw.SceneFrameAddr)[0];
 
-    uint*     vdiBuf = (uint*)sf.VisibleDrawIndexBuffer;
-    MeshDraw* mdBuf  = (MeshDraw*)sf.MeshDrawBuffer;
-    MeshData* mDBuf  = (MeshData*)sf.MeshDataBuffer;
-    MeshletData* mlBuf  = (MeshletData*)sf.MeshletBuffer;
+    uint*     vdiBuf = (uint*)pcMeshletDraw.VisibleDrawIndexBuffer;
+    MeshDraw* mdBuf  = (MeshDraw*)pcMeshletDraw.MeshDrawBuffer;
+    MeshData* mDBuf  = (MeshData*)pcMeshletDraw.MeshDataBuffer;
+    MeshletData* mlBuf  = (MeshletData*)pcMeshletDraw.MeshletBuffer;
 
-    uint drawIndex = vdiBuf[drawId + pcScene.DrawBase];
+    uint drawIndex = vdiBuf[drawId + pcMeshletDraw.DrawBase];
     if (gtid == 0)
         s_payload.drawIndex = drawIndex;
 
@@ -45,7 +46,7 @@ void asMain(uint  gid    : SV_GroupID,
     {
         uint mi      = mesh.MeshletOffset + miLocal;
         uint visIdx  = draw.MeshletVisOffset + miLocal;
-        bool prevMlVisible = VisBitTest(sf.MeshletVisBufferRead, visIdx);
+        bool prevMlVisible = VisBitTest(pcMeshletDraw.MeshletVisBufferRead, visIdx);
         MeshletData meshlet = mlBuf[mi];
 
         // World-space sphere center, then to view (+Z forward like ObjectCull).
@@ -75,9 +76,9 @@ void asMain(uint  gid    : SV_GroupID,
             {
                 float w     = aabb.z - aabb.x;
                 float h     = aabb.w - aabb.y;
-                uint2 p0    = BindlessTextureSize(pcScene.PyramidSlot);
+                uint2 p0    = BindlessTextureSize(pcMeshletDraw.PyramidSlot);
                 float level = ceil(log2(max(w * float(p0.x), h * float(p0.y))));
-                float depth = SampleBindlessMaxLod(pcScene.PyramidSlot,
+                float depth = SampleBindlessMaxLod(pcMeshletDraw.PyramidSlot,
                                                    (aabb.xy + aabb.zw) * 0.5,
                                                    level).r;
 
@@ -89,7 +90,7 @@ void asMain(uint  gid    : SV_GroupID,
         }
 
         if (visible)
-            VisBitSet(sf.MeshletVisBufferWrite, visIdx);
+            VisBitSet(pcMeshletDraw.MeshletVisBufferWrite, visIdx);
 
         if (visible && !prevMlVisible)
         {
@@ -101,7 +102,7 @@ void asMain(uint  gid    : SV_GroupID,
         // Write visibility for next frame regardless of prevMlVisible,
         // so the Early/Late decision stays stable across frames.
         if (visible)
-            VisBitSet(sf.MeshletVisBufferWrite, visIdx);
+            VisBitSet(pcMeshletDraw.MeshletVisBufferWrite, visIdx);
 
         if (visible && prevMlVisible)
         {

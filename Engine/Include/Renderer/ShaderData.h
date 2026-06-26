@@ -77,39 +77,6 @@ struct SceneFrame
     float   P11;
     float   ZNear;
     float   ZFar;
-
-    uint64_t VertexBuffer;
-    uint64_t MeshletBuffer;
-    uint64_t MeshletDataBuffer;
-    uint64_t MeshDataBuffer;
-    uint64_t MeshDrawBuffer;
-    uint64_t VisibleDrawIndexBuffer;
-    uint64_t IndirectCommandBuffer;
-    uint64_t IndirectCountBuffer;
-    uint64_t ObjectVisBufferRead;
-    uint64_t ObjectVisBufferWrite;
-    uint64_t MeshletVisBufferRead;
-    uint64_t MeshletVisBufferWrite;
-
-    uint64_t DrawIndexBuffer;
-};
-
-// Push constant for mesh/task shaders.
-struct ScenePush
-{
-    uint64_t SceneFrameAddr;
-    uint64_t MaterialBufferAddr;
-    uint32_t DrawBase;
-    uint32_t PyramidSlot;
-};
-
-struct CullPush
-{
-    uint64_t SceneFrameAddr;
-    uint32_t DrawBase;
-    uint32_t DrawCount;
-    uint32_t PyramidSlot;
-    uint32_t BucketIndex;
 };
 
 #ifdef __cplusplus

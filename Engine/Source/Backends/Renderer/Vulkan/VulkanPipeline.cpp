@@ -225,15 +225,89 @@ void VulkanPipeline::CreateVkPipeline(const PipelineDesc& desc)
     colorBlending.pAttachments    = blendAttachments.empty() ? nullptr : blendAttachments.data();
 
     // --- Depth Stencil ---
+    auto CompareOp2VkCompareOp = [](CompareOp op) -> VkCompareOp {
+        switch (op)
+        {
+            case CompareOp::Never:
+                return VK_COMPARE_OP_NEVER;
+            case CompareOp::Less:
+                return VK_COMPARE_OP_LESS;
+            case CompareOp::Equal:
+                return VK_COMPARE_OP_EQUAL;
+            case CompareOp::LessOrEqual:
+                return VK_COMPARE_OP_LESS_OR_EQUAL;
+            case CompareOp::Greater:
+                return VK_COMPARE_OP_GREATER;
+            case CompareOp::NotEqual:
+                return VK_COMPARE_OP_NOT_EQUAL;
+            case CompareOp::GreaterOrEqual:
+                return VK_COMPARE_OP_GREATER_OR_EQUAL;
+            case CompareOp::Always:
+                return VK_COMPARE_OP_ALWAYS;
+            default:
+                return VK_COMPARE_OP_LESS;
+        }
+    };
+
+    auto StencilOp2VkStencilOp = [](StencilOp op) -> VkStencilOp {
+        switch (op)
+        {
+            case StencilOp::Keep:
+                return VK_STENCIL_OP_KEEP;
+            case StencilOp::Zero:
+                return VK_STENCIL_OP_ZERO;
+            case StencilOp::Replace:
+                return VK_STENCIL_OP_REPLACE;
+            case StencilOp::IncrementClamp:
+                return VK_STENCIL_OP_INCREMENT_AND_CLAMP;
+            case StencilOp::DecrementClamp:
+                return VK_STENCIL_OP_DECREMENT_AND_CLAMP;
+            case StencilOp::Invert:
+                return VK_STENCIL_OP_INVERT;
+            case StencilOp::IncrementWrap:
+                return VK_STENCIL_OP_INCREMENT_AND_WRAP;
+            case StencilOp::DecrementWrap:
+                return VK_STENCIL_OP_DECREMENT_AND_WRAP;
+            default:
+                return VK_STENCIL_OP_KEEP;
+        }
+    };
+
+    VkStencilOpState vkFront{};
+    vkFront.failOp      = StencilOp2VkStencilOp(desc.Stencil.Front.FailOp);
+    vkFront.depthFailOp = StencilOp2VkStencilOp(desc.Stencil.Front.DepthFailOp);
+    vkFront.passOp      = StencilOp2VkStencilOp(desc.Stencil.Front.PassOp);
+    vkFront.compareOp   = CompareOp2VkCompareOp(desc.Stencil.Front.CompareFn);
+    vkFront.compareMask = desc.Stencil.ReadMask;
+    vkFront.writeMask   = desc.Stencil.WriteMask;
+    vkFront.reference   = desc.Stencil.Reference;
+
+    VkStencilOpState vkBack = vkFront;
+    if (desc.Stencil.Front.CompareFn != desc.Stencil.Back.CompareFn ||
+        desc.Stencil.Front.FailOp != desc.Stencil.Back.FailOp ||
+        desc.Stencil.Front.DepthFailOp != desc.Stencil.Back.DepthFailOp ||
+        desc.Stencil.Front.PassOp != desc.Stencil.Back.PassOp)
+    {
+        vkBack.failOp      = StencilOp2VkStencilOp(desc.Stencil.Back.FailOp);
+        vkBack.depthFailOp = StencilOp2VkStencilOp(desc.Stencil.Back.DepthFailOp);
+        vkBack.passOp      = StencilOp2VkStencilOp(desc.Stencil.Back.PassOp);
+        vkBack.compareOp   = CompareOp2VkCompareOp(desc.Stencil.Back.CompareFn);
+        vkBack.compareMask = desc.Stencil.ReadMask;
+        vkBack.writeMask   = desc.Stencil.WriteMask;
+        vkBack.reference   = desc.Stencil.Reference;
+    }
+
     VkPipelineDepthStencilStateCreateInfo depthStencil{};
     depthStencil.sType                 = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-    depthStencil.depthTestEnable       = VK_TRUE;
-    depthStencil.depthWriteEnable      = VK_TRUE;
-    depthStencil.depthCompareOp        = VK_COMPARE_OP_LESS;
+    depthStencil.depthTestEnable       = desc.DepthTestEnable ? VK_TRUE : VK_FALSE;
+    depthStencil.depthWriteEnable      = desc.DepthWriteEnable ? VK_TRUE : VK_FALSE;
+    depthStencil.depthCompareOp        = CompareOp2VkCompareOp(desc.DepthCompareOp);
     depthStencil.depthBoundsTestEnable = VK_FALSE;
     depthStencil.minDepthBounds        = 0.0f;
     depthStencil.maxDepthBounds        = 1.0f;
-    depthStencil.stencilTestEnable     = VK_FALSE;
+    depthStencil.stencilTestEnable     = desc.Stencil.Enable ? VK_TRUE : VK_FALSE;
+    depthStencil.front                 = vkFront;
+    depthStencil.back                  = vkBack;
 
     // --- Dynamic rendering ---
     std::vector<VkFormat> colorFormats;

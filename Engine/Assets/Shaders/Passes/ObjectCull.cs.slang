@@ -1,34 +1,35 @@
 import Shared.ShaderData;
 import Shared.Utils;
+#include "Renderer/Passes/ObjectCullPush.h"
 
 #ifdef LATE
 import Shared.Bindless;
 #endif
 
-[[vk::push_constant]] ConstantBuffer<CullPush> pcCull;
+[[vk::push_constant]] ConstantBuffer<ObjectCullPush> pcObjectCull;
 
 [shader("compute")]
 [numthreads(CULL_WORKGROUP_SIZE, 1, 1)]
 void csMain(uint3 dtid : SV_DispatchThreadID)
 {
     uint drawIndex = dtid.x;
-    if (drawIndex >= pcCull.DrawCount)
+    if (drawIndex >= pcObjectCull.DrawCount)
         return;
 
-    SceneFrame sf = ((SceneFrame*)pcCull.SceneFrameAddr)[0];
+    SceneFrame sf = ((SceneFrame*)pcObjectCull.SceneFrameAddr)[0];
 
-    uint* drawIndexBuf = (uint*)sf.DrawIndexBuffer;
-    uint  meshDrawIndex = drawIndexBuf[pcCull.DrawBase + drawIndex];
+    uint* drawIndexBuf = (uint*)pcObjectCull.DrawIndexBuffer;
+    uint  meshDrawIndex = drawIndexBuf[pcObjectCull.DrawBase + drawIndex];
 
-    MeshDraw* mdBuf     = (MeshDraw*)sf.MeshDrawBuffer;
-    MeshData* mDBuf     = (MeshData*)sf.MeshDataBuffer;
-    uint*     icBuf      = (uint*)sf.IndirectCommandBuffer;
-    uint*     vdiBuf     = (uint*)sf.VisibleDrawIndexBuffer;
-    uint*     icountBuf  = (uint*)sf.IndirectCountBuffer;
+    MeshDraw* mdBuf     = (MeshDraw*)pcObjectCull.MeshDrawBuffer;
+    MeshData* mDBuf     = (MeshData*)pcObjectCull.MeshDataBuffer;
+    uint*     icBuf      = (uint*)pcObjectCull.IndirectCommandBuffer;
+    uint*     vdiBuf     = (uint*)pcObjectCull.VisibleDrawIndexBuffer;
+    uint*     icountBuf  = (uint*)pcObjectCull.IndirectCountBuffer;
 
 #ifndef LATE
     // EARLY: skip objects invisible last frame (LATE will catch them).
-    if (!VisBitTest(sf.ObjectVisBufferRead, meshDrawIndex))
+    if (!VisBitTest(pcObjectCull.ObjectVisBufferRead, meshDrawIndex))
         return;
 #endif
 
@@ -53,13 +54,13 @@ void csMain(uint3 dtid : SV_DispatchThreadID)
 #ifndef LATE
     // EARLY: write visibility for next frame so the Early/LATE decision stays stable.
     if (visible)
-        VisBitSet(sf.ObjectVisBufferWrite, meshDrawIndex);
+        VisBitSet(pcObjectCull.ObjectVisBufferWrite, meshDrawIndex);
 #endif
 
 #ifdef LATE
     // LATE only needs to process objects that were NOT visible last frame.
     // (EARLY already handled those, and we must not count them twice.)
-    if (VisBitTest(sf.ObjectVisBufferRead, meshDrawIndex))
+    if (VisBitTest(pcObjectCull.ObjectVisBufferRead, meshDrawIndex))
         return;
 
     // Hi-Z: only the LATE variant probes the pyramid. EARLY trusts last frame's
@@ -72,9 +73,9 @@ void csMain(uint3 dtid : SV_DispatchThreadID)
         {
             float w     = aabb.z - aabb.x;
             float h     = aabb.w - aabb.y;
-            uint2 p0    = BindlessTextureSize(pcCull.PyramidSlot);
+            uint2 p0    = BindlessTextureSize(pcObjectCull.PyramidSlot);
             float level = ceil(log2(max(w * float(p0.x), h * float(p0.y))));
-            float depth = SampleBindlessMaxLod(pcCull.PyramidSlot,
+            float depth = SampleBindlessMaxLod(pcObjectCull.PyramidSlot,
                                                (aabb.xy + aabb.zw) * 0.5,
                                                level).r;
 
@@ -88,17 +89,17 @@ void csMain(uint3 dtid : SV_DispatchThreadID)
 
     // LATE writes the canonical visibility for next frame's EARLY gating.
     if (visible)
-        VisBitSet(sf.ObjectVisBufferWrite, meshDrawIndex);
+        VisBitSet(pcObjectCull.ObjectVisBufferWrite, meshDrawIndex);
 #endif
 
     if (visible)
     {
         uint compactIndex;
-        InterlockedAdd(icountBuf[pcCull.BucketIndex], 1, compactIndex);
-        uint commandOffset           = (pcCull.DrawBase + compactIndex) * 3;
+        InterlockedAdd(icountBuf[pcObjectCull.BucketIndex], 1, compactIndex);
+        uint commandOffset           = (pcObjectCull.DrawBase + compactIndex) * 3;
         icBuf[commandOffset + 0]  = (mesh.MeshletCount + TASK_WGSIZE - 1) / TASK_WGSIZE;
         icBuf[commandOffset + 1]  = 1;
         icBuf[commandOffset + 2]  = 1;
-        vdiBuf[pcCull.DrawBase + compactIndex] = meshDrawIndex;
+        vdiBuf[pcObjectCull.DrawBase + compactIndex] = meshDrawIndex;
     }
 }

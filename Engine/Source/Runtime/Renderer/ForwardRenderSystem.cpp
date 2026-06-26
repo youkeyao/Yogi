@@ -1,6 +1,5 @@
 #include "Renderer/ForwardRenderSystem.h"
 #include "Renderer/Material.h"
-#include "Renderer/PipelineRegistry.h"
 #include "Renderer/BindlessTextureManager.h"
 #include "Resources/AssetManager/AssetManager.h"
 #include "Resources/ResourceManager/ResourceManager.h"
@@ -35,50 +34,30 @@ ForwardRenderSystem::ForwardRenderSystem()
     }
 
     m_drawSlotRegistry.Init(static_cast<uint32_t>(MAX_MESH_DRAWS),
-                            static_cast<uint32_t>(ObjectCullPass::MAX_MESHLET_VIS_COUNT));
+                            static_cast<uint32_t>(ObjectCull::MAX_MESHLET_VIS_COUNT));
+
+    m_renderGraph.RegisterBuffer("Geometry.Vertex", m_vertexStorageBuffer);
+    m_renderGraph.RegisterBuffer("Geometry.Meshlet", m_meshletBuffer);
+    m_renderGraph.RegisterBuffer("Geometry.MeshletData", m_meshletDataBuffer);
+    m_renderGraph.RegisterBuffer("Geometry.MeshData", m_meshBuffer);
+    m_renderGraph.RegisterBuffer("Geometry.MeshDraw", m_meshDrawBuffer);
+    m_renderGraph.RegisterBuffer("Geometry.DrawIndex", m_drawIndexBuffer);
 
     // ---- Passes ----
-    m_objectCullPass.Initialize();
-    auto swapChain = Application::GetInstance().GetSwapChain();
-    m_meshletDrawPass.SetIndirectBuffers(m_objectCullPass.AcquireIndirectCommandBuffer(),
-                                         m_objectCullPass.AcquireIndirectCountBuffer());
-    m_meshletDrawPass.Initialize();
-
-    // ---- OutlinePass (Phase 7 demo) ----
-    m_outlinePass.SetIndirectBuffers(m_objectCullPass.AcquireIndirectCommandBuffer(),
-                                     m_objectCullPass.AcquireIndirectCountBuffer());
-    m_outlinePass.Initialize();
-
-    // ---- Register PipelineRegistry builders ----
-    // Each pass owns its colorFormat decision -- GetPipelineBuilder()
-    // queries the swap-chain format internally.
-    m_pipelineRegistry.RegisterPass(m_meshletDrawPass.GetPassName(), m_meshletDrawPass.GetPipelineBuilder());
-    m_pipelineRegistry.RegisterPass(m_outlinePass.GetPassName(), m_outlinePass.GetPipelineBuilder());
-
-    // Pre-warm StandardMaterial
-    (void)m_pipelineRegistry.Acquire(m_meshletDrawPass.GetPassName(), "EngineAssets/Shaders/Materials/Standard.slang");
-    (void)m_pipelineRegistry.Acquire(m_outlinePass.GetPassName(), "EngineAssets/Shaders/Materials/Standard.slang");
-
-    // ---- DepthPyramid pipeline ----
-    WRef<IShaderResourceBinding> depthReduceBindingTemplate =
-        ResourceManager::AddResource(DepthPyramid::CreateReduceBindingLayout());
-    WRef<ShaderDesc> depthReduceShader =
-        AssetManager::AcquireAsset<ShaderDesc>("EngineAssets/Shaders/Passes/DepthReduce.cs.slang");
-    PipelineDesc depthReducePipelineDesc{};
-    depthReducePipelineDesc.Type               = PipelineType::Compute;
-    depthReducePipelineDesc.Shaders            = { depthReduceShader.Get() };
-    depthReducePipelineDesc.ResourceBinding    = depthReduceBindingTemplate.Get();
-    depthReducePipelineDesc.PushConstantRanges = DepthPyramid::GetReducePushConstantRanges();
-    m_depthReducePipeline = ResourceManager::AcquireSharedResource<IPipeline>(depthReducePipelineDesc);
+    m_renderGraph.RegisterPass<ObjectCullClearPass>();
+    m_renderGraph.RegisterPass<ObjectCullEarlyPass>();
+    m_renderGraph.RegisterPass<MeshletDrawEarlyPass>();
+    m_renderGraph.RegisterPass<HiZPass>();
+    m_renderGraph.RegisterPass<ObjectCullLatePass>();
+    m_renderGraph.RegisterPass<MeshletDrawLatePass>();
+    m_renderGraph.RegisterPass<OutlinePass>();
 }
 
 ForwardRenderSystem::~ForwardRenderSystem()
 {
     ResetMeshUploadCache();
 
-    m_meshletDrawPass.Shutdown();
-    m_outlinePass.Shutdown();
-    m_objectCullPass.Shutdown();
+    m_renderGraph.Clear();
 
     m_vertexStorageBuffer = nullptr;
     m_meshletBuffer       = nullptr;
@@ -89,8 +68,6 @@ ForwardRenderSystem::~ForwardRenderSystem()
 
     m_stagingArena.Shutdown();
 
-    m_depthReducePipeline = nullptr;
-    m_depthPyramid.Reset();
     m_depthView    = nullptr;
     m_depthTexture = nullptr;
 
@@ -127,7 +104,6 @@ bool ForwardRenderSystem::OnWindowResize(WindowResizeEvent& e, World& world)
     swapChain->AcquireCurrentCommandBuffer()->Wait();
     m_depthView    = nullptr;
     m_depthTexture = nullptr;
-    m_depthPyramid.Reset();
     return false;
 }
 
@@ -147,10 +123,10 @@ void ForwardRenderSystem::EnsureDepthTexture(uint32_t width, uint32_t height)
     desc.Height     = height;
     desc.MipLevels  = 1;
     desc.Format     = m_depthFormat;
-    desc.Usage      = ITexture::Usage::DepthStencil;
     desc.NumSamples = SampleCountFlagBits::Count1;
+    desc.UsageFlags = TextureUsageFlags::DepthStencil | TextureUsageFlags::Sampled;
     m_depthTexture  = ResourceManager::CreateResource<ITexture>(desc);
-    m_depthView     = ResourceManager::CreateResource<ITextureView>(m_depthTexture);
+    m_depthView     = ResourceManager::CreateResource<ITextureView>(m_depthTexture, TextureViewDesc{});
 }
 
 void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const TransformComponent& transform, World& world)
@@ -172,8 +148,6 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
     // Per-frame begin (host-side resets).
     commandBuffer->Wait();
     m_stagingArena.BeginFrame();
-    m_objectCullPass.BeginFrame();
-    m_meshletDrawPass.BeginFrame();
 
     // ---- Build the per-camera SceneFrame ----
     Matrix4 viewMatrix = MathUtils::Inverse(transform.Transform);
@@ -212,17 +186,6 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
     sceneFrame.P11   = projectionMatrix[1][1];
     sceneFrame.ZNear = k_zNear;
     sceneFrame.ZFar  = k_zFar;
-
-    // BDA pointers owned by ForwardRenderSystem.
-    sceneFrame.VertexBuffer      = m_vertexStorageBuffer->GetDeviceAddress();
-    sceneFrame.MeshletBuffer     = m_meshletBuffer->GetDeviceAddress();
-    sceneFrame.MeshletDataBuffer = m_meshletDataBuffer->GetDeviceAddress();
-    sceneFrame.MeshDataBuffer    = m_meshBuffer->GetDeviceAddress();
-    sceneFrame.MeshDrawBuffer    = m_meshDrawBuffer->GetDeviceAddress();
-    sceneFrame.DrawIndexBuffer   = m_drawIndexBuffer->GetDeviceAddress();
-
-    // BDA pointers owned by ObjectCullPass (indirect / vis double buffer).
-    m_objectCullPass.FillSceneFrame(sceneFrame);
 
     // ---- Begin recording. Stage uploads BEFORE cull dispatch. ----
     commandBuffer->Begin();
@@ -355,7 +318,6 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
                 shaderKey = AssetManager::GetAssetKey(material->Schema);
                 if (shaderKey.empty())
                     shaderKey = std::string{ Material::kDefaultMaterialSchemaKey };
-                (void)m_pipelineRegistry.Acquire(m_meshletDrawPass.GetPassName(), shaderKey);
             }
             const auto staged     = m_slabUploader.Stage(material.Get(), textureResolver);
             draw.MaterialIndex    = staged.SlabLocalIndex;
@@ -413,20 +375,18 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
     // ============== Phase 5: per-type material slabs ==============
     // Upload staged material data to per-type GPU buffers. Must happen
     // before we query GPU addresses for push constants.
-    m_slabUploader.Submit(commandBuffer, m_stagingArena, sceneFrame);
+    m_slabUploader.Submit(commandBuffer, m_stagingArena);
 
     // ============== Phase 6: bucket the live draws by shaderKey =====
     // For each (shaderKey) bucket we want a contiguous [DrawBase, DrawBase+Count)
     // range of slot indices in m_drawIndexBuffer. The cull/draw passes
     // dispatch once per bucket using that range; ObjectCull.cs.slang reads
-    // sf.DrawIndexBuffer[DrawBase + thread] to recover the real slot.
+    // pcObjectCull.DrawIndexBuffer[DrawBase + thread] to recover the real slot.
     //
     // We sort liveDraws by (shaderKey, bufferIndex). Stable order inside a
     // bucket keeps RenderDoc captures readable; it doesn't otherwise matter
     // for correctness.
     std::vector<DrawBucket> buckets;
-    std::vector<std::string>
-        bucketTypeNames; // parallel to buckets, used by passes that need typeName for PipelineRegistry
 
     if (!liveDraws.empty())
     {
@@ -459,19 +419,6 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
                 YG_CORE_WARN("ForwardRender: MaterialBufferAddr is 0 for shaderKey='{0}'", t);
             }
             buckets.push_back(b);
-
-            std::string typeName = "StandardMaterial"; // default fallback
-            size_t      pos      = t.find_last_of('/');
-            if (pos != std::string::npos)
-            {
-                std::string stem = t.substr(pos + 1);
-                // Remove ".slang" extension
-                size_t dot = stem.find_last_of('.');
-                if (dot != std::string::npos)
-                    stem = stem.substr(0, dot);
-                typeName = stem + "Material";
-            }
-            bucketTypeNames.push_back(std::move(typeName));
         }
 
         m_stagingArena.Stage(commandBuffer,
@@ -483,194 +430,25 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
 
     const uint64_t sceneFrameAddr = m_stagingArena.Push(commandBuffer, &sceneFrame, sizeof(SceneFrame));
 
-    // ============== Drain transfer writes -> shader-read state ==============
     commandBuffer->Barrier(ResourceState::CopyDestination,
                            ResourceState::ComputeShaderResource | ResourceState::TaskShaderResource |
                                ResourceState::MeshShaderResource | ResourceState::FragmentShaderResource);
 
-    const uint32_t totalDrawCount = m_drawSlotRegistry.GetDrawCount();
-
-    m_depthPyramid.Resize(m_depthTexture->GetWidth(), m_depthTexture->GetHeight());
-
-    const uint32_t targetWidth  = currentTarget->GetTexture()->GetWidth();
-    const uint32_t targetHeight = currentTarget->GetTexture()->GetHeight();
-
-    // ============== EARLY phase ==============
-    {
-        commandBuffer->BeginDebugLabel("EARLY phase");
-        m_objectCullPass.PrepareEarly(commandBuffer);
-        // Phase 5: cull dispatches once per (typeId) bucket. Each bucket
-        // has its own [DrawBase, DrawBase+Count) slice of m_drawIndexBuffer
-        // and its own IndirectCountBuffer slot (bucketIndex), so the
-        // dispatches don't fight for a shared counter.
-        for (size_t bi = 0; bi < buckets.size(); ++bi)
-        {
-            const DrawBucket& b = buckets[bi];
-            m_objectCullPass.ExecuteEarly(
-                commandBuffer, sceneFrameAddr, b.DrawBase, b.DrawCount, /*bucketIndex*/ static_cast<uint32_t>(bi));
-        }
-
-        commandBuffer->Barrier({
-            BarrierDesc{
-                .TextureView = currentTarget,
-                .BeforeState = ResourceState::Undefined,
-                .AfterState  = ResourceState::ColorAttachment,
-            },
-            BarrierDesc{
-                .TextureView = m_depthView.Get(),
-                .BeforeState = ResourceState::Undefined,
-                .AfterState  = ResourceState::DepthWrite,
-            },
-        });
-        {
-            RenderingDesc rdesc{};
-            rdesc.Width   = targetWidth;
-            rdesc.Height  = targetHeight;
-            rdesc.Samples = SampleCountFlagBits::Count1;
-            RenderingAttachment color{};
-            color.View              = currentTarget;
-            color.LoadAction        = LoadOp::Clear;
-            color.StoreAction       = StoreOp::Store;
-            color.ClearVal.Color[0] = 0.1f;
-            color.ClearVal.Color[1] = 0.1f;
-            color.ClearVal.Color[2] = 0.1f;
-            color.ClearVal.Color[3] = 1.0f;
-            rdesc.ColorAttachments.push_back(color);
-            rdesc.DepthAttachment.View                          = m_depthView.Get();
-            rdesc.DepthAttachment.LoadAction                    = LoadOp::Clear;
-            rdesc.DepthAttachment.StoreAction                   = StoreOp::Store;
-            rdesc.DepthAttachment.ClearVal.DepthStencil.Depth   = 1.0f;
-            rdesc.DepthAttachment.ClearVal.DepthStencil.Stencil = 0;
-            commandBuffer->BeginRendering(rdesc);
-        }
-        commandBuffer->SetViewport({ 0, 0, (float)targetWidth, (float)targetHeight });
-        commandBuffer->SetScissor({ 0, 0, targetWidth, targetHeight });
-        for (size_t bi = 0; bi < buckets.size(); ++bi)
-        {
-            const DrawBucket&       b        = buckets[bi];
-            const std::string       typeName = bucketTypeNames[bi];
-            SpecializedPipelinePair pipelinePair =
-                m_pipelineRegistry.Acquire(m_meshletDrawPass.GetPassName(), b.ShaderKey);
-            m_meshletDrawPass.ExecuteEarly(commandBuffer,
-                                           pipelinePair,
-                                           sceneFrameAddr,
-                                           b.DrawBase,
-                                           b.DrawCount,
-                                           b.MaterialBufferAddr,
-                                           b.ShaderKey,
-                                           static_cast<uint32_t>(bi));
-        }
-        commandBuffer->EndRendering();
-        commandBuffer->EndDebugLabel();
-    }
-
-    // ============== Hi-Z pyramid build ==============
-    const bool pyramidReady = m_depthPyramid.IsValid() && m_depthReducePipeline;
-    if (pyramidReady)
-    {
-        commandBuffer->BeginDebugLabel("Hi-Z build");
-        commandBuffer->Barrier(BarrierDesc{
-            .TextureView = m_depthView.Get(),
-            .BeforeState = ResourceState::DepthWrite,
-            .AfterState  = ResourceState::ComputeShaderResource,
-        });
-
-        m_depthPyramid.Build(commandBuffer, m_depthReducePipeline.Get(), m_depthView.Get());
-
-        commandBuffer->Barrier(BarrierDesc{
-            .TextureView = m_depthView.Get(),
-            .BeforeState = ResourceState::ComputeShaderResource,
-            .AfterState  = ResourceState::DepthWrite,
-        });
-        commandBuffer->EndDebugLabel();
-    }
-
-    // ============== LATE phase ==============
-    const bool runLatePass = pyramidReady && totalDrawCount > 0;
-    if (runLatePass)
-    {
-        commandBuffer->BeginDebugLabel("LATE phase");
-        commandBuffer->Barrier({
-            BarrierDesc{
-                .TextureView = m_depthPyramid.GetTextureView(),
-                .BeforeState = ResourceState::UnorderedAccess,
-                .AfterState  = ResourceState::UnorderedAccess | ResourceState::ComputeShaderResource |
-                    ResourceState::TaskShaderResource | ResourceState::MeshShaderResource,
-            },
-            BarrierDesc{
-                .TextureView = currentTarget,
-                .BeforeState = ResourceState::ColorAttachment,
-                .AfterState  = ResourceState::ColorAttachment,
-            },
-        });
-
-        const uint32_t pyramidSlot = m_depthPyramid.GetPyramidSampledSlot();
-
-        m_objectCullPass.PrepareLate(commandBuffer);
-        for (size_t bi = 0; bi < buckets.size(); ++bi)
-        {
-            const DrawBucket& b = buckets[bi];
-            m_objectCullPass.ExecuteLate(commandBuffer,
-                                         sceneFrameAddr,
-                                         b.DrawBase,
-                                         b.DrawCount,
-                                         pyramidSlot,
-                                         /*bucketIndex*/ static_cast<uint32_t>(bi));
-        }
-        {
-            RenderingDesc rdesc{};
-            rdesc.Width   = targetWidth;
-            rdesc.Height  = targetHeight;
-            rdesc.Samples = SampleCountFlagBits::Count1;
-            RenderingAttachment color{};
-            color.View        = currentTarget;
-            color.LoadAction  = LoadOp::Load;
-            color.StoreAction = StoreOp::Store;
-            rdesc.ColorAttachments.push_back(color);
-            rdesc.DepthAttachment.View        = m_depthView.Get();
-            rdesc.DepthAttachment.LoadAction  = LoadOp::Load;
-            rdesc.DepthAttachment.StoreAction = StoreOp::Store;
-            commandBuffer->BeginRendering(rdesc);
-        }
-        commandBuffer->SetViewport({ 0, 0, (float)targetWidth, (float)targetHeight });
-        commandBuffer->SetScissor({ 0, 0, targetWidth, targetHeight });
-        for (size_t bi = 0; bi < buckets.size(); ++bi)
-        {
-            const DrawBucket&       b        = buckets[bi];
-            const std::string       typeName = bucketTypeNames[bi];
-            SpecializedPipelinePair pipelinePair =
-                m_pipelineRegistry.Acquire(m_meshletDrawPass.GetPassName(), b.ShaderKey);
-            m_meshletDrawPass.ExecuteLate(commandBuffer,
-                                          pipelinePair,
-                                          sceneFrameAddr,
-                                          b.DrawBase,
-                                          b.DrawCount,
-                                          pyramidSlot,
-                                          b.MaterialBufferAddr,
-                                          b.ShaderKey,
-                                          static_cast<uint32_t>(bi));
-        }
-
-        // OutlinePass: acquire pipeline then execute
-        // if (!buckets.empty())
-        // {
-        //     SpecializedPipelinePair outlinePair =
-        //         m_pipelineRegistry.Acquire(m_outlinePass.GetPassName(), buckets[0].TypeId);
-        //     m_outlinePass.Execute(commandBuffer, sceneFrameAddr, outlinePair, buckets, bucketTypeNames);
-        // }
-
-        commandBuffer->EndRendering();
-        commandBuffer->EndDebugLabel();
-    }
-
+    const uint32_t     targetWidth  = currentTarget->GetTexture()->GetWidth();
+    const uint32_t     targetHeight = currentTarget->GetTexture()->GetHeight();
+    RenderGraphContext graphContext{};
+    graphContext.SceneFrameAddr      = sceneFrameAddr;
+    graphContext.CurrentTarget       = currentTarget;
+    graphContext.DepthView           = m_depthView.Get();
+    graphContext.TargetWidth         = targetWidth;
+    graphContext.TargetHeight        = targetHeight;
+    graphContext.Buckets             = &buckets;
+    graphContext.TotalDrawCount      = m_drawSlotRegistry.GetDrawCount();
+    graphContext.TransitionToPresent = transitionToPresent;
     if (transitionToPresent)
-    {
-        commandBuffer->Barrier(BarrierDesc{
-            .TextureView = currentTarget,
-            .BeforeState = ResourceState::ColorAttachment,
-            .AfterState  = ResourceState::Present,
-        });
-    }
+        graphContext.SetInitialTextureState(currentTarget, ResourceState::Present);
+
+    m_renderGraph.Execute(commandBuffer, graphContext);
 
     commandBuffer->EndDebugLabel();
     commandBuffer->End();

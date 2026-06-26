@@ -41,8 +41,6 @@ void ContentBrowserLayer::OnUpdate(Timestep ts)
                 1024,
                 1,
                 ITexture::Format::R8G8B8A8_UNORM,
-                ITexture::Usage::RenderTarget,
-                SampleCountFlagBits::Count1,
             });
             std::string     name          = "NewRenderTexture";
             while (std::filesystem::exists(m_baseDirectory / m_relativeDirectory / (name + ".rt")))

@@ -182,10 +182,8 @@ void VulkanShaderResourceBinding::BindTextureView(const ITextureView* view, int 
         case ShaderResourceType::SampledTexture:
             descriptorType    = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
             imageInfo.sampler = VK_NULL_HANDLE;
-            if (tex->GetUsage() == ITexture::Usage::DepthStencil)
+            if (YgTextureFormatIsDepthStencil(view->GetFormat()))
                 imageInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-            else if (tex->GetUsage() == ITexture::Usage::Storage)
-                imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
             else
                 imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
             break;

@@ -24,7 +24,7 @@ public:
     };
     StagedRef Stage(const Material* material, const TextureResolver& resolver);
 
-    void Submit(ICommandBuffer* commandBuffer, StagingArena& stagingArena, SceneFrame& outSceneFrame);
+    void Submit(ICommandBuffer* commandBuffer, StagingArena& stagingArena);
 
     uint64_t GetMaterialBufferAddr(const MaterialSchema* schema) const;
     uint64_t GetMaterialBufferAddr(const std::string& shaderKey) const;
