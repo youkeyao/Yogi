@@ -24,13 +24,13 @@ VulkanTexture::VulkanTexture(const TextureDesc& desc) :
     CreateVkImage(desc.Width,
                   desc.Height,
                   (VkSampleCountFlagBits)desc.NumSamples,
-                  YgTextureFormat2VkFormat(desc.Format),
+                  YgFormat2VkFormat(desc.Format),
                   VK_IMAGE_TILING_OPTIMAL,
                   YgTextureUsageFlags2VkImageUsage(desc.UsageFlags),
                   VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 }
 
-VulkanTexture::VulkanTexture(uint32_t width, uint32_t height, ITexture::Format format, VkImage image) :
+VulkanTexture::VulkanTexture(uint32_t width, uint32_t height, Format format, VkImage image) :
     m_image(image),
     m_ownsImage(false),
     m_width(width),

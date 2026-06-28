@@ -10,13 +10,13 @@ class VulkanTexture : public ITexture
 {
 public:
     VulkanTexture(const TextureDesc& desc);
-    VulkanTexture(uint32_t width, uint32_t height, ITexture::Format format, VkImage image);
+    VulkanTexture(uint32_t width, uint32_t height, Format format, VkImage image);
     virtual ~VulkanTexture();
 
     inline uint32_t          GetWidth() const override { return m_width; }
     inline uint32_t          GetHeight() const override { return m_height; }
     inline uint32_t          GetMipLevels() const override { return m_mipLevels; }
-    inline ITexture::Format  GetFormat() const override { return m_format; }
+    inline Format            GetFormat() const override { return m_format; }
     inline TextureUsageFlags GetUsageFlags() const override { return m_usageFlags; }
 
     inline VkImage GetVkImage() const { return m_image; }
@@ -43,7 +43,7 @@ private:
     uint32_t            m_width;
     uint32_t            m_height;
     uint32_t            m_mipLevels = 1;
-    ITexture::Format    m_format;
+    Format              m_format;
     SampleCountFlagBits m_numSamples;
     TextureUsageFlags   m_usageFlags = TextureUsageFlags::None;
 };

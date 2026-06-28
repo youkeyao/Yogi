@@ -16,7 +16,7 @@ public:
 
     inline uint32_t            GetWidth() const override { return m_width; }
     inline uint32_t            GetHeight() const override { return m_height; }
-    inline ITexture::Format    GetColorFormat() const override { return m_colorFormat; }
+    inline Format              GetColorFormat() const override { return m_colorFormat; }
     inline SampleCountFlagBits GetNumSamples() const override { return m_numSamples; }
 
     inline uint32_t GetImageCount() const { return static_cast<uint32_t>(m_colorTextures.size()); }
@@ -38,6 +38,7 @@ public:
 private:
     void CleanupSwapChain();
     void RecreateSwapChain();
+    void CreateVkSurface();
     void CreateVkSwapChain();
     void CreateVkSyncObjects();
 
@@ -46,6 +47,7 @@ private:
     uint32_t m_imageIndex   = 0;
 
     VkSwapchainKHR m_swapChain    = VK_NULL_HANDLE;
+    VkSurfaceKHR   m_surface      = VK_NULL_HANDLE;
     VkQueue        m_presentQueue = VK_NULL_HANDLE;
 
     std::vector<Owner<ITexture>>     m_colorTextures;
@@ -56,9 +58,9 @@ private:
 
     uint32_t            m_width;
     uint32_t            m_height;
-    ITexture::Format    m_colorFormat;
+    Format              m_colorFormat;
     SampleCountFlagBits m_numSamples;
-    Window*             m_window = nullptr;
+    const Window*       m_window = nullptr;
 };
 
 } // namespace Yogi

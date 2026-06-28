@@ -28,8 +28,8 @@ std::string ResolveMaterialTypeName(const std::string& shaderKey)
 
 WRef<IPipeline> MeshletDrawLatePass::BuildPipeline(const std::string& shaderKey)
 {
-    const std::string      materialTypeName = ResolveMaterialTypeName(shaderKey);
-    const ITexture::Format colorFormat      = Application::GetInstance().GetSwapChain()->GetColorFormat();
+    const std::string materialTypeName = ResolveMaterialTypeName(shaderKey);
+    const Format      colorFormat      = Application::GetInstance().GetSwapChain()->GetColorFormat();
 
     WRef<ShaderDesc> task =
         AssetManager::AcquireAsset<ShaderDesc>("EngineAssets/Shaders/Passes/Meshlet.as.slang::LATE=1");
@@ -50,8 +50,8 @@ WRef<IPipeline> MeshletDrawLatePass::BuildPipeline(const std::string& shaderKey)
     desc.PushConstantRanges      = { PushConstantRange{ ShaderStage::Task | ShaderStage::Mesh | ShaderStage::Fragment,
                                                         0,
                                                         static_cast<uint32_t>(sizeof(MeshletDrawPush)) } };
-    desc.ColorFormats            = { colorFormat };
-    desc.DepthFormat             = ITexture::Format::D24_UNORM_S8_UINT;
+    desc.ColorTargets            = { ColorTargetDesc{ .Format = colorFormat } };
+    desc.DepthFormat             = Format::D24_UNORM_S8_UINT;
     desc.Samples                 = SampleCountFlagBits::Count1;
     desc.Topology                = PrimitiveTopology::TriangleList;
     desc.Stencil.Enable          = true;

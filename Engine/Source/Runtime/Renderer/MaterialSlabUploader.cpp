@@ -9,7 +9,6 @@ namespace Yogi
 
 void MaterialSlabUploader::BeginFrame()
 {
-    // Remove buckets whose schema WRef has expired (schema was destroyed).
     std::vector<const MaterialSchema*> expiredKeys;
     for (auto& [schema, bucket] : m_buckets)
     {
@@ -32,9 +31,6 @@ MaterialSlabUploader::TypeBucket* MaterialSlabUploader::GetOrCreateBucket(const 
         return &it->second;
 
     TypeBucket bucket{};
-    // Acquire a WRef from AssetManager to keep the schema alive while the bucket exists.
-    // The schema is already in AssetManager (acquired by MaterialSerializer or Material),
-    // so this just creates a new WRef that shares the same control block.
     std::string key = AssetManager::GetAssetKey(schema);
     if (!key.empty())
     {

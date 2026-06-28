@@ -27,18 +27,6 @@ struct IGlobalSession;
 namespace Yogi
 {
 
-// Walk a Slang specialized program's reflection for `materialTypeName` and
-// translate every field into a MaterialSchema entry. Reads the user
-// attributes declared in Shared/MaterialAttributes.slang
-// ([Color]/[Range]/[HDR]/[Texture]) to drive the EditorHint on each field.
-//
-// `globalSession` is required because Slang's
-// VariableReflection::findUserAttributeByName takes the global session as
-// its first arg (it uses it to interpret the attribute lookup against the
-// session's name pool).
-//
-// Returns false if reflection fails or the type isn't found; the schema is
-// untouched in that case.
 bool BuildMaterialSchemaFromReflection(slang::IGlobalSession* globalSession,
                                        slang::IComponentType* linkedProgram,
                                        const std::string&     materialTypeName,

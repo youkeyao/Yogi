@@ -447,6 +447,8 @@ void ForwardRenderSystem::RenderCamera(const CameraComponent& camera, const Tran
     graphContext.TransitionToPresent = transitionToPresent;
     if (transitionToPresent)
         graphContext.SetInitialTextureState(currentTarget, ResourceState::Present);
+    else
+        graphContext.SetInitialTextureState(currentTarget, ResourceState::FragmentShaderResource);
 
     m_renderGraph.Execute(commandBuffer, graphContext);
 

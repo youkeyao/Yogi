@@ -5,7 +5,7 @@
 namespace Yogi
 {
 
-enum class BufferUsage : uint8_t
+enum class BufferUsage : uint16_t
 {
     Vertex   = 1 << 0,
     Index    = 1 << 1,

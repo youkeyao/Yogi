@@ -64,7 +64,7 @@ private:
 
     WRef<ITexture>     m_depthTexture = nullptr;
     WRef<ITextureView> m_depthView    = nullptr;
-    ITexture::Format   m_depthFormat = ITexture::Format::D24_UNORM_S8_UINT;
+    Format             m_depthFormat  = Format::D24_UNORM_S8_UINT;
 
     std::unordered_map<ITexture*, Owner<ITextureView>> m_materialViews;
 };

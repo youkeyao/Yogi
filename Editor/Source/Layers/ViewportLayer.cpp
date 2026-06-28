@@ -1,4 +1,5 @@
 #include "Layers/ViewportLayer.h"
+#include "Layers/ImGuiEndLayer.h"
 
 #include <imgui.h>
 #include "Utils/ImGuiBackends.h"
@@ -17,11 +18,15 @@ ViewportLayer::ViewportLayer() :
     frameDesc.Width     = 1;
     frameDesc.Height    = 1;
     frameDesc.MipLevels = 1;
-    frameDesc.Format    = ITexture::Format::B8G8R8A8_UNORM;
+    frameDesc.Format    = Format::B8G8R8A8_UNORM;
     frameDesc.UsageFlags =
         TextureUsageFlags::ColorAttachment | TextureUsageFlags::Sampled | TextureUsageFlags::TransferDst;
     m_frameTexture = ResourceManager::CreateResource<ITexture>(frameDesc);
     m_frameView    = ResourceManager::CreateResource<ITextureView>(m_frameTexture, TextureViewDesc{});
+
+    m_frameSrb =
+        WRef<ImGuiEndLayer>::Cast(Application::GetInstance().AcquireLayer("ImGuiEndLayer"))->CreateImageBinding();
+    m_frameSrb->BindTextureView(m_frameView.Get(), 1, 0);
 }
 
 void ViewportLayer::OnUpdate(Timestep ts)
@@ -103,18 +108,31 @@ void ViewportLayer::OnGUI()
         m_viewportSize = newViewportSize;
         if (m_viewportSize.x > 0 && m_viewportSize.y > 0)
         {
-            // Drop old view first (Vulkan: VkImageView must die before its VkImage).
-            m_frameView = nullptr;
-            m_frameTexture =
-                ResourceManager::CreateResource<ITexture>(TextureDesc{ (uint32_t)m_viewportSize.x,
-                                                                       (uint32_t)m_viewportSize.y,
-                                                                       1,
-                                                                       ITexture::Format::B8G8R8A8_UNORM,
-                                                                       TextureUsageFlags::ColorAttachment });
-            m_frameView = ResourceManager::CreateResource<ITextureView>(m_frameTexture);
+            m_frameView    = nullptr;
+            m_frameTexture = ResourceManager::CreateResource<ITexture>(TextureDesc{
+                (uint32_t)m_viewportSize.x,
+                (uint32_t)m_viewportSize.y,
+                1,
+                Format::B8G8R8A8_UNORM,
+                TextureUsageFlags::ColorAttachment | TextureUsageFlags::Sampled | TextureUsageFlags::TransferDst });
+            m_frameView    = ResourceManager::CreateResource<ITextureView>(m_frameTexture);
+            m_frameSrb->BindTextureView(m_frameView.Get(), 1, 0);
         }
     }
-    ImGuiImage(*m_frameView, ImVec2(m_viewportSize.x, m_viewportSize.y));
+
+    {
+        Owner<ICommandBuffer> cmd = Owner<ICommandBuffer>::Create(
+            CommandBufferDesc{ CommandBufferUsage::OneTimeSubmit, SubmitQueue::Graphics });
+        cmd->Begin();
+        cmd->Barrier(BarrierDesc{
+            .TextureView = m_frameView.Get(),
+            .BeforeState = ResourceState::ColorAttachment,
+            .AfterState  = ResourceState::FragmentShaderResource,
+        });
+        cmd->End();
+        cmd->Submit();
+    }
+    ImGuiImage(*m_frameSrb, ImVec2(m_viewportSize.x, m_viewportSize.y));
 
     // Drop scene
     if (ImGui::BeginDragDropTarget())

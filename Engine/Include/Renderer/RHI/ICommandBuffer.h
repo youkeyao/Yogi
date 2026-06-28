@@ -4,6 +4,7 @@
 #include "Renderer/RHI/IBuffer.h"
 #include "Renderer/RHI/ITextureView.h"
 #include "Renderer/RHI/IShaderResourceBinding.h"
+#include "Renderer/RHI/IQueryPool.h"
 
 namespace Yogi
 {
@@ -183,6 +184,8 @@ public:
 
     virtual void Dispatch(uint32_t groupCountX, uint32_t groupCountY = 1, uint32_t groupCountZ = 1) = 0;
 
+    virtual void DispatchIndirect(const IBuffer* indirectBuffer, uint64_t offset = 0) = 0;
+
     virtual void CopyBuffer(const IBuffer* src,
                             const IBuffer* dst,
                             uint64_t       srcOffset,
@@ -191,16 +194,23 @@ public:
 
     virtual void FillBuffer(const IBuffer* dst, uint64_t offset, uint64_t size, uint32_t value) = 0;
 
+    virtual void CopyBufferToTexture(const IBuffer* src, const ITextureView* dst, uint64_t srcOffset = 0) = 0;
+    virtual void CopyTextureToBuffer(const ITextureView* src, const IBuffer* dst, uint64_t dstOffset = 0) = 0;
+
     virtual void Barrier(std::initializer_list<BarrierDesc> barrierDescs) = 0;
-
-    inline void Barrier(const BarrierDesc& desc) { Barrier({ desc }); }
-
-    inline void Barrier(ResourceState before, ResourceState after)
+    inline void  Barrier(const BarrierDesc& desc) { Barrier({ desc }); }
+    inline void  Barrier(ResourceState before, ResourceState after)
     {
         Barrier(BarrierDesc{ .BeforeState = before, .AfterState = after });
     }
 
     virtual void Blit(const ITextureView* src, const ITextureView* dst, const BlitDesc& blitDesc = {}) = 0;
+
+    virtual void ResetQueryPool(IQueryPool* pool, uint32_t first, uint32_t count)          = 0;
+    virtual void WriteTimestamp(IQueryPool* pool, uint32_t query, ResourceState stageHint) = 0;
+
+    virtual void BeginQuery(IQueryPool* pool, uint32_t query, bool precise = false) = 0;
+    virtual void EndQuery(IQueryPool* pool, uint32_t query)                         = 0;
 
     virtual void BeginDebugLabel(const char* name)  = 0;
     virtual void EndDebugLabel()                    = 0;

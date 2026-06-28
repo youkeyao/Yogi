@@ -5,6 +5,7 @@
 #include "VulkanShaderResourceBinding.h"
 #include "VulkanTexture.h"
 #include "VulkanTextureView.h"
+#include "VulkanQueryPool.h"
 #include "VulkanUtils.h"
 
 #include "Math/MathUtils.h"
@@ -47,6 +48,23 @@ static bool VkDebugLabelsAvailable()
 {
     return vkCmdBeginDebugUtilsLabelEXT != nullptr && vkCmdEndDebugUtilsLabelEXT != nullptr &&
         vkCmdInsertDebugUtilsLabelEXT != nullptr;
+}
+
+static VkBufferImageCopy MakeBufferImageCopy(const VulkanTextureView* view, const ITexture* tex, uint64_t bufferOffset)
+{
+    VkBufferImageCopy region{};
+    region.bufferOffset                    = static_cast<VkDeviceSize>(bufferOffset);
+    region.bufferRowLength                 = 0;
+    region.bufferImageHeight               = 0;
+    region.imageSubresource.aspectMask     = view->GetVkBarrierAspectMask();
+    region.imageSubresource.mipLevel       = view->GetBaseMipLevel();
+    region.imageSubresource.baseArrayLayer = view->GetBaseArrayLayer();
+    region.imageSubresource.layerCount     = view->GetArrayLayerCount();
+    region.imageOffset                     = { 0, 0, 0 };
+    region.imageExtent                     = { MathUtils::Max(1u, tex->GetWidth() >> view->GetBaseMipLevel()),
+                                               MathUtils::Max(1u, tex->GetHeight() >> view->GetBaseMipLevel()),
+                                               1 };
+    return region;
 }
 
 } // anonymous namespace
@@ -418,6 +436,13 @@ void VulkanCommandBuffer::Dispatch(uint32_t groupCountX, uint32_t groupCountY, u
     vkCmdDispatch(m_commandBuffer, groupCountX, groupCountY, groupCountZ);
 }
 
+void VulkanCommandBuffer::DispatchIndirect(const IBuffer* indirectBuffer, uint64_t offset)
+{
+    YG_CORE_ASSERT(indirectBuffer, "Vulkan: DispatchIndirect called with null buffer");
+    const VulkanBuffer& vkBuffer = *static_cast<const VulkanBuffer*>(indirectBuffer);
+    vkCmdDispatchIndirect(m_commandBuffer, vkBuffer.GetVkBuffer(), static_cast<VkDeviceSize>(offset));
+}
+
 void VulkanCommandBuffer::CopyBuffer(const IBuffer* src,
                                      const IBuffer* dst,
                                      uint64_t       srcOffset,
@@ -451,6 +476,48 @@ void VulkanCommandBuffer::FillBuffer(const IBuffer* dst, uint64_t offset, uint64
                     static_cast<VkDeviceSize>(offset),
                     static_cast<VkDeviceSize>(size),
                     value);
+}
+
+void VulkanCommandBuffer::CopyBufferToTexture(const IBuffer* src, const ITextureView* dst, uint64_t srcOffset)
+{
+    YG_CORE_ASSERT(src && dst, "Vulkan: CopyBufferToTexture called with null argument");
+
+    const VulkanTextureView* vkView = static_cast<const VulkanTextureView*>(dst);
+    const ITexture*          tex    = vkView->GetTexture();
+    YG_CORE_ASSERT(tex, "Vulkan: CopyBufferToTexture view whose texture is destroyed");
+    YG_CORE_ASSERT(dst->GetMipLevelCount() == 1, "Vulkan: CopyBufferToTexture supports single-mip views only.");
+
+    const VulkanBuffer&  vkSrc = *static_cast<const VulkanBuffer*>(src);
+    const VulkanTexture& vkTex = *static_cast<const VulkanTexture*>(tex);
+
+    VkBufferImageCopy region = MakeBufferImageCopy(vkView, tex, srcOffset);
+    vkCmdCopyBufferToImage(m_commandBuffer,
+                           vkSrc.GetVkBuffer(),
+                           vkTex.GetVkImage(),
+                           YgResourceState2VkImageLayout(ResourceState::CopyDestination, dst->GetFormat()),
+                           1,
+                           &region);
+}
+
+void VulkanCommandBuffer::CopyTextureToBuffer(const ITextureView* src, const IBuffer* dst, uint64_t dstOffset)
+{
+    YG_CORE_ASSERT(src && dst, "Vulkan: CopyTextureToBuffer called with null argument");
+
+    const VulkanTextureView* vkView = static_cast<const VulkanTextureView*>(src);
+    const ITexture*          tex    = vkView->GetTexture();
+    YG_CORE_ASSERT(tex, "Vulkan: CopyTextureToBuffer view whose texture is destroyed");
+    YG_CORE_ASSERT(src->GetMipLevelCount() == 1, "Vulkan: CopyTextureToBuffer supports single-mip views only.");
+
+    const VulkanTexture& vkTex = *static_cast<const VulkanTexture*>(tex);
+    const VulkanBuffer&  vkDst = *static_cast<const VulkanBuffer*>(dst);
+
+    VkBufferImageCopy region = MakeBufferImageCopy(vkView, tex, dstOffset);
+    vkCmdCopyImageToBuffer(m_commandBuffer,
+                           vkTex.GetVkImage(),
+                           YgResourceState2VkImageLayout(ResourceState::CopySource, src->GetFormat()),
+                           vkDst.GetVkBuffer(),
+                           1,
+                           &region);
 }
 
 void VulkanCommandBuffer::Barrier(std::initializer_list<BarrierDesc> barrierDescs)
@@ -608,6 +675,39 @@ void VulkanCommandBuffer::Blit(const ITextureView* src, const ITextureView* dst,
                    blitDesc.Filter == BlitFilter::Nearest || srcAspect == VK_IMAGE_ASPECT_DEPTH_BIT ?
                        VK_FILTER_NEAREST :
                        VK_FILTER_LINEAR);
+}
+
+void VulkanCommandBuffer::ResetQueryPool(IQueryPool* pool, uint32_t first, uint32_t count)
+{
+    YG_CORE_ASSERT(pool, "Vulkan: ResetQueryPool called with null pool");
+    const VulkanQueryPool* vkPool = static_cast<const VulkanQueryPool*>(pool);
+    vkCmdResetQueryPool(m_commandBuffer, vkPool->GetVkQueryPool(), first, count);
+}
+
+void VulkanCommandBuffer::WriteTimestamp(IQueryPool* pool, uint32_t query, ResourceState stageHint)
+{
+    YG_CORE_ASSERT(pool, "Vulkan: WriteTimestamp called with null pool");
+    const VulkanQueryPool* vkPool = static_cast<const VulkanQueryPool*>(pool);
+
+    VkPipelineStageFlags2 stage = YgResourceState2VkPipelineStage2(stageHint);
+    if (stage == VK_PIPELINE_STAGE_2_NONE)
+        stage = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+    vkCmdWriteTimestamp2(m_commandBuffer, stage, vkPool->GetVkQueryPool(), query);
+}
+
+void VulkanCommandBuffer::BeginQuery(IQueryPool* pool, uint32_t query, bool precise)
+{
+    YG_CORE_ASSERT(pool, "Vulkan: BeginQuery called with null pool");
+    const VulkanQueryPool*    vkPool = static_cast<const VulkanQueryPool*>(pool);
+    const VkQueryControlFlags flags  = precise ? VK_QUERY_CONTROL_PRECISE_BIT : 0;
+    vkCmdBeginQuery(m_commandBuffer, vkPool->GetVkQueryPool(), query, flags);
+}
+
+void VulkanCommandBuffer::EndQuery(IQueryPool* pool, uint32_t query)
+{
+    YG_CORE_ASSERT(pool, "Vulkan: EndQuery called with null pool");
+    const VulkanQueryPool* vkPool = static_cast<const VulkanQueryPool*>(pool);
+    vkCmdEndQuery(m_commandBuffer, vkPool->GetVkQueryPool(), query);
 }
 
 void VulkanCommandBuffer::BeginDebugLabel(const char* name)

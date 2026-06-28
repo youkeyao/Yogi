@@ -24,8 +24,10 @@ BindlessTextureManager::BindlessTextureManager()
             ShaderResourceAttribute{ kBindingSamplerMax, 1, ShaderResourceType::Sampler, stages },
             ShaderResourceAttribute{
                 kBindingSampledTextures, MAX_TEXTURES, ShaderResourceType::SampledTexture, stages } },
-        std::vector<ImmutableSamplerDesc>{ ImmutableSamplerDesc{ kBindingSampler, SamplerReductionMode::None },
-                                           ImmutableSamplerDesc{ kBindingSamplerMax, SamplerReductionMode::Max } });
+        std::vector<ImmutableSamplerBindingDesc>{
+            ImmutableSamplerBindingDesc{ kBindingSampler, 1, stages, SamplerDesc{} },
+            ImmutableSamplerBindingDesc{
+                kBindingSamplerMax, 1, stages, SamplerDesc{ .Reduction = SamplerReductionMode::Max } } });
 
     EnsureDefaultWhite();
 }
@@ -48,7 +50,7 @@ void BindlessTextureManager::EnsureDefaultWhite()
     desc.Width         = 1;
     desc.Height        = 1;
     desc.MipLevels     = 1;
-    desc.Format        = ITexture::Format::R8G8B8A8_UNORM;
+    desc.Format        = Format::R8G8B8A8_UNORM;
     desc.NumSamples    = SampleCountFlagBits::Count1;
     desc.UsageFlags    = TextureUsageFlags::Sampled | TextureUsageFlags::TransferDst;
     m_defaultWhite     = ITexture::Create(desc);

@@ -210,7 +210,7 @@ void HierarchyLayer::DrawComponents()
     selectedEntity.EachComponent([&](uint32_t typeHash, void* component) {
         ComponentType      componentType = ComponentManager::GetComponentType(typeHash);
         ImGuiTreeNodeFlags flags         = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed |
-            ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_FramePadding;
+            ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_AllowOverlap | ImGuiTreeNodeFlags_FramePadding;
         bool isOpened = ImGui::TreeNodeEx(component, flags, "%s", componentType.Name.c_str());
         if (ImGui::BeginPopupContextItem())
         {
@@ -238,7 +238,7 @@ void HierarchyLayer::DrawSystems()
     world->EachSystem([&](uint32_t systemHash) {
         std::string        systemName = SystemManager::GetSystemName(systemHash);
         ImGuiTreeNodeFlags flags      = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed |
-            ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_FramePadding;
+            ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_AllowOverlap | ImGuiTreeNodeFlags_FramePadding;
         bool isOpened = ImGui::TreeNodeEx(systemName.data(), flags);
         if (ImGui::BeginPopupContextItem())
         {

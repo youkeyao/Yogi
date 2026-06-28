@@ -25,19 +25,15 @@ VulkanTextureView::VulkanTextureView(const WRef<ITexture>& texture, const Textur
     m_mipCount   = (desc.MipLevelCount == 0) ? tex->GetMipLevels() - desc.BaseMipLevel : desc.MipLevelCount;
     m_baseLayer  = desc.BaseArrayLayer;
     m_layerCount = desc.ArrayLayerCount;
-    m_format     = (desc.Format == ITexture::Format::NONE) ? tex->GetFormat() : desc.Format;
+    m_format     = (desc.Format == Format::NONE) ? tex->GetFormat() : desc.Format;
     YG_CORE_ASSERT(m_format == tex->GetFormat(), "VulkanTextureView: format reinterpret not yet supported");
 
     YG_CORE_ASSERT(m_baseMip + m_mipCount <= tex->GetMipLevels(), "VulkanTextureView: mip range out of bounds");
 
-    // Determine aspect masks from format (not from a separate Usage enum)
     bool isDepthStencil = YgTextureFormatIsDepthStencil(m_format);
     if (isDepthStencil)
     {
-        // ImageView creation: aspectMask can only contain DEPTH_BIT or STENCIL_BIT, not both
-        m_viewAspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-
-        // Image memory barrier: aspectMask can contain both DEPTH and STENCIL bits
+        m_viewAspectMask    = VK_IMAGE_ASPECT_DEPTH_BIT;
         m_barrierAspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
         if (YgTextureFormatHasStencil(m_format))
         {
@@ -56,7 +52,7 @@ VulkanTextureView::VulkanTextureView(const WRef<ITexture>& texture, const Textur
     info.sType                           = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     info.image                           = vkTex->GetVkImage();
     info.viewType                        = VK_IMAGE_VIEW_TYPE_2D;
-    info.format                          = YgTextureFormat2VkFormat(m_format);
+    info.format                          = YgFormat2VkFormat(m_format);
     info.subresourceRange.aspectMask     = m_viewAspectMask;
     info.subresourceRange.baseMipLevel   = m_baseMip;
     info.subresourceRange.levelCount     = m_mipCount;
@@ -99,11 +95,11 @@ void VulkanTextureView::SetData(void* data, uint32_t size)
     VulkanCommandBuffer commandBuffer({ CommandBufferUsage::OneTimeSubmit, SubmitQueue::Transfer });
     commandBuffer.Begin();
 
-    commandBuffer.Barrier(BarrierDesc{
+    commandBuffer.Barrier({ BarrierDesc{
         .TextureView = this,
         .BeforeState = ResourceState::Common,
         .AfterState  = ResourceState::CopyDestination,
-    });
+    } });
 
     VkBufferImageCopy region{};
     region.bufferOffset                    = 0;
@@ -129,11 +125,11 @@ void VulkanTextureView::SetData(void* data, uint32_t size)
                            1,
                            &region);
 
-    commandBuffer.Barrier(BarrierDesc{
+    commandBuffer.Barrier({ BarrierDesc{
         .TextureView = this,
         .BeforeState = ResourceState::CopyDestination,
         .AfterState  = ResourceState::FragmentShaderResource,
-    });
+    } });
     commandBuffer.End();
     commandBuffer.Submit();
 }

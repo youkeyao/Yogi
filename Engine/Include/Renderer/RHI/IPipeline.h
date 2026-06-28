@@ -14,22 +14,6 @@ enum class PrimitiveTopology : uint8_t
     PointList
 };
 
-enum class ShaderElementType : uint8_t
-{
-    None = 0,
-    Float,
-    Float2,
-    Float3,
-    Float4,
-    Mat3,
-    Mat4,
-    Int,
-    Int2,
-    Int3,
-    Int4,
-    Bool,
-};
-
 enum class PipelineType : uint8_t
 {
     Graphics,
@@ -44,10 +28,10 @@ struct ShaderDesc
 
 struct VertexAttribute
 {
-    std::string       Name;
-    uint32_t          Offset;
-    uint32_t          Size;
-    ShaderElementType Type;
+    std::string Name;
+    uint32_t    Offset;
+    uint32_t    Size;
+    Format      Format;
 };
 
 struct PushConstantRange
@@ -106,18 +90,69 @@ struct StencilDesc
     StencilFaceDesc Back      = {};
 };
 
+enum class BlendFactor : uint8_t
+{
+    Zero = 0,
+    One,
+    SrcColor,
+    OneMinusSrcColor,
+    DstColor,
+    OneMinusDstColor,
+    SrcAlpha,
+    OneMinusSrcAlpha,
+    DstAlpha,
+    OneMinusDstAlpha,
+};
+
+enum class BlendOp : uint8_t
+{
+    Add = 0,
+    Subtract,
+    ReverseSubtract,
+    Min,
+    Max,
+};
+
+enum class ColorWriteMask : uint8_t
+{
+    None = 0,
+    R    = 1 << 0,
+    G    = 1 << 1,
+    B    = 1 << 2,
+    A    = 1 << 3,
+    All  = R | G | B | A,
+};
+YG_ENABLE_ENUM_FLAGS(ColorWriteMask);
+
+struct BlendDesc
+{
+    BlendFactor SrcFactor = BlendFactor::One;
+    BlendFactor DstFactor = BlendFactor::Zero;
+    BlendOp     Op        = BlendOp::Add;
+};
+
+struct ColorTargetDesc
+{
+    Format         Format      = Format::NONE;
+    BlendDesc      ColorBlend  = {};
+    BlendDesc      AlphaBlend  = {};
+    bool           EnableBlend = false;
+    ColorWriteMask WriteMask   = ColorWriteMask::All;
+};
+
 struct PipelineDesc
 {
     std::vector<const ShaderDesc*> Shaders;
     std::vector<VertexAttribute>   VertexLayout;
     const IShaderResourceBinding*  ResourceBinding = nullptr;
     std::vector<PushConstantRange> PushConstantRanges;
-    std::vector<ITexture::Format>  ColorFormats;
-    ITexture::Format               DepthFormat = ITexture::Format::NONE;
-    SampleCountFlagBits            Samples     = SampleCountFlagBits::Count1;
-    PrimitiveTopology              Topology    = PrimitiveTopology::TriangleList;
-    PipelineType                   Type        = PipelineType::Graphics;
-    CullMode                       Cull        = CullMode::Back;
+
+    std::vector<ColorTargetDesc> ColorTargets;
+    Format                       DepthFormat = Format::NONE;
+    SampleCountFlagBits          Samples     = SampleCountFlagBits::Count1;
+    PrimitiveTopology            Topology    = PrimitiveTopology::TriangleList;
+    PipelineType                 Type        = PipelineType::Graphics;
+    CullMode                     Cull        = CullMode::Back;
 
     // Depth state
     bool      DepthTestEnable  = true;

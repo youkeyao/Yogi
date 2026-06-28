@@ -34,6 +34,8 @@ public:
     inline VkQueue GetGraphicsQueue() const { return m_graphicsQueue; }
     inline VkQueue GetTransferQueue() const { return m_transferQueue; }
 
+    inline const VkPhysicalDeviceProperties& GetVkPhysicalDeviceProperties() const { return m_deviceProperties; }
+
     static PFN_vkVoidFunction VkLoadFunction(VkInstance instance, const char* funcName);
 
 private:
@@ -55,6 +57,8 @@ protected:
     VkSurfaceKHR     m_surface        = VK_NULL_HANDLE;
     VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
     VkDevice         m_device;
+
+    VkPhysicalDeviceProperties m_deviceProperties{};
 
     VkCommandPool m_graphicsCommandPool = VK_NULL_HANDLE;
     VkCommandPool m_transferCommandPool = VK_NULL_HANDLE;

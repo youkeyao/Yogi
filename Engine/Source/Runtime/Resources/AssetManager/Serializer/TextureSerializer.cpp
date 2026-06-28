@@ -25,7 +25,7 @@ Owner<ITexture> TextureSerializer::Deserialize(const std::vector<uint8_t>& binar
         TextureDesc desc{};
         desc.Width      = (uint32_t)width;
         desc.Height     = (uint32_t)height;
-        desc.Format     = ITexture::Format::R8G8B8A8_UNORM;
+        desc.Format     = Format::R8G8B8A8_UNORM;
         desc.UsageFlags = TextureUsageFlags::Sampled | TextureUsageFlags::TransferDst;
 
         Owner<ITexture> texture = Owner<ITexture>::Create(desc);
@@ -40,10 +40,10 @@ Owner<ITexture> TextureSerializer::Deserialize(const std::vector<uint8_t>& binar
     }
     else
     {
-        zpp::bits::in    inArchive(binary);
-        int              width, height;
-        ITexture::Format format;
-        auto             result = inArchive(width, height, format);
+        zpp::bits::in inArchive(binary);
+        int           width, height;
+        Format        format;
+        auto          result = inArchive(width, height, format);
         if (failure(result))
         {
             YG_CORE_ERROR("Failed to serialize render texture '{0}'!", key);

@@ -1,6 +1,7 @@
 #include "VulkanShaderResourceBinding.h"
 #include "VulkanBuffer.h"
 #include "VulkanTextureView.h"
+#include "VulkanSampler.h"
 #include "VulkanUtils.h"
 
 #include <volk.h>
@@ -9,25 +10,28 @@ namespace Yogi
 {
 
 Owner<IShaderResourceBinding> IShaderResourceBinding::Create(
-    const std::vector<ShaderResourceAttribute>& shaderResourceLayout,
-    const std::vector<ImmutableSamplerDesc>&    immutableSamplers)
+    const std::vector<ShaderResourceAttribute>&     shaderResourceLayout,
+    const std::vector<ImmutableSamplerBindingDesc>& immutableSamplers)
 {
     return Owner<VulkanShaderResourceBinding>::Create(shaderResourceLayout, immutableSamplers);
 }
 
 VulkanShaderResourceBinding::VulkanShaderResourceBinding(
-    const std::vector<ShaderResourceAttribute>& shaderResourceLayout,
-    const std::vector<ImmutableSamplerDesc>&    immutableSamplers)
+    const std::vector<ShaderResourceAttribute>&     shaderResourceLayout,
+    const std::vector<ImmutableSamplerBindingDesc>& immutableSamplers)
 {
-    m_layout            = shaderResourceLayout;
-    m_immutableSamplers = immutableSamplers;
+    m_layout = shaderResourceLayout;
 
     VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
     VkDevice             device  = context->GetVkDevice();
 
-    std::unordered_map<int, SamplerReductionMode> reductionByBinding;
-    for (const auto& s : immutableSamplers)
-        reductionByBinding[s.Binding] = s.Reduction;
+    std::unordered_map<int, VkSampler> immutableByBinding;
+    for (const ImmutableSamplerBindingDesc& s : immutableSamplers)
+    {
+        VkSampler sampler = YgCreateVkSampler(device, s.Sampler);
+        m_ownedSamplers.push_back(sampler);
+        immutableByBinding[s.Binding] = sampler;
+    }
 
     std::vector<std::vector<VkSampler>> immutableSamplerArrays(shaderResourceLayout.size());
     for (size_t i = 0; i < shaderResourceLayout.size(); ++i)
@@ -35,10 +39,9 @@ VulkanShaderResourceBinding::VulkanShaderResourceBinding(
         const auto& attr = shaderResourceLayout[i];
         if (attr.Type == ShaderResourceType::Sampler)
         {
-            auto                       it = reductionByBinding.find(attr.Binding);
-            const SamplerReductionMode mode =
-                (it != reductionByBinding.end()) ? it->second : SamplerReductionMode::None;
-            immutableSamplerArrays[i].assign(static_cast<size_t>(attr.Count), context->GetSampler(mode));
+            auto it = immutableByBinding.find(attr.Binding);
+            if (it != immutableByBinding.end())
+                immutableSamplerArrays[i].assign(static_cast<size_t>(attr.Count), it->second);
         }
     }
 
@@ -70,8 +73,9 @@ VulkanShaderResourceBinding::VulkanShaderResourceBinding(
         bindings[i].stageFlags         = YgShaderStage2VkShaderStage(attr.Stage);
         bindings[i].pImmutableSamplers = immutableSamplerArrays[i].empty() ? nullptr : immutableSamplerArrays[i].data();
 
-        bindingFlags[i] = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT;
-        if (attr.Type != ShaderResourceType::Sampler)
+        const bool isImmutableSampler = attr.Type == ShaderResourceType::Sampler && !immutableSamplerArrays[i].empty();
+        bindingFlags[i]               = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT;
+        if (!isImmutableSampler)
             bindingFlags[i] |= VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
     }
 
@@ -108,6 +112,8 @@ VulkanShaderResourceBinding::~VulkanShaderResourceBinding()
 {
     VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
     VkDevice             device  = context->GetVkDevice();
+    for (VkSampler sampler : m_ownedSamplers)
+        vkDestroySampler(device, sampler, nullptr);
     if (m_descriptorSetLayout != VK_NULL_HANDLE)
         vkDestroyDescriptorSetLayout(device, m_descriptorSetLayout, nullptr);
 }
@@ -203,6 +209,32 @@ void VulkanShaderResourceBinding::BindTextureView(const ITextureView* view, int 
     descriptorWrite.dstBinding       = binding;
     descriptorWrite.dstArrayElement  = slot;
     descriptorWrite.descriptorType   = descriptorType;
+    descriptorWrite.descriptorCount  = 1;
+    descriptorWrite.pImageInfo       = &imageInfo;
+    descriptorWrite.pBufferInfo      = nullptr;
+    descriptorWrite.pTexelBufferView = nullptr;
+
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
+    vkUpdateDescriptorSets(context->GetVkDevice(), 1, &descriptorWrite, 0, nullptr);
+}
+
+void VulkanShaderResourceBinding::BindSampler(const ISampler* sampler, int binding, int slot)
+{
+    YG_CORE_ASSERT(sampler, "Vulkan: BindSampler called with null sampler");
+
+    const VulkanSampler* vkSampler = static_cast<const VulkanSampler*>(sampler);
+
+    VkDescriptorImageInfo imageInfo{};
+    imageInfo.sampler     = vkSampler->GetVkSampler();
+    imageInfo.imageView   = VK_NULL_HANDLE;
+    imageInfo.imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+    VkWriteDescriptorSet descriptorWrite{};
+    descriptorWrite.sType            = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrite.dstSet           = m_descriptorSet;
+    descriptorWrite.dstBinding       = binding;
+    descriptorWrite.dstArrayElement  = slot;
+    descriptorWrite.descriptorType   = VK_DESCRIPTOR_TYPE_SAMPLER;
     descriptorWrite.descriptorCount  = 1;
     descriptorWrite.pImageInfo       = &imageInfo;
     descriptorWrite.pBufferInfo      = nullptr;

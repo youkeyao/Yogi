@@ -11,10 +11,9 @@ struct SwapChainDesc
 {
     uint32_t            Width;
     uint32_t            Height;
-    ITexture::Format    ColorFormat;
-    ITexture::Format    DepthFormat;
+    Format              ColorFormat;
     SampleCountFlagBits NumSamples;
-    Window*             Window;
+    const Window*       Window;
 };
 
 class YG_API ISwapChain
@@ -24,7 +23,7 @@ public:
 
     virtual uint32_t            GetWidth() const       = 0;
     virtual uint32_t            GetHeight() const      = 0;
-    virtual ITexture::Format    GetColorFormat() const = 0;
+    virtual Format              GetColorFormat() const = 0;
     virtual SampleCountFlagBits GetNumSamples() const  = 0;
 
     virtual WRef<ITextureView>   AcquireCurrentTarget() const        = 0;

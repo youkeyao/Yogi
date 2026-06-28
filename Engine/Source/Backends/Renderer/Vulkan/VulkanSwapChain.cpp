@@ -2,6 +2,9 @@
 #include "VulkanCommandBuffer.h"
 
 #include <volk.h>
+#ifdef YG_WINDOW_GLFW
+#    include <GLFW/glfw3.h>
+#endif
 
 namespace Yogi
 {
@@ -18,6 +21,7 @@ VulkanSwapChain::VulkanSwapChain(const SwapChainDesc& desc) :
     m_numSamples(desc.NumSamples),
     m_window(desc.Window)
 {
+    CreateVkSurface();
     CreateVkSwapChain();
     CreateVkSyncObjects();
 
@@ -39,6 +43,12 @@ VulkanSwapChain::~VulkanSwapChain()
     for (int i = 0; i < m_imageAvailableSemaphores.size(); ++i)
     {
         vkDestroySemaphore(context->GetVkDevice(), m_imageAvailableSemaphores[i], nullptr);
+    }
+
+    if (m_surface != VK_NULL_HANDLE)
+    {
+        vkDestroySurfaceKHR(context->GetVkInstance(), m_surface, nullptr);
+        m_surface = VK_NULL_HANDLE;
     }
 }
 
@@ -95,6 +105,19 @@ void VulkanSwapChain::Resize(uint32_t width, uint32_t height)
 
 // ---------------------------------------------------------------------------------------------
 
+void VulkanSwapChain::CreateVkSurface()
+{
+    VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
+
+    VkResult result = VK_ERROR_INITIALIZATION_FAILED;
+#ifdef YG_WINDOW_GLFW
+    result = glfwCreateWindowSurface(
+        context->GetVkInstance(), (GLFWwindow*)m_window->GetNativeWindow(), nullptr, &m_surface);
+#endif
+    YG_CORE_ASSERT(result == VK_SUCCESS && m_surface != VK_NULL_HANDLE,
+                   "Vulkan: Failed to create swap chain window surface!");
+}
+
 void VulkanSwapChain::CleanupSwapChain()
 {
     VulkanDeviceContext* context = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
@@ -114,11 +137,11 @@ void VulkanSwapChain::CreateVkSwapChain()
     VulkanDeviceContext* context        = static_cast<VulkanDeviceContext*>(Application::GetInstance().GetContext());
     VkPhysicalDevice     physicalDevice = context->GetVkPhysicalDevice();
     VkDevice             device         = context->GetVkDevice();
-    VkSurfaceKHR         surface        = context->GetVkSurface();
+    VkSurfaceKHR         surface        = m_surface;
 
     SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(physicalDevice, surface);
     VkSurfaceFormatKHR      surfaceFormat    = swapChainSupport.formats[0];
-    VkFormat                targetFormat     = YgTextureFormat2VkFormat(m_colorFormat);
+    VkFormat                targetFormat     = YgFormat2VkFormat(m_colorFormat);
     for (const auto& availableFormat : swapChainSupport.formats)
     {
         if (availableFormat.format == targetFormat && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
@@ -127,7 +150,7 @@ void VulkanSwapChain::CreateVkSwapChain()
             break;
         }
     }
-    m_colorFormat                = VkFormat2YgTextureFormat(surfaceFormat.format);
+    m_colorFormat                = VkFormat2YgFormat(surfaceFormat.format);
     VkPresentModeKHR presentMode = ChooseSwapPresentMode(swapChainSupport.presentModes);
     VkExtent2D       extent      = ChooseSwapExtent(swapChainSupport.capabilities, *m_window);
 
@@ -205,7 +228,7 @@ void VulkanSwapChain::CreateVkSyncObjects()
                        "Vulkan: Failed to create image available semaphore!");
     }
 
-    QueueFamilyIndices indices = FindQueueFamilies(physicalDevice, context->GetVkSurface());
+    QueueFamilyIndices indices = FindQueueFamilies(physicalDevice, m_surface);
     vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &m_presentQueue);
 }
 

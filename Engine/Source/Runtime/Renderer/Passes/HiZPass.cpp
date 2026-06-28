@@ -87,7 +87,7 @@ void HiZPass::RebuildIfNeeded(const RenderGraphContext& context)
     desc.Width      = width;
     desc.Height     = height;
     desc.MipLevels  = m_mipCount;
-    desc.Format     = ITexture::Format::R32_FLOAT;
+    desc.Format     = Format::R32_FLOAT;
     desc.NumSamples = SampleCountFlagBits::Count1;
     desc.UsageFlags = TextureUsageFlags::Storage | TextureUsageFlags::Sampled;
 
@@ -105,7 +105,7 @@ void HiZPass::RebuildIfNeeded(const RenderGraphContext& context)
                                                                    .MipLevelCount   = 1,
                                                                    .BaseArrayLayer  = 0,
                                                                    .ArrayLayerCount = 1,
-                                                                   .Format          = ITexture::Format::NONE }));
+                                                                   .Format          = Format::NONE }));
     *m_output = ITextureView::Create(texture);
 
     m_mipBindings.clear();
@@ -213,7 +213,8 @@ Owner<IShaderResourceBinding> HiZPass::CreateReduceBinding() const
             ShaderResourceAttribute{ 0, 1, ShaderResourceType::Sampler, ShaderStage::Compute },
             ShaderResourceAttribute{ 1, 1, ShaderResourceType::SampledTexture, ShaderStage::Compute },
             ShaderResourceAttribute{ 2, 1, ShaderResourceType::StorageTexture, ShaderStage::Compute } },
-        std::vector<ImmutableSamplerDesc>{ ImmutableSamplerDesc{ 0, SamplerReductionMode::Max } });
+        std::vector<ImmutableSamplerBindingDesc>{ ImmutableSamplerBindingDesc{
+            0, 1, ShaderStage::Compute, SamplerDesc{ .Reduction = SamplerReductionMode::Max } } });
 }
 
 } // namespace Yogi

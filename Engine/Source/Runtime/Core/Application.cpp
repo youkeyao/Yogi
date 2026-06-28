@@ -23,8 +23,7 @@ Application::Application(const std::string& name)
     m_context   = Owner<IDeviceContext>::Create(m_window.Get());
     m_swapChain = Owner<ISwapChain>::Create(SwapChainDesc{ m_window->GetWidth(),
                                                            m_window->GetHeight(),
-                                                           ITexture::Format::B8G8R8A8_UNORM,
-                                                           ITexture::Format::D32_FLOAT,
+                                                           Format::B8G8R8A8_UNORM,
                                                            SampleCountFlagBits::Count4,
                                                            m_window.Get() });
 }

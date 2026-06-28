@@ -38,8 +38,6 @@ protected:
 private:
     static SlangShaderCompiler* s_instance;
 
-    // Opaque holder for the slang::IGlobalSession ComPtr - keeps slang.h out
-    // of this header so consumers don't pull in the entire Slang public API.
     struct Impl;
     Impl* m_impl = nullptr;
 };

@@ -11,7 +11,6 @@ struct Material
 {
     using ParamValue = std::variant<float, Vector2, Vector3, Vector4, int32_t, uint32_t, WRef<ITexture>>;
 
-    // Default MaterialSchema asset key.
     static constexpr const char* kDefaultMaterialSchemaKey = "EngineAssets/Shaders/Materials/Standard.slang";
 
     WRef<MaterialSchema>                        Schema{ nullptr };

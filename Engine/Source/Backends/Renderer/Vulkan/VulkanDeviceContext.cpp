@@ -203,6 +203,8 @@ void VulkanDeviceContext::PickPhysicalDevice()
     }
 
     YG_CORE_ASSERT(m_physicalDevice != VK_NULL_HANDLE, "Vulkan: Failed to find a suitable GPU!");
+
+    vkGetPhysicalDeviceProperties(m_physicalDevice, &m_deviceProperties);
 }
 
 void VulkanDeviceContext::CreateLogicalDevice()
@@ -227,9 +229,10 @@ void VulkanDeviceContext::CreateLogicalDevice()
     }
 
     VkPhysicalDeviceFeatures deviceFeatures{};
-    deviceFeatures.independentBlend  = VK_TRUE;
-    deviceFeatures.multiDrawIndirect = VK_TRUE;
-    deviceFeatures.shaderInt64       = VK_TRUE;
+    deviceFeatures.independentBlend      = VK_TRUE;
+    deviceFeatures.multiDrawIndirect     = VK_TRUE;
+    deviceFeatures.shaderInt64           = VK_TRUE;
+    deviceFeatures.occlusionQueryPrecise = VK_TRUE;
 
     VkPhysicalDeviceFeatures2 deviceFeatures2{};
     deviceFeatures2.sType    = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;

@@ -4,6 +4,7 @@
 #include "Renderer/RHI/ITexture.h"
 #include "Renderer/RHI/IPipeline.h"
 #include "Renderer/RHI/ICommandBuffer.h"
+#include "Renderer/RHI/ISampler.h"
 
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan.h>
@@ -41,16 +42,22 @@ VkExtent2D              ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabil
 
 uint32_t FindMemoryType(uint32_t typeFilter, VkPhysicalDevice physicalDevice, VkMemoryPropertyFlags properties);
 
-YG_API VkFormat     YgTextureFormat2VkFormat(ITexture::Format format);
-ITexture::Format    VkFormat2YgTextureFormat(VkFormat format);
-VkFormat            YgShaderElementType2VkFormat(ShaderElementType type);
-VkImageLayout       YgResourceState2VkImageLayout(ResourceState state, ITexture::Format format);
-VkShaderStageFlags  YgShaderStage2VkShaderStage(ShaderStage stage);
-VkPrimitiveTopology YgPrimitiveTopology2VkPrimitiveTopology(PrimitiveTopology topology);
-VkImageUsageFlags   YgTextureUsageFlags2VkImageUsage(TextureUsageFlags flags);
+YG_API VkFormat       YgFormat2VkFormat(Format format);
+Format                VkFormat2YgFormat(VkFormat format);
+VkImageLayout         YgResourceState2VkImageLayout(ResourceState state, Format format);
+VkShaderStageFlags    YgShaderStage2VkShaderStage(ShaderStage stage);
+VkPrimitiveTopology   YgPrimitiveTopology2VkPrimitiveTopology(PrimitiveTopology topology);
+VkImageUsageFlags     YgTextureUsageFlags2VkImageUsage(TextureUsageFlags flags);
+VkBlendFactor         YgBlendFactor2Vk(BlendFactor factor);
+VkBlendOp             YgBlendOp2Vk(BlendOp op);
+VkColorComponentFlags YgColorWriteMask2Vk(ColorWriteMask mask);
 
-bool YgTextureFormatHasStencil(ITexture::Format format);
-bool YgTextureFormatIsDepthStencil(ITexture::Format format);
+bool     YgTextureFormatHasStencil(Format format);
+bool     YgTextureFormatIsDepthStencil(Format format);
+uint32_t YgTextureFormatBytesPerPixel(Format format);
+
+// Creates a VkSampler from a SamplerDesc. Caller owns the returned handle and must vkDestroySampler it.
+VkSampler YgCreateVkSampler(VkDevice device, const SamplerDesc& desc);
 
 VkPipelineStageFlags2 YgResourceState2VkPipelineStage2(ResourceState state);
 VkAccessFlags2        YgResourceState2VkAccess2(ResourceState state);

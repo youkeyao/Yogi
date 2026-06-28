@@ -133,11 +133,6 @@ void ImGuiBeginLayer::WindowNewFrame()
 #endif
 }
 
-void ImGuiBeginLayer::RendererNewFrame()
-{
-#ifdef YG_RENDERER_VULKAN
-    ImGui_ImplVulkan_NewFrame();
-#endif
-}
+void ImGuiBeginLayer::RendererNewFrame() {}
 
 } // namespace Yogi

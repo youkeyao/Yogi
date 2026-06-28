@@ -161,31 +161,53 @@ uint32_t FindMemoryType(uint32_t typeFilter, VkPhysicalDevice physicalDevice, Vk
     return 0;
 }
 
-VkFormat YgTextureFormat2VkFormat(ITexture::Format format)
+VkFormat YgFormat2VkFormat(Format format)
 {
     switch (format)
     {
-        case ITexture::Format::R8G8B8_UNORM:
+        case Format::R8_UNORM:
+            return VK_FORMAT_R8_UNORM;
+        case Format::R8G8_UNORM:
+            return VK_FORMAT_R8G8_UNORM;
+        case Format::R8G8B8_UNORM:
             return VK_FORMAT_R8G8B8_UNORM;
-        case ITexture::Format::R8G8B8_SRGB:
+        case Format::R8G8B8_SRGB:
             return VK_FORMAT_R8G8B8_SRGB;
-        case ITexture::Format::R8G8B8A8_UNORM:
+        case Format::R8G8B8A8_UNORM:
             return VK_FORMAT_R8G8B8A8_UNORM;
-        case ITexture::Format::R8G8B8A8_SRGB:
+        case Format::R8G8B8A8_SRGB:
             return VK_FORMAT_R8G8B8A8_SRGB;
-        case ITexture::Format::B8G8R8A8_UNORM:
+        case Format::B8G8R8A8_UNORM:
             return VK_FORMAT_B8G8R8A8_UNORM;
-        case ITexture::Format::B8G8R8A8_SRGB:
+        case Format::B8G8R8A8_SRGB:
             return VK_FORMAT_B8G8R8A8_SRGB;
-        case ITexture::Format::R32G32B32A32_FLOAT:
-            return VK_FORMAT_R32G32B32A32_SFLOAT;
-        case ITexture::Format::R32G32B32_FLOAT:
-            return VK_FORMAT_R32G32B32_SFLOAT;
-        case ITexture::Format::R32_FLOAT:
+        case Format::R16_FLOAT:
+            return VK_FORMAT_R16_SFLOAT;
+        case Format::R16G16_FLOAT:
+            return VK_FORMAT_R16G16_SFLOAT;
+        case Format::R16G16B16A16_FLOAT:
+            return VK_FORMAT_R16G16B16A16_SFLOAT;
+        case Format::R11G11B10_FLOAT:
+            return VK_FORMAT_B10G11R11_UFLOAT_PACK32;
+        case Format::R32_FLOAT:
             return VK_FORMAT_R32_SFLOAT;
-        case ITexture::Format::D32_FLOAT:
+        case Format::R32G32_FLOAT:
+            return VK_FORMAT_R32G32_SFLOAT;
+        case Format::R32G32B32_FLOAT:
+            return VK_FORMAT_R32G32B32_SFLOAT;
+        case Format::R32G32B32A32_FLOAT:
+            return VK_FORMAT_R32G32B32A32_SFLOAT;
+        case Format::R32_UINT:
+            return VK_FORMAT_R32_UINT;
+        case Format::R32G32_UINT:
+            return VK_FORMAT_R32G32_UINT;
+        case Format::R32G32B32A32_UINT:
+            return VK_FORMAT_R32G32B32A32_UINT;
+        case Format::D16_UNORM:
+            return VK_FORMAT_D16_UNORM;
+        case Format::D32_FLOAT:
             return VK_FORMAT_D32_SFLOAT;
-        case ITexture::Format::D24_UNORM_S8_UINT:
+        case Format::D24_UNORM_S8_UINT:
             return VK_FORMAT_D24_UNORM_S8_UINT;
         default:
             YG_CORE_ERROR("Vulkan: Unsupported Yg texture format!");
@@ -193,65 +215,61 @@ VkFormat YgTextureFormat2VkFormat(ITexture::Format format)
     }
 }
 
-ITexture::Format VkFormat2YgTextureFormat(VkFormat format)
+Format VkFormat2YgFormat(VkFormat format)
 {
     switch (format)
     {
+        case VK_FORMAT_R8_UNORM:
+            return Format::R8_UNORM;
+        case VK_FORMAT_R8G8_UNORM:
+            return Format::R8G8_UNORM;
         case VK_FORMAT_R8G8B8_UNORM:
-            return ITexture::Format::R8G8B8_UNORM;
+            return Format::R8G8B8_UNORM;
         case VK_FORMAT_R8G8B8_SRGB:
-            return ITexture::Format::R8G8B8_SRGB;
+            return Format::R8G8B8_SRGB;
         case VK_FORMAT_R8G8B8A8_UNORM:
-            return ITexture::Format::R8G8B8A8_UNORM;
+            return Format::R8G8B8A8_UNORM;
         case VK_FORMAT_R8G8B8A8_SRGB:
-            return ITexture::Format::R8G8B8A8_SRGB;
+            return Format::R8G8B8A8_SRGB;
         case VK_FORMAT_B8G8R8A8_UNORM:
-            return ITexture::Format::B8G8R8A8_UNORM;
+            return Format::B8G8R8A8_UNORM;
         case VK_FORMAT_B8G8R8A8_SRGB:
-            return ITexture::Format::B8G8R8A8_SRGB;
-        case VK_FORMAT_R32G32B32A32_SFLOAT:
-            return ITexture::Format::R32G32B32A32_FLOAT;
-        case VK_FORMAT_R32G32B32_SFLOAT:
-            return ITexture::Format::R32G32B32_FLOAT;
+            return Format::B8G8R8A8_SRGB;
+        case VK_FORMAT_R16_SFLOAT:
+            return Format::R16_FLOAT;
+        case VK_FORMAT_R16G16_SFLOAT:
+            return Format::R16G16_FLOAT;
+        case VK_FORMAT_R16G16B16A16_SFLOAT:
+            return Format::R16G16B16A16_FLOAT;
+        case VK_FORMAT_B10G11R11_UFLOAT_PACK32:
+            return Format::R11G11B10_FLOAT;
         case VK_FORMAT_R32_SFLOAT:
-            return ITexture::Format::R32_FLOAT;
+            return Format::R32_FLOAT;
+        case VK_FORMAT_R32G32_SFLOAT:
+            return Format::R32G32_FLOAT;
+        case VK_FORMAT_R32G32B32_SFLOAT:
+            return Format::R32G32B32_FLOAT;
+        case VK_FORMAT_R32G32B32A32_SFLOAT:
+            return Format::R32G32B32A32_FLOAT;
+        case VK_FORMAT_R32_UINT:
+            return Format::R32_UINT;
+        case VK_FORMAT_R32G32_UINT:
+            return Format::R32G32_UINT;
+        case VK_FORMAT_R32G32B32A32_UINT:
+            return Format::R32G32B32A32_UINT;
+        case VK_FORMAT_D16_UNORM:
+            return Format::D16_UNORM;
         case VK_FORMAT_D32_SFLOAT:
-            return ITexture::Format::D32_FLOAT;
+            return Format::D32_FLOAT;
         case VK_FORMAT_D24_UNORM_S8_UINT:
-            return ITexture::Format::D24_UNORM_S8_UINT;
+            return Format::D24_UNORM_S8_UINT;
         default:
             YG_CORE_ERROR("Vulkan: Unsupported Vk texture format!");
-            return ITexture::Format::NONE;
+            return Format::NONE;
     }
 }
 
-VkFormat YgShaderElementType2VkFormat(ShaderElementType type)
-{
-    switch (type)
-    {
-        case ShaderElementType::Float:
-            return VK_FORMAT_R32_SFLOAT;
-        case ShaderElementType::Float2:
-            return VK_FORMAT_R32G32_SFLOAT;
-        case ShaderElementType::Float3:
-            return VK_FORMAT_R32G32B32_SFLOAT;
-        case ShaderElementType::Float4:
-            return VK_FORMAT_R32G32B32A32_SFLOAT;
-        case ShaderElementType::Int:
-            return VK_FORMAT_R32_SINT;
-        case ShaderElementType::Int2:
-            return VK_FORMAT_R32G32_SINT;
-        case ShaderElementType::Int3:
-            return VK_FORMAT_R32G32B32_SINT;
-        case ShaderElementType::Int4:
-            return VK_FORMAT_R32G32B32A32_SINT;
-        default:
-            YG_CORE_ERROR("Vulkan: Unsupported shader element type!");
-            return VK_FORMAT_UNDEFINED;
-    }
-}
-
-VkImageLayout YgResourceState2VkImageLayout(ResourceState state, ITexture::Format format)
+VkImageLayout YgResourceState2VkImageLayout(ResourceState state, Format format)
 {
     if (state & ResourceState::Undefined)
         return VK_IMAGE_LAYOUT_UNDEFINED;
@@ -393,26 +411,65 @@ PFN_vkVoidFunction VkLoadFunction(const char* funcName, void* instance)
     return vkGetInstanceProcAddr((VkInstance)instance, funcName);
 }
 
-bool YgTextureFormatHasStencil(ITexture::Format format)
+bool YgTextureFormatHasStencil(Format format)
 {
     switch (format)
     {
-        case ITexture::Format::D24_UNORM_S8_UINT:
+        case Format::D24_UNORM_S8_UINT:
             return true;
         default:
             return false;
     }
 }
 
-bool YgTextureFormatIsDepthStencil(ITexture::Format format)
+bool YgTextureFormatIsDepthStencil(Format format)
 {
     switch (format)
     {
-        case ITexture::Format::D32_FLOAT:
-        case ITexture::Format::D24_UNORM_S8_UINT:
+        case Format::D16_UNORM:
+        case Format::D32_FLOAT:
+        case Format::D24_UNORM_S8_UINT:
             return true;
         default:
             return false;
+    }
+}
+
+uint32_t YgTextureFormatBytesPerPixel(Format format)
+{
+    switch (format)
+    {
+        case Format::R8_UNORM:
+            return 1;
+        case Format::R8G8_UNORM:
+        case Format::R16_FLOAT:
+        case Format::D16_UNORM:
+            return 2;
+        case Format::R8G8B8_UNORM:
+        case Format::R8G8B8_SRGB:
+            return 3;
+        case Format::R8G8B8A8_UNORM:
+        case Format::R8G8B8A8_SRGB:
+        case Format::B8G8R8A8_UNORM:
+        case Format::B8G8R8A8_SRGB:
+        case Format::R16G16_FLOAT:
+        case Format::R11G11B10_FLOAT:
+        case Format::R32_FLOAT:
+        case Format::R32_UINT:
+        case Format::D32_FLOAT:
+        case Format::D24_UNORM_S8_UINT:
+            return 4;
+        case Format::R16G16B16A16_FLOAT:
+        case Format::R32G32_UINT:
+            return 8;
+        case Format::R32G32B32_FLOAT:
+            return 12;
+        case Format::R32G32B32A32_FLOAT:
+        case Format::R32G32B32A32_UINT:
+            return 16;
+        default:
+            YG_CORE_ERROR("Vulkan: BytesPerPixel for unsupported format!");
+            return 0;
     }
 }
 
@@ -432,6 +489,126 @@ VkImageUsageFlags YgTextureUsageFlags2VkImageUsage(TextureUsageFlags flags)
     if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(TextureUsageFlags::TransferDst))
         result |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     return result;
+}
+
+VkBlendFactor YgBlendFactor2Vk(BlendFactor factor)
+{
+    switch (factor)
+    {
+        case BlendFactor::Zero:
+            return VK_BLEND_FACTOR_ZERO;
+        case BlendFactor::One:
+            return VK_BLEND_FACTOR_ONE;
+        case BlendFactor::SrcColor:
+            return VK_BLEND_FACTOR_SRC_COLOR;
+        case BlendFactor::OneMinusSrcColor:
+            return VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR;
+        case BlendFactor::DstColor:
+            return VK_BLEND_FACTOR_DST_COLOR;
+        case BlendFactor::OneMinusDstColor:
+            return VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR;
+        case BlendFactor::SrcAlpha:
+            return VK_BLEND_FACTOR_SRC_ALPHA;
+        case BlendFactor::OneMinusSrcAlpha:
+            return VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        case BlendFactor::DstAlpha:
+            return VK_BLEND_FACTOR_DST_ALPHA;
+        case BlendFactor::OneMinusDstAlpha:
+            return VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
+        default:
+            return VK_BLEND_FACTOR_ZERO;
+    }
+}
+
+VkBlendOp YgBlendOp2Vk(BlendOp op)
+{
+    switch (op)
+    {
+        case BlendOp::Add:
+            return VK_BLEND_OP_ADD;
+        case BlendOp::Subtract:
+            return VK_BLEND_OP_SUBTRACT;
+        case BlendOp::ReverseSubtract:
+            return VK_BLEND_OP_REVERSE_SUBTRACT;
+        case BlendOp::Min:
+            return VK_BLEND_OP_MIN;
+        case BlendOp::Max:
+            return VK_BLEND_OP_MAX;
+        default:
+            return VK_BLEND_OP_ADD;
+    }
+}
+
+VkColorComponentFlags YgColorWriteMask2Vk(ColorWriteMask mask)
+{
+    VkColorComponentFlags result = 0;
+    if (static_cast<uint32_t>(mask) & static_cast<uint32_t>(ColorWriteMask::R))
+        result |= VK_COLOR_COMPONENT_R_BIT;
+    if (static_cast<uint32_t>(mask) & static_cast<uint32_t>(ColorWriteMask::G))
+        result |= VK_COLOR_COMPONENT_G_BIT;
+    if (static_cast<uint32_t>(mask) & static_cast<uint32_t>(ColorWriteMask::B))
+        result |= VK_COLOR_COMPONENT_B_BIT;
+    if (static_cast<uint32_t>(mask) & static_cast<uint32_t>(ColorWriteMask::A))
+        result |= VK_COLOR_COMPONENT_A_BIT;
+    return result;
+}
+
+VkSampler YgCreateVkSampler(VkDevice device, const SamplerDesc& desc)
+{
+    auto toFilter = [](Filter f) {
+        return f == Filter::Nearest ? VK_FILTER_NEAREST : VK_FILTER_LINEAR;
+    };
+    auto toMip = [](MipmapMode m) {
+        return m == MipmapMode::Nearest ? VK_SAMPLER_MIPMAP_MODE_NEAREST : VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    };
+    auto toAddr = [](SamplerAddressMode m) {
+        switch (m)
+        {
+            case SamplerAddressMode::Repeat:
+                return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            case SamplerAddressMode::MirroredRepeat:
+                return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+            case SamplerAddressMode::ClampToEdge:
+                return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+            case SamplerAddressMode::ClampToBorder:
+                return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+            default:
+                return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        }
+    };
+
+    VkSamplerCreateInfo samplerInfo{};
+    samplerInfo.sType        = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerInfo.magFilter    = toFilter(desc.MagFilter);
+    samplerInfo.minFilter    = toFilter(desc.MinFilter);
+    samplerInfo.mipmapMode   = toMip(desc.MipMode);
+    samplerInfo.addressModeU = toAddr(desc.AddressU);
+    samplerInfo.addressModeV = toAddr(desc.AddressV);
+    samplerInfo.addressModeW = toAddr(desc.AddressW);
+
+    const bool anisoEnabled      = desc.MaxAnisotropy > 1.0f;
+    samplerInfo.anisotropyEnable = anisoEnabled ? VK_TRUE : VK_FALSE;
+    samplerInfo.maxAnisotropy    = anisoEnabled ? desc.MaxAnisotropy : 1.0f;
+
+    samplerInfo.compareEnable = VK_FALSE;
+    samplerInfo.compareOp     = VK_COMPARE_OP_ALWAYS;
+    samplerInfo.minLod        = desc.MinLod;
+    samplerInfo.maxLod        = desc.MaxLod;
+    samplerInfo.borderColor   = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+
+    VkSamplerReductionModeCreateInfo reductionInfo{};
+    if (desc.Reduction != SamplerReductionMode::None)
+    {
+        reductionInfo.sType         = VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO;
+        reductionInfo.reductionMode = (desc.Reduction == SamplerReductionMode::Max) ? VK_SAMPLER_REDUCTION_MODE_MAX :
+                                                                                      VK_SAMPLER_REDUCTION_MODE_MIN;
+        samplerInfo.pNext           = &reductionInfo;
+    }
+
+    VkSampler sampler = VK_NULL_HANDLE;
+    VkResult  result  = vkCreateSampler(device, &samplerInfo, nullptr, &sampler);
+    YG_CORE_ASSERT(result == VK_SUCCESS, "Vulkan: Failed to create sampler!");
+    return sampler;
 }
 
 } // namespace Yogi

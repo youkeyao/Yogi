@@ -25,8 +25,14 @@ OutlinePass::OutlinePass()
     desc.ResourceBinding    = bindingTemplate.Get();
     desc.PushConstantRanges = { PushConstantRange{
         ShaderStage::Fragment, 0, static_cast<uint32_t>(sizeof(OutlinePush)) } };
-    desc.ColorFormats       = { Application::GetInstance().GetSwapChain()->GetColorFormat() };
-    desc.DepthFormat        = ITexture::Format::NONE;
+    desc.DepthFormat        = Format::NONE;
+    desc.ColorTargets       = { ColorTargetDesc{
+        .Format      = Application::GetInstance().GetSwapChain()->GetColorFormat(),
+        .ColorBlend  = { BlendFactor::SrcAlpha, BlendFactor::OneMinusSrcAlpha, BlendOp::Add },
+        .AlphaBlend  = { BlendFactor::One, BlendFactor::Zero, BlendOp::Add },
+        .EnableBlend = true,
+        .WriteMask   = ColorWriteMask::All,
+    } };
     desc.Samples            = SampleCountFlagBits::Count1;
     desc.Topology           = PrimitiveTopology::TriangleList;
     desc.Cull               = CullMode::None;
@@ -44,7 +50,8 @@ Owner<IShaderResourceBinding> OutlinePass::CreateDepthBinding() const
         std::vector<ShaderResourceAttribute>{
             ShaderResourceAttribute{ 0, 1, ShaderResourceType::Sampler, ShaderStage::Fragment },
             ShaderResourceAttribute{ 1, 1, ShaderResourceType::SampledTexture, ShaderStage::Fragment } },
-        std::vector<ImmutableSamplerDesc>{ ImmutableSamplerDesc{ 0, SamplerReductionMode::None } });
+        std::vector<ImmutableSamplerBindingDesc>{
+            ImmutableSamplerBindingDesc{ 0, 1, ShaderStage::Fragment, SamplerDesc{} } });
 }
 
 void OutlinePass::Prepare(RenderGraphContext& context, RenderGraph& graph, RenderGraphBuilder& builder)

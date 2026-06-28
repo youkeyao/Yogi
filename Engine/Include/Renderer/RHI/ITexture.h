@@ -5,6 +5,39 @@
 namespace Yogi
 {
 
+enum class Format
+{
+    NONE,
+    // 8-bit
+    R8_UNORM,
+    R8G8_UNORM,
+    R8G8B8_UNORM,
+    R8G8B8_SRGB,
+    R8G8B8A8_UNORM,
+    R8G8B8A8_SRGB,
+    B8G8R8A8_UNORM,
+    B8G8R8A8_SRGB,
+    // 16-bit float
+    R16_FLOAT,
+    R16G16_FLOAT,
+    R16G16B16A16_FLOAT,
+    // packed float
+    R11G11B10_FLOAT,
+    // 32-bit float
+    R32_FLOAT,
+    R32G32_FLOAT,
+    R32G32B32_FLOAT,
+    R32G32B32A32_FLOAT,
+    // 32-bit uint
+    R32_UINT,
+    R32G32_UINT,
+    R32G32B32A32_UINT,
+    // depth / depth-stencil
+    D16_UNORM,
+    D32_FLOAT,
+    D24_UNORM_S8_UINT,
+};
+
 enum class SampleCountFlagBits : uint8_t
 {
     Count1  = 1,
@@ -14,7 +47,7 @@ enum class SampleCountFlagBits : uint8_t
     Count16 = 16
 };
 
-enum class TextureUsageFlags : uint8_t
+enum class TextureUsageFlags : uint16_t
 {
     None            = 0,
     Sampled         = 1 << 0,
@@ -26,47 +59,28 @@ enum class TextureUsageFlags : uint8_t
 };
 YG_ENABLE_ENUM_FLAGS(TextureUsageFlags);
 
-struct TextureDesc;
+struct TextureDesc
+{
+    uint32_t            Width;
+    uint32_t            Height;
+    uint32_t            MipLevels = 1;
+    Format              Format;
+    TextureUsageFlags   UsageFlags = TextureUsageFlags::Sampled;
+    SampleCountFlagBits NumSamples = SampleCountFlagBits::Count1;
+};
 
 class YG_API ITexture
 {
-public:
-    enum class Format
-    {
-        NONE,
-        R8G8B8_UNORM,
-        R8G8B8_SRGB,
-        R8G8B8A8_UNORM,
-        R8G8B8A8_SRGB,
-        B8G8R8A8_UNORM,
-        B8G8R8A8_SRGB,
-        R32G32B32A32_FLOAT,
-        R32G32B32_FLOAT,
-        R32_FLOAT,
-        D32_FLOAT,
-        D24_UNORM_S8_UINT,
-    };
-
 public:
     virtual ~ITexture() = default;
 
     virtual uint32_t          GetWidth() const      = 0;
     virtual uint32_t          GetHeight() const     = 0;
     virtual uint32_t          GetMipLevels() const  = 0;
-    virtual ITexture::Format  GetFormat() const     = 0;
+    virtual Format            GetFormat() const     = 0;
     virtual TextureUsageFlags GetUsageFlags() const = 0;
 
     static Owner<ITexture> Create(const TextureDesc& desc);
-};
-
-struct TextureDesc
-{
-    uint32_t            Width;
-    uint32_t            Height;
-    uint32_t            MipLevels = 1;
-    ITexture::Format    Format;
-    TextureUsageFlags   UsageFlags = TextureUsageFlags::Sampled;
-    SampleCountFlagBits NumSamples = SampleCountFlagBits::Count1;
 };
 
 template <>

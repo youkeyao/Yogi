@@ -44,9 +44,6 @@ void RenderGraph::Execute(ICommandBuffer* commandBuffer, RenderGraphContext cont
 
     context.CommandBuffer = commandBuffer;
 
-    // Phase 1: prepare every pass before any executes. This resolves consumed
-    // resources and performs lazy rebuilds (e.g. HiZ depth pyramid), so producers
-    // are fully resolved before any consumer runs, independent of pass order.
     m_frameBuilders.clear();
     m_frameBuilders.resize(m_passes.size());
     for (size_t i = 0; i < m_passes.size(); ++i)
@@ -55,7 +52,6 @@ void RenderGraph::Execute(ICommandBuffer* commandBuffer, RenderGraphContext cont
         m_passes[i].Pass->Prepare(context, *this, m_frameBuilders[i]);
     }
 
-    // Phase 2: interleave barrier application with execution, in pass order.
     for (size_t i = 0; i < m_passes.size(); ++i)
     {
         PassEntry&          entry   = m_passes[i];
